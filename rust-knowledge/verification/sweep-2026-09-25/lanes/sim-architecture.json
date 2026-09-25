@@ -1,0 +1,568 @@
+{
+  "bucket": "sim-architecture",
+  "verifier_note": "Checked every recipe's warrant sources by direct retrieval (curl/gh api, never memory): docs.rs pages at the pinned crate versions, doc.rust-lang.org at stable/1.98.1, the RFC and WASM spec, crates.io publish dates, and si-rpg-engine's actual source (README.md, packages/tick/tick.js, packages/frame/hash.js, harness/*, solver/src/lib.rs, solver/src/rapier_law.rs, solver/build.mjs, docs/dispatch-*.md, fixtures/golden-behaviour.json, CHANGELOG.md), fetched at both the pinned commit 1701b72 and main HEAD be0ea06 (byte-identical for every Rust/JS file checked, so no drift). Both mandated high-stakes checks were independently reproduced with the compile oracle using the engine's own mixer/lane code copied verbatim from rapier_law.rs and hash.js, not the recipe's supplied source: the mix_u64 signature mixer collides on the named half-extent pair (d1b28807b4eb6fed both) while FNV-1a64 and xxh3_64 do not, and any u32-only stream through the two-lane hasher produces identical halves structurally, for arbitrary inputs. Two more compile_fail claims (E0277 on ColliderHandle.sort(), E0004 on a Mode match missing Carried) were also independently reproduced. Essentially every one of the ~90 warrant-source claims checked matched its retrieved page at a verbatim or near-verbatim level; only one defect was found, a minor misattribution in recipe 1 (the 'f64 cannot represent every Duration' sentence belongs to Duration::mul_f64's docs, not from_secs_f64's, though from_secs_f64 does round as its own examples show). All primary sources are dated 2024 or later, meeting the recency bar. The systemic weakness: six of the crates this lane leans on for engine-facing claims -- bevy_time, ggrs, backroll, blake3, bevy_ecs and hecs -- are absent from the compile oracle's ORACLE_DEPS set (rapier3d_f64, parry3d_f64, bytemuck, slotmap, indexmap, serde_json and a few others are the only crates the oracle can actually build and run against). Every claim touching those six crates is verified by reading a documentation page, never by a compiled call into the real crate; recipe 10's only check explicitly says as much ('neither is in the oracle set, so the check models the mechanism'). My own page-reads back every one of those claims solidly, but the lane's own mechanical verification floor -- the thing meant to catch a hallucinated method name or signature without a human or model rereading prose -- silently does not reach about a third of the crates it cites.",
+  "verdicts": [
+    {
+      "slug": "run-the-law-on-integer-quanta-from-a-host-owned-accumulator-keep-render-interpolation-out-of-the-state",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "bevy_time/E0594/book verbatim. Duration claim misattributes 'f64 can't represent every Duration' to from_secs_f64; that prose is on mul_f64's docs.",
+      "evidence_url": "https://docs.rs/bevy_time/0.19.1/bevy_time/struct.Fixed.html",
+      "corrections": {
+        "claim": "The 'f64 does not have enough bits to represent...Duration...rounding may occur' sentence is on Duration::mul_f64's docs, not from_secs_f64's."
+      },
+      "sources": [
+        {
+          "url": "https://docs.rs/bevy_time/0.19.1/bevy_time/struct.Fixed.html",
+          "supported": true,
+          "note": "'default timestep() is 64 hertz'; 'pathological interaction...alternates two and zero fixed timesteps' -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/bevy_time/0.19.1/bevy_time/struct.Time.html",
+          "supported": true,
+          "note": "impl Time<Fixed>: overstep()->Duration, overstep_fraction()->f32/f64, all verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/book/ch04-02-references-and-borrowing.html",
+          "supported": true,
+          "note": "\"We're not allowed to modify something we have a reference to.\" -- verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/error_codes/E0594.html",
+          "supported": true,
+          "note": "'A non-mutable value was assigned a value.' -- matches."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/time/struct.Duration.html",
+          "supported": false,
+          "note": "Whole-secs+nanos confirmed, but 'f64 cannot represent every Duration' is on mul_f64's docs, not from_secs_f64's."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/README.md",
+          "supported": true,
+          "note": "README raw @1701b72: quantum/hash-no-clock framing matches repo text."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/packages/tick/tick.js",
+          "supported": true,
+          "note": "tick.js raw @1701b72: hasher.u32(seed) at load, hasher.u32(tick) per quantum -- confirmed."
+        }
+      ]
+    },
+    {
+      "slug": "prove-the-record-complete-twice-replay-seed-plus-stamped-inputs-and-save-restore-rerun-every-quantum",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "ggrs 0.13.0 docs verbatim (advance_frame algorithm, check_distance default 2, InvalidRequest gates, save signature); source shows None==None.",
+      "evidence_url": "https://docs.rs/ggrs/0.13.0/ggrs/struct.SyncTestSession.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/ggrs/0.13.0/ggrs/struct.SyncTestSession.html",
+          "supported": true,
+          "note": "advance_frame: 'rollback check_distance...resimulate and compare checksums'; MismatchedChecksum -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/ggrs/0.13.0/ggrs/struct.SessionBuilder.html",
+          "supported": true,
+          "note": "with_check_distance: 'Default is 2'; '0 or 1 disables checksum compari[son]' -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/crate/ggrs/0.13.0/source/src/sessions/sync_test_session.rs",
+          "supported": true,
+          "note": "Source: checksum_history:HashMap<Frame,Option<u128>>; consistency check is cs==latest_cell.checksum()."
+        },
+        {
+          "url": "https://docs.rs/ggrs/0.13.0/ggrs/struct.GameStateCell.html",
+          "supported": true,
+          "note": "GameStateCell::save(&self, frame:Frame, data:Option<T>, checksum:Option<u128>) -- exact signature."
+        },
+        {
+          "url": "https://crates.io/api/v1/crates/ggrs/0.13.0",
+          "supported": true,
+          "note": "crates.io: ggrs 0.13.0 created_at 2026-06-26 -- exact date."
+        },
+        {
+          "url": "https://crates.io/api/v1/crates/backroll",
+          "supported": true,
+          "note": "crates.io: backroll newest 0.6.0, created_at 2022-11-13 -- exact match."
+        },
+        {
+          "url": "https://github.com/HouraiTeahouse/backroll-rs",
+          "supported": true,
+          "note": "README: 'This is still in an early beta stage.' + 'pure Rust implementation of GGPO' -- verbatim."
+        },
+        {
+          "url": "https://api.github.com/repos/HouraiTeahouse/backroll-rs",
+          "supported": true,
+          "note": "GitHub API: archived=false, pushed_at=2023-03-13 -- exact match."
+        },
+        {
+          "url": "https://box2d.org/posts/2024/08/determinism/",
+          "supported": true,
+          "note": "'no mechanism for rolling back this internal state'; CI test = step-count + transform hash."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/docs/dispatch-t2-restore.md",
+          "supported": true,
+          "note": "dispatch-t2-restore.md pin1/5: refusal list and 'a third of the way...report identical' verbatim."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/README.md",
+          "supported": true,
+          "note": "README raw @1701b72 -- matches (shared with recipe 1)."
+        }
+      ]
+    },
+    {
+      "slug": "encode-snapshots-canonically-to-le-bytes-in-a-fixed-field-order-sorted-pairs-no-padding-a-version-tag",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "f64.rs/Reference/bytemuck/WASM spec verbatim. rapier_law.rs read directly: field order, pair sort, 7 warm-start f64s, no magic/version all match.",
+      "evidence_url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/solver/src/rapier_law.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/core/src/num/f64.rs",
+          "supported": true,
+          "note": "to_le_bytes 'little-endian byte order'; to_ne_bytes 'use to_be_bytes or to_le_bytes'; is_finite -- verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/type-layout.html",
+          "supported": true,
+          "note": "'guarantees...required for soundness'; field order 'does not have to be...declaration order' -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/bytemuck/1.25.2/bytemuck/trait.Pod.html",
+          "supported": true,
+          "note": "'must not contain any uninit (or padding) bytes'; 'repr(C) or repr(transparent)' -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/bytemuck/1.25.2/bytemuck/derive.Pod.html",
+          "supported": true,
+          "note": "'no padding bytes', 'all fields Pod', 'repr(C) or repr(transparent)' required -- verbatim."
+        },
+        {
+          "url": "https://webassembly.github.io/spec/core/syntax/instructions.html",
+          "supported": true,
+          "note": "'All values are read and written in little endian byte order.' -- verbatim."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/solver/src/rapier_law.rs",
+          "supported": true,
+          "note": "canon()=+0.0 both zeros, bad()=is_nan(), rebuild_snapshot field order, no magic/version -- all confirmed."
+        }
+      ]
+    },
+    {
+      "slug": "persist-hashes-of-explicit-little-endian-bytes-never-derive-hash-streams-or-defaulthasher-output",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Reproduced the mandated mix_u64 collision with the engine's own mixer: both half-extent pairs hash d1b28807b4eb6fed; FNV-1a64/xxh3_64 differ. Matches recipe's stdout exactly.",
+      "evidence_url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/solver/src/rapier_law.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/hash/trait.Hash.html",
+          "supported": true,
+          "note": "'should not be considered portable across platforms'; str 'extra 0xFF byte' -- verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/hash/struct.DefaultHasher.html",
+          "supported": true,
+          "note": "'internal algorithm is not specified...should not be relied upon over releases' -- verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/collections/struct.HashMap.html",
+          "supported": true,
+          "note": "'currently SipHash 1-3...subject to change'; keys() 'arbitrary order' -- verbatim."
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9923.html",
+          "supported": true,
+          "note": "FNV-1a pseudocode + Table1/2 constants (0x01000193/0x811C9DC5/0x100000001B3/0xCBF29CE...) all exact."
+        },
+        {
+          "url": "https://docs.rs/xxhash-rust/0.8.18/xxhash_rust/xxh3/index.html",
+          "supported": true,
+          "note": "xxh3 module lists xxh3_64, xxh3_64_with_seed, xxh3_128, struct Xxh3 -- confirmed."
+        },
+        {
+          "url": "https://docs.rs/xxhash-rust/0.8.18/xxhash_rust/xxh3/struct.Xxh3.html",
+          "supported": true,
+          "note": "Xxh3: const fn new(), fn update(&mut self,&[u8]), fn digest(&self)->u64 -- exact signatures."
+        },
+        {
+          "url": "https://github.com/Cyan4973/xxHash",
+          "supported": true,
+          "note": "'available since v0.8.0'; 'identical hashes...little- and big-endian'; 'not a cryptographic hash' -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/blake3/1.8.7/blake3/",
+          "supported": true,
+          "note": "'official Rust implementation of the BLAKE3...hash function'; 'default size, 32 bytes' -- verbatim."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/solver/src/rapier_law.rs",
+          "supported": true,
+          "note": "mix_u64/geom basis/mix_f64 read directly, match exactly; independently reproduced the named collision."
+        }
+      ]
+    },
+    {
+      "slug": "stop-feeding-u32-only-streams-to-both-fnv-1a-lanes-such-a-digest-repeats-one-32-bit-half",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Own counter-example: any u32-only stream through hash.js's lanes gives h0==h1 structurally. T3 golden-behaviour.json literally shows identical-halves digests.",
+      "evidence_url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/b99a6365272feac90fcb557f56ffe6ddbe10cf15/fixtures/golden-behaviour.json",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9923.html",
+          "supported": true,
+          "note": "FNV-1a algorithm and 32-bit constants -- verbatim (same RFC as recipe 4)."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/packages/frame/hash.js",
+          "supported": true,
+          "note": "hash.js raw: u32(w) mixes w into BOTH lanes; float() splits words to lanes 0/1; digest=hex(h0)+hex(h1) -- exact."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/harness/trace-line.mjs",
+          "supported": true,
+          "note": "trace-line.mjs: snapshotField does h.u32(len) then h.u32(byte) per byte, prints 'snap <len> <digest>' -- exact."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/b99a6365272feac90fcb557f56ffe6ddbe10cf15/fixtures/golden-behaviour.json",
+          "supported": true,
+          "note": "snapshotDigest load 52bfc19452bfc194, last 41b1e63f41b1e63f -- exact match, visibly identical halves."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/docs/dispatch-s1-soundness.md",
+          "supported": true,
+          "note": "pin 13: 'feeds a u32 to both lanes...identical halves...carries 32 bits...split...the way doubles are split' verbatim."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/packages/tick/tick.js",
+          "supported": true,
+          "note": "hasher.u32(seed) at load, hasher.u32(tick) per quantum, mixSnapshot feeds len then bytes via u32() -- confirmed."
+        }
+      ]
+    },
+    {
+      "slug": "key-records-by-stable-ids-keep-insertion-and-removal-history-in-the-record-and-sort-by-a-total-id-key",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Reproduced E0277 on ColliderHandle.sort(). arena.rs read directly: one generation:u32 per Arena, remove()+=1, inserts stamp it -- exact.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/data/arena.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ColliderHandle.html",
+          "supported": true,
+          "note": "Trait list has Eq/Hash but no Ord/PartialOrd; into_raw_parts listed as a method -- confirmed."
+        },
+        {
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/data/arena.rs",
+          "supported": true,
+          "note": "struct Arena<T>{...,generation:u32,...}; remove() self.generation+=1; insert stamps it -- exact match."
+        },
+        {
+          "url": "https://docs.rs/slotmap/1.1.1/slotmap/index.html",
+          "supported": true,
+          "note": "'each slot...is a (value, version) tuple'; reuse 'without letting removed keys point to...new elements' -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/slotmap/1.1.1/slotmap/struct.KeyData.html",
+          "supported": true,
+          "note": "as_ffi: 'No guarantees...other than that...from_ffi will return a key equal'; not for serialization -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/indexmap/2.14.2/indexmap/map/struct.IndexMap.html",
+          "supported": true,
+          "note": "Order 'determined by...insertion and removal'; swap_remove/shift_remove/deprecated remove -- all verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/collections/struct.HashMap.html",
+          "supported": true,
+          "note": "SipHash 1-3 'subject to change' -- verbatim (same page as recipe 4)."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/hash/struct.RandomState.html",
+          "supported": true,
+          "note": "'initialized with random keys'; two instances 'unlikely to produce the same result' -- verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/collections/struct.BTreeMap.html",
+          "supported": true,
+          "note": "'ordered map...stores its entries in key order' -- confirmed."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/alloc/src/slice.rs",
+          "supported": true,
+          "note": "'This sort is stable (i.e., does not reorder equal elements)' -- verbatim, 4 occurrences."
+        },
+        {
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/entity/struct.Entity.html",
+          "supported": true,
+          "note": "'bit representation is liable to change'; generation() 'incremented...on...despawn' -- confirmed."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/solver/src/rapier_law.rs",
+          "supported": true,
+          "note": "rapier_law.rs -- same file confirmed for recipes 3/4/9."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/docs/dispatch-s1-soundness.md",
+          "supported": true,
+          "note": "pins 6/9: 'Sorts stay stable...sort_by'; 'counter per set raised on every removal' -- verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "read-world-files-with-serde-json-s-float-roundtrip-refuse-unknown-fields-and-hash-parsed-bits-not-text",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Most rigorously grounded recipe: Cargo.toml/ser.rs/de.rs read directly, match almost to the character. PR #1304 diff confirms exact digit change.",
+      "evidence_url": "https://docs.rs/crate/serde_json/1.0.151/source/src/de.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/crate/serde_json/1.0.151/source/Cargo.toml.orig",
+          "supported": true,
+          "note": "float_roundtrip comment: 'sufficient precision...2x performance cost...identical to the input'; zmij dep -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/crate/serde_json/1.0.151/source/src/ser.rs",
+          "supported": true,
+          "note": "serialize_f64 matches FpCategory::Nan|Infinite->write_null; write_f64 uses zmij::Buffer::format_finite -- exact code."
+        },
+        {
+          "url": "https://docs.rs/crate/serde_json/1.0.151/source/src/de.rs",
+          "supported": true,
+          "note": "#[cfg(float_roundtrip)] f64_from_parts uses lexical::parse_concise_float; else static POW10 table -- exact code."
+        },
+        {
+          "url": "https://github.com/serde-rs/json/releases/tag/v1.0.147",
+          "supported": true,
+          "note": "'Switch float-to-string algorithm from Ryu to Zmij...(#1304)' -- verbatim."
+        },
+        {
+          "url": "https://crates.io/api/v1/crates/serde_json/1.0.147",
+          "supported": true,
+          "note": "crates.io: serde_json 1.0.147 created_at 2025-12-23 -- exact match."
+        },
+        {
+          "url": "https://github.com/serde-rs/json/pull/1304/files",
+          "supported": true,
+          "note": ".diff endpoint (files needs JS): '1.2e41'->'1.2e+41' and both 1.7976931348623157e308->e+308 lines -- exact."
+        },
+        {
+          "url": "https://docs.rs/zmij/1.0.23/zmij/struct.Buffer.html",
+          "supported": true,
+          "note": "format: NaN/'inf'/'-inf'; format_finite 'does not check...unspecified numerical value' -- verbatim."
+        },
+        {
+          "url": "https://serde.rs/container-attrs.html",
+          "supported": true,
+          "note": "deny_unknown_fields: 'Always error'; 'not supported in combination with flatten' -- verbatim."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/core/src/num/float_parse.rs",
+          "supported": true,
+          "note": "'closest representable floating-point number...same rules for rounding as...primitive operations' -- verbatim."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify",
+          "supported": true,
+          "note": "'Infinity and NaN, as well as...null, are all considered null' -- matches claim's substance."
+        }
+      ]
+    },
+    {
+      "slug": "version-the-law-with-golden-hashes-plus-behaviour-numbers-so-each-golden-move-names-what-moved",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "box2d.org 'two numbers' confirmed; book/rustc book verbatim. check.js/golden-behaviour.json/CHANGELOG read directly, every hash and byte count matches.",
+      "evidence_url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/CHANGELOG.md",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://box2d.org/posts/2024/08/determinism/",
+          "supported": true,
+          "note": "'two numbers...step count to sleep [and]...hash of the transforms' -- matches (shared w/ recipe 2)."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/book/ch11-01-writing-tests.html",
+          "supported": true,
+          "note": "'Tests fail when something...panics'; macros 'print their arguments using debug formatting' -- confirmed."
+        },
+        {
+          "url": "https://doc.rust-lang.org/rustc/command-line-arguments.html",
+          "supported": true,
+          "note": "'--cfg \"verbose\"' -> '#[cfg(verbose)]'; '--test: build a test harness...ignore your main function' -- verbatim."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/harness/check.js",
+          "supported": true,
+          "note": "check.js: matches sim.mjs/golden.txt and arith.mjs/golden-arith.txt, then reports 'N behaviour...moved' -- exact code."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/fixtures/golden-behaviour.json",
+          "supported": true,
+          "note": "climber sleep=null, final y=-50873.80412597653, snapshotBytes 848/1840, quanta=10000 -- all exact."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/docs/dispatch-t4-outcome-tests.md",
+          "supported": true,
+          "note": "write-golden 'refuses...when any fails'; climber fix quoted verbatim 'a scene defect the hash hid' -- exact."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/CHANGELOG.md",
+          "supported": true,
+          "note": "v0.1.0 table: sim.mjs=fd2f6c03fb982d77, arith.mjs=0d38671370d12d1e, Linux digest -- all three exact."
+        }
+      ]
+    },
+    {
+      "slug": "parse-host-written-body-slots-into-a-typed-record-at-the-boundary-with-named-refusals-for-the-mode-slot",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Reproduced E0004 on a Mode match missing Carried. lib.rs/rapier_law.rs read directly: DRIVEN reads and canon_quat behavior match exactly.",
+      "evidence_url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/solver/src/lib.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/convert/trait.TryFrom.html",
+          "supported": true,
+          "note": "'Simple and safe type conversions that may fail in a controlled way'; try_from signature -- verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/error_codes/E0004.html",
+          "supported": true,
+          "note": "'cannot guarantee a matching pattern for one or more...inputs' -- matches; independently reproduced compile_fail."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/core/src/num/f64.rs",
+          "supported": true,
+          "note": "is_finite doc -- verbatim (shared with recipe 3)."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/solver/src/lib.rs",
+          "supported": true,
+          "note": "BODY_STRIDE=17, DRIVEN=16, DT=1/64; both step()/resolve_pair() read field!=0.0 -- exact match in source."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/solver/src/rapier_law.rs",
+          "supported": true,
+          "note": "signature() ==1.0||==2.0 then ==3.0; integrate() re-reads ==2.0; canon_quat normalizes rather than refuses -- exact."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/docs/dispatch-s1-soundness.md",
+          "supported": true,
+          "note": "pins 2/10/11: mode-slot fix, bad()->!is_finite(), 'canon_quat refuses what it cannot normalize' -- verbatim."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/docs/dispatch-t2-restore.md",
+          "supported": true,
+          "note": "pin 1: restore refuses NaN and non-unit quaternion beyond 1e-9 -- confirmed (shared w/ recipe 2)."
+        }
+      ]
+    },
+    {
+      "slug": "keep-the-law-out-of-an-ecs-archetype-tables-swap-remove-rows-and-query-iteration-order-is-not-guaranteed",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Every bevy_ecs/hecs claim confirmed verbatim. hecs world.rs matches down to variable names: target_arch.allocate then source_arch.remove.",
+      "evidence_url": "https://docs.rs/crate/hecs/0.11.1/source/src/world.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/system/struct.Query.html",
+          "supported": true,
+          "note": "iter 'order is not guaranteed'; par_iter adds 'thread assignment'; iter_many 'order of the...entities' -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/query/struct.QueryIter.html",
+          "supported": true,
+          "note": "sort: 'stable...uses slice::sort internally'; 'not cached across system runs' -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/schedule/struct.ScheduleBuildSettings.html",
+          "supported": true,
+          "note": "ambiguity_detection: 'only logged or also results in...error. Defaults to LogLevel::Ignore.' -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/schedule/struct.Schedule.html",
+          "supported": true,
+          "note": "set_executor 'Replaces the schedule's executor'; set_build_settings 'Changes...build settings' -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/schedule/struct.SingleThreadedExecutor.html",
+          "supported": true,
+          "note": "'Runs the schedule using a single thread'; const fn new() -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/schedule/struct.MultiThreadedExecutor.html",
+          "supported": true,
+          "note": "'Runs the schedule using a thread pool. Non-conflicting systems can run in parallel.' -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/crate/bevy_ecs/0.19.1/source/src/storage/table/mod.rs",
+          "supported": true,
+          "note": "swap_remove_unchecked calls entities.swap_remove, returns the swapped-in entity unless it was last -- exact."
+        },
+        {
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/entity/struct.Entity.html",
+          "supported": true,
+          "note": "bevy_ecs Entity -- same page confirmed for recipe 6."
+        },
+        {
+          "url": "https://docs.rs/hecs/0.11.1/hecs/",
+          "supported": true,
+          "note": "'minimalist...ECS world. It is a library, not a framework'; entities 'queried from regular code' -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/crate/hecs/0.11.1/source/src/archetype.rs",
+          "supported": true,
+          "note": "remove()/move_to() copy last slot into vacated index; allocate() appends at len -- exact swap-remove match."
+        },
+        {
+          "url": "https://docs.rs/crate/hecs/0.11.1/source/src/world.rs",
+          "supported": true,
+          "note": "insert's archetype move does target_arch.allocate(entity.id) then source_arch.remove(loc.index,false) -- exact."
+        },
+        {
+          "url": "https://crates.io/api/v1/crates/bevy_ecs",
+          "supported": true,
+          "note": "bevy_ecs 0.19.1 created_at 2026-08-13, 0.20.0-rc.1 created_at 2026-09-15 -- exact match."
+        },
+        {
+          "url": "https://crates.io/api/v1/crates/hecs",
+          "supported": true,
+          "note": "hecs 0.11.1 created_at 2026-07-28 -- exact match."
+        }
+      ]
+    }
+  ]
+}

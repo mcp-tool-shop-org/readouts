@@ -1,0 +1,53 @@
+{
+  "wave": 5,
+  "date": "2026-06-07",
+  "lanes": [
+    {
+      "slug": "evaluation",
+      "research": {
+        "techniques": [
+          {
+            "slug": "diffusion-style-fidelity-eval-panel-measured-5090",
+            "name": "Diffusion style-fidelity eval panel — MEASURED (CLIP-sim + CMMD, n=20) on the wave-4 SDXL LoRAs",
+            "kind": "eval-method", "method_family": "lora", "applicable_to": "diffusion", "base_model_family": "SDXL",
+            "engine_recipe_ref": "training-kohya-sdxl-lora-proven-blackwell-5090",
+            "claim": "A CLIP-image-similarity + CMMD harness scored the 6 wave-4 SDXL LoRAs against the training-style set (n=20/config, 10 held-out subjects x 2 seeds). It quantifies style fidelity and CORRECTED two looked-at reads: DoRA gives NO measurable fidelity gain over LoRA (within noise — not the n=3 'crispest' eyeball), and LoKr is measurably LOWER fidelity (0.673 vs 0.734, ~3.5 SEM) — a real size-vs-fidelity tradeoff, not 'comparable.'",
+            "summary": "Method: CLIP ViT-B/32 image embeddings; reference = the 16-image stdstyl cyanotype set; style fidelity = mean cosine of each generation to the reference style centroid; CMMD = CLIP-MMD (median-heuristic bandwidth sigma=0.541) between each config's gen set and the reference set. Grid = 10 held-out subjects x 2 seeds per LoRA (native configs via sdxl_gen_img.py; lycoris configs via the training-sampler --network_weights+--sample_at_first path, since the gen script's lycoris create-from-weights is broken on this 3.4.0/sd-scripts combo). RESULT (CLIP-sim / CMMD, n=20): DoRA 0.7388/0.1613, LoRA 0.7339/0.1610, AdamW8bit 0.7332/0.1740, Prodigy600 0.7215/0.1795, Prodigy400 0.6972/0.1981, LoKr 0.6734/0.2198. FINDINGS: (1) the top four cluster within the noise floor (SEM~0.017 vs inter-config gaps ~0.005) -> optimizer/network choice is ~fidelity-neutral for SDXL style-LoRA; the real differentiators are perf + size (wave 4). (2) LoKr alone is measurably lower (~3.5 SEM) -> 6MB/20x-smaller costs real style fidelity. (3) Prodigy 400<600 (~1 SEM) -> undertraining direction holds. METHODOLOGY LESSON: n=3 mis-ranked DoRA (sampling artifact); ~n>=15 needed to separate close configs.",
+            "design_implication": "Score every candidate style-LoRA with this harness before claiming quality (it caught a looked-at over-claim on first use). Use n>=15; CLIP-sim to the style centroid ~>=0.70 reads as in-style for this set (illustrative, calibrate per style). Gate retrains on it. The harness lives at E:/AI/training/_eval_panel3.py.",
+            "evidence_strength": "measured-on-rig", "seed": "42", "num_runs": 20, "search_method": "n=20 per config, 10 held-out subjects x 2 seeds",
+            "measured_conditions": "RTX 5090; CLIP ViT-B/32; ref=16-img stdstyl cyanotype set; CLIP-sim-to-style-centroid + CMMD (sigma=0.541); 6 wave-4 SDXL LoRAs. 2026-06-07.",
+            "commercial_use": "yes", "commercial_notes": "metric models (CLIP) Apache/MIT; measures only.",
+            "rig_fit": 5, "studio_fit": 5, "status": "recommended", "supersedes": "diffusion-style-eval-panel",
+            "hparams": [
+              {"name": "clip_model", "value": "openai/clip-vit-base-patch32", "required": true},
+              {"name": "reference_set", "value": "16-img stdstyl cyanotype", "required": true, "note": "style centroid"},
+              {"name": "cmmd_sigma", "value": "0.541", "note": "median-heuristic bandwidth over the ref set"},
+              {"name": "n_per_config", "value": "20", "unit": "imgs", "note": "10 held-out subjects x 2 seeds"},
+              {"name": "result_DoRA", "value": "CLIP-sim 0.7388 / CMMD 0.1613"},
+              {"name": "result_LoRA", "value": "CLIP-sim 0.7339 / CMMD 0.1610"},
+              {"name": "result_AdamW8bit", "value": "CLIP-sim 0.7332 / CMMD 0.1740"},
+              {"name": "result_Prodigy600", "value": "CLIP-sim 0.7215 / CMMD 0.1795"},
+              {"name": "result_Prodigy400", "value": "CLIP-sim 0.6972 / CMMD 0.1981"},
+              {"name": "result_LoKr", "value": "CLIP-sim 0.6734 / CMMD 0.2198", "note": "lowest fidelity, worst CMMD — the 6MB tradeoff"}
+            ],
+            "failures": [
+              {"symptom": "close configs ranked confidently from a few samples", "cause": "subject variance (sigma~0.076) swamps inter-config gaps (~0.005) at small n", "remediation": "use n>=15 (SEM~0.017); only trust gaps > ~2 SEM", "recipe_field": "sample-size", "severity": "quality"}
+            ],
+            "evals": [
+              {"eval_kind": "diffusion-style", "metric": "CLIP-sim-to-style-centroid", "harness": "_eval_panel3.py", "n_shot": 20, "result": "0.7339", "threshold": ">=0.70", "accepted": true, "judge_model_family": "clip-vit-b32", "note": "LoRA control — in-style"},
+              {"eval_kind": "diffusion-style", "metric": "CLIP-sim-to-style-centroid", "harness": "_eval_panel3.py", "n_shot": 20, "result": "0.6734", "threshold": ">=0.70", "accepted": false, "judge_model_family": "clip-vit-b32", "note": "LoKr below the in-style bar — quantifies the 6MB fidelity cost"},
+              {"eval_kind": "diffusion-style", "metric": "CLIP-sim-to-style-centroid", "harness": "_eval_panel3.py", "n_shot": 20, "result": "0.6972", "threshold": ">=0.70", "accepted": false, "judge_model_family": "clip-vit-b32", "note": "Prodigy 400 below bar — undertraining"}
+            ],
+            "best_for": [{"purpose": "quantify style-LoRA fidelity + gate retrains", "fitness": 5, "use_tag": "eval"}],
+            "sources": [
+              {"kind": "receipt", "title": "training-knowledge wave-5 eval panel (n=20, 6 LoRAs)", "url": "https://github.com/mcp-tool-shop-org/readouts", "claim": "rig-run 2026-06-07; _eval_panel3.py + _eval_panel3.json", "finding_supported": "SUPPORTED"},
+              {"kind": "paper", "title": "Rethinking FID: Towards a Better Evaluation Metric for Image Generation (CMMD)", "authors": "Jayasumana et al.", "year": "2024", "identifier": "arXiv:2401.09603", "url": "https://arxiv.org/abs/2401.09603", "claim": "CLIP-MMD is a more reliable distribution metric than FID", "finding_supported": "SUPPORTED"},
+              {"kind": "paper", "title": "Learning Transferable Visual Models From Natural Language Supervision (CLIP)", "authors": "Radford et al.", "year": "2021", "identifier": "arXiv:2103.00020", "url": "https://arxiv.org/abs/2103.00020", "claim": "CLIP image embeddings; the basis for the similarity + CMMD metrics", "finding_supported": "SUPPORTED"}
+            ]
+          }
+        ]
+      },
+      "verify": {"verdicts": [{"slug": "diffusion-style-fidelity-eval-panel-measured-5090", "overall": "confirmed", "currency": "measured 2026-06-07", "note": "direct rig run; the harness corrected a wave-4 looked-at claim on first use (the oracle is the measurement)"}]}
+    }
+  ]
+}

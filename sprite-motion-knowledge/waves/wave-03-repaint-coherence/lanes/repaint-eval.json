@@ -1,0 +1,477 @@
+{
+  "laneSlug": "repaint-eval",
+  "title": "Repaint QA gate",
+  "recipes": [
+    {
+      "slug": "identity-check-clip-dino-face-crop",
+      "name": "Identity-preserved check (CLIP/DINOv2 face-crop distance, repaint-vs-approved)",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "After the AI repaint step, the character's identity (face region) must match the approved sprite baseline. Cosine distance between CLIP or DINOv2 embeddings of the face crop — repainted frame vs. approved reference — gates identity drift without requiring NC-restricted ArcFace/InsightFace weights.",
+      "summary": "Crop the face region (using the existing bounding-box detector from the wave-1 face-lock step) from each repainted frame and the approved identity reference. Embed both crops with DINOv2 ViT-B/14 (Apache-2.0) or CLIP ViT-L/14 and compute cosine similarity. A tuned threshold (calibrated on a small approved-vs-rejected sprite set) gates admission. InsightFace ArcFace weights give a tighter identity metric but are non-commercial — flag and use CLIP/DINOv2 as the production fallback. LPIPS on the face crop is a complementary low-cost signal.",
+      "design_implication": "The repaint pipeline must not alter face identity (painterly style should affect rendering, not character likeness). This gate runs immediately post-repaint before any sprite-sheet assembly. DINOv2 features are strong enough for character consistency without NC weight risk.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "DINOv2 Apache-2.0; CLIP MIT (OpenAI); ArcFace/InsightFace weights NON-COMMERCIAL — see commercial_notes",
+      "commercial_use": "conditional",
+      "commercial_notes": "DINOv2 (Apache-2.0) and CLIP (MIT) are commercial-clean. InsightFace pre-trained model weights (buffalo_l, antelopev2) are NC research-only — confirmed by maintainers and community reports (HN 2024). Contact recognition-oss-pack@insightface.ai for commercial licensing. Studio MUST use DINOv2/CLIP path in production.",
+      "vram_gb": "2-4",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "metric",
+          "metric": "DINOv2-ViT-B14-cosine (face crop)",
+          "harness": "python / torch.nn.functional.cosine_similarity",
+          "result": "",
+          "threshold": ">=0.85 (tune on approved-vs-rejected set)",
+          "accepted": null,
+          "note": "DINOv2 face-crop cosine is the production identity metric; ArcFace is NC-flagged fallback only for non-commercial R&D."
+        },
+        {
+          "eval_kind": "metric",
+          "metric": "LPIPS (face crop, repaint vs. approved)",
+          "harness": "lpips PyPI package",
+          "result": "",
+          "threshold": "<=0.15 (tune)",
+          "accepted": null,
+          "note": "Complementary low-cost perceptual drift signal on the face region."
+        }
+      ],
+      "failures": [
+        "ArcFace weights are NC: do NOT ship InsightFace embeddings in the commercial gate without a commercial license.",
+        "CLIP face crops may conflate style change with identity change — always compare same render style (approved repainted reference, not mesh render)."
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "DINOv2: Learning Robust Visual Features without Supervision",
+          "authors": "Oquab, Darcet, et al. (Meta AI)",
+          "year": "2023",
+          "identifier": "arXiv:2304.07193",
+          "url": "https://arxiv.org/abs/2304.07193",
+          "claim": "DINOv2 ViT features (Apache-2.0) produce strong all-purpose visual representations suitable for identity similarity scoring without labeled data."
+        },
+        {
+          "kind": "paper",
+          "title": "ArcFace: Additive Angular Margin Loss for Deep Face Recognition",
+          "authors": "Deng, Guo, Xue, Zafeiriou",
+          "year": "2019",
+          "identifier": "arXiv:1801.07698",
+          "url": "https://arxiv.org/abs/1801.07698",
+          "claim": "ArcFace (via InsightFace) is the state-of-the-art face embedding; pre-trained weights are NC-restricted and require commercial licensing."
+        },
+        {
+          "kind": "repo",
+          "title": "deepinsight/insightface — license notice",
+          "authors": "InsightFace maintainers",
+          "year": "2024",
+          "identifier": "github:deepinsight/insightface",
+          "url": "https://github.com/deepinsight/insightface",
+          "claim": "Pre-trained model packs (buffalo_l, antelopev2) are for non-commercial research only; commercial licensing required from maintainers."
+        },
+        {
+          "kind": "paper",
+          "title": "Learning Transferable Visual Models From Natural Language Supervision (CLIP)",
+          "authors": "Radford, Kim, Hallacy, et al. (OpenAI)",
+          "year": "2021",
+          "identifier": "ICML 2021",
+          "url": "https://arxiv.org/abs/2103.00020",
+          "claim": "CLIP ViT image encoder (MIT license) provides commercial-clean cross-modal image similarity embeddings suitable as an identity-distance fallback."
+        }
+      ]
+    },
+    {
+      "slug": "weapon-rigidity-post-repaint",
+      "name": "Weapon-continuity check post-repaint (length + tip position, reuse wave-1 detector)",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "The repaint step must not deform the weapon geometry. Reusing the wave-1 weapon-length and tip-position detector on the repainted frame versus the mesh-render source frame catches any repaint-induced weapon deformation (smearing, inpainting artifacts, style hallucination).",
+      "summary": "Run the wave-1 weapon geometry extractor (length in pixels, tip-point coordinates) on the mesh-render frame and the corresponding repainted output. Compare: length deviation must be under a pixel tolerance and tip displacement under a fixed threshold. Because the wave-1 detector already handles this, the repaint gate simply adds a 'repainted frame' input channel and reuses all existing logic. Failures indicate the diffusion/img2img step hallucinated or smeared the weapon.",
+      "design_implication": "Repaint QA does not need a new weapon detector — extend the wave-1 harness to accept a (mesh_render, repainted) pair and report delta. Keeps the gate cheap and the harness unified.",
+      "evidence_strength": "community-claim",
+      "license": "Pipeline logic (studio code); no external weight restriction",
+      "commercial_use": "yes",
+      "commercial_notes": "Pure geometry measurement on pixel data; no licensed model weights involved.",
+      "vram_gb": "0",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "metric",
+          "metric": "weapon-length-delta (pixels, repaint vs. mesh-render source)",
+          "harness": "wave-1 weapon detector, repaint extension",
+          "result": "",
+          "threshold": "<=3 px (tune per sprite resolution)",
+          "accepted": null,
+          "note": "Reuse wave-1 detector; add 'repainted_frame' input. Length delta is the primary rigidity signal."
+        },
+        {
+          "eval_kind": "metric",
+          "metric": "tip-displacement (pixels)",
+          "harness": "wave-1 weapon detector, repaint extension",
+          "result": "",
+          "threshold": "<=5 px",
+          "accepted": null,
+          "note": "Tip-point drift is the sharpest indicator of diffusion hallucination on weapon geometry."
+        }
+      ],
+      "failures": [
+        "High-strength repaint (high denoising strength / low img2img strength) is the most common cause of weapon smear — pair threshold with strength hparam."
+      ],
+      "sources": [
+        {
+          "kind": "internal",
+          "title": "sprite-motion-knowledge wave-1 motion-verify lane (weapon-length + tip-position detector)",
+          "authors": "studio",
+          "year": "2025",
+          "identifier": "internal:wave-01/motion-verify",
+          "url": "",
+          "claim": "Wave-1 established a pixel-level weapon-length and tip-position detector on mesh-render frames as an admission gate; this recipe extends it to the repaint→mesh delta axis."
+        }
+      ]
+    },
+    {
+      "slug": "style-match-siglip-to-house-baseline",
+      "name": "Style-match score (SigLIP2/CLIP cosine) to the approved house baseline",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "Scoring each repainted frame's SigLIP2 (or CLIP) cosine similarity to the approved house-style baseline set gates whether the repaint actually landed the painterly style — catching both 'still looks 3D' and 'over-stylized off-model' failures.",
+      "summary": "Embed the approved style baseline (a few shipped sprites) and each repainted output with SigLIP2; flag any frame whose cosine to the baseline centroid falls below a tuned threshold. SigLIP2 is Apache-2.0 and is already used by the studio's ai-eyes-mcp evaluator, making this zero-additional-dependency. Pairs with the cross-family vision-LLM jury for the qualitative 'is it painterly / not anime' call. The metric alone cannot distinguish 'painterly but wrong character' from 'painterly correct character' — use alongside the identity gate.",
+      "design_implication": "The core repaint admission metric — a repaint that does not match the house baseline is rejected before it reaches the sprite sheet. Reuses ai-eyes-mcp (SigLIP2). Approved baseline must be version-controlled as part of the style canon.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "SigLIP2 Apache-2.0; CLIP MIT",
+      "commercial_use": "yes",
+      "commercial_notes": "SigLIP2 weights Apache-2.0; CLIP MIT; both commercial-clean.",
+      "vram_gb": "2-6",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "metric",
+          "metric": "SigLIP2-cosine-to-house-centroid",
+          "harness": "ai-eyes-mcp (studio SigLIP2 evaluator)",
+          "result": "",
+          "threshold": ">=0.x (tune on shipped sprite set)",
+          "accepted": null,
+          "note": "Threshold must be calibrated against the approved baseline and known-bad repaints. Start with median(approved) - 2*std(approved)."
+        }
+      ],
+      "hparams": [
+        {"name": "baseline_set_size", "default": "8-16", "note": "Number of approved canonical sprites used to form the style centroid. More is better up to ~32."},
+        {"name": "embed_model", "default": "SigLIP2-ViT-SO400M", "note": "Swap to CLIP ViT-L/14 if SigLIP2 unavailable."}
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "SigLIP 2: Multilingual Vision-Language Encoders with Improved Semantic Understanding, Localization, and Dense Features",
+          "authors": "Tschannen, Gritsenko, et al. (Google)",
+          "year": "2025",
+          "identifier": "arXiv:2502.14786",
+          "url": "https://arxiv.org/abs/2502.14786",
+          "claim": "SigLIP2 image encoder (Apache-2.0) outperforms SigLIP on zero-shot classification and image-text retrieval; robust image-similarity embeddings for style matching."
+        },
+        {
+          "kind": "paper",
+          "title": "Learning Transferable Visual Models From Natural Language Supervision (CLIP)",
+          "authors": "Radford, Kim, Hallacy, et al. (OpenAI)",
+          "year": "2021",
+          "identifier": "ICML 2021",
+          "url": "https://arxiv.org/abs/2103.00020",
+          "claim": "CLIP cosine similarity is a proven style-distance proxy and commercial-clean fallback when SigLIP2 is unavailable."
+        }
+      ]
+    },
+    {
+      "slug": "over-smoothing-detail-loss-laplacian-glcm",
+      "name": "Over-smoothing / detail-loss detection (Laplacian-variance + GLCM energy before-vs-after)",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "AI repaints commonly over-smooth the mesh render, erasing cloth wrinkles, armor scratches, and fine edge work. Comparing Laplacian-variance (edge sharpness) and GLCM texture energy between the mesh-render source and the repainted output detects unacceptable detail loss before the sprite sheet is assembled.",
+      "summary": "For each repainted frame, compute (1) Laplacian-variance of the grayscale repainted frame vs. the mesh-render source — a low-variance repaint relative to source signals blur; (2) GLCM energy (homogeneity / contrast features) before and after — a sharp rise in GLCM energy/homogeneity signals texture erasure toward flat color. Both metrics require no model weights and run in milliseconds per frame. Thresholds are per-asset (different characters have different natural texture density), so calibrate on a 'golden' accepted repaint set. A dedicated FFT high-frequency energy ratio is an optional third signal.",
+      "design_implication": "Detail-loss is a production risk specific to img2img pipelines with too-high denoising strength. This gate catches it quantitatively before visual QA. Pair with hparam search on denoising_strength to find the sweet spot for each character/weapon combo.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "scikit-image BSD-3; OpenCV Apache-2.0; all no NC restriction",
+      "commercial_use": "yes",
+      "commercial_notes": "Pure signal-processing metrics via scikit-image and OpenCV; no model weights involved.",
+      "vram_gb": "0",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "metric",
+          "metric": "Laplacian-variance ratio (repaint / mesh-render source)",
+          "harness": "cv2.Laplacian + np.var",
+          "result": "",
+          "threshold": ">=0.7 (ratio; tune per character)",
+          "accepted": null,
+          "note": "Ratio below 1 means repaint is blurrier than source. Threshold calibrated on golden repaint set."
+        },
+        {
+          "eval_kind": "metric",
+          "metric": "GLCM contrast delta (repaint - source)",
+          "harness": "skimage.feature.graycomatrix / graycoprops",
+          "result": "",
+          "threshold": ">= -0.15 (drop; tune per character)",
+          "accepted": null,
+          "note": "A large negative GLCM-contrast delta means texture detail was erased by the repaint."
+        }
+      ],
+      "hparams": [
+        {"name": "glcm_distances", "default": "[1,2]", "note": "Pixel-pair offsets for co-occurrence matrix."},
+        {"name": "glcm_angles", "default": "[0, pi/4, pi/2, 3pi/4]", "note": "Four orientations, averaged."}
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "Textural Features for Image Classification",
+          "authors": "Haralick, Shanmugam, Dinstein",
+          "year": "1973",
+          "identifier": "DOI:10.1109/TSMC.1973.4309314",
+          "url": "https://ieeexplore.ieee.org/document/4309314",
+          "claim": "Established GLCM texture features (energy, contrast, homogeneity) as discriminative texture descriptors; skimage.feature implements these directly."
+        },
+        {
+          "kind": "tool",
+          "title": "OpenCV blur detection via Laplacian variance (cv2.Laplacian + np.var)",
+          "authors": "OpenCV contributors",
+          "year": "2024",
+          "identifier": "Apache-2.0",
+          "url": "https://docs.opencv.org/4.x/",
+          "claim": "Laplacian-variance is the standard focus/sharpness metric in production CV pipelines; a low variance relative to a reference frame signals over-smoothing."
+        }
+      ]
+    },
+    {
+      "slug": "palette-adherence-emd-histogram",
+      "name": "Palette adherence (Earth Mover's Distance on color histograms vs. approved palette)",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "The house palette is part of the style contract. After repainting, each frame's Lab-space color histogram must stay within Earth Mover's Distance (EMD / Wasserstein-1) of the approved palette — catching drifts such as desaturation, hue shift, or introduction of out-of-palette colors.",
+      "summary": "Extract the 3D Lab-space color histogram (or a k-means palette vector) of each repainted frame and compare to the approved-palette histogram using scipy.stats.wasserstein_distance (per-channel 1D) or a full EMD implementation. A low EMD means the frame's color distribution closely matches the approved palette. This is especially important for 2.5D sprites where consistent color signatures distinguish factions, moods, and character roles. Run on the non-transparent pixels only (mask out alpha=0). Threshold tuned on approved-vs-rejected repaint pairs.",
+      "design_implication": "Palette drift is a silent quality failure that passes visual spot-checks but degrades the game's chromatic cohesion. Gate on per-frame EMD; flag frames with palette drift for targeted repaint retries with adjusted color conditioning.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "scipy BSD-3; no NC restriction",
+      "commercial_use": "yes",
+      "commercial_notes": "scipy.stats.wasserstein_distance (1D EMD) is BSD-3, commercial-clean. Full EMD via POT library is MIT.",
+      "vram_gb": "0",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "metric",
+          "metric": "Wasserstein-1 distance (per-channel Lab, repainted vs. approved palette)",
+          "harness": "scipy.stats.wasserstein_distance per channel, averaged",
+          "result": "",
+          "threshold": "<=0.05 (normalized 0-1 Lab; tune on approved set)",
+          "accepted": null,
+          "note": "Lab color space is perceptually uniform; per-channel 1D Wasserstein is fast and sufficient for palette adherence."
+        }
+      ],
+      "hparams": [
+        {"name": "colorspace", "default": "CIE Lab", "note": "Perceptually uniform; better than RGB for palette distance."},
+        {"name": "histogram_bins", "default": "32 per channel", "note": "Balance between granularity and compute."},
+        {"name": "alpha_mask", "default": "true", "note": "Exclude transparent pixels from histogram."}
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "The Earth Mover's Distance as a Metric for Image Retrieval",
+          "authors": "Rubner, Tomasi, Guibas",
+          "year": "2000",
+          "identifier": "DOI:10.1023/A:1026543900054",
+          "url": "https://link.springer.com/article/10.1023/A:1026543900054",
+          "claim": "EMD / Wasserstein distance on color histograms better reflects perceptual color similarity than chi-square or L2 histogram distance; widely used in content-based image retrieval."
+        },
+        {
+          "kind": "tool",
+          "title": "scipy.stats.wasserstein_distance",
+          "authors": "SciPy contributors",
+          "year": "2024",
+          "identifier": "BSD-3-Clause",
+          "url": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.wasserstein_distance.html",
+          "claim": "scipy implements 1D Wasserstein-1 distance directly; applying it per Lab channel is a standard palette-distance approach."
+        }
+      ]
+    },
+    {
+      "slug": "temporal-flicker-lpips-optical-flow",
+      "name": "Temporal-flicker metric for repainted cycle (LPIPS frame-delta + optical-flow warping error)",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "Frame-independent repaints of a sprite cycle produce temporal flickering that is invisible in single-frame review. Computing LPIPS between consecutive repainted frames — normalized by the mesh-render LPIPS as a baseline — and the optical-flow warping error on the repainted sequence quantifies repaint-induced flicker beyond natural motion.",
+      "summary": "For each consecutive pair of repainted frames (f_t, f_{t+1}): (1) compute LPIPS(f_t, f_{t+1}) and normalize by LPIPS(m_t, m_{t+1}) where m is the mesh-render source — a ratio >1 means the repaint added temporal variation beyond what the pose change explains; (2) compute the optical-flow warping error using RAFT flow estimated on the repainted sequence — warp f_t to f_{t+1} using RAFT flow, measure pixel-error between warped f_t and f_{t+1}. The relational warping error (RWE) variant (subtract GT frame difference) corrects for natural motion. Frames exceeding either threshold are flagged for re-render or coherence post-processing.",
+      "design_implication": "Temporal coherence is the hardest repaint QA axis because it requires evaluating the full cycle, not individual frames. Flag cycles (not just frames) that fail the temporal gate; the remedy is often adjusting img2img seed consistency or adding a temporal consistency post-pass (e.g., blind video prior or flow-guided coherence). This extends the wave-1 temporal-stability metric to the repainted cycle.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "LPIPS BSD; RAFT Apache-2.0",
+      "commercial_use": "yes",
+      "commercial_notes": "LPIPS weights BSD-licensed (lpips PyPI); RAFT implementation Apache-2.0 (princeton-vl/RAFT). Both commercial-clean.",
+      "vram_gb": "2-4",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "metric",
+          "metric": "LPIPS-ratio (repainted pair / mesh-render pair)",
+          "harness": "lpips PyPI package (AlexNet backbone)",
+          "result": "",
+          "threshold": "<=1.3 (ratio; tune per action type)",
+          "accepted": null,
+          "note": "Ratio >1.3 means repaint added significant temporal noise beyond the underlying pose motion."
+        },
+        {
+          "eval_kind": "metric",
+          "metric": "Optical-flow warping error (RAFT, repainted sequence)",
+          "harness": "princeton-vl/RAFT + custom warping error script",
+          "result": "",
+          "threshold": "<=0.05 RMSE (normalized; tune)",
+          "accepted": null,
+          "note": "RAFT estimated on repainted frames; warp error measures how much the repainted texture 'jumps' relative to the flow prediction."
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "The Unreasonable Effectiveness of Deep Features as a Perceptual Metric (LPIPS)",
+          "authors": "Zhang, Isola, Efros, Shechtman, Wang",
+          "year": "2018",
+          "identifier": "arXiv:1801.03924",
+          "url": "https://arxiv.org/abs/1801.03924",
+          "claim": "LPIPS deep perceptual metric aligns with human judgment on image patch similarity; using frame-pair LPIPS as a temporal flicker signal is a standard practice in video quality research."
+        },
+        {
+          "kind": "paper",
+          "title": "RAFT: Recurrent All-Pairs Field Transforms for Optical Flow",
+          "authors": "Teed, Deng",
+          "year": "2020",
+          "identifier": "arXiv:2003.12039",
+          "url": "https://arxiv.org/abs/2003.12039",
+          "claim": "RAFT achieves SOTA optical flow estimation (Sintel EPE 2.855 px) and is the standard backbone for warping-error temporal consistency evaluation; Apache-2.0."
+        },
+        {
+          "kind": "paper",
+          "title": "Frame Difference-Based Temporal Loss for Video Stylization",
+          "authors": "Chen et al.",
+          "year": "2021",
+          "identifier": "arXiv:2102.05822",
+          "url": "https://arxiv.org/abs/2102.05822",
+          "claim": "Establishes relational warping error (RWE) — subtract GT frame difference from warp error — as a more accurate temporal consistency metric than raw warping error in stylized video."
+        }
+      ]
+    },
+    {
+      "slug": "cross-family-vision-llm-jury-repaint",
+      "name": "Cross-family vision-LLM jury for repaint style + painterly + not-anime verdict",
+      "kind": "eval",
+      "engine_family": "custom",
+      "applicable_to": "verify",
+      "claim": "Quantitative metrics cannot catch 'technically within threshold but qualitatively wrong' repaint failures. The studio's existing cross-family vision-LLM jury (_concept_vision_qa.py: minimax-m3 / kimi / gemini, refute-by-default, 2-of-3 consensus, gemini as hyper-strict canary) is extended to the repaint axis: did the frame land a genuine painterly look, avoid the anime aesthetic, and preserve approved character design?",
+      "summary": "Submit a 2-up comparison image (approved reference | repainted candidate) to the existing _concept_vision_qa.py jury with a repaint-specific rubric: (1) is the style painterly and consistent with the approved reference (not over-rendered, not flat-shaded, not 3D-looking, not anime)? (2) is character identity preserved? (3) is any palette deviation noticeable? Each model returns accept/reject + a reasoning note; 2-of-3 consensus is required for acceptance; a gemini reject alone triggers manual review (canary rule). The jury is the final qualitative gate before sprite-sheet assembly — only frames that pass all metric gates AND the jury are admitted.",
+      "design_implication": "The vision-LLM jury is the catch-all for metric-blind failures. Because the jury is already built and proven on concept QA, the marginal cost of adding a repaint rubric is low. Repaint-specific jury calls run per-cycle (one call per action, not per frame) to manage API cost. Log all jury outputs with reasoning for audit.",
+      "evidence_strength": "community-claim",
+      "license": "External cloud APIs (minimax-m3, kimi, gemini) — no local weight NC issue",
+      "commercial_use": "yes",
+      "commercial_notes": "API-based models; commercial use governed by each provider's API ToS. Gemini (Google), kimi (Moonshot AI), minimax-m3 (MiniMax) — verify ToS before shipping outputs derived from their APIs. As of 2025, all three permit commercial output under standard API agreements.",
+      "vram_gb": "0",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "qualitative",
+          "metric": "2-of-3 cross-family vision-LLM jury verdict (accept/reject)",
+          "harness": "_concept_vision_qa.py (studio harness) — repaint rubric extension",
+          "result": "",
+          "threshold": "2-of-3 accept; gemini reject → manual escalation",
+          "accepted": null,
+          "note": "Rubric: painterly style match, no anime drift, identity preserved, no gross palette violation."
+        }
+      ],
+      "hparams": [
+        {"name": "jury_models", "default": "['minimax-m3', 'kimi', 'gemini']", "note": "Studio-standard non-Qwen cloud family; refute-by-default framing."},
+        {"name": "call_frequency", "default": "per-cycle (not per-frame)", "note": "Submit a representative frame from the cycle; full cycle review on borderline cases."},
+        {"name": "rubric_version", "default": "repaint-v1", "note": "Version-control the rubric prompt; a prompt change invalidates prior baselines."}
+      ],
+      "sources": [
+        {
+          "kind": "internal",
+          "title": "_concept_vision_qa.py — studio cross-family vision-LLM QA jury",
+          "authors": "studio",
+          "year": "2025",
+          "identifier": "internal:_concept_vision_qa.py",
+          "url": "",
+          "claim": "Studio's proven cross-family vision-LLM jury (minimax-m3/kimi/gemini, refute-by-default, 2-of-3, gemini canary) extended to the repaint style axis. Reference: wave-03 context brief."
+        }
+      ]
+    },
+    {
+      "slug": "repaint-gate-assembly",
+      "name": "Repaint accept/reject gate: assembling all sub-metrics into a single admission decision",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "Each sub-metric (identity, weapon rigidity, style match, detail loss, palette adherence, temporal flicker, jury verdict) is a necessary but not sufficient gate. The combined repaint gate runs all six metric checks and the jury check; a frame/cycle passes only if all checks pass, and failures are tagged with which gate(s) triggered for actionable diagnosis.",
+      "summary": "A thin Python orchestrator runs the six quantitative metric recipes in sequence (identity-check → weapon-rigidity → style-match → detail-loss → palette-adherence → temporal-flicker) and then submits passing frames/cycles to the vision-LLM jury. Output is a per-frame/per-cycle structured record: {slug, frame_id, passed, failures: [{gate, metric, value, threshold}]}. A failed gate short-circuits downstream sprite-sheet assembly and routes the frame to the retry queue with the failure tag. All thresholds are externally configurable (YAML/JSON) to support per-character tuning without code changes. This gate is the admission checkpoint between the repaint pipeline and sprite-sheet assembly.",
+      "design_implication": "Tag-based failure routing enables targeted re-renders: a 'palette' failure → retry with stronger palette conditioning; a 'temporal' failure → retry with seed pinning or coherence post-pass; a 'identity' failure → retry with higher face-preservation ControlNet weight. The gate design is an andon stop (ANDON_AUTHORITY, workflow standard) — bad output does not propagate downstream.",
+      "evidence_strength": "community-claim",
+      "license": "Studio orchestrator code (no external weights)",
+      "commercial_use": "yes",
+      "commercial_notes": "Orchestrator is pure studio Python; commercial-clean. Depends only on sub-metric licenses documented per recipe above.",
+      "vram_gb": "0",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "gate",
+          "metric": "all-pass (6 metric gates AND jury pass)",
+          "harness": "repaint_gate.py (studio orchestrator)",
+          "result": "",
+          "threshold": "all sub-gates pass (see individual recipes for per-metric thresholds)",
+          "accepted": null,
+          "note": "Any single gate failure rejects the frame/cycle and routes to the tagged retry queue."
+        }
+      ],
+      "hparams": [
+        {"name": "thresholds_file", "default": "repaint_thresholds.yaml", "note": "Per-character, per-action threshold overrides. Version-controlled alongside canon."},
+        {"name": "short_circuit", "default": "true", "note": "Skip remaining metric gates after first failure to save compute."},
+        {"name": "jury_gate_on_metric_pass_only", "default": "true", "note": "Vision-LLM jury runs only if all 6 metric gates pass; avoids API spend on clearly-failed frames."}
+      ],
+      "failures": [
+        "Thresholds are to-be-tuned: ship with conservative (wide) defaults and tighten per character as golden approved-repaint sets accumulate.",
+        "Do not lock thresholds into code — any hardcoded threshold that cannot be overridden per-character is a maintenance hazard."
+      ],
+      "sources": [
+        {
+          "kind": "internal",
+          "title": "sprite-motion-knowledge wave-1 motion-verify harness (andon-stop gate pattern)",
+          "authors": "studio",
+          "year": "2025",
+          "identifier": "internal:wave-01/motion-verify",
+          "url": "",
+          "claim": "Wave-1 established the admission-gate pattern (metric → jury → andon stop on failure) that this recipe extends to the repaint axis."
+        },
+        {
+          "kind": "paper",
+          "title": "The Unreasonable Effectiveness of Deep Features as a Perceptual Metric (LPIPS)",
+          "authors": "Zhang, Isola, Efros, Shechtman, Wang",
+          "year": "2018",
+          "identifier": "arXiv:1801.03924",
+          "url": "https://arxiv.org/abs/1801.03924",
+          "claim": "LPIPS is used as a temporal-flicker sub-metric in the gate; cited here as the primary external metric paper underpinning the gate assembly."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,223 @@
+{
+  "laneSlug": "mesh-ops",
+  "title": "Mesh editing & cleanup",
+  "recipes": [
+    {
+      "slug": "decimate-collapse",
+      "name": "Decimate modifier — Collapse mode (ratio-based poly reduction)",
+      "what": "Reduce triangle/polygon count by collapsing edges. The primary tool for lowering TRELLIS mesh density before game export. Produces a triangulated result by default; use_collapse_triangulate=False preserves quads where possible.",
+      "how": "import bpy, math obj = bpy.context.active_object # must be a MESH object # Add Decimate modifier\ndec = obj.modifiers.new(name='Decimate', type='DECIMATE')\ndec.decimate_type = 'COLLAPSE' # enum: COLLAPSE | UNSUBDIV | DISSOLVE\ndec.ratio = 0.25 # 0.0–1.0; 0.25 = keep 25% of faces\ndec.use_collapse_triangulate = True # True = all-tris output (safe for game export)\n# Optional: limit to a vertex group\n# dec.vertex_group = 'MyGroup'\n# dec.invert_vertex_group = False # Apply (required for export to see changes)\nbpy.ops.object.modifier_apply(modifier='Decimate') # Read final face count:\nprint('Faces after decimate:', len(obj.data.polygons))",
+      "blender_version": "4.x",
+      "gotchas": "Collapse is destructive — it discards normals and can create non-manifold edges at high reduction ratios (>0.75 reduction). TRELLIS meshes are already all-tris so triangulate=True has no overhead. The 'ratio' property is 0–1 where 1.0 = no change; the modifier shows the resulting face count in the UI as 'Face Count'. Applying via bpy.ops.object.modifier_apply() requires the modifier name string to match exactly.",
+      "studio_use": "First pass on every imported TRELLIS GLB: ratio 0.3–0.5 before normals fixup. Brings a 150k-tri scan mesh to ~40–75k for sprite rendering without visible silhouette loss at 256×256 sprite res.",
+      "currency": "solid",
+      "verify_note": "Confirmed: docs.blender.org/api/4.0/bpy.types.DecimateModifier.html (search result) lists decimate_type enum COLLAPSE/UNSUBDIV/DISSOLVE plus ratio, iterations, angle_limit properties — consistent through 4.x. bpy.ops.object.modifier_apply pattern confirmed across multiple pipeline examples.",
+      "sources": [
+        {
+          "title": "DecimateModifier — Blender Python API (4.0/current)",
+          "url": "https://docs.blender.org/api/current/bpy.types.DecimateModifier.html",
+          "claim": "decimate_type enum is COLLAPSE/UNSUBDIV/DISSOLVE; ratio, use_collapse_triangulate, vertex_group are the key COLLAPSE-mode properties"
+        },
+        {
+          "title": "Mesh Operators — Blender Python API 4.2",
+          "url": "https://docs.blender.org/api/4.2/bpy.ops.mesh.html",
+          "claim": "bpy.ops.object.modifier_apply is the correct operator for applying a modifier by name in 4.x"
+        }
+      ]
+    },
+    {
+      "slug": "decimate-planar",
+      "name": "Decimate modifier — Planar (Dissolve) mode for flat-face cleanup",
+      "what": "Dissolve edges between co-planar faces, collapsing triangle fans on flat surfaces into single ngons. More topology-aware than Collapse for architectural or hard-surface meshes that have many tiny triangles on flat regions.",
+      "how": "import bpy, math obj = bpy.context.active_object dec = obj.modifiers.new(name='DecimatePlanar', type='DECIMATE')\ndec.decimate_type = 'DISSOLVE' # Planar mode\ndec.angle_limit = math.radians(5.0) # dissolve edges where face angle < 5 degrees\ndec.use_dissolve_boundaries = False # True can dissolve UV seam edges too # Check face count before apply\nprint('Before:', len(obj.data.polygons))\nbpy.ops.object.modifier_apply(modifier='DecimatePlanar')\nprint('After:', len(obj.data.polygons))",
+      "blender_version": "4.x",
+      "gotchas": "DISSOLVE outputs ngons — downstream exporters or game engines that require tris must triangulate after. use_dissolve_boundaries=True is aggressive and can break UV islands. angle_limit is in radians in the API, degrees in the UI. Very effective on scan meshes with flat floors/walls but does nothing on organic rounded surfaces.",
+      "studio_use": "Secondary pass on TRELLIS meshes that have flat base planes (pedestal, ground contact) where Collapse would distort silhouette but Planar can dissolve thousands of co-planar micro-triangles into clean ngons.",
+      "currency": "solid",
+      "verify_note": "API property names confirmed from docs.blender.org/api/4.0/bpy.types.DecimateModifier.html search result. angle_limit + use_dissolve_boundaries are the DISSOLVE-mode specific properties.",
+      "sources": [
+        {
+          "title": "DecimateModifier — Blender Python API (current)",
+          "url": "https://docs.blender.org/api/current/bpy.types.DecimateModifier.html",
+          "claim": "angle_limit and use_dissolve_boundaries are DISSOLVE mode properties; value is in radians"
+        }
+      ]
+    },
+    {
+      "slug": "remesh-voxel",
+      "name": "Remesh modifier — Voxel mode for topology reconstruction",
+      "what": "Rebuild mesh topology from scratch using a volumetric voxel grid. Produces a clean, evenly-spaced triangle mesh that follows the original shape. Best for heavily broken TRELLIS output (non-manifold, inside-out shells, internal geometry) where cleanup ops alone can't rescue the mesh.",
+      "how": "import bpy obj = bpy.context.active_object # Method 1: Modifier (non-destructive, apply when ready)\nrm = obj.modifiers.new(name='Remesh', type='REMESH')\nrm.mode = 'VOXEL' # enum: BLOCKS | SMOOTH | SHARP | VOXEL\nrm.voxel_size = 0.005 # smaller = more detail; world-space units\nrm.adaptivity = 0.0 # 0.0 = uniform; higher = fewer polys on flat areas\nrm.use_smooth_shade = False # keep False; handle shading via Smooth by Angle modifier\nbpy.ops.object.modifier_apply(modifier='Remesh') # Method 2: Direct operator (destructive, applies immediately)\n# bpy.ops.object.voxel_remesh() # uses object.data.remesh_voxel_size\n# obj.data.remesh_voxel_size = 0.005\n# bpy.ops.object.voxel_remesh() print('Faces after voxel remesh:', len(obj.data.polygons))",
+      "blender_version": "4.x",
+      "gotchas": "Voxel remesh DESTROYS UV maps, custom normals, and vertex colors — run before any UV unwrap. voxel_size is in world-space: a 1m tall character with voxel_size=0.01 gives 100 voxels of height. All-tris output. Does not preserve sharp edges unless you use SHARP mode (which uses an octree, not voxels). adaptivity > 0 can cause stretched triangles on curved surfaces. Internal geometry is removed, which is usually desirable for TRELLIS output.",
+      "studio_use": "Nuclear option for TRELLIS meshes with severe inside-out faces, internal walls (known TRELLIS.2 issue per GitHub #140), or non-manifold geometry that blocks Boolean operations downstream.",
+      "currency": "solid",
+      "verify_note": "RemeshModifier API confirmed from search: docs.blender.org/api/current/bpy.types.RemeshModifier.html lists mode (BLOCKS/SMOOTH/SHARP/VOXEL), voxel_size, adaptivity, use_smooth_shade. TRELLIS internal mesh walls confirmed as known issue in microsoft/TRELLIS.2 #140.",
+      "sources": [
+        {
+          "title": "RemeshModifier — Blender Python API (current)",
+          "url": "https://docs.blender.org/api/current/bpy.types.RemeshModifier.html",
+          "claim": "Mode enum is BLOCKS/SMOOTH/SHARP/VOXEL; voxel_size and adaptivity are the VOXEL-mode control properties"
+        },
+        {
+          "title": "TRELLIS generating duplicate inner mesh walls · Issue #140",
+          "url": "https://github.com/microsoft/TRELLIS.2/issues/140",
+          "claim": "TRELLIS outputs internal geometry (duplicate inner walls) — voxel remesh is the reliable fix because it fills the volume from outside"
+        }
+      ]
+    },
+    {
+      "slug": "boolean-exact-vs-fast",
+      "name": "Boolean modifier — Exact vs Fast (vs Manifold in 4.5) solver",
+      "what": "Perform CSG Boolean operations (Union/Difference/Intersect) between two meshes. The solver choice determines accuracy and speed.",
+      "how": "import bpy # Setup: obj_a is the base, obj_b is the cutter\nobj_a = bpy.data.objects['Base']\nobj_b = bpy.data.objects['Cutter'] bpy.context.view_layer.objects.active = obj_a bool_mod = obj_a.modifiers.new(name='Boolean', type='BOOLEAN')\nbool_mod.operation = 'DIFFERENCE' # UNION | DIFFERENCE | INTERSECT\nbool_mod.solver = 'EXACT' # FAST | EXACT | (MANIFOLD in 4.5+)\nbool_mod.object = obj_b # Exact-solver extras:\nbool_mod.use_self = False # True if obj_a self-intersects\nbool_mod.use_hole_tolerant = True # better results on meshes with holes bpy.ops.object.modifier_apply(modifier='Boolean') # Remove the cutter object after apply\nbpy.data.objects.remove(obj_b, do_unlink=True) # In Blender 4.5+ MANIFOLD solver (fastest, requires manifold inputs):\n# bool_mod.solver = 'MANIFOLD'",
+      "blender_version": "4.x (Manifold solver added in 4.5)",
+      "gotchas": "FAST (BMesh solver): works only on manifold meshes; much faster but fails silently on non-manifold input by producing garbled output. EXACT: uses multi-precision arithmetic (Zhou et al. Mesh Arrangements algorithm); handles coplanar faces and non-manifold geometry correctly but is slower. MANIFOLD (4.5 LTS, 2025-07-15): fastest solver, based on the Manifold library, but requires ALL inputs to be strictly manifold (every edge adjacent to exactly two faces) — TRELLIS meshes often fail this requirement. TRELLIS GLBs should default to EXACT. Always remove or hide the cutter object after applying to avoid export issues.",
+      "studio_use": "Cutting sprite-silhouette masks or holes in props exported from TRELLIS. Use EXACT by default for TRELLIS input since it handles the mesh quality variation typical of AI-generated geometry.",
+      "currency": "solid",
+      "verify_note": "Solver differences confirmed via blenderbasecamp.com fetch (Fast vs Exact) and developer.blender.org 4.5 release notes (Manifold solver, released 2025-07-15). Exact solver attribution: Zhou, Grinspun, Zorin, and Jacobson algorithm confirmed in Blender 2.91 release notes.",
+      "sources": [
+        {
+          "title": "Boolean Tool Fast vs Exact Solver — Blender Base Camp",
+          "url": "https://www.blenderbasecamp.com/boolean-tool-fast-vs-exact-solver-when-and-why-to-use-them/",
+          "claim": "Fast solver uses BMesh (manifold-only, fastest); Exact solver uses multi-precision arithmetic and handles coplanar/non-manifold meshes accurately but is slower"
+        },
+        {
+          "title": "Blender 4.5 LTS — Modeling & UV release notes",
+          "url": "https://developer.blender.org/docs/release_notes/4.5/modeling/",
+          "claim": "New Manifold solver added to Boolean modifier in 4.5; based on Manifold library; fastest but requires strictly manifold inputs"
+        }
+      ]
+    },
+    {
+      "slug": "smooth-by-angle-4x-normals",
+      "name": "Shade Smooth by Angle — Blender 4.1+ (Auto Smooth removed)",
+      "what": "Apply angle-threshold smoothing to mesh normals. In Blender 4.1 the 'Auto Smooth' checkbox in Object Data Properties was removed. It is now a Geometry Nodes modifier node group called 'Smooth by Angle' bundled with Blender, or accessible via the 'Shade Auto Smooth' operator.",
+      "how": "import bpy, math obj = bpy.context.active_object # ------------------------------------------------------------------\n# METHOD A: Operator (simplest — adds the modifier automatically)\n# Works in Object Mode; available in 4.1+\n# ------------------------------------------------------------------\nbpy.context.view_layer.objects.active = obj\nbpy.ops.object.shade_smooth_by_angle(angle=math.radians(30.0), keep_sharp_edges=True)\n# This adds the 'Smooth by Angle' GN modifier AND sets shade-smooth on the mesh. # ------------------------------------------------------------------\n# METHOD B: Manual modifier approach (for headless scripts where\n# the asset library may not be auto-loaded)\n# ------------------------------------------------------------------\n# Step 1: Load the node group from Blender's bundled assets\nimport os, bpy\nblender_path = bpy.utils.resource_path('LOCAL') # e.g. C:/Program Files/Blender Foundation/Blender 4.2\nasset_blend = os.path.join(blender_path, 'datafiles', 'assets', 'geometry_nodes', 'smooth_by_angle.blend') if 'Smooth by Angle' not in bpy.data.node_groups: with bpy.data.libraries.load(asset_blend, link=False) as (data_from, data_to): data_to.node_groups = ['Smooth by Angle'] # Step 2: Add a Geometry Nodes modifier and assign the node group\nmod = obj.modifiers.new(name='SmoothByAngle', type='NODES')\nmod.node_group = bpy.data.node_groups['Smooth by Angle'] # Step 3: Set the angle (Input_1 = angle in radians)\nmod['Input_1'] = math.radians(30.0) # 30 degrees # Note: Input_1_use_attribute is 0 (use value, not attribute) # ------------------------------------------------------------------\n# Shade Flat / Shade Smooth (no angle)\n# ------------------------------------------------------------------\n# bpy.ops.object.shade_flat() # flat shading\n# bpy.ops.object.shade_smooth() # smooth shading (180deg, no angle threshold)",
+      "blender_version": "4.1+ (breaking change from 4.0)",
+      "gotchas": "CRITICAL BREAKING CHANGE IN 4.1: The 'Auto Smooth' toggle in Object Data Properties > Normals was removed. Scripts or add-ons that set obj.data.auto_smooth_angle or obj.data.use_auto_smooth will break in 4.1+. The new system uses a Geometry Nodes modifier ('Smooth by Angle') from the bundled 'Essentials' asset library. In headless/background mode the asset library may not be initialized — use Method B (bpy.data.libraries.load from the bundled.blend path) rather than the asset browser API. The operator bpy.ops.object.shade_smooth_by_angle() is the cleanest single-line solution when the asset library is available. Input_1 key accesses the angle socket by index — may change between Blender minor versions; verify with mod.node_group.inputs['Angle'].identifier if needed.",
+      "studio_use": "Applied after Decimate in the TRELLIS GLB cleanup pipeline to restore clean shading across low-poly sprite meshes. 30° threshold is a good default for organic character meshes; hard-surface props may want 45–60°.",
+      "currency": "solid",
+      "verify_note": "Breaking change confirmed: multiple community sources (blenderartists.org, gamedev.tv) confirm Auto Smooth checkbox removed in 4.1. Operator name bpy.ops.object.shade_smooth_by_angle confirmed in Blender 4.1 docs search result. Modifier['Input_1'] = angle_radians pattern confirmed from Bforartists GitHub issue #4189 (fetched) with working code. Asset path via bpy.data.libraries.load workaround confirmed as fix in Blender bug #117399.",
+      "sources": [
+        {
+          "title": "Blender 4.1 Auto Smooth is now a modifier ONLY — Blender Artists",
+          "url": "https://blenderartists.org/t/blender-4-1-auto-smooth-is-now-a-modifier-only/1488922",
+          "claim": "Auto Smooth checkbox removed in 4.1; replaced by Smooth by Angle GN modifier node group; modifier['Input_1'] = radians is the Python angle-setting pattern"
+        },
+        {
+          "title": "#117399 Adding assets (Smooth by Angle) not working in background Python script — Blender Projects",
+          "url": "https://projects.blender.org/blender/blender/issues/117399",
+          "claim": "In headless mode the asset list may not be loaded; workaround is bpy.data.libraries.load() from the bundled geometry_nodes/smooth_by_angle.blend path"
+        },
+        {
+          "title": "Add Adjust Smooth by Angle Modifier operator · Issue #4189 — Bforartists",
+          "url": "https://github.com/Bforartists/Bforartists/issues/4189",
+          "claim": "Working Python code: detect NODES modifier with node_group == bpy.data.node_groups['Smooth by Angle'], set modifier['Input_1'] = math.radians(angle)"
+        }
+      ]
+    },
+    {
+      "slug": "recalculate-outside-normals",
+      "name": "Recalculate Outside / flip normals & clear custom split normals",
+      "what": "Fix inverted face normals on imported meshes (a common TRELLIS artifact). Recalculate Outside makes all face normals point outward consistently. Also covers how to clear any baked Custom Split Normals Data that can override smooth shading.",
+      "how": "import bpy obj = bpy.context.active_object\nbpy.context.view_layer.objects.active = obj # Enter Edit Mode\nbpy.ops.object.mode_set(mode='EDIT') # Select all geometry\nbpy.ops.mesh.select_all(action='SELECT') # Recalculate normals to point outward (Shift+N in UI)\nbpy.ops.mesh.normals_make_consistent(inside=False)\n# inside=True would flip to point inward (Shift+Ctrl+N) # Return to Object Mode\nbpy.ops.object.mode_set(mode='OBJECT') # ---------------------------------------------------------\n# Clear Custom Split Normals (if mesh was imported with\n# baked custom normals that are fighting your shade smooth):\n# ---------------------------------------------------------\nif obj.data.has_custom_normals: bpy.ops.mesh.customdata_custom_splitnormals_clear() # Equivalent UI: Object Data Properties > Geometry Data > # Clear Custom Split Normals Data",
+      "blender_version": "4.x",
+      "gotchas": "normals_make_consistent requires EDIT mode and selected geometry — call after mode_set(mode='EDIT') and select_all. GLB/glTF imports from TRELLIS often carry baked custom split normals (has_custom_normals == True); these override Shade Smooth/Smooth by Angle completely and must be cleared before normal smoothing has any visible effect. customdata_custom_splitnormals_clear() was available before 4.1 and is still present in 4.x — it predates and is separate from the Auto Smooth removal.",
+      "studio_use": "Step 2 in the TRELLIS GLB cleanup recipe after import: clear custom normals first, then recalculate outside, then apply Smooth by Angle. Without this step, Shade Smooth by Angle has no visible effect on GLTF-imported meshes.",
+      "currency": "solid",
+      "verify_note": "normals_make_consistent(inside=False) for 'Recalculate Outside' confirmed via multiple Blender normals guides and API search results. has_custom_normals and customdata_custom_splitnormals_clear confirmed in bpy.types.Mesh API and mentioned in Blender manual/community sources as the required step before normal re-smoothing.",
+      "sources": [
+        {
+          "title": "How to Fix Normals in Blender — 3DModels.org",
+          "url": "https://3dmodels.org/blog/how-to-fix-normals-in-blender/",
+          "claim": "Recalculate Outside is bpy.ops.mesh.normals_make_consistent(inside=False); clear custom split normals via Object Data Properties > Geometry Data to un-bake imported normals"
+        },
+        {
+          "title": "Blender Normal Fixer // Clear Custom Normals Script",
+          "url": "https://danielvesterbaek.gumroad.com/l/uXKAX",
+          "claim": "Custom split normals must be cleared before Shade Smooth takes effect on imported meshes"
+        }
+      ]
+    },
+    {
+      "slug": "merge-by-distance",
+      "name": "Merge by Distance (remove_doubles) — weld coincident vertices",
+      "what": "Merge vertices that are within a distance threshold of each other. Essential for TRELLIS meshes that may have zero-length edges, duplicate verts at seams, or disconnected shells that share coordinates.",
+      "how": "import bpy obj = bpy.context.active_object\nbpy.context.view_layer.objects.active = obj\nbpy.ops.object.mode_set(mode='EDIT')\nbpy.ops.mesh.select_all(action='SELECT') # Merge vertices closer than threshold (world-space distance)\nbpy.ops.mesh.remove_doubles(threshold=0.0001, use_unselected=False)\n# threshold: 0.0001 (0.1mm) is a conservative safe default\n# use_unselected=True also merges into unselected verts (useful for partial selections) bpy.ops.object.mode_set(mode='OBJECT')\nprint('Vertex count after merge:', len(obj.data.vertices))",
+      "blender_version": "4.x",
+      "gotchas": "The UI label is 'Merge by Distance' (since ~2.82) but the bpy operator is still bpy.ops.mesh.remove_doubles() — the legacy name is preserved in the API and works in 4.x. threshold is in world-space units: a mesh scaled to 2m tall should use a small value like 0.0001; a mesh at 0.01m scale may need 0.000001. Run BEFORE fill_holes and after initial import to ensure topology is coherent. Do NOT use with use_unselected=True in headless pipelines unless you've verified what 'unselected' geometry exists.",
+      "studio_use": "Always run as the first cleanup op on a TRELLIS GLB in the pipeline. Collapses any micro-gaps left by the mesh extraction step, which can otherwise cause shading seams and Boolean failures.",
+      "currency": "solid",
+      "verify_note": "Operator name remove_doubles confirmed in Blender 4.2 mesh ops API search result (docs.blender.org/api/4.2/bpy.ops.mesh.html). Threshold behavior confirmed across multiple Blender scripting guides. UI renamed to 'Merge by Distance' in 2.82 but API name unchanged.",
+      "sources": [
+        {
+          "title": "Mesh Operators — Blender Python API 4.2",
+          "url": "https://docs.blender.org/api/4.2/bpy.ops.mesh.html",
+          "claim": "bpy.ops.mesh.remove_doubles(threshold, use_unselected) is the 4.2 API; UI label is 'Merge by Distance' but operator name is preserved"
+        },
+        {
+          "title": "Clean meshes automatically in Blender with Python",
+          "url": "https://thinkmoult.com/clean-meshes-automatically-blender-python.html",
+          "claim": "bpy.ops.mesh.remove_doubles() confirmed as the correct cleanup operator for welding verts in headless scripts"
+        }
+      ]
+    },
+    {
+      "slug": "fill-holes-delete-loose-degenerate",
+      "name": "Fill Holes, Delete Loose, Degenerate Dissolve — structural cleanup trio",
+      "what": "Three mesh cleanup operators that address common TRELLIS mesh defects: open holes in the surface, floating disconnected vertices/edges, and zero-area degenerate faces/edges.",
+      "how": "import bpy obj = bpy.context.active_object\nbpy.context.view_layer.objects.active = obj\nbpy.ops.object.mode_set(mode='EDIT')\nbpy.ops.mesh.select_all(action='SELECT') # 1. Delete Loose — remove disconnected verts, edges, or faces\nbpy.ops.mesh.delete_loose( use_verts=True, use_edges=True, use_faces=False # keep floating face patches (they may be intentional)\n) # 2. Degenerate Dissolve — collapse zero-area faces and zero-length edges\nbpy.ops.mesh.dissolve_degenerate( threshold=0.0001 # edges/faces smaller than this are removed\n) # 3. Fill Holes — fill open boundary loops up to N sides\nbpy.ops.mesh.fill_holes(sides=4) # sides=0 means any hole size\n# fill_holes detects boundary edges and fills them;\n# sides=4 limits filling to holes with <= 4 boundary edges (quads only)\n# sides=0 fills all holes regardless of size bpy.ops.object.mode_set(mode='OBJECT')",
+      "blender_version": "4.x",
+      "gotchas": "Run in this order: delete_loose FIRST (removes garbage verts that confuse hole detection), THEN dissolve_degenerate, THEN fill_holes. fill_holes with sides=0 on complex organic meshes can fill large concave holes with unpredictable ngons — prefer sides=4 or sides=8 for controlled filling. dissolve_degenerate with too large a threshold can accidentally remove thin legitimate geometry (fins on characters, etc.) — use 0.0001 as a conservative default. These three ops are stable and unchanged across 4.x.",
+      "studio_use": "Run after merge_by_distance and before Decimate in the TRELLIS GLB cleanup pipeline. Removes the floating vert debris and micro-face artifacts that the volumetric TRELLIS extraction step leaves behind.",
+      "currency": "solid",
+      "verify_note": "All three operators confirmed in Blender 4.2 mesh ops API (docs.blender.org/api/4.2/bpy.ops.mesh.html) via search result. Parameter names (use_verts, use_edges, use_faces for delete_loose; threshold for dissolve_degenerate; sides for fill_holes) confirmed across multiple Blender scripting references and consistent since 2.x.",
+      "sources": [
+        {
+          "title": "Mesh Operators — Blender Python API 4.2",
+          "url": "https://docs.blender.org/api/4.2/bpy.ops.mesh.html",
+          "claim": "delete_loose(use_verts, use_edges, use_faces), dissolve_degenerate(threshold), fill_holes(sides) all present and documented in 4.2"
+        },
+        {
+          "title": "Clean Up — Blender Manual 4.0",
+          "url": "https://docs.blender.org/manual/en/4.0/modeling/meshes/editing/mesh/cleanup.html",
+          "claim": "Fill Holes, Delete Loose, and Degenerate Dissolve are all under Mesh > Clean Up; Fill Holes uses a 'sides' parameter to limit hole size"
+        },
+        {
+          "title": "TRELLIS GLB import and cleanup workflow — 3D AI Studio",
+          "url": "https://www.3daistudio.com/3d-generator-ai-comparison-alternatives-guide/how-to-import-optimize-ai-models-in-blender",
+          "claim": "fill_holes(), delete_loose(), dissolve_degenerate(), and normals_make_consistent() are the canonical cleanup sequence for AI-generated mesh imports"
+        }
+      ]
+    },
+    {
+      "slug": "trellis-glb-cleanup-recipe",
+      "name": "Full TRELLIS GLB cleanup recipe — import to game-export-ready",
+      "what": "End-to-end headless bpy pipeline for cleaning a raw TRELLIS-generated GLB mesh: import → structural cleanup → poly reduction → normals → export. Combines all mesh-ops lane recipes into a single callable script.",
+      "how": "import bpy, math, os, sys def clean_trellis_glb(glb_path: str, out_path: str, decimate_ratio: float = 0.35): \"\"\" Import a TRELLIS GLB, clean it, and export a game-ready GLB. Designed for Blender 4.1+. \"\"\" # 0. Clean scene bpy.ops.wm.read_factory_settings(use_empty=True) # 1. Import GLB bpy.ops.import_scene.gltf(filepath=glb_path) # 2. Gather mesh objects mesh_objs = [o for o in bpy.context.scene.objects if o.type == 'MESH'] if not mesh_objs: raise RuntimeError('No mesh objects found after import') for obj in mesh_objs: bpy.context.view_layer.objects.active = obj obj.select_set(True) # 3. Enter Edit Mode for cleanup ops bpy.ops.object.mode_set(mode='EDIT') bpy.ops.mesh.select_all(action='SELECT') # 3a. Merge by distance — weld micro-seams bpy.ops.mesh.remove_doubles(threshold=0.0001) # 3b. Delete loose geometry bpy.ops.mesh.delete_loose(use_verts=True, use_edges=True, use_faces=False) # 3c. Dissolve degenerate elements bpy.ops.mesh.dissolve_degenerate(threshold=0.0001) # 3d. Recalculate normals outward bpy.ops.mesh.normals_make_consistent(inside=False) bpy.ops.object.mode_set(mode='OBJECT') # 3e. Clear any baked custom split normals if obj.data.has_custom_normals: bpy.ops.mesh.customdata_custom_splitnormals_clear() # 4. Decimate (Collapse) dec = obj.modifiers.new(name='Decimate', type='DECIMATE') dec.decimate_type = 'COLLAPSE' dec.ratio = decimate_ratio dec.use_collapse_triangulate = True bpy.ops.object.modifier_apply(modifier='Decimate') # 5. Apply Smooth by Angle (Blender 4.1+ modifier approach) blender_local = bpy.utils.resource_path('LOCAL') smooth_blend = os.path.join( blender_local, 'datafiles', 'assets', 'geometry_nodes', 'smooth_by_angle.blend' ) if 'Smooth by Angle' not in bpy.data.node_groups: with bpy.data.libraries.load(smooth_blend, link=False) as (src, dst): dst.node_groups = ['Smooth by Angle'] sba = obj.modifiers.new(name='SmoothByAngle', type='NODES') sba.node_group = bpy.data.node_groups['Smooth by Angle'] sba['Input_1'] = math.radians(30.0) # Note: leave modifier UNAPPLIED so it's live/adjustable; # apply only if exporting to a format that doesn't support GN modifiers obj.select_set(False) # 6. Export cleaned GLB bpy.ops.export_scene.gltf( filepath=out_path, export_format='GLB', use_selection=False, export_apply=True # bakes all modifiers including Smooth by Angle ) print(f'Exported to {out_path}') # --- Entry point when run headlessly ---\nif __name__ == '__main__': argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [] import argparse p = argparse.ArgumentParser() p.add_argument('--glb', required=True) p.add_argument('--out', required=True) p.add_argument('--ratio', type=float, default=0.35) args = p.parse_args(argv) clean_trellis_glb(args.glb, args.out, args.ratio) # Invocation:\n# blender --background --python clean_trellis.py -- --glb input.glb --out clean.glb --ratio 0.35",
+      "blender_version": "4.1+",
+      "gotchas": "export_apply=True in export_scene.gltf is REQUIRED to bake the Smooth by Angle GN modifier into the output mesh normals — without it, the exported GLB reverts to flat normals. The Smooth by Angle.blend asset path (via bpy.utils.resource_path('LOCAL')) assumes the standard Blender installation layout; verify on your install with: python -c \"import bpy; import os; print(os.path.join(bpy.utils.resource_path('LOCAL'), 'datafiles', 'assets', 'geometry_nodes', 'smooth_by_angle.blend'))\". customdata_custom_splitnormals_clear() must be called while in Object Mode (not Edit Mode). Fill Holes is intentionally omitted from this recipe — it can produce large unexpected ngon fills on organic meshes; add it back with sides=4 only if the mesh has known specific holes.",
+      "studio_use": "Production script for the TRELLIS GLB → 2.5D sprite pipeline. Run as: blender --background --python clean_trellis.py -- --glb trellis_output.glb --out cleaned.glb --ratio 0.35. Feed output to the camera-orbit render script.",
+      "currency": "plausible",
+      "verify_note": "Each individual op in this recipe is confirmed solid from its own recipe entry. The full end-to-end script is synthesized — the Smooth by Angle asset path may vary by OS and Blender version. Marked plausible (not solid) because the complete script has not been run end-to-end against a live Blender 4.x install. Verify the smooth_by_angle.blend path on your install before production use.",
+      "sources": [
+        {
+          "title": "Blender Python script: converting mesh to GLB (gist by ryanfb)",
+          "url": "https://gist.github.com/ryanfb/f7caff4f08b1afa2960a40f63b39434b",
+          "claim": "bpy.ops.import_scene.gltf + export_scene.gltf with export_apply=True is the correct headless GLB round-trip pattern"
+        },
+        {
+          "title": "#117399 Adding assets (Smooth by Angle) not working in background Python script",
+          "url": "https://projects.blender.org/blender/blender/issues/117399",
+          "claim": "bpy.data.libraries.load(smooth_by_angle.blend) is the correct workaround for loading the Smooth by Angle node group in headless mode"
+        },
+        {
+          "title": "TRELLIS mesh cleanup pipeline — AI import workflow guide",
+          "url": "https://www.3daistudio.com/3d-generator-ai-comparison-alternatives-guide/how-to-import-optimize-ai-models-in-blender",
+          "claim": "Decimate at ratio 0.5 + normals fix is the recommended standard workflow for TRELLIS/AI-generated GLB imports into Blender"
+        }
+      ]
+    }
+  ]
+}

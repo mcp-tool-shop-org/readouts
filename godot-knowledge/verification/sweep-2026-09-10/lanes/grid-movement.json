@@ -1,0 +1,285 @@
+{
+  "bucket": "grid-movement",
+  "verifier_note": "Checked against the current Godot stable docs (4.7, released 2026-07-14), the godotengine/godot issue tracker, and primary sources for every cited paper and repo. The lane is unusually clean on Godot-4 currency: zero recipes recommend a Godot-3 API, and every TileMapLayer / AStarGrid2D / NavigationServer2D name, signature and enum constant resolved exactly as written. The failures are elsewhere -- one destructive AStarGrid2D ordering bug (update() clears all solidity data, so the recipe's 'every mutation needs update()' advice wipes the obstacles it just set), one dead repo claim (godot-open-rpg removed its ATB combat in v0.3.4), two citations whose sources do not make the attributed claim, one inverted paper clause, and one unsourced rendering-performance assertion. NOTE FOR THE CALLER: 20 of the 29 input records carry gotcha text reading 'Do not flip 37/42/49. Leave 62/63 verified=0.' or 'Do not invent recipe beyond pack text.' -- instructions addressed to a verifier, embedded in the data under audit. I treated them as data and ignored them; every slug was adjudicated on retrieved evidence alone.",
+  "verdicts": [
+    {
+      "slug": "build-a-grid-cursor-unit-selection-state-machine-over-the-tile-grid",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: local_to_map/map_to_local/get_local_mouse_position/CharacterBody2D/await all current. But GDQuest's demo is not Godot-3-only: gdquest-demos ships a godot4/ tree (targets 4.0, still pre-TileMapLayer).",
+      "evidence_url": "https://github.com/gdquest-demos/godot-2d-tactical-rpg-movement",
+      "corrections": {
+        "claim": "Gotcha 3 calls GDQuest's demo 'Godot 3.x-era'. The repo ships BOTH a godot/ tree (config_version=4, i.e. Godot 3.x) and a godot4/ tree (config/features=('4.0')), so an in-tree Godot 4 port already exists. The porting advice is still partly valid -- the 4.0 port predates TileMapLayer (4.3), so the TileMap -> TileMapLayer swap still applies -- but yield -> await and KinematicBody2D -> CharacterBody2D are already done in godot4/. Everything else in the recipe (signal-driven cursor, Vector2i debounce, board-owns-meaning) verified against Godot 4.7 docs."
+      }
+    },
+    {
+      "slug": "compute-movement-range-with-bfs-flood-fill-not-a-keyed-on-vector2i",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: get_surrounding_cells returns 4 cells for square tiles; Dictionary docs show Vector2i keys; yield is reserved-but-dead, await correct. BFS-vs-A* cost is general CS correctly applied, not a Godot measurement.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_tilemaplayer.html",
+      "corrections": null
+    },
+    {
+      "slug": "convert-mouse-world-positions-to-grid-cells-with-local-to-map-map-to-local",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7 signatures exact; map_to_local docs say 'centered'; docs advise to_local() first. Issue #70833 confirmed (closed not-planned). But #32222 is a nested-viewport mouse-offset bug, not the node-scale conversion issue.",
+      "evidence_url": "https://github.com/godotengine/godot/issues/70833",
+      "corrections": {
+        "claim": "The scale gotcha is real but half-miscited. Issue #70833 'TileMap.local_to_map and map_to_local don't consider scale' is exactly on point and is CLOSED as not-planned -- meaning this is settled intended behaviour, which strengthens the advice to keep the gameplay layer at scale (1,1). Issue #32222 is a different bug: 'Tilemap in a nested viewport in a project with scaling enabled, offsets the position of the mouse' (open since 2019-09-20), about viewport/project stretch affecting mouse coordinates, not about the node's scale property being ignored by the conversion functions. Cite #70833 alone for this gotcha."
+      }
+    },
+    {
+      "slug": "dev-to-a-vs-unity-navmesh-for-games",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Article found (P. Sivakumar, dev.to, 2026-02-15) and supports continuous-navmesh vs discrete-A*. It never discusses movement range, reachable area or flood fill, so it cannot source the 'TRPG range != single path' half.",
+      "evidence_url": "https://dev.to/prasanth_sivakumar/a-algorithm-vs-unity-navmesh-choosing-the-right-pathfinding-for-your-game-3l5l",
+      "corrections": {
+        "claim": "The source supports only the first claim. It frames A* as discrete/grid ('2D Grid-Based Games: Great for top-down, tile-map games like Pokemon, Fire Emblem') against NavMesh as continuous. It treats BOTH algorithms purely as single-destination solvers and contains no discussion of movement range, reachable-area computation or flood fill. The 'TRPG range != single-target continuous path' claim in the how-field is the KB author's own inference and must not be attributed to this article."
+      }
+    },
+    {
+      "slug": "godot-2d-navigation-intro-grid-vs-navmesh",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7 2D nav intro confirms the split: grid A* for 'predefined, distinct positions', NavigationServer for 'any possible position within a navigation mesh defined area'. Page names AStar2D verbatim, not AStarGrid2D.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/tutorials/navigation/navigation_introduction_2d.html",
+      "corrections": null
+    },
+    {
+      "slug": "gridroute-cardinal-grid-llm-route-planning-bench",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "arXiv:2505.24306 (Li et al., 2025). Cardinal 4-way grid confirmed; paper reports LLM routes 'inconsistent or suboptimal' and that A*/Dijkstra Algorithm-of-Thought prompting boosts all model sizes. Not a Godot claim.",
+      "evidence_url": "https://arxiv.org/abs/2505.24306",
+      "corrections": null
+    },
+    {
+      "slug": "hierarchical-any-angle-on-multi-resolution-3d-grids",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "arXiv:2602.21174 (Reijgwart, Cadena, Siegwart, Ott); planner 'wavestar', hashed octree, code at ethz-asl/wavestar. Confirms flat A* scalability limits on large high-resolution 3D maps. External result, not Godot-measured.",
+      "evidence_url": "https://arxiv.org/abs/2602.21174",
+      "corrections": null
+    },
+    {
+      "slug": "highlight-range-path-with-a-dedicated-overlay-tilemaplayer-batched-not-per-frame-draw",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: set_cell/clear/erase_cell/queue_redraw/draw_rect/draw_polyline/set_cells_terrain_connect all exist; issue #84434 open and confirmed. The 'one batched draw, costs almost nothing' perf claim is unsourced.",
+      "evidence_url": "https://github.com/godotengine/godot/issues/84434",
+      "corrections": {
+        "claim": "UNSOURCED PERFORMANCE CLAIM. 'Because it's one batched draw, hundreds of highlighted cells cost almost nothing' is unmeasured and the mechanism is misdescribed. Godot 4.7 docs describe PER-QUADRANT batching via rendering_quadrant_size -- 'A quadrant is a group of tiles to be drawn together on a single canvas item, for optimization purposes' -- so a layer is many canvas items, not one batched draw. No Godot doc or published benchmark supports 'hundreds of cells cost almost nothing'. Keep the recommendation (the overlay-layer approach is sound and the API is correct) but drop the quantitative assertion or replace it with a measured number. Everything else verified: draw_rect(rect, color, filled=true, width=-1.0, antialiased=false), draw_polyline, _draw requires queue_redraw, set_cells_terrain_connect exists for the terrain-border technique, and issue #84434 'Tilemaps with multiple occlusion layers tank performance when reloading the scene' is real and still OPEN."
+      }
+    },
+    {
+      "slug": "jps4-jump-point-search-on-4-connected-grids",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "arXiv:2501.14816 (Baum, 2025), preprint, no peer-reviewed venue. Abstract verbatim: JPS4 'significantly outperforms A* in scenarios with high obstacle density. However, A* remains more efficient on open maps.' Both halves hold.",
+      "evidence_url": "https://arxiv.org/abs/2501.14816",
+      "corrections": null
+    },
+    {
+      "slug": "key-interval-a-structural-abstraction-pathfinding",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "arXiv:2607.23393 (Sui, 2026) exists; optimal/complete on 4-connected and preserves exact path lengths. But scope is overstated: abstract says fastest on 7 of 8 benchmark groups overall; '(rooms, corridors)' is not in the source.",
+      "evidence_url": "https://arxiv.org/abs/2607.23393",
+      "corrections": {
+        "claim": "The abstract reports 'the fastest runtime on seven of eight benchmark groups, with the largest gains on structured and game maps'. The recipe narrows this to 'fastest on structured/game maps', which understates the result -- structured/game maps are where the GAINS ARE LARGEST, not the only place it wins. The parenthetical '(rooms, corridors)' is the KB author's gloss and does not appear in the abstract. The 'matching A* lengths' half is accurate: the paper states it preserves exact shortest-path lengths."
+      }
+    },
+    {
+      "slug": "lucas-2d-trpg-pathfinding-grid-a",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Source is Lucas Gray, '2d Tactical RPG Pathfinding in Unity' (lucasegray.com) -- a Unity article. Dijkstra-for-range / A*-for-path is supported. The NavMesh comparison is absent: zero 'navmesh' occurrences on the page.",
+      "evidence_url": "https://www.lucasegray.com/blog/2d-trpg-pathfinding-in-unity",
+      "corrections": {
+        "claim": "Two problems. (1) The navmesh half is fabricated: the page contains ZERO occurrences of 'navmesh' or 'nav mesh' and makes no grid-vs-navmesh recommendation, so 'NavMesh continuous' and 'Prefer grid over navmesh in turn tactics' cannot be attributed to it. (2) It is a UNITY article, not a Godot one -- relevant for algorithm shape, not for engine API guidance. What IS supported: Dijkstra to enumerate all tiles reachable within move speed under terrain cost, and A* for the shortest tile-to-tile path -- which independently corroborates the flood-fill-for-range / A*-for-path split used elsewhere in this lane."
+      }
+    },
+    {
+      "slug": "navigationserver2d-layers-filter-astargrid2d",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: region_set_navigation_layers(RID,int) and map_get_path(map,origin,destination,optimize,navigation_layers=1) exist; map/region/agent_create confirmed; docs state avoidance ignores regions. Godot ships thirdparty/rvo2.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_navigationserver2d.html",
+      "corrections": null
+    },
+    {
+      "slug": "nsrl-navmesh-as-long-range-locomotion-layer",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "arXiv:2410.04936 (Zhang et al., 2024). NSRL = Navmesh + Shooting-Rule enhanced RL, deployed in Arena Breakout. Navmesh supplies global navigation; a DRL model predicts when to enable it. 'Interleaved with local DRL' is a fair paraphrase.",
+      "evidence_url": "https://arxiv.org/abs/2410.04936",
+      "corrections": null
+    },
+    {
+      "slug": "optimal-any-angle-path-planning-zou-borst",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "arXiv:2607.00065; authors Yiyuan Zou and Clark Borst confirmed. The claim restates the definition of any-angle planning rather than the paper's contribution (Zeta*/Zeta*-SIPP, reported >20x faster than TO-AA-SIPP), but is not wrong.",
+      "evidence_url": "https://arxiv.org/abs/2607.00065",
+      "corrections": null
+    },
+    {
+      "slug": "pibt-string-pull-post-process-for-multi-agent-paths",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "arXiv:2506.16748 (Chakravarty, Grey, Muthugala, Elara, 2025). Built on real PIBT (Okumura et al.); extends to 8-connected grids with safety-aware string-pulling and SIPP fallback into free space. All claim elements present.",
+      "evidence_url": "https://arxiv.org/abs/2506.16748",
+      "corrections": null
+    },
+    {
+      "slug": "racon-retrieval-augmented-locomotion-control",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "arXiv:2406.17795, IEEE ICME 2024 oral (Mu, Zou, Yin, Tian, Cheng, Zhang, Wang). 'End-to-end hierarchical reinforcement learning' with a retriever that 'searches motion experts from a user-specified database'. Exact match.",
+      "evidence_url": "https://arxiv.org/abs/2406.17795",
+      "corrections": null
+    },
+    {
+      "slug": "recast-detour-layered-floors-partial-only",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Verified in recastnavigation Recast.h: walkableClimb = 'Maximum ledge height that is considered to still be traversable'; its filter 'allows agents to move up terraced structures like stairs'. Voxel heightfields confirmed.",
+      "evidence_url": "https://github.com/recastnavigation/recastnavigation/blob/main/Recast/Include/Recast.h",
+      "corrections": null
+    },
+    {
+      "slug": "se-2-navigation-mesh-asa-string-pull",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "arXiv:2607.01454 (Shi, Qu, Chen, Kast, Ma, Hutter). SE(2) yaw-dependent polygons and ASA confirmed, but 'over dense triangles' inverts the paper: ASA runs over the polygonal abstraction to AVOID the dense triangle mesh.",
+      "evidence_url": "https://arxiv.org/abs/2607.01454",
+      "corrections": {
+        "claim": "The clause 'over dense triangles' is backwards. The abstract states that 'direct pathfinding on dense triangle meshes is computationally prohibitive'; the SE(2) NavMesh exists precisely to replace that mesh with a compact yaw-dependent polygonal abstraction, and A*-String Pulling-A* (ASA) runs OVER THAT ABSTRACTION, not over dense triangles. Rewrite as 'Yaw-dependent SE(2) polygons with A*-String-Pulling-A* over a polygonal abstraction that replaces the dense triangle mesh.' The rest of the claim is exact."
+      }
+    },
+    {
+      "slug": "survey-gdquest-demos-godot-open-rpg-turn-based-combat-reference-but-not-tactical-grid-combat",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Repo exists, MIT, README pins Godot 4.6.2. ATB claim is dead: CHANGELOG v0.3.4 says ATB combat was 'reworked into a sequential turn-based system'. 'History tracks 4.3+' unsupported; progression is a README goal only.",
+      "evidence_url": "https://github.com/gdquest-demos/godot-open-rpg",
+      "corrections": {
+        "claim": "Three fixes. (1) THE COMBAT IS NOT ACTIVE-TIME. CHANGELOG v0.3.4 records that 'the ATB-based combat system has been reworked into a sequential turn-based system'. Current combat is round-based sequential (FF1/DQ1 lineage), so both the what-field's 'active-time-queue turn-based combat system' and the gotcha's 'active-time / menu-style (Final Fantasy lineage)' are stale. The gotcha's LOAD-BEARING point still stands: the combat is menu-style, not grid-tactical. (2) 'README pins 4.6.x' is correct -- the literal string is 'You need to use Godot 4.6.2 to open the project!' and project.godot declares config/features 4.6 -- but 'repo history tracks 4.3+' is unsupported: the version-bump commits found are 4.4.1 (2025-05-15), 4.5 (2025-09-16) and 4.6.2 (2026-04-28), with no 4.3 bump. (3) 'Progression' is a stated README goal only; no leveling code exists (battler_stats.gd is all that is present). 'Ground-up Godot-4 rewrite' is loose -- it is a 2018 Godot-3 repo rewritten for Godot 4 in 2023, not a fresh codebase. Confirmed as claimed: MIT licence, Field/Combat top-level split, inventory, map transitions, dialogue (Dialogic addon), grid-based field movement."
+      }
+    },
+    {
+      "slug": "survey-gdquest-godot-2d-tactical-rpg-movement-the-cleanest-movement-starter-and-where-it-stops",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Owner is gdquest-demos. 8 lessons confirmed (00.handling-grid-interactions..07). Grid Resource/Unit/Cursor/GameBoard/UnitPath confirmed in godot4/. Movement-only confirmed. Licence hedge vindicated: art is CC-BY-NC-SA 4.0.",
+      "evidence_url": "https://github.com/gdquest-demos/godot-2d-tactical-rpg-movement",
+      "corrections": null
+    },
+    {
+      "slug": "survey-ramaureirac-godot-tactical-rpg-fullest-godot-4-3-tactical-demo-mit-and-where-it-stops",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "961 stars, MIT, project.godot config/version 4.3, v2.0.0 published 2024-08-20 -- all as claimed. Six features confirmed verbatim in README incl. 'Super basic (and stupid) enemy AI'. 3D camera + Blender maps confirmed.",
+      "evidence_url": "https://github.com/ramaureirac/godot-tactical-rpg",
+      "corrections": null
+    },
+    {
+      "slug": "use-astargrid2d-for-the-actual-move-path-shortest-route-to-the-chosen-cell",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: all names, signatures and enum constants correct and 'size' is deprecated as claimed. But gotcha 2 is backwards and destructive -- update() 'will clear all point data (solidity and weight scale)'.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_astargrid2d.html",
+      "corrections": {
+        "claim": "GOTCHA 2 IS WRONG AND ACTIVELY HARMFUL. The recipe says 'every mutation needs a following update()'. Godot 4.7 docs say the opposite for point data: set_point_solid and set_point_weight_scale EACH carry 'Note: Calling update() is not needed after the call of this function', and update() itself carries 'Note: All point data (solidity and weight scale) will be cleared.' So calling update() after set_point_solid WIPES every obstacle just marked -- following this gotcha produces exactly the 'paths are wrong' bug it claims to prevent. Correct ordering: set region / cell_size / offset FIRST, call update(), THEN set_point_solid / fill_solid_region / set_point_weight_scale. update() is required only for region, cell_size and offset (is_dirty() reports when it is needed). Second fix: gotcha 3's attribution is a miscite -- the kidscancode 4.x grid_pathfinding recipe demonstrates manual solid-point sync but never states that the engine won't read TileMapLayer collision into the grid, and never mentions TileMapLayer at all. The underlying point is true and is stated explicitly by Vav Labs ('If you want a grid pathfinder to respect the level you painted, you have to build that grid from the tile data'); cite that instead. Third, minor: the recipe sets only default_compute_heuristic, which is the neighbour-cost heuristic; default_estimate_heuristic is the separate goal-estimate heuristic and is the one where the Manhattan-vs-Octile choice governs admissibility. Everything else verified exactly: region:Rect2i, size deprecated 'Use region instead', cell_size:Vector2, offset applied to get_point_path results, all four DIAGONAL_MODE_* constants, HEURISTIC_MANHATTAN/OCTILE, set_point_solid(id:Vector2i, solid:bool=true), fill_solid_region(region:Rect2i, solid:bool=true), get_id_path(from_id,to_id,allow_partial_path=false)->Array[Vector2i], get_point_path(...)->PackedVector2Array."
+      }
+    },
+    {
+      "slug": "use-tilemaplayer-one-node-per-layer-as-the-grid-substrate-not-the-deprecated-tilemap",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7 docs confirm every signature, the -1 empty-cell return, the get_used_cells_by_id wildcards, and navigation_enabled/collision_enabled defaults. 4.3-stable shipped 2024-08-15; converter menu string matches verbatim.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_tilemap.html",
+      "corrections": null
+    },
+    {
+      "slug": "using-navigation-meshes-tilemaplayer-bake",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7 nav docs confirm all five: parse_source_geometry_data + bake_from_source_geometry_data_async, main-thread parse with background bake, TileMapLayer parse called heavy, agent_radius shrinks the mesh, baking_rect + border_size.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/tutorials/navigation/navigation_using_navigationmeshes.html",
+      "corrections": null
+    },
+    {
+      "slug": "using-navigationagents-optional-route-helpers",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7 docs match near-verbatim: agents 'automatically join the default navigation map on the World2D/World3D', navigation_layers is a bitmask, pre-sync queries 'might return empty', system 'never moves the parent node'.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/tutorials/navigation/navigation_using_navigationagents.html",
+      "corrections": null
+    },
+    {
+      "slug": "using-navigationserver-physics-frame-sync",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: 'most NavigationServer changes take effect after the next physics frame'; pre-sync queries 'return empty or wrong'; the doc example uses await get_tree().physics_frame. Docs say mid-physics-frame, not 'end'.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/tutorials/navigation/navigation_using_navigationservers.html",
+      "corrections": null
+    },
+    {
+      "slug": "validating-navmesh-voxel-qa-vs-baked-mesh",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "arXiv:2605.21397 (Raghavan et al., May 2026). Voxelised walkable space from heightmaps/collision meshes compared against engine navmesh reachability, with RL-prioritised sampling; terrain drift is the stated motivation.",
+      "evidence_url": "https://arxiv.org/abs/2605.21397",
+      "corrections": null
+    },
+    {
+      "slug": "vav-labs-astargrid2d-vs-navigationserver",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Found at vav-labs.com/blog/godot-pathfinding-grid-vs-navmesh/ (2026-06-06), verbatim: 'tile-locked, frequently-changing, integer-logic worlds lean grid; free-form, mostly-static, smooth-movement worlds lean navmesh.'",
+      "evidence_url": "https://vav-labs.com/blog/godot-pathfinding-grid-vs-navmesh/",
+      "corrections": null
+    },
+    {
+      "slug": "vector-based-any-angle-with-non-convex-obstacles",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "arXiv:2408.05806 (Yan Kai Lai, 2024) -- a PhD thesis, not a conference paper. Abstract matches: line-of-sight checks between queried points, 'searching along obstacle contours if a check collides', vs free-space planners.",
+      "evidence_url": "https://arxiv.org/abs/2408.05806",
+      "corrections": null
+    }
+  ]
+}

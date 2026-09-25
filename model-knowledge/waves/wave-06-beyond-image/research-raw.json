@@ -1,0 +1,111 @@
+{
+  "wave": 6,
+  "date": "2026-06-30",
+  "title": "Beyond image-gen — ComfyUI / Comfy-Cloud feasibility (cloud_feasible axis)",
+  "domain_scope": "cross-domain cloud-feasibility axis (video, audio, 3d, caption, control) + new audio model + Comfy Cloud platform",
+  "agent_count": 15,
+  "dispatch_path": "waves/wave-06-beyond-image/dispatch.md",
+  "verifier_note": "study-swarm wf_92f13b67-f91 (2026-06-30): 7 research lanes -> per-lane reasoning-stripped WebFetch retrieval-oracle verifier (existence / cloud-support / license) -> completeness critic. Receipts in verification.md. Family-different prism/roleos path deferred (same posture as waves 1-5).",
+  "lanes": [
+    {
+      "slug": "audio",
+      "name": "Audio — new cloud-feasible commercial-safe TTS surfaced by the beyond-image swarm",
+      "research": {
+        "models": [
+          {
+            "slug": "qwen3-tts",
+            "name": "Qwen3-TTS",
+            "base_arch": "Qwen3-TTS (autoregressive TTS + voice clone)",
+            "developer": "Alibaba Cloud (QwenLM / Tongyi)",
+            "release_date": null,
+            "params": "TTS + 3s voice-clone",
+            "disk_size_gb": null,
+            "min_vram_gb": null,
+            "recommended_vram_gb": null,
+            "runs_on_32gb": true,
+            "license": "Apache-2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "Apache-2.0 (Alibaba Cloud) — commercial-safe for SHIPPED character VO. NOTE: the voice-clone REFERENCE audio you supply must itself be cleared; the model license does not clear the speaker.",
+            "quality_tier": "strong",
+            "speed_note": "9 prebuilt speakers, voice design from text, ~3s voice cloning, 10 languages, emotional control.",
+            "repo_url": "https://github.com/QwenLM/Qwen3-TTS",
+            "status": "recommended",
+            "game_asset_fit": 7,
+            "marketing_fit": 6,
+            "cloud_feasible": "yes",
+            "cloud_note": "ComfyUI-Qwen-TTS is a preinstalled pack on the Comfy Cloud supported-nodes index (loads weights on the cloud GPU, no egress) -> the best CONFIRMED commercial-safe cloud TTS path for shipped JRPG dialogue/barks; pairs with Wan2.2-S2V for lip-synced cutscenes. Contrast VibeVoice (research-license-only AND off-allowlist).",
+            "summary": "Apache-2.0 character-VO / voice-clone model from Alibaba's Qwen team, available as the ComfyUI-Qwen-TTS pack on the Comfy Cloud allowlist -> commercial-safe NPC/cutscene voice rendered headlessly on the managed RTX-6000 GPU. 9 speakers, text-driven voice design, ~3s cloning, 10 languages, emotional control. Surfaced + cloud-confirmed by the wave-06 beyond-image study-swarm; the recommended cloud VO path over the research-licensed VibeVoice.",
+            "best_for": [
+              {"purpose": "Character voice / dialogue VO", "fitness": 8, "use_tag": "game-asset"},
+              {"purpose": "Cloud-renderable commercial TTS", "fitness": 8, "use_tag": "game-asset"}
+            ],
+            "sources": [
+              {"kind": "model-card", "title": "QwenLM/Qwen3-TTS LICENSE (Apache-2.0)", "url": "https://github.com/QwenLM/Qwen3-TTS/blob/main/LICENSE", "claim": "Qwen3-TTS released under Apache License 2.0 by Alibaba Cloud — commercial use permitted."},
+              {"kind": "community", "title": "ComfyUI-Qwen-TTS on the Comfy Cloud supported-nodes index", "url": "https://comfy.org/cloud/supported-nodes/", "claim": "ComfyUI-Qwen-TTS (Qwen3TTS/QwenTTS/AudioInfo) is listed as preinstalled on Comfy Cloud — confirmed cloud-runnable."}
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {"model": "Qwen3-TTS", "overall": "confirmed", "currency": "current", "note": "Cloud-availability CONFIRMED (ComfyUI-Qwen-TTS in the Comfy Cloud supported-nodes index); Apache-2.0 verified against the Qwen3-TTS LICENSE file (not the index page). wave-06 reasoning-stripped WebFetch verifier."}
+        ]
+      }
+    },
+    {
+      "slug": "comfy",
+      "name": "ComfyUI — Comfy Cloud platform (the allowlist + sandbox gate) + cloud-relevant nodes",
+      "research": {
+        "extras": [
+          {"kind": "node", "name": "Comfy Cloud supported-nodes allowlist (THE GATE)", "url": "https://comfy.org/cloud/supported-nodes/", "note": "CLOUD GATE: the managed RTX-6000 service runs ONLY these preinstalled packs (~90% of local workflows); you CANNOT install arbitrary registry nodes or BYO node code, and a graph referencing an unlisted node is rejected. A non-image capability is cloud-feasible iff it maps to allowlisted nodes + needs no arbitrary code/network/DB. This is the decisive axis behind the cloud_feasible column."},
+          {"kind": "node", "name": "Official API Nodes (Gemini/GPT in-graph LLM)", "url": "https://blog.comfy.org/p/comfyui-api-nodes-wave-2-is-live", "note": "CLOUD: yes — first-party in-graph LLM/VLM (Gemini 2.5 Pro/Flash, GPT-4.1/4o/o1/o3/o4) for prompt-gen, reasoning, logic branches, captioning. BUT prepaid-credit, no free tier, drawn from the SAME 7,400-credit pool (critic correction). Open VLM packs (Florence2/QwenVL) on the allowlist run credit-FREE on the cloud GPU — prefer them for at-volume VLM-in-the-loop QA. Local-Ollama LLM nodes (127.0.0.1:11434) are cloud-impossible and duplicate ollama-intern."},
+          {"kind": "node", "name": "ComfyUI-RMBG (background removal / part-segmentation)", "url": "https://comfy.org/cloud/supported-nodes/comfyui-rmbg/", "note": "CLOUD: yes — dedicated cloud supported page (RMBG / BiRefNet / SAM2Segment / Body/Face/Clothes / SDMatte). Mass alpha-cutting + part-masks for dataset augmentation. LICENSE TRAP: RMBG-2.0 weights are CC BY-NC (non-commercial) — pin BiRefNet/INSPYRENET for shipped assets."},
+          {"kind": "node", "name": "AnimateDiff-Evolved (lighter looping FX)", "url": "https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved", "note": "CLOUD: yes — on the allowlist. Lighter, LoRA-compatible SD1.5/SDXL motion-module animation (idle breathing, flame, water, cloth) — drive a trained canon LoRA for cheap looping 2.5D FX without standing up the 14B Wan stack. Critic find (no lane surfaced it)."},
+          {"kind": "node", "name": "ComfyScript / ComfyUI-to-Python (client-side orchestration, MIT)", "url": "https://github.com/Chaoses-Ib/ComfyScript", "note": "The sanctioned way to get 'Python automation' onto Comfy Cloud — both MIT, run on YOUR machine and submit workflow JSON to the API (no server-side code-exec, so the registry eval/exec ban does not apply). Replaces the sandbox-blocked in-graph python/HTTP/DB nodes; pair with the X-API-Key API for headless batch + parameter sweeps."},
+          {"kind": "node", "name": "SAM3 / SeC video segmentation (NOT SAM2 on cloud)", "url": "https://comfy.org/cloud/supported-nodes/", "note": "CLOUD: yes — the cloud lists comfyui-sam3 (SAM3 Video Segmentation) + Comfyui-SecNodes (SeC). NOTE (verifier catch): there is NO standalone SAM2 video-segmentation pack on the allowlist — SAM2 appears only as a model inside ComfyUI-RMBG. Use SAM3/SeC for clean masked character-swap on cloud."},
+          {"kind": "workflow-source", "name": "Comfy Cloud pricing (metered credit pool — corrects 'flat')", "url": "https://comfy.org/cloud/pricing/", "note": "Creator $35/mo = 7,400 credits, 3 concurrent jobs, 30-min/workflow cap, BYO LoRA; billed only for active GPU time (~0.266 credits/GPU-sec). Corrects the old 'flat, no per-render meter' framing — it is a metered, exhaustible pool (~7.7 GPU-hrs/mo)."},
+          {"kind": "workflow-source", "name": "Comfy Cloud server API reference (X-API-Key, headless)", "url": "https://docs.comfy.org/development/cloud/api-reference", "note": "Host cloud.comfy.org; X-API-Key; POST /api/prompt -> GET /api/job/{id}/status -> /api/view; wss /ws. The server-to-server spine the studio's comfy_cloud_bridge.py uses — ComfyUI as a headless render microservice behind Sprite Foundry / style-dataset-lab."},
+          {"kind": "workflow-source", "name": "Comfy Registry standards (no eval/exec, no subprocess install)", "url": "https://docs.comfy.org/registry/standards", "note": "The sandbox policy that makes in-graph arbitrary-Python, web-scraping, and external-DB nodes infeasible on the managed cloud (they stay on the local 5090). 'The use of eval and exec functions is prohibited... Runtime package installation through subprocess calls is not permitted.'"},
+          {"kind": "workflow-source", "name": "Comfy Cloud out of beta (hardware: RTX 6000 Pro, 96GB VRAM)", "url": "https://blog.comfy.org/p/comfy-cloud-is-out-of-beta-and-its", "note": "Blackwell RTX 6000 Pro, 96GB VRAM + 180GB system RAM — runs Wan 14B fp8/bf16 without GGUF; custom nodes powering '~90% of local workflows' available, growing-but-bounded (the allowlist)."}
+        ]
+      }
+    }
+  ],
+  "model_updates": [
+    {"slug": "wan-2-2", "cloud_feasible": "yes", "cloud_note": "Native core + WanVideoWrapper on the allowlist; 96GB GPU runs 14B fp8/bf16. Constraint: 30-min/workflow cap — tile long 720p clips."},
+    {"slug": "wan-2-2-animate-14b", "cloud_feasible": "yes", "cloud_note": "Pose-driven sprite animation; WanVideoWrapper + DWPose + KJNodes all on the allowlist. The cloud sprite-motion path (maps onto sprite-motion-knowledge)."},
+    {"slug": "wan22-animate-14b", "cloud_feasible": "yes", "cloud_note": "Animate-14B on the allowlist via WanVideoWrapper; Move-mode + DWPose = pose-driven sprite animation, Mix-mode = background-consistent character swap."},
+    {"slug": "wan2-2-s2v-14b", "cloud_feasible": "yes", "cloud_note": "Native S2V; Lightning 4-step keeps runs under the 30-min cap. Lip-synced/performance cutscenes from one portrait + audio."},
+    {"slug": "wan2-2-vace-fun-a14b", "cloud_feasible": "partial", "cloud_note": "VACE node is native core, but 720p/81f (~40min on a 4090) brushes the 30-min Creator cap — keep <=640p or tile. The painterly-repaint / temporal-coherence path (wave-3 of sprite-motion)."},
+    {"slug": "wan22-fun-a14b-control", "cloud_feasible": "yes", "cloud_note": "Fun-Control (canny/depth/pose/trajectory) via WanVideoWrapper; Lightx2v 4-step keeps it under the cap. The most art-directable sprite-motion-ref generator."},
+    {"slug": "wan2-2-fun-a14b-control", "cloud_feasible": "yes", "cloud_note": "Fun-Control on the allowlist via WanVideoWrapper; multi-condition controlled motion."},
+    {"slug": "wan2-2-fun-a14b-control-camera", "cloud_feasible": "yes", "cloud_note": "Camera-trajectory control via WanVideoWrapper; on the allowlist."},
+    {"slug": "wan22-i2v-a14b-lightx2v", "cloud_feasible": "yes", "cloud_note": "I2V + LightX2V 4-step on the allowlist; fast motion refs (idle/walk/cast) from a single sprite."},
+    {"slug": "wan22-ti2v-5b", "cloud_feasible": "yes", "cloud_note": "5B hybrid; trivially fits the 96GB cloud GPU."},
+    {"slug": "lightx2v-wan22-distill", "cloud_feasible": "yes", "cloud_note": "4-step distill accelerator usable via WanVideoWrapper; BYO-LoRA is supported on Creator."},
+    {"slug": "wan22-lightning", "cloud_feasible": "yes", "cloud_note": "Lightning 4-step accel LoRA; the lever that keeps Wan runs under the 30-min cap."},
+    {"slug": "quantstack-wan2-2-fun-a14b-control-gguf", "cloud_feasible": "yes", "cloud_note": "GGUF via WanVideoWrapper + ComfyUI-GGUF; not needed at 96GB but runnable."},
+    {"slug": "quantstack-wan2-2-fun-a14b-control-camera-gguf", "cloud_feasible": "yes", "cloud_note": "GGUF camera-control via WanVideoWrapper; on the allowlist path."},
+    {"slug": "phr00t-wan2-2-14b-rapid-allinone", "cloud_feasible": "partial", "cloud_note": "Runnable via WanVideoWrapper, but the merged-LoRA all-in-one license is conditional — verify before shipping."},
+    {"slug": "ace-step-1-5", "cloud_feasible": "yes", "cloud_note": "Native ComfyUI audio template with a 'Try on Comfy Cloud' path; MIT — commercial-safe music. The cloud music path; stems feed Motif's adaptive cue families."},
+    {"slug": "vibevoice-large-7b", "cloud_feasible": "local", "cloud_note": "Community node NOT on the allowlist AND the model is research-license-only (not commercial). Local 5090 prototype only — use Qwen3-TTS for shipped/cloud VO."},
+    {"slug": "vibevoice-1-5b", "cloud_feasible": "local", "cloud_note": "Off-allowlist + research-license-only. Local prototype only; Qwen3-TTS is the cloud commercial path."},
+    {"slug": "diffrhythm-2", "cloud_feasible": "local", "cloud_note": "ComfyUI_DiffRhythm node not on the allowlist — use cloud ACE-Step for cloud music. DiffRhythm2 weights are Apache (commercial) but run locally."},
+    {"slug": "mmaudio", "cloud_feasible": "local", "cloud_note": "Standalone foley node not on the allowlist (MMAudio-named loaders appear only nested in WanVideoWrapper/Ovi); the ComfyUI CLIP component is non-commercial -> prototype only, local."},
+    {"slug": "hunyuanvideo-foley", "cloud_feasible": "local", "cloud_note": "Community foley node not on the allowlist; conditional license. Local / prototype."},
+    {"slug": "chatterbox-tts", "cloud_feasible": "unknown", "cloud_note": "Not found on the Comfy Cloud supported-nodes index — verify before relying; the confirmed cloud commercial VO path is Qwen3-TTS."},
+    {"slug": "uvr5-ultimate-vocal-remover", "cloud_feasible": "partial", "cloud_note": "RoFormer/MelBand stem separators ARE on the allowlist (AudioTools, ComfyUI-MelBandRoFormer) — stem-prep for Motif runs on cloud; the full UVR5 model-zoo runs via local nodes."},
+    {"slug": "florence-2-large-2", "cloud_feasible": "yes", "cloud_note": "On the allowlist (ComfyUI_LayerStyle Florence2Ultra / VL packs); runs credit-FREE on the cloud GPU for sdlab auto-caption + region/mask prep."},
+    {"slug": "florence-2-large", "cloud_feasible": "yes", "cloud_note": "Same Florence-2 VLM on the allowlist; credit-free auto-caption / referring-segmentation on the cloud GPU."},
+    {"slug": "qwen3-vl", "cloud_feasible": "partial", "cloud_note": "Open-VLM packs (QwenVL) appear on the allowlist and run credit-free on the cloud GPU for VLM-in-the-loop QA; confirm the specific pack in-app before relying."},
+    {"slug": "hunyuan3d-2", "cloud_feasible": "partial", "cloud_note": "ONLY the native Hunyuan3D-2 nodes run on cloud ('Run on Comfy Cloud'), and SHAPE-only (no PBR/UV). License excludes EU/UK/South Korea."},
+    {"slug": "hunyuan3d-2-1", "cloud_feasible": "local", "cloud_note": "The 2.1 PBR texture path is a community wrapper NOT on the allowlist -> local 5090. License excludes EU/UK/South Korea."},
+    {"slug": "trellis-2-4b", "cloud_feasible": "local", "cloud_note": "MIT-clean (best-licensed mesh source) but needs a non-allowlisted wrapper + Linux/24GB build -> local 5090 only."},
+    {"slug": "trellis-image-large", "cloud_feasible": "local", "cloud_note": "Wrapper not on the allowlist -> local rig."},
+    {"slug": "real-esrgan-x4plus", "cloud_feasible": "yes", "cloud_note": "UltimateSDUpscale + FlashVSR on the allowlist; RealESRGAN x4plus is BSD-3 -> THE commercial-safe cloud upscaler (use instead of SUPIR / 4x-UltraSharp, both non-commercial)."},
+    {"slug": "supir-upscaler", "cloud_feasible": "local", "cloud_note": "SUPIR wrapper not on the allowlist AND non-commercial — use RealESRGAN x4plus on cloud instead."},
+    {"slug": "qwen-image-controlnet-union", "cloud_feasible": "yes", "cloud_note": "The studio's comfy_cloud_bridge already runs this headless on cloud for the canny-lock stage; depth/canny preprocessors supported. (The general controlnet_aux pack for normal/lineart is NOT on the allowlist — depth=cloud, other preprocessors=local.)"},
+    {"slug": "qwen-image-2512-fun-controlnet-union", "cloud_feasible": "yes", "cloud_note": "Apache-2.0 multi-control union; the canny+depth 3D-prerender restylize runs on cloud (the wave-05 addendum model)."},
+    {"slug": "diffsynth-in-context-control-union-qwen", "cloud_feasible": "partial", "cloud_note": "Apache-2.0 but less turnkey in ComfyUI; verify node support on the cloud allowlist before relying."}
+  ]
+}

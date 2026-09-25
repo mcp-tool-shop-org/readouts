@@ -1,0 +1,241 @@
+{
+  "bucket": "grid-movement",
+  "domains": [
+    "grid-movement"
+  ],
+  "count": 29,
+  "recipes": [
+    {
+      "slug": "build-a-grid-cursor-unit-selection-state-machine-over-the-tile-grid",
+      "name": "Build a grid cursor + unit-selection state machine over the tile grid",
+      "what": "The input spine: a cursor that snaps to cells, emits 'hovered cell changed' and 'cell accepted' signals, and a board/controller that runs the select → show-range → preview-path → confirm-move flow. GDQuest's series ships exactly this (Cursor + GameBoard/Grid + Unit) as the canonical structure.",
+      "how": "CURSOR (Node2D): on input, compute cell = tile_layer.local_to_map(tile_layer.get_local_mouse_position()); if cell != _last_cell: _last_cell = cell; position = tile_layer.map_to_local(cell); emit_signal('moved', cell). On click / accept action: emit_signal('accepted', cell). Support keyboard too: on ui_up/down/left/right, clamp _last_cell ± Vector2i and re-emit. CONTROLLER/GameBoard: hold a Dictionary { Vector2i: Unit }; on cursor 'accepted', if no unit selected and the cell holds a player unit → select it, flood-fill its range, paint the HighlightLayer; if a unit is selected and the accepted cell is in range → AStarGrid2D path, animate move, update the unit's cell key, clear highlights; else deselect. Drive this as an explicit enum state machine (SELECTING / MOVING / TARGETING) so part-targeting and AP gating slot in as states.",
+      "gotchas": "(1) Debounce on cell-change (compare to _last_cell) — don't emit 'moved' every mouse-motion pixel or you re-run flood-fill needlessly. (2) Wire interactions with signals, not polling — GDQuest's design connects Cursor.accepted/moved to the board; this keeps the LLM crew's generated scenes loosely coupled. (3) GDQuest's original demo is Godot 3.x-era — when porting, swap any TileMap layer-indexed calls to TileMapLayer, yield→await, and KinematicBody2D→CharacterBody2D (or just Node2D + tween for grid-snapped units, no physics body needed). (4) Keep selection/turn logic out of the Cursor node — Cursor only reports cells; the board decides meaning.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "compute-movement-range-with-bfs-flood-fill-not-a-keyed-on-vector2i",
+      "name": "Compute movement RANGE with BFS flood-fill (not A*) keyed on Vector2i",
+      "what": "The reachable set of cells a unit can move to within a movement budget. This is a DIFFERENT problem from pathfinding: range = 'all cells within N steps from origin', best solved by breadth-first flood-fill; pathfinding = 'one shortest route to a chosen cell', solved by A*. Conflating them is the #1 beginner mistake. GDQuest's tactical series uses flood-fill for exactly this reason.",
+      "how": "Breadth-first flood-fill from the unit's cell: seed a queue with (origin, 0); pop a cell, and for each of its 4 (orthogonal) neighbors that is in-bounds, not blocked (no occupying unit, not impassable terrain), and not already visited, enqueue it with distance+1 if distance+1 <= max_range; collect all visited cells. Use a Dictionary keyed by Vector2i as the visited set (Godot Dictionaries accept Vector2i keys directly). For variable terrain cost, switch the queue to a min-cost frontier (Dijkstra-style: track best cost per cell, relax when a cheaper path is found) so 'rough' cells subtract more movement. Neighbor generation can lean on TileMapLayer.get_surrounding_cells(coords) for square grids.",
+      "gotchas": "(1) Don't call AStarGrid2D for range — it returns ONE path, forcing you to run it to every cell (O(cells × pathfind), wasteful and awkward); flood-fill computes the whole set in one O(cells) pass. (2) Manhattan/orthogonal range (4-neighbor) reads cleaner for tactics than diagonal; pick 4-neighbor unless the design wants diagonals. (3) Occupying units must block range but you usually still allow path-THROUGH-allies / stop-on-empty — model 'blocked for stopping' vs 'blocked for passing' separately. (4) yield is dead — if you animate the range reveal cell-by-cell, use await get_tree().create_timer(t).timeout, never yield.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "convert-mouse-world-positions-to-grid-cells-with-local-to-map-map-to-local",
+      "name": "Convert mouse/world positions to grid cells with local_to_map / map_to_local",
+      "what": "The two-way bridge between pixel space and cell space — the single most-used operation in a grid tactics game (cursor hover, click-to-select, snapping a unit sprite to a cell center).",
+      "how": "On a TileMapLayer: local_to_map(local_position: Vector2) const -> Vector2i converts a LOCAL position to a cell coordinate; map_to_local(map_position: Vector2i) const -> Vector2 returns the CENTERED local position of a cell. The canonical cursor-to-cell line is: var cell: Vector2i = tile_layer.local_to_map(tile_layer.get_local_mouse_position()). To place a unit sprite dead-center on a cell: unit.global_position = tile_layer.to_global(tile_layer.map_to_local(cell)). The full round-trip when you have a global point is to_local() → local_to_map() → (process) → map_to_local() → to_global().",
+      "gotchas": "(1) Do NOT feed get_global_mouse_position() into local_to_map directly unless the TileMapLayer is unscaled and at the origin — use get_local_mouse_position() (already in the layer's space) or wrap with to_local(). (2) KNOWN ENGINE QUIRK: local_to_map/map_to_local ignore the node's scale property (Godot issues #70833/#32222) — keep the gameplay TileMapLayer at scale (1,1) and do any zoom on a Camera2D instead, never by scaling the tile layer. (3) Vector2i is integer cell space, Vector2 is float pixel space — never mix them; pathfinding and range sets must key on Vector2i.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "dev-to-a-vs-unity-navmesh-for-games",
+      "name": "DEV.to — A* vs Unity NavMesh for games",
+      "what": "Choosing pathfinding: continuous NavMesh vs discrete A*.",
+      "how": "TRPG range ≠ single-target continuous path.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "godot-2d-navigation-intro-grid-vs-navmesh",
+      "name": "Godot 2D navigation intro — grid vs navmesh",
+      "what": "AStarGrid2D for cell positions; NavigationServer for any point in navmesh.",
+      "how": "Verdict: cells first.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "gridroute-cardinal-grid-llm-route-planning-bench",
+      "name": "GridRoute — cardinal grid LLM route planning bench",
+      "what": "Cardinal (4-way) grid route planning; algorithmic A*/Dijkstra guidance still the hard spatial prior LLMs lack — aligns with flood-fill/A* split for movement range vs path.",
+      "how": "See source URL; STUDY-002 Verifier-verified finding. Do not invent recipe beyond pack text.",
+      "gotchas": "Do not flip recipes 37/42/49. No invent 5.x.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "hierarchical-any-angle-on-multi-resolution-3d-grids",
+      "name": "Hierarchical any-angle on multi-resolution 3D grids",
+      "what": "Hierarchical volumetric maps + any-angle when flat A* does not scale.",
+      "how": "Relevant when 2.5D/multi-level leaves pure TileMap AStarGrid2D.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "highlight-range-path-with-a-dedicated-overlay-tilemaplayer-batched-not-per-frame-draw",
+      "name": "Highlight range/path with a dedicated overlay TileMapLayer (batched), not per-frame _draw",
+      "what": "The visual feedback layer: blue 'you can move here', red 'attack/loot range', yellow path-preview. Two viable techniques — (A) a second TileMapLayer dedicated to highlight tiles, set/cleared via set_cell, and (B) custom _draw() rectangles on a Node2D. The TileMapLayer overlay is the recommended default because it's GPU-batched and pairs with terrain auto-tiling for clean borders.",
+      "how": "OVERLAY approach: add a HighlightLayer (TileMapLayer) above the ground, with a TileSet containing translucent highlight tiles (one atlas coord per color/state). To show a range set: for cell in walkable_cells: highlight_layer.set_cell(cell, source_id, BLUE_ATLAS). To clear: highlight_layer.clear() (or erase_cell per cell). Because it's one batched draw, hundreds of highlighted cells cost almost nothing. For crisp range borders, author the highlight tiles as a Terrain set so edges auto-connect. _DRAW approach (for thin path lines / reticles): override _draw() on a Node2D and call draw_rect(Rect2(map_to_local(cell) - half, cell_size), color, filled) or draw_polyline for the path; trigger redraws only on state change with queue_redraw() — never every frame.",
+      "gotchas": "(1) Don't rebuild the overlay every frame — only on selection/hover change; set_cell + clear on state change is cheap, per-frame churn is not. (2) Multiple stacked overlay layers with occlusion can tank scene-reload perf (engine issue #84434) — keep highlight layers few and lightweight. (3) For _draw, you MUST call queue_redraw() to refresh; it won't redraw on its own. (4) Use translucent tiles/modulate so the painterly art beneath stays readable — highlights augment, never occlude, the 2.5D sprites.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "jps4-jump-point-search-on-4-connected-grids",
+      "name": "JPS4 — Jump Point Search on 4-connected grids",
+      "what": "JPS4 adapts JPS to 4-connected uniform grids; order-of-magnitude faster than A* on dense/game maps; A* still better on open maps — grounds the grid-movement lane without replacing AStarGrid2D recipe.",
+      "how": "See source URL; STUDY-002 Verifier-verified finding. Do not invent recipe beyond pack text.",
+      "gotchas": "Do not flip recipes 37/42/49. No invent 5.x.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "key-interval-a-structural-abstraction-pathfinding",
+      "name": "Key-Interval A* — structural abstraction pathfinding",
+      "what": "Optimal 4-connected pathfinding via interval abstraction; fastest on structured/game maps (rooms, corridors) while matching A* lengths — relevant when tactical boards outgrow naive cell A*.",
+      "how": "See source URL; STUDY-002 Verifier-verified finding. Do not invent recipe beyond pack text.",
+      "gotchas": "Do not flip recipes 37/42/49. No invent 5.x.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "lucas-2d-trpg-pathfinding-grid-a",
+      "name": "Lucas — 2D TRPG pathfinding (grid A*)",
+      "what": "Fire Emblem-style boards use grid A*/Dijkstra; NavMesh continuous.",
+      "how": "Prefer grid over navmesh in turn tactics.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "navigationserver2d-layers-filter-astargrid2d",
+      "name": "NavigationServer2D — layers filter ≠ AStarGrid2D",
+      "what": "Maps/regions/agents; navigation_layers filter; RVO ≠ path mesh.",
+      "how": "region_set_navigation_layers + map_get_path.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "nsrl-navmesh-as-long-range-locomotion-layer",
+      "name": "NSRL — NavMesh as long-range locomotion layer",
+      "what": "FPS map AI uses NavMesh for global nav interleaved with local DRL.",
+      "how": "Navmesh optional long-range layer, not sole controller.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "optimal-any-angle-path-planning-zou-borst",
+      "name": "Optimal any-angle path planning (Zou & Borst)",
+      "what": "Any-angle between non-adjacent vertices for shorter continuous paths.",
+      "how": "Continuous shortcut pole beyond 4-connected grid.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "pibt-string-pull-post-process-for-multi-agent-paths",
+      "name": "PiBT string-pull post-process for multi-agent paths",
+      "what": "Safety-aware string-pull smooths 8-connected paths into free-space trajectories.",
+      "how": "Same geometric idea as navmesh funnel after discrete search.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "racon-retrieval-augmented-locomotion-control",
+      "name": "RACon retrieval-augmented locomotion control",
+      "what": "Hierarchical RL retrieves motion experts for character locomotion.",
+      "how": "Locomotion layer complementary to navmesh/grid path queries.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "recast-detour-layered-floors-partial-only",
+      "name": "Recast/Detour — layered floors partial only",
+      "what": "Voxel heightfields + walkableClimb for stairs/layers.",
+      "how": "Partial for 2.5D height; fails as the primary mover.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0. Recast partial only.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "se-2-navigation-mesh-asa-string-pull",
+      "name": "SE(2) Navigation Mesh + ASA string-pull",
+      "what": "Yaw-dependent SE(2) polygons with A*-String-Pulling-A* over dense triangles.",
+      "how": "Polygonal abstraction + string-pull hierarchy.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "survey-gdquest-demos-godot-open-rpg-turn-based-combat-reference-but-not-tactical-grid-combat",
+      "name": "SURVEY: gdquest-demos/godot-open-rpg — turn-based combat reference (but NOT tactical-grid combat)",
+      "what": "GDQuest's actively-maintained, ground-up Godot-4 rewrite teaching how to structure a full 2D RPG: Field (exploration) + Combat states, an active-time-queue turn-based combat system, inventory, progression, map transitions, dialogue, and grid-based FIELD movement. Modern, well-structured GDScript — the most polished GDQuest RPG codebase.",
+      "how": "Provides: grid-based gamepiece movement on the field (FF1-style), an active-time-battle combat system, inventory, character progression, map transitions, dialogue, and full menu UI. Two top-level states (Field/Combat). Requires a recent Godot 4.x (README pins 4.6.x; repo history tracks 4.3+).",
+      "gotchas": "CRITICAL MISMATCH: its COMBAT is active-time / menu-style (Final Fantasy lineage), NOT grid-tactical. The grid-based movement here is for the EXPLORATION field, not a battle grid with movement range + AP. So it does NOT provide the tactical layer (range, cover, part-targeting, squad positioning) — borrow its structure/field/UI, get the tactical-combat grid from ramaureirac or build it on the AStarGrid2D + flood-fill recipes above. LICENSE: GDQuest's standard MIT for code (verify LICENSE; assets separate).",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "survey-gdquest-godot-2d-tactical-rpg-movement-the-cleanest-movement-starter-and-where-it-stops",
+      "name": "SURVEY: GDQuest godot-2d-tactical-rpg-movement — the cleanest movement starter (and where it stops)",
+      "what": "GDQuest's focused demo accompanying the Tactical RPG Movement tutorial series (8 lessons). It is the best-structured, best-documented STARTING POINT for grid tactics in Godot — small, readable GDScript, idiomatic node design (Grid resource, Unit, Cursor, GameBoard, UnitPath/overlay).",
+      "how": "Provides: grid-based movement, a map cursor (keyboard+mouse) for unit selection, walkable-area display via flood-fill, path preview, and confirm/cancel of a move. Structured as reusable nodes you can lift wholesale. Pair the repo with the free tutorial to understand each script.",
+      "gotchas": "WHERE IT STOPS (load-bearing): NO combat, NO turns/initiative, NO action points, NO abilities, NO attack/targeting, NO AI, NO damage/HP. It is movement-and-selection ONLY — the field stops exactly where a deep tactical design (part-targeting, deterministic damage, DEVIATE) begins. LICENSE: GDQuest demos are standardly MIT (engine code) with assets under separate terms — verify the LICENSE file in the repo before shipping any lifted code, and do not assume the art is reusable.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "survey-ramaureirac-godot-tactical-rpg-fullest-godot-4-3-tactical-demo-mit-and-where-it-stops",
+      "name": "SURVEY: ramaureirac/godot-tactical-rpg — fullest Godot-4.3 tactical demo (MIT) and where it stops",
+      "what": "The most complete OPEN, MIT-licensed, Godot-4-native tactical RPG demo on GitHub (~900+ stars). Unlike the GDQuest movement-only starter, this one actually closes the loop: turn-based grid movement AND attacks AND a basic enemy AI, with full 3D camera controls and a Blender-map workflow. Author explicitly frames it as 'a simple project… not a fully functional game framework'.",
+      "how": "Provides: turn-based gameplay, grid-based movement, unit move + attack actions, basic enemy AI, advanced camera (pan/zoom/rotate via mouse/keyboard/gamepad), Blender map integration (with tutorial), controller support, and a toggleable debug overlay. v2.0 released Aug 20 2024.",
+      "gotchas": "WHERE IT STOPS: it is a DEMO/TEMPLATE, not a framework — 'basic' enemy AI, no deep systems (no fixed AP economy such as a 2-AP budget, no part-targeting/loot, no abilities trees, no status/cover depth, no narrative/recruit layer). It also leans on a 3D camera + Blender maps; the target here is painterly 2.5D SPRITES, so adopt its LOGIC (turns, grid actions, AI) but NOT its 3D presentation pipeline. Treat it as a reference to read, not a base to fork wholesale.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "use-astargrid2d-for-the-actual-move-path-shortest-route-to-the-chosen-cell",
+      "name": "Use AStarGrid2D for the actual MOVE path (shortest route to the chosen cell)",
+      "what": "Godot 4's built-in grid A*. Unlike AStar2D (which makes you add every point and connection by hand), AStarGrid2D is configured by a rectangular region + cell size and auto-connects neighbors — purpose-built for tile grids. Use it for the single shortest path once the player commits to a destination inside the flood-fill range.",
+      "how": "var grid := AStarGrid2D.new(); grid.region = Rect2i(0, 0, cols, rows); grid.cell_size = Vector2(tile_w, tile_h); grid.offset = grid.cell_size / 2 (so path points land on cell centers); grid.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER (orthogonal tactics) — other modes: DIAGONAL_MODE_ALWAYS, _AT_LEAST_ONE_WALKABLE, _ONLY_IF_NO_OBSTACLES; grid.default_compute_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN (use OCTILE if diagonals are on); then grid.update() — MANDATORY after any property change. Mark obstacles with grid.set_point_solid(cell: Vector2i, true) (or fill_solid_region(rect, true) in bulk). Query: grid.get_id_path(from: Vector2i, to: Vector2i, allow_partial_path:=false) -> Array[Vector2i] for cell steps; grid.get_point_path(from, to) -> PackedVector2Array for ready-to-tween world points (already scaled by cell_size). set_point_weight_scale(cell, w) biases routes around (not through) costly terrain.",
+      "gotchas": "(1) region is the current property; the old size (Vector2i) property is DEPRECATED — set region = Rect2i(...). (2) FORGETTING update() after set_point_solid/region/cell_size changes is the classic 'paths are wrong/empty' bug — every mutation needs a following update(). (3) AStarGrid2D's solid grid is SEPARATE from your TileMapLayer — you must sync it: iterate impassable cells and call set_point_solid; the kidscancode recipe notes the engine does NOT auto-read TileMapLayer collision into the grid. (4) get_point_path returns Vector2 world points; get_id_path returns Vector2i cells — pick deliberately. (5) Keep grid.offset = cell_size/2 or path points sit on cell corners, not centers.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "use-tilemaplayer-one-node-per-layer-as-the-grid-substrate-not-the-deprecated-tilemap",
+      "name": "Use TileMapLayer (one node per layer) as the grid substrate, not the deprecated TileMap",
+      "what": "The grid a tactical RPG stands on. Godot 4.3 (Aug 2024) split the monolithic TileMap node into individual TileMapLayer nodes that each render one layer and share a single TileSet resource. TileMap is now DEPRECATED — it still loads and plays but receives no new features and is the Godot-3-shaped API. New tactical work must build on TileMapLayer.",
+      "how": "Add one TileMapLayer per visual/logical band (e.g. Ground, Hazard, FX-overlay, Highlight) under a parent Node2D; assign a shared TileSet (.tres). Author the playfield in the editor or via set_cell(coords: Vector2i, source_id: int, atlas_coords: Vector2i, alternative_tile: int=0). Query the authored field with get_used_cells() -> Array[Vector2i], get_used_rect() -> Rect2i, get_cell_source_id(coords) -> int (returns -1 when empty), get_surrounding_cells(coords) -> Array[Vector2i]. To migrate any legacy scene, use the editor's TileMap context-menu 'Extract TileMap layers as individual TileMapLayer nodes' (one-click) — but note it only works on scenes you can open directly; tilemaps stored inside .tres or instanced sub-scenes need a manual rebuild. Per-layer toggles: navigation_enabled (bool, default true), collision_enabled (bool, default true).",
+      "gotchas": "(1) Do NOT reach for KinematicBody2D/Spatial/yield-era TileMap tutorials — TileMap.layer_N API (set_cell with a leading layer int) is the deprecated path; TileMapLayer drops the layer argument entirely. (2) get_used_cells_by_id() was renamed/reshaped — on TileMapLayer use get_used_cells_by_id(source_id, atlas_coords, alternative_tile) with -1/Vector2i(-1,-1) wildcards. (3) The one-click converter silently skips resource-embedded maps; verify after migration.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "using-navigation-meshes-tilemaplayer-bake",
+      "name": "Using navigation meshes — TileMapLayer bake",
+      "what": "parse_source_geometry_data → bake; TileMapLayer parse heavy; agent_radius baked.",
+      "how": "Deferred parse + async bake; baking_rect/border_size for chunks.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "using-navigationagents-optional-route-helpers",
+      "name": "Using NavigationAgents — optional route helpers",
+      "what": "Agents join default map; navigation_layers bitmask; empty path before sync.",
+      "how": "Agents optional; user moves parent via get_next_path_position.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "using-navigationserver-physics-frame-sync",
+      "name": "Using NavigationServer — physics-frame sync",
+      "what": "NavigationServer2D/3D changes sync end of physics frame; early path queries wrong.",
+      "how": "Await physics_frame after map/region/agent uploads.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "validating-navmesh-voxel-qa-vs-baked-mesh",
+      "name": "Validating Navmesh — voxel QA vs baked mesh",
+      "what": "Navmesh bake QA: voxel walkability vs engine reachability when terrain drifts.",
+      "how": "Bake QA pole for NavigationServer.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "vav-labs-astargrid2d-vs-navigationserver",
+      "name": "Vav Labs — AStarGrid2D vs NavigationServer",
+      "what": "Tile-locked tactics → grid; free-form → navmesh.",
+      "how": "Holds strongly for a tactical board.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    },
+    {
+      "slug": "vector-based-any-angle-with-non-convex-obstacles",
+      "name": "Vector-based any-angle with non-convex obstacles",
+      "what": "Line-of-sight + obstacle-contour walking vs free-space cell expansion.",
+      "how": "Contour shortcut vs grid expansion.",
+      "gotchas": "Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "grid-movement"
+    }
+  ]
+}

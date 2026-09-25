@@ -1,0 +1,76 @@
+{
+  "laneSlug": "rigging",
+  "title": "Posing rigid-armor auto-rigs cleanly (deform-safe)",
+  "recipes": [
+    {
+      "slug": "hifi-decimate-sliver-cleanup-measured",
+      "name": "High-fidelity TRELLIS decimate with sliver cleanup (the fix for ribbon/shard armor artifacts)",
+      "kind": "technique",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "Collapse-decimating a dense TRELLIS mesh leaves THIN SLIVER triangles on thin plate armor (greaves, sabatons, pauldrons) that render as 'ribbon strips' and 'triangular shards' and fail the vision jury; a post-collapse cleanup pass (merge-by-distance + DISSOLVE DEGENERATE + delete-loose) removes them. The fix is the cleanup, not a higher triangle count.",
+      "summary": "MEASURED ON RIG (2026-06-25, blackguard): the original collapse-decimate to ~224k tris still showed sliver artifacts on lower-leg/foot armor that the cross-family jury flagged. Re-decimating the 992k-tri TRELLIS mesh to 150k tris with a cleanup pass removed 97,341 sliver/loose elements (~40% of post-collapse verts), yielding a clean 149k-tri, 148k-vert game mesh with solid greaves and sabatons (verified full-res). The cleanup (bpy: remove_doubles 0.00015 -> dissolve_degenerate 0.0002 -> delete_loose -> normals_make_consistent) is the load-bearing step; it did NOT punch holes (full-res confirmed). A ~1:1 vert:tri ratio after cleanup is normal here because the tattered cape/cloth are open sheets, not damage. Decimate-then-rig so UniRig computes skin for the final game-weight geometry.",
+      "design_implication": "Add the sliver-cleanup pass to the decimate step for EVERY armored character in the 68-char roster (the artifact recurs on all plate armor). 150k tris is a fine high-fidelity target for a sprite source; tri count is not the lever, the degenerate-dissolve is. Render the decimated mesh full-res before spending UniRig time on it.",
+      "evidence_strength": "measured-on-rig",
+      "license": "GPL (Blender); MIT (UniRig)",
+      "commercial_use": "yes",
+      "commercial_notes": "Blender GPL covers the tool; decimated mesh + rigged GLB are studio IP.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "measured_conditions": "RTX 5090 / Blender 5.0.1; blackguard.glb 817k verts/992k tris -> 150k-tri collapse -> cleanup -> 148k verts/149k tris (97,341 removed); UniRig WSL2 re-rig (28-bone skeleton + learned skin).",
+      "failures": [
+        {
+          "symptom": "Lower-leg/foot/pauldron armor renders as flat ribbon strips or triangular shards",
+          "cause": "Collapse decimation produces near-zero-area sliver triangles on thin plate geometry",
+          "remediation": "After modifier_apply: remove_doubles -> dissolve_degenerate (threshold ~0.0002) -> delete_loose -> recalc normals; re-rig the cleaned mesh",
+          "severity": "quality",
+          "recipe_field": "summary"
+        }
+      ],
+      "purposes": ["mesh-prep", "trellis-pipeline", "game-asset", "decimation"],
+      "sources": [
+        {"kind": "docs", "title": "Blender Manual — Mesh Cleanup (Merge by Distance, Degenerate Dissolve)", "authors": "Blender Foundation", "year": "2025", "identifier": "", "url": "https://docs.blender.org/manual/en/latest/modeling/meshes/editing/mesh/cleanup.html", "claim": "Degenerate Dissolve removes edges/faces with zero area or length; Merge by Distance welds coincident verts — the standard cleanup for decimation slivers."},
+        {"kind": "paper", "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig", "authors": "Zhang et al. (VAST AI Research)", "year": "2025", "identifier": "arXiv:2504.12451", "url": "https://arxiv.org/abs/2504.12451", "claim": "UniRig samples a point cloud from the mesh surface; clean manifold geometry before auto-rig gives better skeleton + skin."}
+      ]
+    },
+    {
+      "slug": "rigid-armor-rigidify-dqs-rom-cap-measured",
+      "name": "Pose rigid plate armor on a learned auto-rig: ROM cap + DQS bake + skin rigidify",
+      "kind": "technique",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "UniRig emits STANDARD linear-blend-skinning weights, so a posed character inherits LBS's candy-wrapper collapse at bent joints regardless of weight accuracy — worst on rigid plate armor. Three stacked fixes make it pose cleanly: (1) cap authored joint flexion <= ~85deg; (2) bake with dual-quaternion skinning (Armature use_deform_preserve_volume); (3) RIGIDIFY the limb-armor skin so plates crease instead of melt.",
+      "summary": "MEASURED ON RIG (2026-06-25, blackguard guard pose): the auto-rig skin is cleanly smooth, not noisy (<=4 influences, no stray weights) but ~49-51% of elbow-band verts blend across the joint = the candy-wrapper zone. A 100deg elbow flex melted the armor (jury FAIL 0/3 front). The fix stack: (a) cap the elbow to ~70deg (inside the clean-LBS <=85deg zone); (b) DQS bake (preserve-volume) avoids the volume collapse; (c) RIGIDIFY (per limb-armor vert, push weight toward the dominant bone by ~0.75 and shrink the rest) so the plate rotates rigidly and creases at the joint instead of melting — this approximates the shipped-practice 'rigid-bind each plate to one bone, segment at the joint' rule on a single auto-mesh we cannot physically segment. RESULT: posed FRONT jury moved 0/3 -> 2/3 PASS (matching the clean-rest baseline). Cloth (cape/loincloth, dominated by torso bones) is EXCLUDED from rigidify so it stays soft. HONEST CEILING: a single continuous auto-rig armor shell cannot fold perfectly at a sharp joint (melt vs crack); the true fix is upstream segmented overlapping plates (hand-modeled), and since 2.5D bakes a posed render to a sprite, painterly repaint-in-post is a valid final option.",
+      "design_implication": "In the pose bridge: cap ROM, enable DQS on the Armature modifier before baking, and run a rigidify weight pass on limb-armor verts (exclude cloth). For the roster, rigidify is scriptable and reusable. When creasing is insufficient, add pose-space corrective shapes (the learned corrective branch UniRig lacks). Reserve repaint-in-post for the residual.",
+      "evidence_strength": "measured-on-rig",
+      "license": "GPL (Blender); MIT (UniRig)",
+      "commercial_use": "yes",
+      "commercial_notes": "Tooling is Blender/UniRig; output is studio IP.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "measured_conditions": "RTX 5090 / Blender 5.0.1; blackguard hifi rig (28 bones); elbow cap 70deg, DQS preserve_volume, rigidify 0.75 on limb-armor verts; cross-family jury front 0/3 -> 2/3.",
+      "failures": [
+        {
+          "symptom": "Melted / torn / stretched armor at the bent elbow or shoulder when posed",
+          "cause": "Linear blend skinning averages transforms not rotations -> volume collapse; UniRig outputs standard LBS weights; rigid plate cannot fold like skin",
+          "remediation": "Cap flexion <=85deg + DQS bake + rigidify limb-armor verts toward the dominant bone; correctives or repaint for the residual",
+          "severity": "quality",
+          "recipe_field": "summary"
+        }
+      ],
+      "purposes": ["posing", "skinning", "rigid-armor", "deform-safe"],
+      "sources": [
+        {"kind": "paper", "title": "Geometric Skinning with Approximate Dual Quaternion Blending", "authors": "Ladislav Kavan, Steven Collins, Jiri Zara, Carol O'Sullivan", "year": "2008", "identifier": "DOI 10.1145/1409625.1409627", "url": "https://users.cs.utah.edu/~ladislav/kavan08geometric/kavan08geometric.html", "claim": "LBS collapses volume at bent/twisted joints (candy-wrapper, severe near 180deg); DQS blends rigid transforms to remove the collapse, at the cost of mild joint bulging."},
+        {"kind": "paper", "title": "Pose Space Deformation: A Unified Approach to Shape Interpolation and Skeleton-Driven Deformation", "authors": "J.P. Lewis, Matt Cordner, Nickson Fong", "year": "2000", "identifier": "SIGGRAPH 2000", "url": "https://scribblethink.org/Work/PSD/index.html", "claim": "Artist-sculpted corrective shapes interpolated over the skinning envelope repair collapsed elbows/shoulders (the basis of corrective shape keys / pose drivers)."},
+        {"kind": "paper", "title": "Learning Skeletal Articulations with Neural Blend Shapes", "authors": "Peizhuo Li, Kfir Aberman et al.", "year": "2021", "identifier": "arXiv:2105.02451", "url": "https://arxiv.org/abs/2105.02451", "claim": "Adds a learned corrective pose-dependent shape branch to fix the joint-region artifacts of standard rigging/skinning — the corrective branch UniRig does not implement."},
+        {"kind": "paper", "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig", "authors": "Zhang et al. (VAST AI Research)", "year": "2025", "identifier": "arXiv:2504.12451", "url": "https://arxiv.org/abs/2504.12451", "claim": "UniRig predicts a per-vertex skinning-weight matrix applied through standard LBS, so posed UniRig characters inherit LBS deformation artifacts."}
+      ]
+    }
+  ]
+}

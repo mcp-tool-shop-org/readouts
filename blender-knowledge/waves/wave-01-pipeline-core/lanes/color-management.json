@@ -1,0 +1,267 @@
+{
+  "laneSlug": "color-management",
+  "title": "Color management & tone mapping",
+  "blender_version_scope": "4.0–4.4 (4.0 introduced AgX default; 4.2 added Khronos PBR Neutral)",
+  "recipes": [
+    {
+      "slug": "agx-default-understand",
+      "name": "AgX — the 4.0 default view transform",
+      "what": "AgX replaced Filmic as the default view transform in Blender 4.0. It is a sigmoid-driven, scene-referred, filmic tone mapper with 16.5 stops of dynamic range. Bright/saturated colors desaturate toward white as they clip, mimicking how physical film handles overexposure. This is a deliberate design — it prevents harsh clipping and produces natural highlight rolloff. The tradeoff is that it intentionally desaturates highly-saturated or dark, richly-colored subjects.",
+      "how": "In the Properties panel → Render → Color Management, View Transform defaults to 'AgX' in all new.blend files created with Blender 4.0+. In bpy: `bpy.context.scene.view_settings.view_transform = 'AgX'`. No further action needed for photorealistic or PBR work — it is the correct default.",
+      "blender_version": "4.0+",
+      "gotchas": [
+        "Any.blend file created in Blender 3.x still defaults to Filmic. When opened in 4.x the saved view transform persists — it does NOT auto-upgrade to AgX. Headless scripts that load old.blend files must explicitly set view_transform.",
+        "AgX desaturates highly-saturated, dark, or vivid colors more aggressively than Filmic did. Stylized/painterly/toon art with punchy colors will look muted compared to the artist's intent.",
+        "The 'Look' setting under AgX offers only three options: None, Punchy, and Greyscale. The full contrast range (Very Low / Low / Medium / High / Very High) belongs to Filmic and is stale/irrelevant under AgX.",
+        "EXR, HDR, and DPX output formats bypass the view transform entirely — they store scene-linear values. PNG/JPEG/BMP/TIFF bake in the view transform. For a sprite pipeline outputting PNG the chosen view transform is load-bearing."
+      ],
+      "studio_use": "For the TRELLIS → GLB → headless sprite pipeline: if the goal is painterly / saturated / stylized sprite art with vivid colors, AgX is the WRONG default. See recipe 'standard-for-stylized-sprites'. Use AgX only if the output aesthetic intentionally targets photorealistic desaturated film look.",
+      "currency": "solid",
+      "verify_note": "Confirmed by Blender 4.0 release notes (developer.blender.org/docs/release_notes/4.0/color_management/), BlenderNation coverage (blendernation.com/2023/09/05), and search results from multiple sources citing AgX as 4.0 default with 16.5-stop dynamic range.",
+      "sources": [
+        {
+          "title": "Blender 4.0 Release Notes — Color Management: Filmic AgX",
+          "url": "https://developer.blender.org/docs/release_notes/4.0/color_management/",
+          "claim": "AgX replaces Filmic as default view transform in Blender 4.0, providing better saturated-highlight handling with bright colors going toward white."
+        },
+        {
+          "title": "BlenderNation — Filmic's Successor: New AGX View Transform in Blender 4.0",
+          "url": "https://www.blendernation.com/2023/09/05/filmics-successor-new-agx-view-transform-in-blender-4-0/",
+          "claim": "AgX offers 16.5 stops of dynamic range and improves on Filmic's saturation handling in overexposed areas."
+        },
+        {
+          "title": "Blendergrid — Understanding Color Management in Blender",
+          "url": "https://blendergrid.com/articles/color-management-in-blender",
+          "claim": "View transforms only convert linear to display space at output; they do not change the underlying render values. EXR preserves linear; PNG bakes in the transform."
+        }
+      ]
+    },
+    {
+      "slug": "standard-for-stylized-sprites",
+      "name": "Standard view transform — preserving saturation for stylized sprite art",
+      "what": "The 'Standard' view transform applies only the display transfer function (sRGB gamma encode) with no tone mapping, no filmic rolloff, no desaturation. Colors are rendered with full saturation and the contrast that comes directly from the scene lighting — clipping hard at display white rather than rolling off. For stylized, painterly, or toon game sprites with saturated palettes (the painterly stylized visual canon), this is the correct choice. It prevents AgX from washing out dark, richly-saturated skin tones, neon accents, or hand-painted texture hues.",
+      "how": "Set in bpy (headless script):\n```python\nimport bpy\nscene = bpy.context.scene\nscene.view_settings.view_transform = 'Standard'\nscene.view_settings.exposure = 0.0\nscene.view_settings.gamma = 1.0\nscene.view_settings.look = 'None'\nscene.display_settings.display_device = 'sRGB'\n```\nAll four lines are required in headless mode to guarantee a clean state independent of the loaded.blend file's saved settings.",
+      "blender_version": "4.0+",
+      "gotchas": [
+        "Standard hard-clips highlights — any surface value above 1.0 scene-linear clips to pure white with no rolloff. This is fine for baked/stylized diffuse sprites but wrong for photorealistic speculars or HDR environment maps.",
+        "Standard does NOT apply a Look — the Look dropdown has no effect under Standard in 4.x.",
+        "Because Standard simply gamma-encodes, the output is sensitive to scene exposure. Calibrate your scene lighting so key surfaces render to ~0.7–0.9 linear before setting view_transform to Standard.",
+        "With film_transparent = True (alpha renders), Standard is clean — no tone-mapping fringing on edges, which can be an issue with AgX on semi-transparent geometry.",
+        "Tutorials predating 4.0 that say 'Standard = raw/bad' are overgeneralizing — for stylized sprite output where color fidelity > photorealism, Standard is the correct choice."
+      ],
+      "studio_use": "PRIMARY RECOMMENDATION for the TRELLIS → GLB → headless 2.5D sprite pipeline. Saturated stylized art (grounded-cyberpunk and neon-noir casts) retains its palette. Set exposure = 0.0, gamma = 1.0, display_device = 'sRGB'. This is the fix for the AgX wash problem on stylized characters.",
+      "currency": "solid",
+      "verify_note": "Confirmed by: (1) Multiple sources describing Standard as clips-at-1.0 with no filmic rolloff. (2) Real headless render code from MotionGPT/blender scene.py using `view_transform = 'Standard'` with `display_device = 'sRGB'`. (3) SuperRenders guide confirming Standard 'clips highlights and produces less natural results' — which is a feature not a bug for stylized/non-photorealistic work. (4) The AgX desaturation of 'the blue sphere' documented at toodee.de confirming the color-saturation loss is real.",
+      "sources": [
+        {
+          "title": "MotionGPT Blender scene.py — headless render color management example",
+          "url": "https://huggingface.co/spaces/fjibj/MotionGPT/blob/b625c801edd539dec9915d7fb48d54565ea566dc/mGPT/render/blender/scene.py",
+          "claim": "Production headless render pipeline sets view_transform='Standard', gamma=1.2, exposure=-0.75, display_device='sRGB' for clean non-filmic output."
+        },
+        {
+          "title": "SuperRenders — Blender Render Settings Guide",
+          "url": "https://superrendersfarm.com/article/blender-render-settings-optimization-guide",
+          "claim": "Standard clips highlights and produces less natural photorealistic results; Filmic and AgX are recommended for photorealism, implying Standard is the correct choice for non-photorealistic/stylized work."
+        },
+        {
+          "title": "Blendergrid — Understanding Color Management in Blender",
+          "url": "https://blendergrid.com/articles/color-management-in-blender",
+          "claim": "Standard shows render data in display space without filmic treatment — a direct gamma-only conversion."
+        }
+      ]
+    },
+    {
+      "slug": "filmic-legacy",
+      "name": "Filmic — legacy view transform (Blender 3.x default)",
+      "what": "Filmic was the default view transform from Blender 2.79 through 3.6. It is a sigmoid-based tone mapper with a wider effective dynamic range than Standard and a filmic S-curve that softens both shadows and highlights. It offers 7 contrast Look presets (Very Low / Low / Medium / High / Very High Contrast, plus Punchy and Greyscale). It remains available in 4.x but is no longer the default.",
+      "how": "`bpy.context.scene.view_settings.view_transform = 'Filmic'`. Set Look via `scene.view_settings.look = 'High Contrast'` (or other values). Exposure and gamma work identically to AgX.",
+      "blender_version": "Available in 4.x, was default in 2.79–3.6",
+      "gotchas": [
+        "Any.blend file from 3.x opened in 4.x retains Filmic as the stored view transform. Headless scripts must override explicitly if AgX output is desired.",
+        "Filmic has a lower effective dynamic range than AgX and handles wide-gamut inputs less well — documented weakness in the 4.0 release notes.",
+        "The Filmic contrast Looks (Very Low, Low, Medium, High, Very High) are the ones designed for Filmic. Under AgX, only Punchy and Greyscale are meaningful.",
+        "For new projects in 4.x, Filmic is legacy. It is kept for backward compatibility and specific artistic looks that matched old Filmic output."
+      ],
+      "studio_use": "Do NOT use Filmic for new sprite renders — it is superseded. The pipeline should explicitly set view_transform to either 'Standard' (stylized/painterly sprites) or 'AgX' (photorealistic renders) in every headless script to avoid inheriting stale Filmic from opened.blend files.",
+      "currency": "solid",
+      "verify_note": "Well-established; confirmed by Blender 4.0 release notes citing Filmic's replacement and multiple sources confirming Filmic remains available in 4.x.",
+      "sources": [
+        {
+          "title": "Blender 4.0 Release Notes — Color Management: Filmic AgX",
+          "url": "https://developer.blender.org/docs/release_notes/4.0/color_management/",
+          "claim": "AgX replaces Filmic as default; Filmic remains available but is the legacy choice."
+        },
+        {
+          "title": "BlenderNation — Filmic's Successor: New AGX View Transform in Blender 4.0",
+          "url": "https://www.blendernation.com/2023/09/05/filmics-successor-new-agx-view-transform-in-blender-4-0/",
+          "claim": "Filmic has lower dynamic range and struggles more with wider-gamut inputs compared to AgX."
+        }
+      ]
+    },
+    {
+      "slug": "khronos-pbr-neutral",
+      "name": "Khronos PBR Neutral — albedo-faithful tone mapper (added Blender 4.2)",
+      "what": "The Khronos PBR Neutral tone mapper was added in Blender 4.2 as a fourth view transform option. Its design goal is strict sRGB base-color fidelity: under grayscale (neutral) lighting, the sRGB base color of a PBR material should read through in the output render without saturation loss or hue skew. It maps colors 1:1 up to a ceiling value, then compresses the remaining headroom for highlight rolloff. Unlike AgX (which deliberately desaturates highlights for a film look), PBR Neutral preserves albedo chroma. Unlike Standard (which clips hard), PBR Neutral has gentle highlight compression.",
+      "how": "`bpy.context.scene.view_settings.view_transform = 'Khronos PBR Neutral'`. Available only in Blender 4.2+. No additional Look presets — only 'None' applies.",
+      "blender_version": "4.2+",
+      "gotchas": [
+        "Only available in Blender 4.2 and later. Scripts targeting 4.0 or 4.1 will fail with an invalid enum error if this value is set.",
+        "Designed for well-exposed scenes with grayscale / neutral lighting. Under strongly colored or HDR lighting it can produce oversaturated results compared to AgX.",
+        "Positioned for product visualization and e-commerce (CAD, architecture, glTF web viewers). Its albedo-fidelity guarantee is strongest under controlled neutral-light conditions.",
+        "For stylized sprite art with colored scene lighting (neon, atmospheric tints), PBR Neutral may oversaturate highlights. Standard with exposure=0 is safer in that case.",
+        "Adopted by Three.js, Filament, Babylon.js, PlayCanvas — a common baseline for glTF web rendering interoperability."
+      ],
+      "studio_use": "Potentially useful for sprite turnaround renders where the reference GLB has carefully calibrated PBR materials and the studio wants the output PNG colors to match the base-color values in the texture files. Requires Blender 4.2+. Compare against Standard on the same test render — whichever better matches the hand-painted texture palette wins. Not a replacement for Standard when scene lighting is strongly colored.",
+      "currency": "solid",
+      "verify_note": "Confirmed by Khronos press release (khronos.org), Blender 4.2 release notes developer.blender.org/docs/release_notes/4.2/rendering/, jayargonaut.com 2024 comparison, and Blender developer forum issue #118824.",
+      "sources": [
+        {
+          "title": "Khronos Group — PBR Neutral Tone Mapper Press Release",
+          "url": "https://www.khronos.org/news/press/khronos-pbr-neutral-tone-mapper-released-for-true-to-life-color-rendering-of-3d-products",
+          "claim": "PBR Neutral provides 1:1 color mapping up to a ceiling value with highlight compression headroom; designed for faithful sRGB base-color reproduction under neutral lighting."
+        },
+        {
+          "title": "Blender 4.2 Release Notes — Rendering: Khronos PBR Neutral",
+          "url": "https://developer.blender.org/docs/release_notes/4.2/rendering/",
+          "claim": "Khronos PBR Neutral added in Blender 4.2 as a view transform for PBR color accuracy under grayscale lighting."
+        },
+        {
+          "title": "Achieving Realistic Rendering with AGX and Khronos PBR Neutral in Blender 4.2",
+          "url": "https://jayargonaut.com/2024/08/11/achieving-realistic-rendering-with-agx-and-khronos-pbr-neutral-in-blender-4-2/",
+          "claim": "Khronos PBR Neutral tends to saturate colors more than AgX, addressing complaints about AgX desaturation, making it suitable for projects requiring strict color standard compliance."
+        }
+      ]
+    },
+    {
+      "slug": "exposure-gamma-look",
+      "name": "Exposure, Gamma, and Look — per-render tuning knobs",
+      "what": "These three parameters adjust the final display image on top of the chosen view transform. Exposure shifts the overall brightness in EV stops before tone mapping is applied (formula: output = render_value × 2^exposure). Gamma applies a power curve to the output after tone mapping. Look applies a pre-baked contrast/color LUT on top of the view transform. These are scene-level render settings, not compositing — they affect every output PNG baked through the color management pipeline.",
+      "how": "```python\nscene = bpy.context.scene\n# Exposure: +1.0 = twice as bright, -1.0 = half as bright\nscene.view_settings.exposure = 0.0\n# Gamma: >1.0 brightens midtones, <1.0 darkens midtones\nscene.view_settings.gamma = 1.0\n# Look: 'None' is clean baseline; other values depend on view_transform\nscene.view_settings.look = 'None'\n```\nFor headless sprite rendering, setting all three explicitly prevents inheriting saved values from the.blend file.",
+      "blender_version": "4.0+",
+      "gotchas": [
+        "Exposure and gamma are both present in old 3.x files. When loading a 3.x file headless, the saved exposure (e.g., 0.5 or -0.5) will persist unless explicitly reset.",
+        "Look values available depend on the view_transform. Under AgX: None, Punchy, Greyscale. Under Filmic: None + 7 contrast presets. Under Standard and Khronos PBR Neutral: effectively only None. Setting a Look value that doesn't exist for the current view_transform silently falls back to None.",
+        "Exposure shifts happen before tone mapping — raising exposure with AgX will push more values into the desaturation zone. If using AgX and colors look washed, lower exposure first before switching view transforms.",
+        "Gamma correction here is on top of the view transform's built-in gamma encoding. Do not double-apply: if display_device is sRGB (standard), that already handles the 2.2 display gamma. The gamma knob here is a creative offset, not the display gamma — keep it at 1.0 unless you need a specific stylistic correction.",
+        "EXR output ignores all three settings — exposure, gamma, and look are only baked into formats that apply view transform (PNG, JPEG, TIFF)."
+      ],
+      "studio_use": "For the headless sprite pipeline: set exposure=0.0, gamma=1.0, look='None' as the clean baseline. Any brightness correction should come from scene lighting (light energy values), not the exposure knob — that keeps the pipeline deterministic. Only adjust these if a specific batch of GLBs renders consistently too bright or too dark across the board.",
+      "currency": "solid",
+      "verify_note": "Exposure formula (output = render × 2^exposure) confirmed by Blender API docs and search results. Look options per transform confirmed by search result citing AgX-specific Looks (None/Punchy/Greyscale) vs Filmic's wider range.",
+      "sources": [
+        {
+          "title": "Blender Python API — ColorManagedViewSettings",
+          "url": "https://docs.blender.org/api/current/bpy.types.ColorManagedViewSettings.html",
+          "claim": "exposure, gamma, look, and view_transform are all properties of bpy.types.ColorManagedViewSettings, accessible via scene.view_settings."
+        },
+        {
+          "title": "SuperRenders — Blender Render Settings Guide",
+          "url": "https://superrendersfarm.com/article/blender-render-settings-optimization-guide",
+          "claim": "Use the Exposure slider instead of cranking up light intensities; Look = 'None' is neutral; 'High Contrast' adds punch but risks blown highlights."
+        },
+        {
+          "title": "Blender 4.0 developer forum — AgX Look options",
+          "url": "https://projects.blender.org/blender/blender/pulls/111099",
+          "claim": "AgX supports seven contrast Looks operating in AgX Log at 0.18 middle grey pivot, plus Punchy and Greyscale; the contrast range Looks were designed for Filmic."
+        }
+      ]
+    },
+    {
+      "slug": "texture-colorspace-srgb-vs-noncolor",
+      "name": "Texture color space: sRGB vs Non-Color — import correctness",
+      "what": "Every texture imported as an Image Texture node must have its color space set correctly or the render will be wrong. Rule: color textures (Base Color / Albedo / Diffuse / Emission color maps) must be tagged sRGB — Blender converts them to linear for rendering. Data textures (Normal Maps, Roughness, Metallic, Occlusion, Height/Displacement) must be tagged Non-Color — Blender copies raw values without any gamma decode. Getting this wrong produces incorrect normals, incorrect roughness response, and washed/dark albedo.",
+      "how": "In bpy when loading textures programmatically:\n```python\nimport bpy\n# For albedo / color maps:\ntex_node = mat.node_tree.nodes.new('ShaderNodeTexImage')\ntex_node.image = bpy.data.images.load('/path/to/albedo.png')\ntex_node.image.colorspace_settings.name = 'sRGB' # For normal / roughness / metallic / AO maps:\ntex_node2 = mat.node_tree.nodes.new('ShaderNodeTexImage')\ntex_node2.image = bpy.data.images.load('/path/to/normal.png')\ntex_node2.image.colorspace_settings.name = 'Non-Color'\n```\nBlender auto-detects based on filename conventions (_normal, _roughness, etc.) when using the Principled BSDF drag-and-drop, but headless scripts that load images explicitly must set this manually.",
+      "blender_version": "4.0+",
+      "gotchas": [
+        "Blender 4.1 had a reported bug where baked Non-Color images could have improper sRGB compression applied during image-view display (issue #121635). This is a display artifact, not a render artifact — renders were correct.",
+        "PNG files with embedded ICC profiles can confuse Blender's auto-detection. When loading TRELLIS-output GLBs with bundled textures, verify that the albedo texture is tagged sRGB and normal/roughness are Non-Color in the loaded material.",
+        "EXR textures loaded into Blender are assumed scene-linear regardless of the colorspace_settings tag — do not tag EXR as sRGB.",
+        "The colorspace_settings.name string must match an OCIO colorspace name in the active config. In Blender's default config the valid values include 'sRGB', 'Non-Color', 'Linear', 'Filmic Log', 'Raw'. 'Linear Rec.709' is available in some configs.",
+        "If a Normal Map texture is accidentally left as sRGB, the rendered normal response will be incorrect: the gamma decode shifts the 0.5-centered normal values, producing subtle shading errors that are hard to diagnose."
+      ],
+      "studio_use": "For TRELLIS GLB → headless render: GLB files from TRELLIS embed PBR textures. When loading via the Blender glTF importer (`bpy.ops.import_scene.gltf`), the importer sets color spaces correctly per glTF spec (base color = sRGB, normal/roughness/metallic = Non-Color). Verify post-import if using custom material setups.",
+      "currency": "solid",
+      "verify_note": "Color-texture = sRGB / data-texture = Non-Color is a well-established Blender convention confirmed by multiple sources. Blender issue #121635 confirms the 4.1 display (not render) bug.",
+      "sources": [
+        {
+          "title": "Blender Manual — Color Spaces (5.1, valid for 4.x)",
+          "url": "https://docs.blender.org/manual/en/latest/render/color_management/color_spaces.html",
+          "claim": "Non-Color setting copies raw image values to output; sRGB applies inverse gamma decode before linear rendering."
+        },
+        {
+          "title": "Blender Projects — Issue #121635: Non-color image sRGB encoding display bug",
+          "url": "https://projects.blender.org/blender/blender/issues/121635",
+          "claim": "In Blender 4.1, Non-Color baked images could display with improper sRGB encoding in the Image Viewer — a display artifact, not a render pipeline bug."
+        }
+      ]
+    },
+    {
+      "slug": "ocio-headless-env",
+      "name": "OpenColorIO config — custom OCIO and headless env setup",
+      "what": "Blender's entire color management system is built on OpenColorIO (OCIO). The active config is the bundle shipped with Blender (at `blender/datafiles/colormanagement/config.ocio`). This config defines all available view transforms, looks, colorspaces, and display devices. For pipelines that need ACEScg, custom Looks (LUTs), or additional display devices (Display P3, BT.1886), a custom OCIO config can be swapped in. The display device is set via `scene.display_settings.display_device` and controls which output colorspace is targeted (typically 'sRGB').",
+      "how": "Setting a custom OCIO config:\n```bash\n# Method 1: env var (affects ALL OCIO-aware software on the system)\nexport OCIO=/path/to/custom/config.ocio\nblender --background --python render.py # Method 2: bat file (Windows — Blender-specific, safer)\nSET OCIO=E:\\AI\\ocio\\config.ocio\n\"C:\\Program Files\\Blender Foundation\\Blender 4.4\\blender.exe\" --background --python render.py\n```\nIn bpy, set display device:\n```python\nbpy.context.scene.display_settings.display_device = 'sRGB'\n```\nAvailable display devices depend on the active OCIO config.",
+      "blender_version": "4.0+",
+      "gotchas": [
+        "The OCIO environment variable affects ALL OCIO-aware software running on the system (Nuke, Houdini, etc.). Use a bat/shell wrapper to scope it to Blender only, as recommended by the OCIO community.",
+        "Blender 4.x ships an OCIOv2-compatible config. Some legacy OCIO v1 configs (e.g., old Filmic Blender releases from sobotka.github.io) may not load cleanly under 4.x — the default Blender config is the safest baseline.",
+        "Known issue (developer.blender.org T85084): with custom OCIO configs, color transforms may NOT be applied to viewport renders — everything renders to scene linear regardless of output format. This affects headless viewport renders but not full Cycles/EEVEE renders via `bpy.ops.render.render()`.",
+        "The display_device 'sRGB' is the correct target for PNG/JPEG sprite output destined for web or game engine import. Use 'Display P3' only if the target display and workflow are P3-aware.",
+        "A Blender 5.0 redesign of the color management system is in discussion (devtalk.blender.org) — expect the OCIO config structure to change in 5.0. The 4.x config and bpy API are stable for the current pipeline."
+      ],
+      "studio_use": "For the headless sprite pipeline: use the DEFAULT Blender OCIO config (no OCIO env var). The default config provides sRGB, AgX, Standard, Filmic, and Khronos PBR Neutral — all that is needed. Custom OCIO adds complexity and introduces the viewport render color-transform bug. Set `display_device = 'sRGB'` explicitly in every headless script.",
+      "currency": "solid",
+      "verify_note": "OCIO env var scoping via bat file confirmed by slick3d.wixsite.com/website/post/ocio-blender-part2. Viewport render color bug confirmed by developer.blender.org T85084. Blender 5.0 redesign discussion confirmed by devtalk.blender.org search result.",
+      "sources": [
+        {
+          "title": "OCIO Config File in Blender Part 2 — AgX and ACEScg",
+          "url": "https://slick3d.wixsite.com/website/post/ocio-blender-part2",
+          "claim": "Using a bat file to set OCIO env var is preferable to a system-wide variable because it limits the scope to the running application only."
+        },
+        {
+          "title": "Blender Projects — T85084: Color transforms not applied to viewport renders with custom OCIO",
+          "url": "https://developer.blender.org/T85084",
+          "claim": "With custom OCIO configs, viewport renders do not receive color transforms — they render to scene linear regardless of output format."
+        },
+        {
+          "title": "Blender Manual — OpenColorIO (5.1, valid for 4.x)",
+          "url": "https://docs.blender.org/manual/en/latest/render/color_management/opencolorio.html",
+          "claim": "Blender integrates OCIO natively; display device and view transform are controlled via the color management panel and correspond to bpy scene.display_settings and scene.view_settings."
+        }
+      ]
+    },
+    {
+      "slug": "headless-color-management-template",
+      "name": "Headless color management — complete bpy setup template",
+      "what": "A complete, copy-pasteable bpy color management block for the TRELLIS → GLB → headless sprite render pipeline. Sets all four color management properties explicitly so the output is deterministic regardless of which.blend file is loaded, whether it was created in Blender 3.x or 4.x, and whether the user had changed any settings interactively.",
+      "how": "```python\nimport bpy def configure_color_management_for_sprite_render(scene=None): \"\"\"Configure Blender color management for stylized 2D sprite output. For saturated / painterly / stylized art: - view_transform = 'Standard' (no filmic desaturation) For photorealistic / PBR-accurate output: - view_transform = 'AgX' (Blender 4.0+ default) For PBR base-color fidelity (Blender 4.2+ only): - view_transform = 'Khronos PBR Neutral' \"\"\" if scene is None: scene = bpy.context.scene # Display device: sRGB is correct for PNG/JPEG sprite output scene.display_settings.display_device = 'sRGB' # View transform: 'Standard' for stylized art, 'AgX' for photorealistic scene.view_settings.view_transform = 'Standard' # <-- change to 'AgX' for PBR # Exposure in EV stops (0.0 = no shift); adjust scene lighting instead scene.view_settings.exposure = 0.0 # Gamma creative offset (1.0 = no correction; display gamma handled by OCIO) scene.view_settings.gamma = 1.0 # Look: artistic LUT on top of view transform; 'None' = clean baseline scene.view_settings.look = 'None' # Ensure film alpha for transparent sprite renders scene.render.film_transparent = True # Call before render\nconfigure_color_management_for_sprite_render()\nbpy.ops.render.render(write_still=True)\n```",
+      "blender_version": "4.0+",
+      "gotchas": [
+        "The string values ('Standard', 'AgX', 'Khronos PBR Neutral', 'sRGB', 'None') are OCIO config-dependent. They are correct for Blender's default bundled config. If a custom OCIO env var is set, these strings may be different.",
+        "'Khronos PBR Neutral' requires Blender 4.2+. Attempting to set it on 4.0/4.1 raises a ValueError. Add a version check: `if bpy.app.version >= (4, 2, 0)` before using it.",
+        "scene.view_settings.look = 'None' must be the string 'None', not Python None. Setting it to Python None will raise a TypeError.",
+        "display_settings.display_device must be set BEFORE view_transform — the view transform options available depend on the display device.",
+        "This block must run after the scene is loaded and before `bpy.ops.render.render()`. If called before `bpy.ops.wm.open_mainfile()`, settings will be overwritten by the loaded file."
+      ],
+      "studio_use": "Drop this function into every headless `--python` render script in the TRELLIS → GLB pipeline. The choice between 'Standard' and 'AgX' is the single most impactful color decision for stylized sprite output — Standard for saturated stylized characters, AgX only if PBR realism is the target for a specific batch.",
+      "currency": "solid",
+      "verify_note": "API property names confirmed by Blender API docs search results (ColorManagedViewSettings, bpy.types.Scene.display_settings). Pattern confirmed by MotionGPT scene.py using identical property names. film_transparent pattern is standard Blender practice.",
+      "sources": [
+        {
+          "title": "Blender Python API — ColorManagedViewSettings",
+          "url": "https://docs.blender.org/api/current/bpy.types.ColorManagedViewSettings.html",
+          "claim": "view_transform, exposure, gamma, and look are all valid string properties of ColorManagedViewSettings (scene.view_settings)."
+        },
+        {
+          "title": "MotionGPT Blender scene.py — headless render color management example",
+          "url": "https://huggingface.co/spaces/fjibj/MotionGPT/blob/b625c801edd539dec9915d7fb48d54565ea566dc/mGPT/render/blender/scene.py",
+          "claim": "Production code uses scene.view_settings.view_transform = 'Standard',.gamma = 1.2,.exposure = -0.75, scene.display_settings.display_device = 'sRGB', scene.render.film_transparent = True."
+        },
+        {
+          "title": "Blender Python API — Scene.display_settings",
+          "url": "https://docs.blender.org/api/current/bpy.types.Scene.html",
+          "claim": "scene.display_settings.display_device is a valid string property controlling the target display colorspace."
+        }
+      ]
+    }
+  ]
+}

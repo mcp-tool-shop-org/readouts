@@ -1,0 +1,470 @@
+{
+  "bucket": "memory-layout",
+  "verifier_note": "Retrieved all 58 warrant sources across the 10 recipes directly (WebFetch against doc.rust-lang.org/stable at pinned 1.98.1, docs.rs at the pinned crate versions rapier3d-f64 0.35.3 / parry3d-f64 0.30.2 / slotmap 1.1.1 / typed-arena 2.0.2 / bumpalo 3.20.3); read solver/src/lib.rs, solver/src/rapier_law.rs, solver/build.mjs and solver/Cargo.toml from si-rpg-engine at main via read-only gh api for every engine_note; and additionally ran all 29 embedded checks myself through this lane's own scripts/compile_oracle.py against the actual pinned rustc 1.98.1 (already installed and set up locally) rather than relying only on the operator's separate run -- 29/29 passed with exact stdout, error-code, lint and wasm_call matches, including the wasm32 alignment probe (800) and every 'measured' byte-size claim (repr(Rust) reorder=8, Option<RigidBodyHandle>=12, Option<DefaultKey>=8, Plain=8/Tagged=16). Every source supported its claim as stated and every engine_note fact matched the live repository precisely, several down to exact line-level code (the ContactPair ptr::from_ref/&mut* cast, build_world's collider-then-heightfield-then-body insertion order, build.mjs's bodies_ptr()/8+i*17+slot indexing, snapshot_ptr/len read-then-copy ordering). The one systemic weakness: 2 of 10 recipes (mutate-through-unsafecell, re-read-a-vec-pointer) each have one check whose own label claims code 'compiles silently' / 'with no diagnostic at all', but neither check sets the schema's `no_warnings` field, so compile_oracle's pass/fail gate only verifies returncode 0, not silence -- a future stray lint would still show PASS. I independently compiled both and confirmed stderr is genuinely empty today (claims hold), but the checks as written don't enforce their own strongest claim; no recipe in this lane uses `no_warnings` at all despite the field existing for exactly this purpose.",
+  "verdicts": [
+    {
+      "slug": "put-abi-buffers-in-flat-arrays-or-repr-c-default-repr-rust-promises-no-field-order-or-size",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Reference/size_of/offset_of!/E0793/Nomicon confirmed verbatim incl. 'no other guarantees' and platform-specific alignment. lib.rs BODIES/COLLIDERS and build.mjs's bodies_ptr()/8+i*17+slot match exactly. Oracle: 4/4 pass, wasm probe=800.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/type-layout.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/type-layout.html",
+          "supported": true,
+          "note": "Confirmed verbatim: array offset n*size_of::<T>(), repr(C) decl-order+padding, repr(transparent), 'no other guarantees'."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/mem/fn.size_of.html",
+          "supported": true,
+          "note": "Confirmed: [T;n] size, size not stable across compilations, const fn since 1.24.0."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/mem/macro.offset_of.html",
+          "supported": true,
+          "note": "Confirmed: stable 1.77.0; warns layouts may differ across compilations without explicit repr."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/error_codes/E0793.html",
+          "supported": true,
+          "note": "Confirmed: packed-field reference error; fix is copy or raw pointer + read_unaligned, as stated."
+        },
+        {
+          "url": "https://doc.rust-lang.org/nomicon/other-reprs.html",
+          "supported": true,
+          "note": "Confirmed: repr(C) order/size/align for FFI; repr(packed) 'not to be used lightly'."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/b34779b0cc125fc2f5b6e6112991533130d99898/solver/src/lib.rs",
+          "supported": true,
+          "note": "BODIES:[f64;64*17], COLLIDERS:[f64;64*10] confirmed verbatim; BODY_STRIDE/COLLIDER_STRIDE not exported."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/b34779b0cc125fc2f5b6e6112991533130d99898/solver/build.mjs",
+          "supported": true,
+          "note": "`const at = bodyBase + i*17` where bodyBase=bodies_ptr()/8 confirms the exact indexing claim."
+        }
+      ]
+    },
+    {
+      "slug": "count-on-option-s-niche-only-for-std-listed-types-give-boundary-enums-repr-u8-and-explicit-values",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "std::option/NonZero/Reference/Nomicon confirmed verbatim. RigidBodyHandle=repr(transparent)(Index{index:u32,generation:u32}); DRIVEN=slot16 tested ==1.0/2.0/3.0, matching rapier_law.rs exactly. Oracle: 4/4 pass, incl. 12B/8B sizes.",
+      "evidence_url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.RigidBodyHandle.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/option/index.html",
+          "supported": true,
+          "note": "Confirmed exact list: Box<U>,&U,&mut U,fn,NonZero*,NonNull<U>,repr(transparent) wrapper."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/num/struct.NonZero.html",
+          "supported": true,
+          "note": "Confirmed: NonZero<T> layout/bit-validity of T except zero; Option<NonZero<u32>> same size as u32."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/type-layout.html",
+          "supported": true,
+          "note": "Confirmed: repr(u8) fieldless enum = size/align of u8, discriminants 0..=255; enum w/ fields = tagged repr(C) union."
+        },
+        {
+          "url": "https://doc.rust-lang.org/nomicon/other-reprs.html",
+          "supported": true,
+          "note": "Confirmed verbatim: explicit repr(u*/i*/C) on an enum with fields suppresses the null-pointer optimization."
+        },
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.RigidBodyHandle.html",
+          "supported": true,
+          "note": "Confirmed: #[repr(transparent)] pub struct RigidBodyHandle(pub Index); into_raw_parts(self)->(u32,u32)."
+        },
+        {
+          "url": "https://docs.rs/crate/slotmap/1.1.1/source/src/lib.rs",
+          "supported": true,
+          "note": "Confirmed: KeyData{idx:u32,version:NonZeroU32}, no explicit repr; Key docs say key order is unspecified."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/mem/union.MaybeUninit.html",
+          "supported": true,
+          "note": "Confirmed: size_of::<Option<bool>>()==1 vs Option<MaybeUninit<bool>>()==2, no-niche explanation."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/b34779b0cc125fc2f5b6e6112991533130d99898/solver/src/rapier_law.rs",
+          "supported": true,
+          "note": "handles:Vec<Option<RigidBodyHandle>> and b[DRIVEN]==1.0/2.0/3.0 tests confirmed verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "budget-pointer-widths-box-t-is-one-word-box-t-and-dyn-trait-carry-metadata-zsts-take-no-space",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "std::boxed/DST/Vec-guarantees/Nomicon/Book/static-items confirmed verbatim incl. 'though you should not rely on this... currently twice usize'. Statics-vs-heap claim matches lib.rs+rapier_law.rs. Oracle's single check passes exactly.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/vec/struct.Vec.html#guarantees",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/boxed/index.html",
+          "supported": true,
+          "note": "Confirmed verbatim: Box<T:Sized>=single pointer, ABI-compat with C's T*; ZST box needs non-null aligned ptr."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/dynamically-sized-types.html",
+          "supported": true,
+          "note": "Confirmed: slices/str/trait objects are DSTs; pointers carry length/vtable metadata."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/type-layout.html",
+          "supported": true,
+          "note": "Confirmed verbatim incl. caveat: pointers to DSTs are 'currently' twice usize, 'should not rely on this'."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/vec/struct.Vec.html#guarantees",
+          "supported": true,
+          "note": "Confirmed: (ptr,cap,len) triplet, never stack-stored, ZST cap=usize::MAX, into_boxed_slice drops excess cap."
+        },
+        {
+          "url": "https://doc.rust-lang.org/nomicon/exotic-sizes.html",
+          "supported": true,
+          "note": "Confirmed: 'wide pointer' term; ZST loads/stores are no-ops; unsafe code must special-case ZST offsets/allocation."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/book/ch04-01-what-is-ownership.html",
+          "supported": true,
+          "note": "Confirmed verbatim: stack data needs known fixed size; unknown/changing size goes on the heap."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/items/static-items.html",
+          "supported": true,
+          "note": "Confirmed verbatim: all references/raw pointers to a static refer to the same allocation."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/b34779b0cc125fc2f5b6e6112991533130d99898/solver/src/rapier_law.rs",
+          "supported": true,
+          "note": "Solver{loaded,snapshot} static + per-call plans/collisions Vecs in integrate() confirm the heap claim."
+        }
+      ]
+    },
+    {
+      "slug": "predict-destructors-fields-drop-in-declaration-order-locals-in-reverse-statics-and-forgotten-values-never",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Destructors/assignment-drop/ManuallyDrop/forget/invalid_value lint confirmed verbatim. `solver.loaded=Some(loaded)` with Loaded{world first,...} in rapier_law.rs's ensure() matches the drop-order claim exactly. Oracle: 3/3 pass.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/destructors.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/destructors.html",
+          "supported": true,
+          "note": "Confirmed verbatim: fields drop in declaration order; locals in reverse; forget/ManuallyDrop suppression is safe."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/items/static-items.html",
+          "supported": true,
+          "note": "Confirmed verbatim: static items do not call drop at the end of the program."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "supported": true,
+          "note": "Confirmed: assignment drops the old value at the place first (unless uninit), then moves/copies the new value in."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/mem/struct.ManuallyDrop.html",
+          "supported": true,
+          "note": "Confirmed: same layout/bit-validity as T; field reordering preferred over unsafe drop control; double-drop can UB."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/mem/fn.forget.html",
+          "supported": true,
+          "note": "Confirmed verbatim: forget is safe since destructors aren't guaranteed to run; ManuallyDrop usually preferred."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/mem/union.MaybeUninit.html",
+          "supported": true,
+          "note": "Confirmed: uninitialized bool is UB; documented array idiom write-then-transmute; same size/align/ABI as T."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/rustc/lints/listing/warn-by-default.html",
+          "supported": true,
+          "note": "Confirmed: invalid_value is warn-by-default; detects zeroed/uninitialized/transmute/assume_init misuse."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/b34779b0cc125fc2f5b6e6112991533130d99898/solver/src/rapier_law.rs",
+          "supported": true,
+          "note": "static mut SOLVER, Loaded{world:PhysicsWorld,...} field order, and `solver.loaded=Some(loaded)` confirmed verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "point-rc-arc-edges-one-way-strong-down-weak-back-or-a-strong-cycle-leaks-and-its-destructors-never-run",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "std::rc/Arc/Book-15.6/parry SharedShape confirmed verbatim. character_shape() call sites (1x lifted, 2x moved) match rapier_law.rs's integrate() precisely -- the flagged per-quantum Arc churn. Oracle: 3/3 pass.",
+      "evidence_url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.SharedShape.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/rc/index.html",
+          "supported": true,
+          "note": "Confirmed verbatim: non-atomic, not Send; Rc cycles never deallocate; Weak breaks them; upgrade()=None once dropped."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/book/ch15-06-reference-cycles.html",
+          "supported": true,
+          "note": "Confirmed verbatim: 'preventing memory leaks...is memory safe'; cycle keeps both counts >0; downgrade->non-owning Weak."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/sync/struct.Arc.html",
+          "supported": true,
+          "note": "Confirmed verbatim: 'Atomically Reference Counted'; Send+Sync iff T is; thread-safe ownership, not thread-safe data."
+        },
+        {
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.SharedShape.html",
+          "supported": true,
+          "note": "Confirmed: pub struct SharedShape(pub Arc<dyn Shape>); cloning only increments the reference count."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/b34779b0cc125fc2f5b6e6112991533130d99898/solver/src/rapier_law.rs",
+          "supported": true,
+          "note": "character_shape() called once in the move_shape loop + once per plan in the impulse loop, exactly as claimed."
+        }
+      ]
+    },
+    {
+      "slug": "mutate-through-only-via-unsafecell-based-types-a-t-to-mut-t-cast-is-ub-even-where-the-lint-is-silent",
+      "verdict": "corrected",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "All 12 sources + the ptr::from_ref/&mut* cast confirmed against rapier_law.rs and NarrowPhase/ContactPair docs. Check#2's 'no diagnostic at all' lacks no_warnings:true -- I compiled it myself; stderr is empty today, but unenforced.",
+      "evidence_url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ContactPair.html",
+      "corrections": {
+        "claim": "Check#2 ('...compiles with no diagnostic at all') has no `no_warnings:true`, so the oracle gate only checks returncode 0. I ran it myself via compile_oracle: stderr_head is genuinely empty, so the claim holds today but isn't structurally enforced."
+      },
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/interior-mutability.html",
+          "supported": true,
+          "note": "Confirmed verbatim: UnsafeCell<T> is the only allowed way to disable the no-mutation-behind-&T rule."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/behavior-considered-undefined.html",
+          "supported": true,
+          "note": "Confirmed: mutating bytes behind a shared reference (transitively) is UB unless part of an UnsafeCell."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/cell/struct.UnsafeCell.html",
+          "supported": true,
+          "note": "Confirmed verbatim: casting &T to &mut T is UB; no legal way to get aliasing &mut even with UnsafeCell."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/cell/index.html",
+          "supported": true,
+          "note": "Confirmed: Cell/RefCell/OnceCell are !Sync; RefCell panics on violation; Mutex/RwLock/OnceLock/atomics are the MT tools."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/cell/struct.RefCell.html",
+          "supported": true,
+          "note": "Confirmed: borrow_mut panics if already borrowed; try_borrow_mut returns Err(BorrowMutError) instead."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/rustc/lints/listing/deny-by-default.html",
+          "supported": true,
+          "note": "Confirmed: invalid_reference_casting is deny-by-default; UnsafeCell is the only way to get aliasable mutable data."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2024/07/25/Rust-1.80.0/",
+          "supported": true,
+          "note": "Confirmed: LazyCell/LazyLock stabilized 1.80.0; OnceCell/OnceLock in 1.70; LazyLock for statics, LazyCell not Sync."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/sync/struct.LazyLock.html",
+          "supported": true,
+          "note": "Confirmed: stable 1.80.0; thread-safe, usable in statics; panicking initializer poisons it."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html",
+          "supported": true,
+          "note": "Confirmed: stable 1.70.0; thread-safe OnceCell for statics; LazyLock recommended unless extra inputs are needed."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/book/ch15-05-interior-mutability.html",
+          "supported": true,
+          "note": "Confirmed: RefCell panics at runtime; output literally shows 'RefCell already borrowed'; single-threaded only."
+        },
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.NarrowPhase.html",
+          "supported": true,
+          "note": "Confirmed: contact_pairs/contact_pair/contact_graph all take &self; no public &mut ContactPair accessor exists."
+        },
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ContactPair.html",
+          "supported": true,
+          "note": "Confirmed: manifolds and solver_clusters are plain Vec<ContactManifold> fields, no cell wrapper."
+        }
+      ]
+    },
+    {
+      "slug": "return-cow-when-a-function-usually-passes-its-input-through-and-only-sometimes-rewrites-it",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Cow and from_utf8_lossy docs confirmed verbatim (clone-on-write, to_mut clones only if not owned, B:'a+ToOwned+?Sized). Engine_note's contrast with canon()'s one-value-at-a-time style is accurate. Oracle check passes with exact stdout.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/borrow/enum.Cow.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/borrow/enum.Cow.html",
+          "supported": true,
+          "note": "Confirmed verbatim: clone-on-write smart pointer; to_mut clones only if not already owned; B:'a+ToOwned+?Sized."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/string/struct.String.html#method.from_utf8_lossy",
+          "supported": true,
+          "note": "Confirmed: returns Cow<str>; valid UTF-8 needs no allocation, invalid sequences require an owned String."
+        }
+      ]
+    },
+    {
+      "slug": "store-indices-or-offsets-instead-of-self-references-use-pin-only-where-an-api-such-as-future-poll-needs-it",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "std::pin/pin!/Future::poll confirmed verbatim. Engine's index-based handles (Rapier handles, no self-refs, no Pin use anywhere in rapier_law.rs) match the claim. Oracle: 3/3 pass, incl. both E0505+E0515 together and E0277.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/pin/index.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/pin/index.html",
+          "supported": true,
+          "note": "Confirmed verbatim: pinned value stays at its address until drop; Unpin unaffected; PhantomPinned opts out."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/pin/macro.pin.html",
+          "supported": true,
+          "note": "Confirmed: stable 1.68.0; no heap allocation unlike Box::pin; resulting Pin<&mut T> can't escape its block."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/future/trait.Future.html",
+          "supported": true,
+          "note": "Confirmed exact signature: fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output>."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/b34779b0cc125fc2f5b6e6112991533130d99898/solver/src/rapier_law.rs",
+          "supported": true,
+          "note": "Confirmed: bodies addressed by Rapier handles/record position throughout; no self-referential struct or Pin usage."
+        }
+      ]
+    },
+    {
+      "slug": "keep-entities-in-a-generational-arena-keyed-by-index-generation-insertion-order-hands-out-the-ids",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "slotmap docs+source and rapier arena.rs source confirmed field-for-field (Index{index,generation}, arena-wide generation, LIFO free list). build_world order matches exactly. Oracle: 2/2 pass.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/data/arena.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/slotmap/1.1.1/slotmap/",
+          "supported": true,
+          "note": "Confirmed verbatim: O(1) insert/remove/access for entities; versioned keys invalid after reuse; wraps after 2^31 reuses."
+        },
+        {
+          "url": "https://docs.rs/crate/slotmap/1.1.1/source/src/lib.rs",
+          "supported": true,
+          "note": "Confirmed: KeyData derives Ord but docs say key order is unspecified; as_ffi() only guarantees round-trip."
+        },
+        {
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/data/arena.rs",
+          "supported": true,
+          "note": "Confirmed field-for-field: Index{index:u32,generation:u32}; one arena-wide generation bumped on remove; LIFO free list."
+        },
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.RigidBodyHandle.html",
+          "supported": true,
+          "note": "Confirmed: wraps Index, into_raw_parts()->(u32,u32) round-trips index/generation."
+        },
+        {
+          "url": "https://docs.rs/typed-arena/2.0.2/typed_arena/",
+          "supported": true,
+          "note": "Confirmed verbatim: single-type arena, all destroyed together, allocation typically a vector push, safe cycles."
+        },
+        {
+          "url": "https://docs.rs/bumpalo/3.20.3/bumpalo/",
+          "supported": true,
+          "note": "Confirmed verbatim: phase-oriented allocation freed by resetting the bump pointer; Drop impls not invoked."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/b34779b0cc125fc2f5b6e6112991533130d99898/solver/src/rapier_law.rs",
+          "supported": true,
+          "note": "build_world inserts colliders, then heightfield, then bodies (carried push None); snapshot sorts by into_raw_parts()."
+        }
+      ]
+    },
+    {
+      "slug": "re-read-a-vec-s-pointer-after-any-call-that-can-grow-it-growth-reallocates-and-kills-raw-pointers-into-it",
+      "verdict": "corrected",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Vec/GlobalAlloc/realloc/global.rs confirmed verbatim; snapshot_ptr/len read-after-call matches build.mjs exactly. Check#3's 'compiles silently' claim lacks no_warnings:true; verified myself (stderr empty) -- same gap as the unsafecell lane.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html#method.realloc",
+      "corrections": {
+        "claim": "Check#3 ('...compiles silently: the raw pointer is on you') has no `no_warnings:true`, so the gate only checks returncode 0. I ran it via compile_oracle myself: stderr_head is empty, so true today but not structurally enforced."
+      },
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/vec/struct.Vec.html",
+          "supported": true,
+          "note": "Confirmed: new() allocates nothing until pushed; push reallocates only at len==capacity; growth invalidates as_ptr."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html",
+          "supported": true,
+          "note": "Confirmed verbatim: stable 1.28; UB to unwind; optimizer may elide/stack-move allocations."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html#method.realloc",
+          "supported": true,
+          "note": "Confirmed verbatim: after a non-null return, any access via the OLD ptr is UB even if the block stayed in place."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/src/core/alloc/global.rs.html",
+          "supported": true,
+          "note": "Confirmed: provided realloc = alloc new block + copy min(old,new) + dealloc old; matches the counting-allocator check."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/alloc/index.html",
+          "supported": true,
+          "note": "Confirmed verbatim: #[global_allocator] usable once per crate graph; cdylib/staticlib guaranteed System by default."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/b34779b0cc125fc2f5b6e6112991533130d99898/solver/src/rapier_law.rs",
+          "supported": true,
+          "note": "Solver{snapshot:Vec<u8>}, rebuild_snapshot's out.clear()+refill, snapshot_ptr/snapshot_len confirmed verbatim."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/b34779b0cc125fc2f5b6e6112991533130d99898/solver/build.mjs",
+          "supported": true,
+          "note": "snapshotBytes() reads ptr then len then .slice()-copies, exactly the 'read ptr, then len, then copy' rule."
+        }
+      ]
+    }
+  ]
+}

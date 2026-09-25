@@ -1,0 +1,163 @@
+{
+  "model": "qwen3-1.7b",
+  "n": 14,
+  "correct": 9,
+  "accuracy_pct": 64.3,
+  "avg_secs": 0.8,
+  "rows": [
+    {
+      "id": 1,
+      "gold": "supported",
+      "claim": "The prebuilt CUDA-12.4 llama.cpp b9484 runs its MMQ integer kernels on the RTX 5090, far faster than a cuBLAS fallback.",
+      "evidence": "llama-bench on Qwen3-30B-A3B-Q4_K_M reported pp512 = 7251 tok/s, which is 7.3x the cuBLAS-fallback prefill level of 989 tok/s measured for the same model class.",
+      "pred": "refuted",
+      "conf": 0.5,
+      "ok": false,
+      "rationale": "The evidence shows that the llama.cpp b9484 runs at 7251 tok/s on Qwen3-30B-A3B-Q4_K_M, which is 7.3x faster than the cuBLAS-fallback prefill level of 989 tok/s. This suggests that the CUDA-12.4 llama.cpp b9484 is faster than the cuBLAS fallback, but the claim states it runs on the RTX 5090, which is not mentioned in the evidence. The evidence does not explicitly state that the RTX 5090 is used, so the claim about the RTX 5090 is not confirmed.",
+      "secs": 6.01
+    },
+    {
+      "id": 2,
+      "gold": "refuted",
+      "claim": "Ollama's qwen3.6 GGUF blobs load directly in stock llama.cpp b9484.",
+      "evidence": "Pointing stock llama.cpp b9484 at the Ollama qwen3.6 blob fails to load with the error 'qwen35moe.rope.dimension_sections has wrong array length; expected 4, got 3'.",
+      "pred": "refuted",
+      "conf": 1,
+      "ok": true,
+      "rationale": "The evidence states that pointing stock llama.cpp b9484 at the Ollama qwen3.6 blob fails to load with a specific error. This directly contradicts the claim that the blobs load directly in stock llama.cpp b9484.",
+      "secs": 0.37
+    },
+    {
+      "id": 3,
+      "gold": "refuted",
+      "claim": "SageAttention's sageattn_qk_int8_pv_fp16_cuda backend is the best choice for accelerating Z-Image because a CUDA kernel is always fastest.",
+      "evidence": "On Z-Image (a Lumina2 DiT), the sageattn_qk_int8_pv_fp16_cuda backend hard-crashes ComfyUI with a native access violation; the sageattn_qk_int8_pv_fp8_cuda backend runs fine and is the fastest working option.",
+      "pred": "refuted",
+      "conf": 1,
+      "ok": true,
+      "rationale": "The evidence states that the sageattn_qk_int8_pv_fp16_cuda backend hard-crashes Z-Image, while the sageattn_qk_int8_pv_fp8_cuda backend runs fine and is the fastest. This directly contradicts the claim that the CUDA kernel is always fastest.",
+      "secs": 0.35
+    },
+    {
+      "id": 4,
+      "gold": "supported",
+      "claim": "SageAttention 2.2.0's diffusion speedup on Z-Image grows as output resolution increases.",
+      "evidence": "Z-Image nvfp4 with SA-fp8_cuda vs the cuDNN-SDPA floor measured 8.3% faster at 1024x1024, 20.8% at 1536x1536, and 29.3% at 2048x2048.",
+      "pred": "supported",
+      "conf": 1,
+      "ok": true,
+      "rationale": "The evidence shows that Z-Image nvfp4 with SA-fp8_cuda achieves faster diffusion speeds at higher output resolutions (1024x1024, 1536x1536, 2048x2048) compared to cuDNN-SDPA. This directly supports the claim that the diffusion speedup grows as output resolution increases.",
+      "secs": 0.49
+    },
+    {
+      "id": 5,
+      "gold": "insufficient",
+      "claim": "Unsloth QLoRA can fine-tune a 70B model within the 32 GB VRAM of the RTX 5090.",
+      "evidence": "An Unsloth QLoRA run on unsloth/Qwen3-4B-bnb-4bit used a peak of about 6.1 GB of VRAM.",
+      "pred": "refuted",
+      "conf": 1.0,
+      "ok": false,
+      "rationale": "The evidence states that an Unsloth QLoRA run on a 4B model used about 6.1 GB of VRAM, which is less than the 32 GB VRAM of the RTX 5090. Therefore, the claim that it can fine-tune a 70B model within the 32 GB VRAM is refuted.",
+      "secs": 0.45
+    },
+    {
+      "id": 6,
+      "gold": "refuted",
+      "claim": "Running 'pip install unsloth' leaves the CUDA build of PyTorch untouched.",
+      "evidence": "pip install unsloth transitively pulled xformers 0.0.35, which downgraded torch from 2.12.0+cu130 to 2.10.0+cpu, a CPU-only build.",
+      "pred": "refuted",
+      "conf": 1,
+      "ok": true,
+      "rationale": "The evidence states that running 'pip install unsloth' downgraded torch to a CPU-only build, which implies that the CUDA build of PyTorch was affected. Therefore, the claim that the CUDA build was untouched is refuted.",
+      "secs": 0.32
+    },
+    {
+      "id": 7,
+      "gold": "supported",
+      "claim": "A LoRA trained on Qwen3 is commercial-safe for sellable game assets.",
+      "evidence": "Qwen3 is released under the Apache-2.0 license, and a LoRA inherits the license of its base model.",
+      "pred": "insufficient",
+      "conf": 0.5,
+      "ok": false,
+      "rationale": "The evidence states that Qwen3 is released under the Apache-2.0 license and that a LoRA inherits the license of its base model. However, it does not explicitly address whether a LoRA trained on Qwen3 is commercial-safe for sellable game assets. The claim about commercial safety is not directly supported or refuted by the evidence provided.",
+      "secs": 0.38
+    },
+    {
+      "id": 8,
+      "gold": "supported",
+      "claim": "llama-swap reclaims a model's VRAM when it swaps to a different model.",
+      "evidence": "After requesting qwen3-30b-a3b while qwen3-4b was resident, /running showed only qwen3-30b-a3b, and VRAM moved from 6995 MiB (4b) to 21813 MiB (30b) rather than summing both.",
+      "pred": "supported",
+      "conf": 1,
+      "ok": true,
+      "rationale": "The evidence shows that when qwen3-30b-a3b was requested while qwen3-4b was resident, the VRAM increased from 6995 MiB (4b) to 21813 MiB (30b), indicating that the model's VRAM was reclaimed when switching to the new model.",
+      "secs": 0.38
+    },
+    {
+      "id": 9,
+      "gold": "insufficient",
+      "claim": "The RTX 5090 sustains heavy LLM inference indefinitely without thermal throttling.",
+      "evidence": "A llama-bench run on Qwen3-30B-A3B peaked at 374 W and 37 C over a short benchmark.",
+      "pred": "refuted",
+      "conf": 0.5,
+      "ok": false,
+      "rationale": "The evidence provided does not support the claim that the RTX 5090 sustains heavy LLM inference indefinitely without thermal throttling. The evidence refers to a Qwen3-30B-A3B model's performance in a llama-bench run, which peaks at 374 W and 37 C, but this does not provide any information about the RTX 5090's thermal behavior or its ability to sustain heavy LLM inference indefinitely. The claim is not supported by the evidence.",
+      "secs": 0.51
+    },
+    {
+      "id": 10,
+      "gold": "refuted",
+      "claim": "On desktop Blackwell (sm_120) you should build llama.cpp with the CUDA 13.x toolkit for best speed.",
+      "evidence": "CUDA 13.x crashes the Blackwell MMQ kernel on sm_120 and silently falls back to cuBLAS, running up to ~5x slower; CUDA 12.8 with MMQ is the correct combination.",
+      "pred": "refuted",
+      "conf": 1.0,
+      "ok": true,
+      "rationale": "The evidence directly contradicts the claim. It states that CUDA 13.x crashes the Blackwell MMQ kernel on sm_120 and falls back to cuBLAS, making it ~5x slower. This directly refutes the claim that CUDA 13.x is the correct combination for best speed on Blackwell.",
+      "secs": 0.4
+    },
+    {
+      "id": 11,
+      "gold": "supported",
+      "claim": "FlashAttention-3 cannot run on the RTX 5090.",
+      "evidence": "sm_120 (desktop GB202) lacks TMEM, so FlashAttention-3/4 physically cannot run; the fallback is cuDNN-SDPA plus SageAttention.",
+      "pred": "refuted",
+      "conf": 1.0,
+      "ok": false,
+      "rationale": "The evidence states that sm_120 (desktop GB202) lacks TMEM, which prevents FlashAttention-3/4 from running, but the fallback is cuDNN-SDPA plus SageAttention. This implies that FlashAttention-3/4 can still run on the RTX 5090, as the fallback option is used. Therefore, the claim that FlashAttention-3 cannot run on the RTX 5090 is refuted.",
+      "secs": 0.48
+    },
+    {
+      "id": 12,
+      "gold": "refuted",
+      "claim": "The native llama.cpp build decodes the Qwen3-30B-A3B MoE at the same speed as Ollama.",
+      "evidence": "Native llama.cpp MMQ decode measured tg128 = 334 tok/s for Qwen3-30B-A3B, about 2.4x Ollama's 138 tok/s for the same MoE class.",
+      "pred": "refuted",
+      "conf": 1.0,
+      "ok": true,
+      "rationale": "The evidence states that llama.cpp's MMQ decode for Qwen3-30B-A3B is 334 tok/s, while Ollama's is 138 tok/s. This means llama.cpp is 2.4x faster than Ollama, which directly contradicts the claim that they decode at the same speed.",
+      "secs": 0.39
+    },
+    {
+      "id": 13,
+      "gold": "insufficient",
+      "claim": "The Chroma1-HD diffusion model produces better text-in-image than Qwen-Image-2512.",
+      "evidence": "Both Chroma1-HD and Qwen-Image-2512 are installed in ComfyUI and are licensed Apache-2.0.",
+      "pred": "insufficient",
+      "conf": 0.0,
+      "ok": true,
+      "rationale": "The evidence does not provide any information about the performance or quality comparison between Chroma1-HD and Qwen-Image-2512. It only states that both models are installed in ComfyUI and are licensed under Apache-2.0.",
+      "secs": 0.35
+    },
+    {
+      "id": 14,
+      "gold": "supported",
+      "claim": "The SageAttention 2.2.0 wheel installed here loads on Python 3.13 despite being tagged cp39.",
+      "evidence": "The wheel is sageattention-2.2.0+cu130torch2.9.0andhigher.post4-cp39-abi3-win_amd64.whl; the abi3 (stable ABI) tag means a cp39 wheel loads on any CPython 3.9 or newer, including 3.13.",
+      "pred": "supported",
+      "conf": 1,
+      "ok": true,
+      "rationale": "The evidence states that the wheel is tagged with 'cp39' and that the abi3 tag means a cp39 wheel loads on any CPython 3.9 or newer, including 3.13. This directly supports the claim that the SageAttention 2.2.0 wheel loads on Python 3.13 despite being tagged cp39.",
+      "secs": 0.39
+    }
+  ]
+}

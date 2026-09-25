@@ -1,0 +1,319 @@
+{
+  "bucket": "spectrogram",
+  "domains": [
+    "vlm-spectrogram-reading",
+    "time-frequency-representation",
+    "spectrogram-rendering"
+  ],
+  "count": 28,
+  "findings": [
+    {
+      "slug": "20-librosa-display-cmap-specshow-0-11",
+      "name": "librosa.display.cmap / specshow (0.11)",
+      "claim": "librosa's canonical sequential colormap for dB-scaled data is magma.",
+      "detail": null,
+      "design_implication": "Magma is the MIR convention, but the one VLM measurement (finding 2) scored it below viridis: viridis default, magma alternate, both exposed.",
+      "citation_id": "librosa 0.11 display.cmap",
+      "authors": "librosa developers",
+      "year": "2025",
+      "domain": "spectrogram-rendering"
+    },
+    {
+      "slug": "21-librosa-amplitude-to-db-0-11",
+      "name": "librosa.amplitude_to_db (0.11)",
+      "claim": "amplitude_to_db defaults to ref=1.0, top_db=80, thresholding 80 dB below the peak.",
+      "detail": null,
+      "design_implication": "Clip 80 dB below peak and normalise per image.",
+      "citation_id": "librosa 0.11 amplitude_to_db",
+      "authors": "librosa developers",
+      "year": "2025",
+      "domain": "spectrogram-rendering"
+    },
+    {
+      "slug": "22-sonic-visualiser-a-brief-reference-4-5-log-frequency-spectrogram-axis",
+      "name": "Sonic Visualiser: A Brief Reference (4.5) - log-frequency spectrogram axis",
+      "claim": "The log-frequency spectrogram replaces the numeric y-axis with a stylised piano keyboard, every octave's C shaded.",
+      "detail": null,
+      "design_implication": "Draw a keyboard strip with C shading instead of Hz ticks.",
+      "citation_id": "Sonic Visualiser reference 4.5",
+      "authors": "Cannam et al.",
+      "year": "2024",
+      "domain": "spectrogram-rendering"
+    },
+    {
+      "slug": "23-sonic-visualiser-a-brief-reference-4-5-layers",
+      "name": "Sonic Visualiser: A Brief Reference (4.5) - layers",
+      "claim": "Layers stack like a graphics application: spectrogram at the back, notes and onsets in front.",
+      "detail": null,
+      "design_implication": "Overlaying the piano roll and beat grid on the spectrogram is the established MIR idiom.",
+      "citation_id": "Sonic Visualiser reference 4.5",
+      "authors": "Cannam et al.",
+      "year": "2024",
+      "domain": "spectrogram-rendering"
+    },
+    {
+      "slug": "24-acoustic-spectral-feedback-in-vocal-learning-a-systematic-review-of-psycholog",
+      "name": "Acoustic spectral feedback in vocal learning: a systematic review of psychological mechanisms and skill outcomes",
+      "claim": "Spectrogram displays for vocal learning are thinly evidenced next to simple pitch-trajectory displays; recommended as auxiliary observation, not standalone instruction.",
+      "detail": null,
+      "design_implication": "Always pair the spectrogram with a pitch-contour-vs-target line.",
+      "citation_id": "DOI:10.3389/fpsyg.2026.1920074",
+      "authors": "Zhang",
+      "year": "2026",
+      "domain": "spectrogram-rendering"
+    },
+    {
+      "slug": "25-vision-developer-documentation",
+      "name": "Vision - developer documentation",
+      "claim": "Claude reads images as 28x28-px patches, caps standard models at 1568 px long edge, and warns resizing can make text less legible.",
+      "detail": null,
+      "design_implication": "Render at exactly 1568 px wide; give a semitone whole patch rows.",
+      "citation_id": "Anthropic vision docs",
+      "authors": "Anthropic",
+      "year": "2026",
+      "domain": "spectrogram-rendering"
+    },
+    {
+      "slug": "26-images-and-vision-api-guide",
+      "name": "Images and vision - API guide",
+      "claim": "High-detail pipeline scales the short edge down to 768 px before tiling at 512 px.",
+      "detail": null,
+      "design_implication": "Budget legibility against a 768-px-high render; keep the aspect wide-and-short.",
+      "citation_id": "OpenAI images-vision guide",
+      "authors": "OpenAI",
+      "year": "2026",
+      "domain": "spectrogram-rendering"
+    },
+    {
+      "slug": "27-vision-language-models-are-blind",
+      "name": "Vision language models are blind",
+      "claim": "Four SOTA VLMs average 58% on overlapping primitives but reach near-100% when marks are separated by space.",
+      "detail": null,
+      "design_implication": "The score overlay must be hollow, offset, never superimposed on the harmonic band.",
+      "citation_id": "arXiv:2407.06581",
+      "authors": "Rahmanzadehgervi, Bolton, Taesiri & Nguyen",
+      "year": "2024",
+      "domain": "spectrogram-rendering"
+    },
+    {
+      "slug": "28-riffusion-spectrogram-params-py",
+      "name": "riffusion spectrogram_params.py",
+      "claim": "Riffusion encodes 512 HTK-mel bins to 10 kHz, 10 ms hop, power exponent 0.25, and stores render parameters in PNG EXIF.",
+      "detail": null,
+      "design_implication": "Emit render parameters as a sidecar; a ^0.25 map is a proven alternative to dB clipping.",
+      "citation_id": "riffusion-hobby spectrogram_params",
+      "authors": "Forsgren & Martiros",
+      "year": "2023",
+      "domain": "spectrogram-rendering"
+    },
+    {
+      "slug": "11-deep-salience-representations-for-f0-estimation-in-polyphonic-music",
+      "name": "Deep Salience Representations for F0 Estimation in Polyphonic Music",
+      "claim": "HCQT: 60 bins/octave (20 cents), 11 ms hop, fmin C1 32.7 Hz, 6 octaves, harmonics {0.5,1,2,3,4,5} stacked.",
+      "detail": null,
+      "design_implication": "At 20 cents/bin a 50-cent error spans 2.5 bins and is visible without overlay.",
+      "citation_id": "ISMIR 2017 paper 85",
+      "authors": "Bittner, McFee, Salamon, Li & Bello",
+      "year": "2017",
+      "domain": "time-frequency-representation"
+    },
+    {
+      "slug": "12-a-lightweight-instrument-agnostic-model-for-polyphonic-note-transcription-and",
+      "name": "A Lightweight Instrument-Agnostic Model for Polyphonic Note Transcription and Multipitch Estimation",
+      "claim": "Basic Pitch uses a CQT at 3 bins/semitone, ~11 ms hop, 7 harmonics + 1 sub-harmonic, scored under MIREX quarter-tone / 50 ms rules.",
+      "detail": null,
+      "design_implication": "36 bins/octave is the proven floor for note-level work; 60 is the pitch-gate resolution.",
+      "citation_id": "arXiv:2203.09893",
+      "authors": "Bittner, Bosch, Rubinstein, Meseguer-Brocal & Ewert",
+      "year": "2022",
+      "domain": "time-frequency-representation"
+    },
+    {
+      "slug": "13-robust-speech-recognition-via-large-scale-weak-supervision",
+      "name": "Robust Speech Recognition via Large-Scale Weak Supervision",
+      "claim": "Whisper's input is an 80-channel log-mel at 16 kHz, 25 ms window, 10 ms stride.",
+      "detail": null,
+      "design_implication": "Log-mel at ~10 ms hop is what LLM-adjacent audio models are trained on: the legibility surface, not the measurement surface.",
+      "citation_id": "arXiv:2212.04356",
+      "authors": "Radford et al.",
+      "year": "2022",
+      "domain": "time-frequency-representation"
+    },
+    {
+      "slug": "14-ast-audio-spectrogram-transformer",
+      "name": "AST: Audio Spectrogram Transformer",
+      "claim": "AST reaches 0.485 mAP on AudioSet from 128-bin log-mel, 25 ms Hamming, 10 ms shift.",
+      "detail": null,
+      "design_implication": "25 ms / 10 ms / 80-128 mel is the de facto standard for what the model hears.",
+      "citation_id": "arXiv:2104.01778",
+      "authors": "Gong, Chung & Glass",
+      "year": "2021",
+      "domain": "time-frequency-representation"
+    },
+    {
+      "slug": "15-onsets-and-frames-dual-objective-piano-transcription",
+      "name": "Onsets and Frames: Dual-Objective Piano Transcription",
+      "claim": "SOTA piano transcription ran on 229 log-mel bins (16 kHz, n_fft 2048, hop 512), note F1 82.3 at 50 ms.",
+      "detail": null,
+      "design_implication": "Mel with many bins is sufficient for onsets and note identity on piano; use 229, not the speech default.",
+      "citation_id": "arXiv:1710.11153",
+      "authors": "Hawthorne et al.",
+      "year": "2018",
+      "domain": "time-frequency-representation"
+    },
+    {
+      "slug": "16-improved-musical-onset-detection-with-convolutional-neural-networks",
+      "name": "Improved Musical Onset Detection with Convolutional Neural Networks",
+      "claim": "Three stacked log-mels (23/46/93 ms windows, 10 ms hop, 80 bands) reached F 88.5-89.9% at a 25 ms tolerance.",
+      "detail": null,
+      "design_implication": "A 10 ms hop clears the 40 ms gate with 4x margin; a short-window channel sharpens onsets.",
+      "citation_id": "ICASSP 2014",
+      "authors": "Schluter & Bock",
+      "year": "2014",
+      "domain": "time-frequency-representation"
+    },
+    {
+      "slug": "17-auditory-toolbox-mel-frequencies",
+      "name": "Auditory Toolbox - mel_frequencies",
+      "claim": "Slaney mel is linear below 1 kHz at 200/3 = 66.7 Hz per step, so a 50-cent error at C4 (7.7 Hz) is one-ninth of a filter spacing.",
+      "detail": null,
+      "design_implication": "Mel alone cannot show the 50-cent gate in the vocal/guitar fundamental range: the decisive argument for a CQT primary.",
+      "citation_id": "librosa 0.11 mel_frequencies",
+      "authors": "Slaney (as implemented in librosa 0.11)",
+      "year": "1998",
+      "domain": "time-frequency-representation"
+    },
+    {
+      "slug": "18-crepe-a-convolutional-representation-for-pitch-estimation",
+      "name": "CREPE: A Convolutional Representation for Pitch Estimation",
+      "claim": "CREPE raw pitch accuracy 0.967 at 50 cents and 0.909 at 10 cents vs pYIN 0.919 / 0.826.",
+      "detail": null,
+      "design_implication": "Overlay a tracker's f0 in cents-vs-target on the CQT; the picture shows why, the tracker supplies the number.",
+      "citation_id": "arXiv:1802.06182",
+      "authors": "Kim, Salamon, Li & Bello",
+      "year": "2018",
+      "domain": "time-frequency-representation"
+    },
+    {
+      "slug": "19-mert-acoustic-music-understanding-model-with-large-scale-self-supervised-trai",
+      "name": "MERT: Acoustic Music Understanding Model with Large-Scale Self-supervised Training",
+      "claim": "MERT adds a CQT musical teacher beside its codec acoustic teacher to model pitched structure.",
+      "detail": null,
+      "design_implication": "Even mel/codec music models bolt a CQT back on for pitch; corroborates a two-surface design.",
+      "citation_id": "arXiv:2306.00107",
+      "authors": "Li, Yuan, Zhang et al.",
+      "year": "2023",
+      "domain": "time-frequency-representation"
+    },
+    {
+      "slug": "1-vision-language-models-are-few-shot-audio-spectrogram-classifiers",
+      "name": "Vision Language Models Are Few-Shot Audio Spectrogram Classifiers",
+      "claim": "GPT-4o on labelled spectrogram images scored 59.0% on ESC-10 vs Gemini-1.5 native audio 49.6%, matching human spectrogram readers (73.75 vs 72.5 on fold 1).",
+      "detail": null,
+      "design_implication": "The image is a real channel at coarse-category resolution; never a gate.",
+      "citation_id": "arXiv:2411.12058",
+      "authors": "Dixit, Heller & Donahue",
+      "year": "2024",
+      "domain": "vlm-spectrogram-reading"
+    },
+    {
+      "slug": "10-sonicbench-dissecting-the-physical-perception-bottleneck-in-large-audio-langu",
+      "name": "SonicBench: Dissecting the Physical Perception Bottleneck in Large Audio Language Models",
+      "claim": "Large audio-language models are strong on semantics but unreliable on pitch, timing, loudness and duration.",
+      "detail": null,
+      "design_implication": "The picture localises; it never measures.",
+      "citation_id": "arXiv:2601.11039",
+      "authors": "Sun et al.",
+      "year": "2026",
+      "domain": "vlm-spectrogram-reading"
+    },
+    {
+      "slug": "2-vision-language-models-are-few-shot-audio-spectrogram-classifiers-ablation",
+      "name": "Vision Language Models Are Few-Shot Audio Spectrogram Classifiers (ablation)",
+      "claim": "Ablation (default render = viridis, log frequency, log amplitude, axis labels on, colorbar off -> 27.5% zero-shot): linear frequency axis best (35.0%), linear amplitude 30.0%; magma (25.0%), mel (25.0%), showing a colorbar (23.75%), removing labels (26.25%), low resolution (20.0%) and MFCCs (13.75%) all below the default; few-shot exemplars lifted GPT-4o to 70-76%.",
+      "detail": null,
+      "design_implication": "Keep axis labels, no colorbar, expose frequency scale and colormap as parameters, ship labelled exemplar plates; neither the MIR-default log render nor magma is automatically best for a VLM.",
+      "citation_id": "arXiv:2411.12058",
+      "authors": "Dixit, Heller & Donahue",
+      "year": "2024",
+      "domain": "vlm-spectrogram-reading"
+    },
+    {
+      "slug": "3-seeing-isn-t-hearing-benchmarking-vision-language-models-at-interpreting-spect",
+      "name": "Seeing isn't Hearing: Benchmarking Vision Language Models at Interpreting Spectrograms",
+      "claim": "Open VLMs read fine-grained speech content off spectrograms at chance (25%); phonetician 75%, ASR 87.6%; adding a waveform did not help.",
+      "detail": null,
+      "design_implication": "The 50-cent and 40-ms gates never route through the image.",
+      "citation_id": "arXiv:2511.13225",
+      "authors": "Loakman, James & Lin",
+      "year": "2025",
+      "domain": "vlm-spectrogram-reading"
+    },
+    {
+      "slug": "4-evaluating-few-shot-prompting-for-spectrogram-based-lung-sound-classification-",
+      "name": "Evaluating few-shot prompting for spectrogram-based lung sound classification using a multimodal language model",
+      "claim": "GPT-4o on real clinical mel spectrograms: 32.0% zero-shot, 36.3% few-shot vs 25% chance.",
+      "detail": null,
+      "design_implication": "Budget the surface as orientation, not measurement.",
+      "citation_id": "DOI:10.1371/journal.pdig.0001179",
+      "authors": "Dietrich, McShannon & Rzepka",
+      "year": "2026",
+      "domain": "vlm-spectrogram-reading"
+    },
+    {
+      "slug": "5-carecos-a-spectrogram-based-visual-benchmark-for-cardiac-respiratory-and-cough",
+      "name": "CaReCoS: A Spectrogram based Visual Benchmark for Cardiac, Respiratory and Cough Sounds",
+      "claim": "Best of nine current vision/omni models scored 51.2% on mel-spectrogram QA; none combined visual pattern recognition with domain knowledge reliably.",
+      "detail": null,
+      "design_implication": "Pair the image with a text block of extracted features; domain knowledge is supplied, not assumed.",
+      "citation_id": "arXiv:2607.03356",
+      "authors": "Rajgarhia et al.",
+      "year": "2026",
+      "domain": "vlm-spectrogram-reading"
+    },
+    {
+      "slug": "6-pitchbench-measuring-pitch-hearing-in-audio-language-models",
+      "name": "PitchBench: Measuring Pitch Hearing in Audio-Language Models",
+      "claim": "Audio-language models score 8-48% on pitch across 28 experiments, chords under 20%, and shift with notation (SPN good, Hz bad).",
+      "detail": null,
+      "design_implication": "Pitch belongs to DSP; when the model states pitch, use note names, never Hz.",
+      "citation_id": "arXiv:2605.26176",
+      "authors": "Liessens Dujardin et al.",
+      "year": "2026",
+      "domain": "vlm-spectrogram-reading"
+    },
+    {
+      "slug": "7-a-picture-is-worth-a-thousand-numbers-enabling-llms-reason-about-time-series-v",
+      "name": "A Picture is Worth A Thousand Numbers: Enabling LLMs Reason about Time Series via Visualization",
+      "claim": "Rendering a numeric series as an image instead of dumping numbers improved LLM reasoning ~140% and cut tokens ~99%.",
+      "detail": null,
+      "design_implication": "Return image + compact numbers, never the raw frame matrix.",
+      "citation_id": "arXiv:2411.06018",
+      "authors": "Liu, Liu & Prakash",
+      "year": "2025",
+      "domain": "vlm-spectrogram-reading"
+    },
+    {
+      "slug": "8-deaf-a-benchmark-for-diagnostic-evaluation-of-acoustic-faithfulness-in-audio-l",
+      "name": "DEAF: A Benchmark for Diagnostic Evaluation of Acoustic Faithfulness in Audio Language Models",
+      "claim": "Audio multimodal model predictions are driven mainly by text input even when acoustics contradict it.",
+      "detail": null,
+      "design_implication": "Blind the critic: describe the render before seeing the intended notes.",
+      "citation_id": "arXiv:2603.18048",
+      "authors": "Xiong et al.",
+      "year": "2026",
+      "domain": "vlm-spectrogram-reading"
+    },
+    {
+      "slug": "9-charxiv-charting-gaps-in-realistic-chart-understanding-in-multimodal-llms",
+      "name": "CharXiv: Charting Gaps in Realistic Chart Understanding in Multimodal LLMs",
+      "claim": "GPT-4o reads realistic charts at 47.1% vs humans 80.5%.",
+      "detail": null,
+      "design_implication": "Reading precise values off any plotted axis has a general ceiling.",
+      "citation_id": "arXiv:2406.18521",
+      "authors": "Wang et al.",
+      "year": "2024",
+      "domain": "vlm-spectrogram-reading"
+    }
+  ]
+}

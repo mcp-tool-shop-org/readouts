@@ -1,0 +1,472 @@
+{
+  "laneSlug": "rigging",
+  "title": "Rigging & skeletons",
+  "recipes": [
+    {
+      "slug": "blender-humanoid-bone-hierarchy",
+      "name": "Blender humanoid armature bone hierarchy for 2.5D sprite motion",
+      "kind": "technique",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "claim": "A canonical root→pelvis→spine→chest→neck→head hierarchy with IK legs and FK/IK arms gives deterministic, retargetable motion for multi-angle orthographic sprite rendering.",
+      "summary": "Build the armature from a single root bone (world-space anchor, never animated directly), then pelvis→spine (2–3 segments)→chest→neck→head. Arms branch from the chest: shoulder→upper_arm→forearm→hand. Legs: pelvis→thigh→shin→foot→toe. Add IK targets for feet (foot.IK.L/R) and optional pole targets for knees/elbows. All deform bones carry consistent naming (Blender convention:.L/.R suffix) so skinning and retargeting tools can resolve them automatically. The hierarchy ensures forward kinematics propagate top-down for global transforms while IK solvers handle contact points.",
+      "design_implication": "This bone layout is the prerequisite for every downstream step: UniRig output must be mapped to it, Mixamo/AccuRIG retargeted onto it, and the weapon_grip chain hangs off hand.R. Keeping the hierarchy stable across all character assets lets the sprite-sheet render script iterate actions without per-character camera adjustments.",
+      "evidence_strength": "community-claim",
+      "license": "GPL (Blender app); rendered output unrestricted",
+      "commercial_use": "yes",
+      "commercial_notes": "Blender GPL covers the application, not the artist's output. Rendered frames and exported FBX/GLTF are fully owned by the studio.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": [
+        "motion-truth",
+        "retargeting-anchor",
+        "sprite-render"
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "Bone Positioning Guide — Blender Manual (Rigify)",
+          "authors": "Blender Foundation",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://docs.blender.org/manual/en/latest/addons/rigging/rigify/bone_positioning.html",
+          "claim": "Rigify metarig bone positioning guide documents the canonical humanoid hierarchy (spine, arm, leg, face) with.L/.R naming used by Blender's bundled auto-rigger."
+        },
+        {
+          "kind": "docs",
+          "title": "Armatures — Blender Manual",
+          "authors": "Blender Foundation",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://docs.blender.org/manual/en/latest/animation/armatures/index.html",
+          "claim": "An armature is a skeleton of bones arranged in parent-child hierarchy; objects or mesh vertices parented/constrained to bones follow their transforms."
+        }
+      ]
+    },
+    {
+      "slug": "weapon-grip-rigid-bone-chain",
+      "name": "Rigid weapon on a hand→weapon_grip→weapon_tip bone chain",
+      "kind": "technique",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "claim": "Parenting the weapon as a rigid object to a dedicated weapon_grip bone is the studio-proven fix for the per-view weapon drift that no diffusion method (image-NVS or video/orbit) can solve.",
+      "summary": "In the Blender armature, add weapon_grip (child of hand.R) and weapon_tip bones. Make the sword/axe/polearm a separate rigid mesh parented or constrained (Child-Of constraint) to weapon_grip with Set Inverse applied. The body mesh deforms via skinning; the weapon stays rigid — constant length, constant angle — because it is not a deformable mesh at all. Animate the action, render N directions: grip position and tip position are stable every frame. Weapon-tip velocity can be sampled per frame in Python for hit-box data.",
+      "design_implication": "This is the deterministic spine for any externally-projected weapon (cutlass, harpoon, polearm, staff). It makes weapon length and tip continuity automatically verifiable in the motion-verify step, and rules out the weapon-drift failure mode that was measured on the RTX 5090 production rig with TRELLIS.2-4B mesh → 8-view Blender render.",
+      "evidence_strength": "measured-on-rig",
+      "license": "GPL (Blender app); rendered output unrestricted",
+      "commercial_use": "yes",
+      "commercial_notes": "Blender GPL covers the application only. Weapon mesh geometry you model is your IP; rendered frames are unrestricted.",
+      "vram_gb": "2-8",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "failures": [
+        "If weapon_grip is accidentally made a deform bone with skinning weights, the weapon will bend with the hand mesh — mark it non-deform.",
+        "Child-Of constraint requires Set Inverse to neutralize accumulated parent transforms; skipping it offsets the weapon in world space."
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "Armatures — Blender Manual",
+          "authors": "Blender Foundation",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://docs.blender.org/manual/en/latest/animation/armatures/index.html",
+          "claim": "An armature is a skeleton of bones; objects parented/constrained to bones move rigidly with them — enabling a weapon mesh to track a grip bone with no deformation."
+        },
+        {
+          "kind": "docs",
+          "title": "Child Of Constraint — Blender Manual",
+          "authors": "Blender Foundation",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://docs.blender.org/manual/en/latest/animation/constraints/relationship/child_of.html",
+          "claim": "The Child Of constraint lets an object follow a bone's transform; Set Inverse removes the cumulative parent-space offset so the object sits at its authored position."
+        }
+      ]
+    },
+    {
+      "slug": "rigify-auto-rig-blender-bundled",
+      "name": "Rigify — Blender's bundled modular auto-rigger",
+      "kind": "model",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "base_model_family": "n/a",
+      "claim": "Rigify generates a production-quality, game-exportable control rig from a positioned metarig in one click, with built-in face, hand, and spine components.",
+      "summary": "Enable the Rigify add-on (bundled with Blender, no install required). Place a humanoid metarig and position bones to the character mesh. Press Generate Rig — Rigify outputs a layered control rig with FK/IK switching, squash-and-stretch controls, and a clean deform-bone subset. For sprite workflows, bake the FK deform bones to a simple action, then render. Rigify rigs export cleanly to FBX for Godot/UE5 because the deform bones have standard naming. Authors: Nathan Vegdahl, Lucio Rossi, Ivan Cappiello, Alexander Gavrilov.",
+      "design_implication": "Using Rigify as the authoring rig gives the studio a canonical deform-bone set that Auto-Rig Pro can retarget mocap onto and that Godot's Skeleton3D importer recognizes. Append the weapon_grip chain to the generated rig's hand.R deform bone after generation.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "GPL (Blender add-on included in distribution)",
+      "commercial_use": "yes",
+      "commercial_notes": "Rigify is GPL. Your character rigs and rendered output are not GPL-encumbered — GPL covers the Python add-on code, not artist output produced with it.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 4,
+      "status": "recommended",
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "Rigify — Blender 5.1 Manual",
+          "authors": "Blender Foundation / Vegdahl, Rossi, Cappiello, Gavrilov",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://docs.blender.org/manual/en/latest/addons/rigging/rigify/index.html",
+          "claim": "Rigify is a modular auto-rigging system bundled with Blender; it generates a full control rig with FK/IK switching from a positioned metarig template."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-ai-auto-rigger-mit",
+      "name": "UniRig — VAST-AI/Tsinghua autoregressive skeleton predictor (SIGGRAPH 2025, MIT)",
+      "kind": "model",
+      "engine_family": "huggingface",
+      "applicable_to": "rigging",
+      "base_model_family": "autoregressive transformer",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "UniRig predicts a topologically valid skeleton hierarchy and per-vertex skinning weights for any 3D mesh input — humans, animals, objects — without hand-placing bones, under MIT license.",
+      "summary": "UniRig (SIGGRAPH 2025 / ACM TOG) uses a Skeleton Tree Tokenization scheme to encode hierarchical bone relationships into linear sequences, then autoregressively generates skeleton joints and their coordinates. A second stage predicts per-vertex skinning weights. Trained on Rig-XL (14,000+ rigged models), it outperforms academic and commercial baselines by 215% on rigging accuracy and 194% on motion accuracy on held-out test sets. Model weights are MIT-licensed on Hugging Face (VAST-AI/UniRig). A Blender integration script is available in the repo. Output must be verified and the weapon_grip chain appended manually before the full studio pipeline.",
+      "design_implication": "UniRig is the best open, commercially-safe auto-rigger for novel character meshes (TRELLIS.2-4B → UniRig → Blender weapon_grip → NLA animate → 8-dir render). It eliminates bone placement for hero characters. However, its humanoid skeleton may not match the studio's exact bone naming; a remap step to the canonical hierarchy is needed before mocap retargeting.",
+      "evidence_strength": "single-reported-run",
+      "license": "MIT (code + weights)",
+      "commercial_use": "yes",
+      "commercial_notes": "MIT license confirmed by reading the LICENSE file in the VAST-AI-Research/UniRig GitHub repository. Weights on Hugging Face tagged MIT. No usage-based or non-commercial restrictions.",
+      "vram_gb": "8-24",
+      "rig_fit": 4,
+      "studio_fit": 4,
+      "status": "recommended",
+      "failures": [
+        "Skeleton topology for stylized 2.5D proportions (large head, short legs) may require bone-count trimming or re-parenting after prediction.",
+        "Weapon_grip chain must be appended manually — UniRig has no concept of held-prop bones."
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig",
+          "authors": "Wang, Lingteng et al. (Tsinghua University / VAST AI Research)",
+          "year": "2025",
+          "identifier": "arXiv:2504.12451 / ACM DOI:10.1145/3730930",
+          "url": "https://arxiv.org/abs/2504.12451",
+          "claim": "UniRig autoregressively predicts valid skeleton hierarchy and skinning weights for diverse 3D meshes; outperforms state-of-art by 215% rigging accuracy on held-out test sets."
+        },
+        {
+          "kind": "repo",
+          "title": "VAST-AI-Research/UniRig — GitHub",
+          "authors": "VAST AI Research",
+          "year": "2025",
+          "identifier": "github.com/VAST-AI-Research/UniRig",
+          "url": "https://github.com/VAST-AI-Research/UniRig",
+          "claim": "Model code and Blender integration released under MIT license; model weights hosted on Hugging Face under VAST-AI/UniRig, also MIT."
+        }
+      ]
+    },
+    {
+      "slug": "mixamo-auto-rig-humanoid-commercial",
+      "name": "Mixamo auto-rigger + animation library (Adobe, royalty-free commercial)",
+      "kind": "service",
+      "engine_family": "custom",
+      "applicable_to": "rigging",
+      "claim": "Mixamo auto-rigs humanoid meshes in the cloud and provides a royalty-free library of 3,000+ FBX animations usable in commercial games without attribution.",
+      "summary": "Upload a humanoid mesh to mixamo.com; the AutoRigger (ML-based) detects limb positions and inserts a humanoid skeleton with skinning weights. Download as FBX with any or all animations. Animations and rigged meshes are royalty-free for personal and commercial projects including shipping games. Key restriction: raw Mixamo files cannot be redistributed as standalone assets — they must be embedded in a project or game. No attribution required. Blender Mixamo add-on (Adobe) imports FBX with retargeted actions. Bipedal humanoids only — no quadrupeds, no weapons auto-rigged.",
+      "design_implication": "Fastest path to a rigged humanoid for early motion tests. The Mixamo skeleton is not identical to the studio's canonical hierarchy, so retargeting via Auto-Rig Pro Remap is needed before final sprite renders. Weapon bones must be added post-import in Blender. Do not redistribute Mixamo FBX files as open source.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "Proprietary (Adobe Creative Cloud); royalty-free for incorporated use",
+      "commercial_use": "yes",
+      "commercial_notes": "Adobe FAQ explicitly states characters and animations are royalty-free for commercial projects including video games. Raw file redistribution (as standalone assets) is prohibited by EULA.",
+      "vram_gb": "n/a",
+      "rig_fit": 3,
+      "studio_fit": 3,
+      "status": "situational",
+      "failures": [
+        "Bipedal humanoids only — no custom or non-human body plans.",
+        "Weapon / prop bones must be added manually in Blender after import.",
+        "Raw FBX redistribution prohibited — embed into the game build only."
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "Mixamo FAQ — Creative Cloud",
+          "authors": "Adobe",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html",
+          "claim": "Mixamo characters and animations are royalty-free for personal and commercial use including video games; raw redistribution of Mixamo files as standalone assets is prohibited."
+        }
+      ]
+    },
+    {
+      "slug": "accurig-2-free-auto-rigger",
+      "name": "AccuRIG 2 — Reallusion free auto-rigger with ActorCore motion library",
+      "kind": "service",
+      "engine_family": "custom",
+      "applicable_to": "rigging",
+      "claim": "AccuRIG 2 is a free standalone auto-rigger that places a production-quality humanoid skeleton, exports FBX/USD, and plugs into Blender, UE5, and Godot with DCC presets.",
+      "summary": "AccuRIG 2 (free, requires free ActorCore account) detects body landmarks and generates a humanoid control rig with twist bones, face bones, and finger chains. Export presets for Blender, Cinema 4D, Maya, Unreal Engine, Unity, MotionBuilder, and Godot are built in. Version 2 (released 2025) adds direct access to ActorCore's 4,500+ production-ready animations (free and premium tiers) for preview and apply. AccuRIG itself has no commercial restriction — it is free software. Premium ActorCore animations carry per-animation licensing. Output FBX is your own work.",
+      "design_implication": "Strong alternative to Mixamo for the rig-fast→retarget→append-weapon-grip path. The Blender DCC preset aligns bone orientations for one-click FBX import. More anatomy detail than Mixamo (twist bones help forearm rotation in sprite frames). Still humanoid-only; weapon bones must be appended in Blender.",
+      "evidence_strength": "community-claim",
+      "license": "Proprietary freeware (AccuRIG software); ActorCore animation assets have per-item licensing",
+      "commercial_use": "yes",
+      "commercial_notes": "AccuRIG software is free with no stated commercial restrictions. Output rigs and renders are the studio's IP. Premium ActorCore animation assets require per-asset license review before commercial use.",
+      "vram_gb": "n/a",
+      "rig_fit": 4,
+      "studio_fit": 3,
+      "status": "runner-up",
+      "sources": [
+        {
+          "kind": "web",
+          "title": "AccuRIG 2 vs Mixamo: Smarter Auto-Rigging for 3D Animators — Reallusion Magazine",
+          "authors": "Reallusion",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://magazine.reallusion.com/2025/07/30/accurig-2-vs-mixamo-smarter-auto-rigging-for-3d-animators/",
+          "claim": "AccuRIG 2 is free auto-rigging software with no licensing fees; it supports commercial output and exports FBX/USD with DCC-friendly presets for Blender, Unreal Engine, Unity, and Godot."
+        },
+        {
+          "kind": "web",
+          "title": "Free Auto Rig for any 3D Character — ActorCore",
+          "authors": "Reallusion",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://actorcore.reallusion.com/auto-rig",
+          "claim": "AccuRIG is described as free software requiring only a free ActorCore account, with no extra fees or surprise licensing."
+        }
+      ]
+    },
+    {
+      "slug": "auto-rig-pro-retarget-mocap",
+      "name": "Auto-Rig Pro — paid Blender add-on for rigging + mocap retargeting",
+      "kind": "model",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "claim": "Auto-Rig Pro (~$40 Blender Market) is the production standard for retargeting purchased BVH/FBX mocap onto a stylized rig, with built-in Mixamo, BVH, and custom skeleton presets.",
+      "summary": "Auto-Rig Pro (artell, Superhive/Gumroad) provides a full auto-rigger plus a Remap (retargeting) tool that maps any source skeleton's bones to any target rig by name or manual pairing. Built-in presets cover Mixamo, traditional BVH mocap, and several commercial mocap skeletons. The Remap bakes retargeted keyframes onto the target rig's actions, which can then be pushed into the NLA Editor as strips. For the studio, the use case is: purchase a commercial mocap pack (BVH), retarget it through ARP Remap onto the studio canonical rig, clean up in the NLA, then render the 8-direction sprite sheets.",
+      "design_implication": "The missing link between purchased commercial mocap (BVH/FBX packs from sites like MoCap Online) and the studio's canonical bone hierarchy. Without ARP Remap, retargeting BVH to a custom rig is manual bone-by-bone work. The ~$40 one-time cost is a clear purchase for any mocap-heavy character. Does not conflict with Rigify — ARP can retarget onto a Rigify-generated rig.",
+      "evidence_strength": "community-claim",
+      "license": "Commercial (one-time purchase, ~$40); royalty-free for use in shipped games",
+      "commercial_use": "yes",
+      "commercial_notes": "ARP is a paid Blender add-on; the purchase includes a commercial-use license for shipped projects. The rendered output and retargeted animations are the buyer's IP. Do not distribute the add-on itself.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "Remap (Retargeting) — AutoRigPro Documentation",
+          "authors": "artell",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://www.lucky3d.fr/auto-rig-pro/doc/remap_doc.html",
+          "claim": "ARP Remap retargets any armature action to another with different bone names/orientations; includes preset mappings for Mixamo, BVH, and other common mocap skeletons."
+        },
+        {
+          "kind": "web",
+          "title": "Refining Mocap with Mixamo and Blender AutoRig PRO — GarageFarm",
+          "authors": "GarageFarm",
+          "year": "2024",
+          "identifier": "",
+          "url": "https://garagefarm.net/blog/refining-motion-capture-with-mixamo-and-blender-auto-rig-pro",
+          "claim": "Community-documented workflow showing ARP Remap as the standard path for transferring Mixamo/BVH animations to custom Blender rigs."
+        }
+      ]
+    },
+    {
+      "slug": "trellis2-mesh-to-rig-pipeline",
+      "name": "TRELLIS.2-4B mesh → Blender rig → 8-dir sprite render pipeline",
+      "kind": "pipeline",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "base_model_family": "TRELLIS",
+      "base_model_slug": "microsoft/TRELLIS.2-4B",
+      "claim": "Generating a character mesh with TRELLIS.2-4B (MIT) then rigging it in Blender with weapon_grip chain is the studio-proven path that keeps the weapon rigid and the face intact across all N render angles.",
+      "summary": "Generate character mesh + PBR textures using TRELLIS.2-4B (MIT license; 4B-parameter image-to-3D). Import the GLB into Blender. Retopologize if needed (or use UniRig for auto-skinning). Build or retarget the canonical humanoid armature, append the weapon_grip→weapon_tip chain off hand.R bone. Parent the weapon prop mesh (rigid, separate object) to weapon_grip via Child-Of constraint with Set Inverse. Author walk/attack/idle/hurt/death actions in NLA strips. Configure 8 orthographic cameras at the correct 2.5D angles. Render all directions × all actions to sprite sheets. The mesh path was directly measured on the studio RTX 5090 rig — weapon length and angle stay constant across all 8 views.",
+      "design_implication": "This is THE captain path — it is the proven end-to-end solution to the weapon-drift problem. The open gap is style: TRELLIS.2-4B output is photorealistic/3D, not painterly. The repaint step (Qwen-Image-Edit-2511 or InstantX Qwen-ControlNet-Union, both Apache) is the downstream lane that converts renders to painterly sprites. Verified VRAM: TRELLIS.2-4B inference peaks around 16-24 GB; Blender rendering is CPU/GPU compositing.",
+      "evidence_strength": "measured-on-rig",
+      "license": "MIT (TRELLIS.2-4B); GPL (Blender app); rendered output unrestricted",
+      "commercial_use": "yes",
+      "commercial_notes": "TRELLIS.2-4B is MIT, confirmed via Hugging Face model card and GitHub repo. Blender GPL covers the app only. Rendered sprite frames and the game build are fully the studio's IP.",
+      "vram_gb": "16-24",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "hparams": [
+        {
+          "name": "camera_angle_2.5D",
+          "value": "30-45 degrees elevation from character center",
+          "note": "Typical JRPG 2.5D top-down perspective"
+        },
+        {
+          "name": "camera_type",
+          "value": "Orthographic",
+          "note": "Required for consistent sprite sizing across directions"
+        },
+        {
+          "name": "render_directions",
+          "value": "8",
+          "note": "N, NE, E, SE, S, SW, W, NW; 4 is minimum viable"
+        }
+      ],
+      "failures": [
+        "TRELLIS.2-4B mesh topology can be dense/irregular — decimation or retopology may be needed before clean skinning.",
+        "Stylized proportions (hero with exaggerated features) may require mesh editing post-generation before rigging."
+      ],
+      "sources": [
+        {
+          "kind": "repo",
+          "title": "microsoft/TRELLIS.2 — GitHub",
+          "authors": "Microsoft Research",
+          "year": "2025",
+          "identifier": "github.com/microsoft/TRELLIS.2",
+          "url": "https://github.com/microsoft/TRELLIS.2",
+          "claim": "TRELLIS.2-4B generates high-fidelity 3D meshes with PBR materials from images; released under MIT license with model weights on Hugging Face."
+        },
+        {
+          "kind": "web",
+          "title": "Render 4 or 8 Direction Animated Sprites from Blender — Foozle",
+          "authors": "Foozle",
+          "year": "2024",
+          "identifier": "",
+          "url": "https://foozlecc.itch.io/render-4-or-8-direction-sprites-from-blender",
+          "claim": "Community-documented workflow for rendering multi-directional 2D/2.5D animated sprites from Blender armature animations using orthographic cameras."
+        },
+        {
+          "kind": "model-card",
+          "title": "microsoft/TRELLIS.2-4B — Hugging Face",
+          "authors": "Microsoft Research",
+          "year": "2025",
+          "identifier": "huggingface.co/microsoft/TRELLIS.2-4B",
+          "url": "https://huggingface.co/microsoft/TRELLIS.2-4B",
+          "claim": "TRELLIS.2-4B model weights are released under MIT license, permitting commercial use; model produces static meshes with PBR materials requiring separate rigging."
+        }
+      ]
+    },
+    {
+      "slug": "blender-nla-multidir-sprite-render",
+      "name": "Blender NLA strip + orthographic multi-camera sprite-sheet render",
+      "kind": "workflow",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "claim": "Organising all animation clips as NLA strips and rotating 8 named orthographic cameras around the rig gives a fully automated, per-action, per-direction sprite-sheet batch render from one Blender file.",
+      "summary": "Push each action (walk, attack, idle, hurt, death) into the NLA Editor as a strip. Create 8 orthographic cameras at the 2.5D elevation angle (30-45°) rotated every 45° around the character. Use the Sprite Sheet Generator add-on (MIT, Blender Extensions) or the BlenderSpriteGenerator (MIT, GitHub) to iterate cameras × NLA strips automatically. The render script outputs PNG sequences per action per direction, ready for packing into sprite atlases. The rig's weapon_grip bones appear in every render frame — their pixel positions can be extracted for hitbox metadata.",
+      "design_implication": "This workflow makes the multi-direction render deterministic and scriptable. Once the rig and NLA library are set up, adding a new character reuses the same camera rig and render script. Integrate into the studio pipeline between the Blender rig step and the repaint/polish step.",
+      "evidence_strength": "community-claim",
+      "license": "GPL (Blender); MIT (BlenderSpriteGenerator add-on); output unrestricted",
+      "commercial_use": "yes",
+      "commercial_notes": "All components free for commercial output. Sprite sheets and atlases are the studio's own work.",
+      "vram_gb": "2-8",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "Nonlinear Animation — Blender 5.1 Manual",
+          "authors": "Blender Foundation",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://docs.blender.org/manual/en/latest/editors/nla/index.html",
+          "claim": "The NLA Editor lets artists organize multiple animation actions as non-destructive strips, enabling batch export of all clips in a single scene file."
+        },
+        {
+          "kind": "repo",
+          "title": "BlenderSpriteGenerator — GitHub (RubielGames)",
+          "authors": "RubielGames",
+          "year": "2025",
+          "identifier": "github.com/RubielGames/BlenderSpriteGenerator",
+          "url": "https://github.com/RubielGames/BlenderSpriteGenerator",
+          "claim": "MIT-licensed Blender add-on that renders 3D models from multiple angles into 2D/2.5D game sprites with animation support and orthographic camera automation."
+        }
+      ]
+    },
+    {
+      "slug": "godot-skeleton2d-bone2d-runtime-cutout",
+      "name": "Godot 4 Skeleton2D / Bone2D runtime cutout puppet (Blender = authoring)",
+      "kind": "technique",
+      "engine_family": "custom",
+      "applicable_to": "rigging",
+      "claim": "Godot 4's Skeleton2D / Bone2D system enables runtime deformation of 2D sprite pieces — a lighter alternative to full pre-rendered sprite sheets — with Blender used only for motion authoring, not final render.",
+      "summary": "In Godot 4, create a Skeleton2D node with Bone2D children forming the character hierarchy (hip→spine→chest→head, arms, legs). Assign Polygon2D nodes to each sprite piece and weight-paint their vertices to the nearest bones. Animate only the Skeleton2D bones in Godot's AnimationPlayer — the polygon deforms automatically. This approach avoids storing hundreds of pre-rendered PNGs and supports smooth interpolation at runtime. Best for supporting cast or enemies where per-pixel painterly quality is not required. Hero characters should still use the full Blender→repaint→sprite-sheet path for maximum visual fidelity.",
+      "design_implication": "Use Skeleton2D for quantity (large enemy rosters, background characters) and the Blender sprite-sheet path for hero-tier characters. The two approaches can coexist in the same Godot project. Godot MIT license — no commercial restrictions on shipped games.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "MIT (Godot Engine)",
+      "commercial_use": "yes",
+      "commercial_notes": "Godot Engine is MIT-licensed. Shipped games have no royalties or restrictions. Sprite artwork assets are the studio's own IP.",
+      "vram_gb": "n/a",
+      "rig_fit": 3,
+      "studio_fit": 3,
+      "status": "situational",
+      "failures": [
+        "Skeleton2D / polygon deformation does not achieve painterly per-pixel detail — acceptable for supporting cast, not for hero 2.5D quality.",
+        "Weapon parenting in Skeleton2D is possible (Bone2D child node) but rigid-prop consistency must be enforced by code, not physics."
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "2D skeletons — Godot Engine (stable) documentation",
+          "authors": "Godot Foundation",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://docs.godotengine.org/en/stable/tutorials/animation/2d_skeletons.html",
+          "claim": "Skeleton2D and Bone2D enable skeletal deformation of 2D polygon sprites in Godot 4; animating the bones (not the polygons) produces mesh deformation for cutout-style characters."
+        },
+        {
+          "kind": "docs",
+          "title": "Skeleton2D class — Godot Engine API (stable)",
+          "authors": "Godot Foundation",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://docs.godotengine.org/en/stable/classes/class_skeleton2d.html",
+          "claim": "Skeleton2D is the Godot 4 node that manages a hierarchy of Bone2D nodes, providing 2D skeletal deformation for sprite-based characters."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-blackwell-wsl2-skeleton-skin-measured",
+      "name": "UniRig auto-rig (skeleton + learned skin) on RTX 5090 sm_120 via WSL2 — MEASURED",
+      "kind": "pipeline",
+      "engine_family": "huggingface",
+      "applicable_to": "rigging",
+      "base_model_family": "autoregressive transformer",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "UniRig's full two-stage pipeline (autoregressive skeleton prediction + cross-attention learned skinning) runs end-to-end on a Blackwell RTX 5090 (sm_120) inside WSL2, producing a deforming rigged GLB from a TRELLIS.2 mesh — measured on the studio rig 2026-06-25.",
+      "summary": "Native Windows is blocked (no cu13x torch_scatter/torch_cluster Windows wheels; flash_attn sm_120 source builds crash on backward kernels). WSL2 Ubuntu solves it with prebuilt Linux wheels and GPU passthrough. VERIFIED combo: Python 3.11 + torch 2.9.0+cu128; torch_scatter 2.1.2 / torch_cluster 1.6.3 (+pt29cu128 from data.pyg.org); spconv-cu126 2.3.8 (SparseConv3d runs on sm_120 via PTX forward-compat — the traveller59 issue #746 gemm error did NOT occur with the prebuilt wheel); flash_attn 2.8.1+cu128torch2.9 PREBUILT wheel from github.com/mjun0812/flash-attention-prebuild-wheels release v0.4.22 (cp311 linux) — its forward kernel runs on sm_120 in BOTH self- and cross-attention (gate-verified before use). UniRig requirements.txt installs clean on py3.11 (open3d 0.19 caps at cp312 + bpy 4.2 at cp311 -> py3.13 FAILS). bpy 4.2 needs X11 system libs even headless (apt install libsm6 libxext6 libxrender1 libxxf86vm1 libxfixes3... as WSL root). torch>=2.6 needs torch.load(weights_only=False) forced via a sitecustomize.py (UniRig checkpoints pickle box.box.Box; lightning passes weights_only=True explicitly). Run order: generate_skeleton.sh (works flash-free with _attn_implementation:sdpa in the AR config) -> generate_skin.sh (needs REAL flash_attn) -> merge.sh -> rigged GLB. Merge throws a harmless Draco-missing warning + a cosmetic bpy-teardown segfault AFTER writing the GLB. Proven on an armored humanoid (TRELLIS.2 mesh, 822k verts): 28 predicted bones + 28 vertex-group learned skin; Blender pose-test confirms the mesh deforms.",
+      "design_implication": "This is the studio's auto-rig backbone for the 68-character MESH game-asset line (fantasy-villains/goblins/pirates-mesh). UniRig auto-rigs ANY mesh including the 15 exotic pirate species (tortle/kenku/minotaur/sahuagin) that humanoid-template auto-riggers (Rigify/Mixamo/AccuRIG) cannot — and unlike Mixamo (EULA: no standalone redistribution) its MIT output is redistributable. Append the weapon_grip rigid bone-chain (see weapon-grip-rigid-bone-chain) after rigging. Blender automatic-weights is the no-flash_attn fallback for odd/exotic meshes. KEY OPERATIONAL LESSON: match the torch version to an AVAILABLE prebuilt flash_attn wheel (mjun0812 covers torch 2.9-2.12, NOT 2.8) rather than building from source for sm_120; decimate the dense TRELLIS mesh to ~30-50k tris for a game-weight asset.",
+      "evidence_strength": "measured-on-rig",
+      "license": "UniRig MIT; flash_attn BSD-3; spconv/cumm Apache-2.0; torch_scatter/torch_cluster MIT; bpy GPL (output unrestricted). All commercial-safe.",
+      "commercial_use": "yes",
+      "commercial_notes": "All deps permissive; the rigged GLB output is the studio's IP. Mixamo deliberately avoided for redistribution reasons.",
+      "vram_gb": "8-16",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "failures": [
+        "py3.13 FAILS — open3d (cp312 max) + bpy 4.2 (cp311) have no cp313 wheel; use py3.11.",
+        "torch 2.8 has no mjun0812 flash_attn wheel — use torch 2.9 (or 2.10); match the wheel to the torch.",
+        "An SDPA flash_attn stub unblocks the skeleton IMPORT but FAILS skin (skin uses cross-attn Wq/Wkv; a packed-Wqkv stub -> state_dict mismatch). Real flash_attn required for the skin stage.",
+        "Repeated wsl.exe cold-starts respin the VM + snapd/unattended-upgrades (CPU spike) — keep one WSL session warm.",
+        "TRELLIS.2 mesh is dense (~800k verts) — decimate before shipping the rigged GLB."
+      ],
+      "sources": [
+        {
+          "kind": "measured-on-rig",
+          "title": "Studio RTX 5090 / WSL2 Ubuntu 26.04 — UniRig skeleton+skin end-to-end on the blackguard mesh",
+          "authors": "mcp-tool-shop studio",
+          "year": "2026",
+          "identifier": "sprite-mesh-line-kickoff.md (2026-06-25)",
+          "url": "https://github.com/VAST-AI-Research/UniRig",
+          "claim": "Full UniRig pipeline (skeleton + learned skin + merge) produced a deforming rigged GLB on a Blackwell RTX 5090 via WSL2; flash_attn 2.8.1 forward kernel verified on sm_120."
+        },
+        {
+          "kind": "repo",
+          "title": "mjun0812/flash-attention-prebuild-wheels (release v0.4.22)",
+          "authors": "mjun0812",
+          "year": "2026",
+          "identifier": "flash_attn-2.8.1+cu128torch2.9-cp311-cp311-linux_x86_64.whl",
+          "url": "https://github.com/mjun0812/flash-attention-prebuild-wheels",
+          "claim": "Prebuilt flash_attn Linux wheels for torch 2.9-2.12 / cu126-cu130 / cp311+ — the cu128torch2.9 cp311 wheel runs its forward kernel on sm_120 Blackwell."
+        }
+      ]
+    }
+  ]
+}

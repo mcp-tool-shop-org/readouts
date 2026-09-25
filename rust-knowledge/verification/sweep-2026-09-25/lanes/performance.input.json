@@ -1,0 +1,1153 @@
+{
+  "bucket": "performance",
+  "title": "Performance & profiling",
+  "tier": "advanced",
+  "count": 10,
+  "recipes": [
+    {
+      "slug": "benchmark-before-tuning-criterion-or-divan-with-harness-false-black-box-on-every-input-and-output",
+      "name": "Benchmark before tuning: criterion or divan with harness = false, black_box on every input and output",
+      "what": "Stable Rust has no built-in bench harness (#[bench] is nightly-only), so time work with criterion 0.8 or divan 0.1 under [[bench]] harness = false and route inputs and results through std::hint::black_box so the optimizer cannot fold the measured work away.",
+      "how": "Cargo.toml: `[[bench]] name = \"quantum\"` + `harness = false`, dev-dependency `criterion = \"0.8\"` (`criterion_group!` / `criterion_main!`, `c.bench_function(\"solver_step\", |b| b.iter(|| step(black_box(&scene))))`) or `divan = \"0.1\"` (`#[divan::bench]` + `divan::main()`; divan 0.1.21 needs Rust 1.80+, and its `AllocProfiler` measures GlobalAlloc usage). Import `std::hint::black_box` (stable 1.66, const since 1.86): criterion 0.8.2 deprecates `criterion::black_box` with 'use `std::hint::black_box()` instead'. Wrap inputs so they are not treated as known constants and wrap outputs so a pure call is not deleted, as the two examples in the std docs do. `cargo bench` uses the `bench` profile, which inherits `release`. Time a whole unit (load a fixed scene, then N quanta inside the timed region), warm up first, and compare medians of interleaved runs. Checks can prove behaviour, never a speedup.",
+      "rust_version": "black_box 1.66+ (const 1.86+); criterion 0.8.2; divan 0.1.21 (Rust 1.80+)",
+      "gotchas": "black_box is best-effort: the std docs say programs cannot rely on it for correctness beyond behaving as the identity function and it gives no constant-time guarantee, so never use it to enforce behaviour. `#![feature(test)]` + `#[bench]` is rejected on stable with E0554. The bench profile follows [profile.release], so a size-tuned release profile slows benches too. Desktop timing is noisy: in the V8 runs below, three 25-rep medians of one unchanged artifact were 17.10, 17.75 and 24.82 ms, so one run proves nothing; interleave variants and repeat. A debug build is meaningless for tuning (opt-level 0 made the product scene 30x slower in V8).",
+      "engine_note": "The solver has no bench today and its crate-type is cdylib only. In a scratch copy with crate-type [\"cdylib\", \"rlib\"], an example linked the law, called `step` and `bodies_ptr` directly, and reached the rapier_law exports through an `extern \"C\"` block because `mod rapier_law` is private. Baseline on this rig (pinned profile, V8 in node 22.22.3): 17.6 ms per 400 quanta of `solver_step` for a 13-body scene, 203 us per 400 quanta of the box law `step`.",
+      "checks": [
+        {
+          "label": "black_box on input and output: the bench loop compiles at -O and computes the same value",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "-C",
+            "opt-level=3"
+          ],
+          "expect": "runs",
+          "stdout": "2",
+          "source": "use std::hint::black_box;\n\n// One unit of work on a 17-slot row: the thing a benchmark should time.\nfn quantum(row: &mut [f64; 17]) {\n    for x in row.iter_mut() {\n        *x = *x * 0.5 + 1.0;\n    }\n}\n\nfn main() {\n    let mut row = [0.0f64; 17];\n    for _ in 0..64 {\n        // Input through black_box: the optimizer may not assume what `row` holds.\n        quantum(black_box(&mut row));\n    }\n    // Output through black_box: the work may not be deleted as unused.\n    let out = black_box(row[16]);\n    println!(\"{out}\");\n}\n"
+        },
+        {
+          "label": "black_box is usable in a const item on 1.98.1 (const-stable since 1.86)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "pub const K: u32 = std::hint::black_box(7);\n"
+        },
+        {
+          "label": "the libtest #[bench] harness needs #![feature(test)], which stable rejects with E0554",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0554"
+          ],
+          "source": "#![feature(test)]\nextern crate test;\n\n#[bench]\nfn bench_step(b: &mut test::Bencher) {\n    b.iter(|| 1 + 1);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "std::hint::black_box",
+          "url": "https://doc.rust-lang.org/stable/std/hint/fn.black_box.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "black_box is an identity function that hints the compiler to be maximally pessimistic, is best-effort, must not be relied on for correctness, is stable since 1.66.0 and const since 1.86.0, and should wrap benchmark inputs and outputs."
+        },
+        {
+          "title": "The Cargo Book: cargo bench",
+          "url": "https://doc.rust-lang.org/cargo/commands/cargo-bench.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The #[bench] attribute is unstable and nightly-only; harness = false lets a third-party framework such as Criterion provide main; cargo bench uses the bench profile."
+        },
+        {
+          "title": "The Cargo Book: Profiles",
+          "url": "https://doc.rust-lang.org/cargo/reference/profiles.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Defines opt-level (\"z\" also turns off loop vectorization; s/z not necessarily smaller), lto (false = thin local LTO, none at codegen-units 1), codegen-units (release default 16), panic, debug = \"line-tables-only\", overflow-checks, debug-assertions, and custom profiles via inherits."
+        },
+        {
+          "title": "criterion 0.8.2: black_box (deprecated)",
+          "url": "https://docs.rs/criterion/0.8.2/criterion/fn.black_box.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "criterion's own black_box is deprecated with the note 'use std::hint::black_box() instead'."
+        },
+        {
+          "title": "divan 0.1.21 documentation",
+          "url": "https://docs.rs/divan/latest/divan/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "divan registers benchmarks with #[divan::bench] and divan::main(), needs harness = false and Rust 1.80+, and offers AllocProfiler for allocation counts."
+        },
+        {
+          "title": "Announcing Rust 1.66.0",
+          "url": "https://blog.rust-lang.org/2022/12/15/Rust-1.66.0/",
+          "year": 2022,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilized core::hint::black_box for benchmarking; the compiler treats it as a function that could do anything with its input."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "choose-release-profile-knobs-by-measurement-opt-level-sets-speed-lto-codegen-units-strip-debug-move-bytes",
+      "name": "Choose release-profile knobs by measurement: opt-level sets speed; lto, codegen-units, strip, debug move bytes",
+      "what": "Measured on a scratch copy of the solver (wasm32, V8): only opt-level changed speed materially (s 1.69x, z 2.73x, 0 30x slower); lto, codegen-units, debug, strip and panic moved size between -12% and +634% within run-to-run noise on speed. Cargo's lto = false is thin-local LTO, a no-op at codegen-units = 1, and release strips debuginfo by default.",
+      "how": "Method: `cargo +1.98.1 build --release --target wasm32-unknown-unknown --offline --locked --config 'profile.release.<knob>=<value>'` with build.mjs's RUSTFLAGS, then size and V8 time (median of 3 interleaved rounds of 25-rep medians after 5 warm-up reps). Pinned profile: 1,524,412 bytes (code section 1,285,550; name section 182,205), 17.6 ms per 400 product quanta. opt-level 2: -2.2%, 1.02x. \"s\": -0.8% file, -13.2% code, 1.69x slower. \"z\": -4.8% file, -34.9% code, 2.73x slower. 0: +228%, 30x slower. lto \"thin\": +4.6%; \"fat\": -6.4%; \"off\": +17 bytes; codegen-units 16: +13.3%; all within noise on time. debug = \"line-tables-only\": 11,192,335 bytes (DWARF), same speed. strip = \"symbols\": -12.0% (name section gone); strip = \"none\": 3,245,410 bytes (std's DWARF). Put profiling settings in a custom profile (`[profile.profiling] inherits = \"release\"`, `debug = \"line-tables-only\"`) so the pinned one never changes. Measure the build itself: `cargo build --timings` writes target/cargo-timings/cargo-timing.html (per-unit time, codegen time, concurrency); `cargo llvm-lines` counts LLVM IR lines and copies per generic function (the monomorphization cost that codegen-units and LTO trade against); `cargo bloat --release --crates` sizes native binaries only (its README: 'WASM is not supported. Use twiggy instead.'); twiggy's repository is archived (read-only), so for wasm also read section sizes directly.",
+      "rust_version": "Cargo/rustc 1.98.1; release strip default since 1.77",
+      "gotchas": "`lto = false` is not `lto = \"off\"`: the Cargo Book defines false as thin local LTO across the crate's codegen units and says no LTO is performed at codegen-units 1 or opt-level 0, yet switching to \"off\" still produced a different artifact (see the digest recipe). s/z are 'not necessarily smaller' (Cargo Book): s cut the code section 13% but the file only 0.8% because less inlining left more functions to name (name section 182,205 -> 338,450 bytes; z: 550,418), so count the whole file. The rustc Book says z often gives larger binaries than s; here z was smaller, so measure. The Cargo Book's profile table lists strip = \"none\" for release, but since 1.77 profiles without debuginfo get strip = \"debuginfo\", and `cargo build -v` on 1.98.1 shows `-C strip=debuginfo` on the solver; writing strip = \"none\" pulls std's DWARF back in. Tests, benchmarks, build scripts and proc macros ignore `panic`. rustc run by hand defaults to opt-level 0, which also turns on cfg(debug_assertions).",
+      "engine_note": "solver/Cargo.toml's profile (opt-level 3, lto = false, codegen-units 1, panic = \"abort\", overflow-checks = false) is at the fast end of every variant measured. Its lto = false means no LTO at all at codegen-units 1, and panic = \"abort\" restates the target default (`rustc --print cfg --target wasm32-unknown-unknown` prints panic=\"abort\"), so that line only matters for a native host build of the law. The 182,205-byte name section is 12% of the artifact and is what gives V8 profiles readable frames (profiling recipe).",
+      "checks": [
+        {
+          "label": "the host target defaults to unwinding",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "unwind",
+          "source": "fn main() {\n    println!(\"{}\", if cfg!(panic = \"abort\") { \"abort\" } else { \"unwind\" });\n}\n"
+        },
+        {
+          "label": "-C panic=abort switches the strategy the code is compiled for",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "-C",
+            "panic=abort"
+          ],
+          "expect": "runs",
+          "stdout": "abort",
+          "source": "fn main() {\n    println!(\"{}\", if cfg!(panic = \"abort\") { \"abort\" } else { \"unwind\" });\n}\n"
+        },
+        {
+          "label": "wasm32-unknown-unknown already compiles with panic=abort, no flag given",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_call": {
+            "export": "panic_is_abort",
+            "args": []
+          },
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn panic_is_abort() -> u32 {\n    cfg!(panic = \"abort\") as u32\n}\n"
+        },
+        {
+          "label": "rustc -C opt-level=0 turns on cfg(debug_assertions)",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "-C",
+            "opt-level=0"
+          ],
+          "expect": "runs",
+          "stdout": "true",
+          "source": "fn main() {\n    println!(\"{}\", cfg!(debug_assertions));\n}\n"
+        },
+        {
+          "label": "rustc -C opt-level=3 leaves cfg(debug_assertions) off",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "-C",
+            "opt-level=3"
+          ],
+          "expect": "runs",
+          "stdout": "false",
+          "source": "fn main() {\n    println!(\"{}\", cfg!(debug_assertions));\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Cargo Book: Profiles",
+          "url": "https://doc.rust-lang.org/cargo/reference/profiles.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Defines opt-level (\"z\" also turns off loop vectorization; s/z not necessarily smaller), lto (false = thin local LTO, none at codegen-units 1), codegen-units (release default 16), panic, debug = \"line-tables-only\", overflow-checks, debug-assertions, and custom profiles via inherits."
+        },
+        {
+          "title": "The rustc Book: Codegen options",
+          "url": "https://doc.rust-lang.org/rustc/codegen-options/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Documents -C opt-level (0 also turns on cfg(debug_assertions)), lto, codegen-units, target-cpu (native = the host's processor), target-feature (\"unsafe and might result in undefined runtime behavior\"), panic (default depends on the target), strip and profile-generate/use."
+        },
+        {
+          "title": "The rustc Book: wasm32-unknown-unknown",
+          "url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The target is compiled with -Cpanic=abort by default; the generic CPU enables multivalue, mutable-globals, reference-types, sign-ext, nontrapping-fptoint and bulk-memory (the last two since 1.87); mvp disables all."
+        },
+        {
+          "title": "Announcing Rust 1.77.0",
+          "url": "https://blog.rust-lang.org/2024/03/21/Rust-1.77.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Cargo profiles which do not enable debuginfo enable strip = \"debuginfo\" by default, because the precompiled standard library ships with debuginfo."
+        },
+        {
+          "title": "The Cargo Book: Reporting build timings",
+          "url": "https://doc.rust-lang.org/cargo/reference/timings.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "--timings writes target/cargo-timings/cargo-timing.html with per-unit durations, codegen times and a concurrency graph."
+        },
+        {
+          "title": "cargo-llvm-lines README",
+          "url": "https://github.com/dtolnay/cargo-llvm-lines",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Counts lines of LLVM IR and copies per generic function, because repeated instantiations drive compile time and binary size."
+        },
+        {
+          "title": "cargo-bloat README",
+          "url": "https://github.com/RazrFalcon/cargo-bloat",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Supports ELF, Mach-O and PE; 'WASM is not supported. Use twiggy instead.'; its numbers are estimates."
+        },
+        {
+          "title": "twiggy repository",
+          "url": "https://github.com/AlexEne/twiggy",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Twiggy is a wasm code size profiler (top, dominators, paths, monos, garbage); the repository is archived and read-only."
+        },
+        {
+          "title": "The Rust Performance Book: Build Configuration",
+          "url": "https://nnethercote.github.io/perf-book/build-configuration.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Recommends codegen-units = 1, thin/fat LTO and panic = \"abort\" for speed, target-cpu=native only when portability does not matter, PGO via cargo-pgo, and debug = \"line-tables-only\"."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "split-profile-knobs-into-digest-only-and-result-changing-before-editing-the-solver-s-pinned-release-profile",
+      "name": "Split profile knobs into digest-only and result-changing before editing the solver's pinned release profile",
+      "what": "On a scratch copy of solver/, 15 profile variants all changed the wasm digest and even the code section, yet all gave byte-identical results over 400 quanta of both laws; knobs change results only through semantics: overflow-checks, debug-assertions, cfg(target_feature) paths, NaN bit patterns and std transcendentals.",
+      "how": "Copy solver/{Cargo.toml, Cargo.lock, rust-toolchain.toml, .cargo/config.toml, src/} to scratch and build with build.mjs's RUSTFLAGS (-C target-feature=-relaxed-simd plus the three --remap-path-prefix) and `--config 'profile.release.<knob>=<value>'`. Drive each artifact through one scene from JS: product law (floor + rotated ramp, 12 dynamic boxes, 1 driven character; solver_load, then 400 solver_step with SHA-256 over every snapshot and the final bodies) and box law (16 bodies, 4 colliders, 400 step). Variants: opt-level 0/2/s/z, lto off/thin/fat, codegen-units 16, debug line-tables-only, strip symbols/none, panic unwind, overflow-checks true, debug-assertions true, +simd128. Result hashes 10041692ff2e6d8b / a2a26a5471e435ba for all 16 artifacts, 400/400 steps accepted, no trap. Rebuilding the pinned profile last reproduced the first digest byte for byte (b21c7f15..., Windows bytes). Why even inert knobs move bytes: Cargo passes a different -C metadata per profile (lto = false: si_solver 648e556cfabde42d, rapier rlib 5f1f6bff601edb82; lto = \"off\": 5d66e6efdb52edec, d945852ad0d5ae49), and the name, code and data sections all changed, consistent with the metadata feeding symbol and type hashes (mechanism inferred, not traced). Classify: digest-only (measured): opt-level, lto, codegen-units, debug, strip, panic (the target forces abort), +simd128. Result-changing by construction: overflow-checks (an overflow becomes a panic, a trap under abort, instead of a wrapped value), debug-assertions (compiles every crate's debug_assert! in: code +12.4%), target features (cfg-gated paths), and anything that changes how a transcendental is evaluated. The checks show each mechanism on std code; the IEEE kernel gives identical bits at opt-level 0, 3, z + fat LTO and s + 16 units, on the host and in wasm.",
+      "rust_version": "rustc/Cargo 1.98.1; rapier3d-f64 0.35.3",
+      "gotchas": "RFC 3514 keeps one latitude in IEEE operations: NaN bit patterns are non-deterministic and may differ between compile-time and run-time evaluation, so an optimization change can move a NaN's bits; refuse or canonicalise NaN before anything is hashed. std documents sin, cos, exp, powf and friends as having unspecified precision that can differ even between invocations in one execution, so inlining or folding them differently is allowed to change results. overflow-checks = false is already the release default; wrapping_* methods ignore the knob, plain `+` does not. One scene is evidence, not proof: overflow-checks and debug-assertions did not trap here, which says nothing about other scenes. Any edit to the profile, including one that changes no codegen, is a new artifact that needs a new pin.",
+      "engine_note": "solver/Cargo.toml [profile.release] and fixtures/solver.sha256: any profile edit, even lto = false -> \"off\" (no more LTO than today), moves every crate's -C metadata and therefore the digest; the golden hash is the invariant that must not move, so rerun the golden suite and re-pin the Linux digest together. Keep overflow-checks and debug-assertions off in the artifact (turning them on changes the law's failure mode, not only its bytes), and keep the target-feature set pinned (-relaxed-simd; +simd128 kept this scene's results but is another artifact). rapier_law.rs refuses NaN in poses and velocities (write_body, bad) and mix_u64 uses wrapping_mul/wrapping_add, so neither NaN payloads nor the overflow-checks knob reaches those paths.",
+      "checks": [
+        {
+          "label": "IEEE kernel at -C opt-level=0 prints these bits",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "-C",
+            "opt-level=0"
+          ],
+          "expect": "runs",
+          "stdout": "3fe01580a0938479 bfb32acb97a48626 4034df7d77a90ec0 20.873008230947335",
+          "source": "use std::hint::black_box;\n\n// Add, sub, mul, div and sqrt only: IEEE-exact at every optimization level.\nfn main() {\n    let dt = black_box(1.0f64 / 64.0);\n    let (mut y, mut vy) = (black_box(3.0f64), black_box(0.0f64));\n    let mut acc = 0.0f64;\n    for i in 0..640 {\n        vy = vy - 8.0 * dt;\n        y = y + vy * dt;\n        if y < 0.5 {\n            y = 0.5 + (0.5 - y);\n            vy = 0.0 - vy * 0.8;\n        }\n        acc = acc + (y * y + vy * vy).sqrt() / (i as f64 + 1.0);\n    }\n    println!(\"{:016x} {:016x} {:016x} {}\", y.to_bits(), vy.to_bits(), acc.to_bits(), acc);\n}\n"
+        },
+        {
+          "label": "same kernel at -C opt-level=3, one codegen unit: identical bits",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "-C",
+            "opt-level=3",
+            "-C",
+            "codegen-units=1"
+          ],
+          "expect": "runs",
+          "stdout": "3fe01580a0938479 bfb32acb97a48626 4034df7d77a90ec0 20.873008230947335",
+          "source": "use std::hint::black_box;\n\n// Add, sub, mul, div and sqrt only: IEEE-exact at every optimization level.\nfn main() {\n    let dt = black_box(1.0f64 / 64.0);\n    let (mut y, mut vy) = (black_box(3.0f64), black_box(0.0f64));\n    let mut acc = 0.0f64;\n    for i in 0..640 {\n        vy = vy - 8.0 * dt;\n        y = y + vy * dt;\n        if y < 0.5 {\n            y = 0.5 + (0.5 - y);\n            vy = 0.0 - vy * 0.8;\n        }\n        acc = acc + (y * y + vy * vy).sqrt() / (i as f64 + 1.0);\n    }\n    println!(\"{:016x} {:016x} {:016x} {}\", y.to_bits(), vy.to_bits(), acc.to_bits(), acc);\n}\n"
+        },
+        {
+          "label": "same kernel at -C opt-level=z with fat LTO: identical bits",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "-C",
+            "opt-level=z",
+            "-C",
+            "lto=fat"
+          ],
+          "expect": "runs",
+          "stdout": "3fe01580a0938479 bfb32acb97a48626 4034df7d77a90ec0 20.873008230947335",
+          "source": "use std::hint::black_box;\n\n// Add, sub, mul, div and sqrt only: IEEE-exact at every optimization level.\nfn main() {\n    let dt = black_box(1.0f64 / 64.0);\n    let (mut y, mut vy) = (black_box(3.0f64), black_box(0.0f64));\n    let mut acc = 0.0f64;\n    for i in 0..640 {\n        vy = vy - 8.0 * dt;\n        y = y + vy * dt;\n        if y < 0.5 {\n            y = 0.5 + (0.5 - y);\n            vy = 0.0 - vy * 0.8;\n        }\n        acc = acc + (y * y + vy * vy).sqrt() / (i as f64 + 1.0);\n    }\n    println!(\"{:016x} {:016x} {:016x} {}\", y.to_bits(), vy.to_bits(), acc.to_bits(), acc);\n}\n"
+        },
+        {
+          "label": "same kernel at -C opt-level=s with 16 codegen units: identical bits",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "-C",
+            "opt-level=s",
+            "-C",
+            "codegen-units=16"
+          ],
+          "expect": "runs",
+          "stdout": "3fe01580a0938479 bfb32acb97a48626 4034df7d77a90ec0 20.873008230947335",
+          "source": "use std::hint::black_box;\n\n// Add, sub, mul, div and sqrt only: IEEE-exact at every optimization level.\nfn main() {\n    let dt = black_box(1.0f64 / 64.0);\n    let (mut y, mut vy) = (black_box(3.0f64), black_box(0.0f64));\n    let mut acc = 0.0f64;\n    for i in 0..640 {\n        vy = vy - 8.0 * dt;\n        y = y + vy * dt;\n        if y < 0.5 {\n            y = 0.5 + (0.5 - y);\n            vy = 0.0 - vy * 0.8;\n        }\n        acc = acc + (y * y + vy * vy).sqrt() / (i as f64 + 1.0);\n    }\n    println!(\"{:016x} {:016x} {:016x} {}\", y.to_bits(), vy.to_bits(), acc.to_bits(), acc);\n}\n"
+        },
+        {
+          "label": "the kernel compiled to wasm32 at opt-level 0 returns the host's value",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "opt-level=0"
+          ],
+          "expect": "runs",
+          "stdout": "20.873008230947335",
+          "wasm_call": {
+            "export": "kernel_acc",
+            "args": []
+          },
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn kernel_acc() -> f64 {\n    let dt = core::hint::black_box(1.0f64 / 64.0);\n    let (mut y, mut vy) = (core::hint::black_box(3.0f64), core::hint::black_box(0.0f64));\n    let mut acc = 0.0f64;\n    for i in 0..640 {\n        vy = vy - 8.0 * dt;\n        y = y + vy * dt;\n        if y < 0.5 {\n            y = 0.5 + (0.5 - y);\n            vy = 0.0 - vy * 0.8;\n        }\n        acc = acc + (y * y + vy * vy).sqrt() / (i as f64 + 1.0);\n    }\n    acc\n}\n"
+        },
+        {
+          "label": "the kernel compiled to wasm32 at opt-level 3 returns the same value",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "opt-level=3"
+          ],
+          "expect": "runs",
+          "stdout": "20.873008230947335",
+          "wasm_call": {
+            "export": "kernel_acc",
+            "args": []
+          },
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn kernel_acc() -> f64 {\n    let dt = core::hint::black_box(1.0f64 / 64.0);\n    let (mut y, mut vy) = (core::hint::black_box(3.0f64), core::hint::black_box(0.0f64));\n    let mut acc = 0.0f64;\n    for i in 0..640 {\n        vy = vy - 8.0 * dt;\n        y = y + vy * dt;\n        if y < 0.5 {\n            y = 0.5 + (0.5 - y);\n            vy = 0.0 - vy * 0.8;\n        }\n        acc = acc + (y * y + vy * vy).sqrt() / (i as f64 + 1.0);\n    }\n    acc\n}\n"
+        },
+        {
+          "label": "overflow-checks on: 255u8 + 1 panics (exit 101) after printing 'before'",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=on"
+          ],
+          "expect": "runs",
+          "stdout": "before",
+          "exit_code": 101,
+          "source": "use std::hint::black_box;\n\nfn main() {\n    let x: u8 = black_box(255);\n    println!(\"before\");\n    let y = x + 1;\n    println!(\"{y}\");\n}\n"
+        },
+        {
+          "label": "overflow-checks off: the same program wraps to 0 and continues",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=off"
+          ],
+          "expect": "runs",
+          "stdout": "before\n0",
+          "source": "use std::hint::black_box;\n\nfn main() {\n    let x: u8 = black_box(255);\n    println!(\"before\");\n    let y = x + 1;\n    println!(\"{y}\");\n}\n"
+        },
+        {
+          "label": "wrapping_mul/wrapping_add (the law's mix_u64) are unaffected by overflow-checks=on",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=on"
+          ],
+          "expect": "runs",
+          "stdout": "af63bd4c8601b7de",
+          "source": "use std::hint::black_box;\n\nfn mix_u64(h: u64, x: u64) -> u64 {\n    h.wrapping_mul(0x100000001b3).wrapping_add(x)\n}\n\nfn main() {\n    let h = black_box(0xcbf29ce484222325u64);\n    println!(\"{:016x}\", mix_u64(h, black_box(u64::MAX)));\n}\n"
+        },
+        {
+          "label": "debug-assertions on: a failing debug_assert! panics (exit 101)",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "-C",
+            "debug-assertions=on"
+          ],
+          "expect": "runs",
+          "stdout": "start",
+          "exit_code": 101,
+          "source": "use std::hint::black_box;\n\nfn main() {\n    println!(\"start\");\n    debug_assert!(black_box(1) == 2, \"a debug-only invariant\");\n    println!(\"ran\");\n}\n"
+        },
+        {
+          "label": "debug-assertions off: the same program runs past the assertion",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "-C",
+            "debug-assertions=off"
+          ],
+          "expect": "runs",
+          "stdout": "start\nran",
+          "source": "use std::hint::black_box;\n\nfn main() {\n    println!(\"start\");\n    debug_assert!(black_box(1) == 2, \"a debug-only invariant\");\n    println!(\"ran\");\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "RFC 3514: Float semantics",
+          "url": "https://rust-lang.github.io/rfcs/3514-float-semantics.html",
+          "year": 2023,
+          "kind": "rfc",
+          "identifier": "RFC 3514",
+          "claim": "Primitive float operations produce results that exactly match IEEE 754-2008 except NaN bit patterns, which are non-deterministic and may differ between compile-time and run-time evaluation; strict IEEE precludes turning a*b + c into FMA."
+        },
+        {
+          "title": "std primitive f64",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f64.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "sqrt and mul_add are guaranteed to be the rounded infinite-precision result; sin, exp, powf and the other transcendentals have unspecified precision that varies by platform, Rust version, and can differ between invocations in one execution."
+        },
+        {
+          "title": "The Cargo Book: Profiles",
+          "url": "https://doc.rust-lang.org/cargo/reference/profiles.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Defines opt-level (\"z\" also turns off loop vectorization; s/z not necessarily smaller), lto (false = thin local LTO, none at codegen-units 1), codegen-units (release default 16), panic, debug = \"line-tables-only\", overflow-checks, debug-assertions, and custom profiles via inherits."
+        },
+        {
+          "title": "The rustc Book: Codegen options",
+          "url": "https://doc.rust-lang.org/rustc/codegen-options/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Documents -C opt-level (0 also turns on cfg(debug_assertions)), lto, codegen-units, target-cpu (native = the host's processor), target-feature (\"unsafe and might result in undefined runtime behavior\"), panic (default depends on the target), strip and profile-generate/use."
+        },
+        {
+          "title": "WebAssembly Core Specification: Custom sections (name section)",
+          "url": "https://webassembly.github.io/spec/core/appendix/custom.html",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "The name section attaches printable names for debuggers; such sections do not contribute to or otherwise affect WebAssembly semantics and may be ignored by an implementation."
+        },
+        {
+          "title": "wide 1.7.1 source: src/f64x2_.rs (mul_add)",
+          "url": "https://docs.rs/crate/wide/1.7.1/source/src/f64x2_.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "f64x2::mul_add picks a fused instruction under cfg(target_feature = \"fma\") or aarch64 NEON and computes (self * a) + b (two roundings) otherwise; the doc comment calls this platform-specific behaviour."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "leave-inlining-to-rustc-inline-for-cross-crate-calls-cold-on-refusal-paths-static-dispatch-when-hot",
+      "name": "Leave inlining to rustc: #[inline] for cross-crate calls, #[cold] on refusal paths, static dispatch when hot",
+      "what": "Every #[inline] form is a hint the compiler may ignore; since 1.75 rustc makes small leaf functions cross-crate-inlinable by itself; #[cold] marks unlikely paths; generics are monomorphized into static calls while dyn Trait calls go through a vtable that blocks inlining.",
+      "how": "Within one crate at opt-level 3, private helpers inline without attributes. Across crates without LTO a non-generic function inlines only if it is marked #[inline] or, since 1.75 (rust-lang/rust#116505), if it is a small leaf whose optimized MIR contains no calls or asserts. Use #[inline] on small non-leaf functions of a library that other crates call in hot loops. Split an entry point into a small hot path and a `#[cold] #[inline(never)]` refusal path so the hot path stays small (perf book). Dispatch: a generic `fn f<S: Shape>(xs: &[S])` is monomorphized, so there is no runtime cost and calls can inline; `&[Box<dyn Shape>]` looks up each call in the vtable carried in a two-word fat pointer, and the Book says dynamic dispatch 'prevents the compiler from choosing to inline a method's code'. For a closed set of kinds, an enum + match is static dispatch without one copy per type. Measure with cargo-llvm-lines if monomorphization inflates compile time.",
+      "rust_version": "any; automatic cross-crate inlining of small leaf functions 1.75+",
+      "gotchas": "#[inline(always)] is still only a suggestion in the Reference, and the Reference warns that poor inlining decisions slow programs down. On 1.98.1, #[inline] on a struct is rejected with 'attribute cannot be used on structs' and no error code (`rustc +1.98.1 --explain E0518` says that code is no longer emitted: match the message, not a code). Tiny leaf functions no longer need #[inline] for cross-crate inlining; small functions that call something still do in non-LTO builds. Inlining changes bytes and speed, not IEEE results (digest recipe).",
+      "engine_note": "lib.rs's helpers (field, body_at, js_min, js_max, rank, resolve_pair) are private and share one crate at codegen-units 1. Measured: the optimized box-law module defines only bodies_ptr, colliders_ptr and step, and step's remaining calls are LLVM intrinsics (llvm.is.fpclass, llvm.sqrt, lifetime markers). No attribute is needed. The law has no dyn of its own; parry3d-f64 0.30.2's SharedShape is `pub struct SharedShape(pub Arc<dyn Shape>)`, so narrow-phase shape dispatch is dynamic inside the dependency (DefaultQueryDispatcher was a top V8 frame), outside the engine's control.",
+      "checks": [
+        {
+          "label": "#[inline] belongs on functions: on a struct 1.98.1 rejects it with a message and no error code",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "`#[inline]` attribute cannot be used on structs"
+          ],
+          "source": "#[inline]\npub struct Body;\n"
+        },
+        {
+          "label": "generic, dyn and enum dispatch compute the same total; &dyn is a two-word fat pointer",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "3 3 3 16 8",
+          "source": "use std::mem::size_of;\n\ntrait Shape {\n    fn volume(&self) -> f64;\n}\n\nstruct Cuboid {\n    hx: f64,\n    hy: f64,\n    hz: f64,\n}\n\nimpl Shape for Cuboid {\n    fn volume(&self) -> f64 {\n        8.0 * self.hx * self.hy * self.hz\n    }\n}\n\nenum Kind {\n    Cuboid(Cuboid),\n}\n\n// Static dispatch: monomorphized per S, the call can inline.\nfn total_static<S: Shape>(xs: &[S]) -> f64 {\n    xs.iter().map(|s| s.volume()).sum()\n}\n\n// Dynamic dispatch: each call goes through the vtable in the fat pointer.\nfn total_dyn(xs: &[Box<dyn Shape>]) -> f64 {\n    xs.iter().map(|s| s.volume()).sum()\n}\n\n// A closed set: enum + match is static dispatch without generics.\nfn total_enum(xs: &[Kind]) -> f64 {\n    xs.iter().map(|k| match k { Kind::Cuboid(c) => c.volume() }).sum()\n}\n\nfn main() {\n    let c = || Cuboid { hx: 0.5, hy: 0.5, hz: 0.5 };\n    let a = [c(), c(), c()];\n    let b: Vec<Box<dyn Shape>> = vec![Box::new(c()), Box::new(c()), Box::new(c())];\n    let e = [Kind::Cuboid(c()), Kind::Cuboid(c()), Kind::Cuboid(c())];\n    println!(\"{} {} {} {} {}\", total_static(&a), total_dyn(&b), total_enum(&e), size_of::<&dyn Shape>(), size_of::<&Cuboid>());\n}\n"
+        },
+        {
+          "label": "hot path #[inline] + #[cold] #[inline(never)] refusal path compiles cleanly",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "/// Hot path: small, inlined into callers.\n#[inline]\npub fn admit(n: u32, max: u32) -> Result<u32, u32> {\n    if n <= max { Ok(n) } else { refuse(n) }\n}\n\n/// Cold path: rarely taken, kept out of line so the hot path stays small.\n#[cold]\n#[inline(never)]\nfn refuse(n: u32) -> Result<u32, u32> {\n    Err(n)\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference: Code generation attributes",
+          "url": "https://doc.rust-lang.org/reference/attributes/codegen.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "inline, inline(always) and inline(never) only suggest and the compiler may ignore them; cold suggests a function is unlikely to be called; safe #[target_feature] functions need an unsafe context unless the caller enables the same features, except on Wasm where they are always safe."
+        },
+        {
+          "title": "rust-lang/rust#116505: Automatically enable cross-crate inlining for small functions",
+          "url": "https://github.com/rust-lang/rust/pull/116505",
+          "year": 2023,
+          "kind": "pr",
+          "identifier": "rust-lang/rust#116505",
+          "claim": "Merged for 1.75.0: rustc infers cross-crate inlinability for small functions whose optimized MIR contains no calls or asserts."
+        },
+        {
+          "title": "Rust 1.75.0 release notes",
+          "url": "https://github.com/rust-lang/rust/releases/tag/1.75.0",
+          "year": 2023,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Compiler: 'Automatically enable cross-crate inlining for small functions'."
+        },
+        {
+          "title": "The Rust Programming Language, ch. 18.2: Using Trait Objects",
+          "url": "https://doc.rust-lang.org/book/ch18-02-trait-objects.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Monomorphized generics are static dispatch; trait objects use dynamic dispatch with a runtime lookup cost that also prevents inlining."
+        },
+        {
+          "title": "The Rust Programming Language, ch. 10.1: Performance of Code Using Generics",
+          "url": "https://doc.rust-lang.org/book/ch10-01-syntax.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Monomorphization means generic code costs nothing at runtime compared with hand-written concrete code."
+        },
+        {
+          "title": "The Rust Performance Book: Inlining",
+          "url": "https://nnethercote.github.io/perf-book/inlining.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "rustc decides inlining from optimization level, size, genericity and crate boundaries; #[cold] can improve the hot path; split hot always-inline and cold never-inline variants."
+        },
+        {
+          "title": "parry3d-f64 0.30.2 source: src/shape/shared_shape.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/shared_shape.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "SharedShape is declared as `pub struct SharedShape(pub Arc<dyn Shape>)`, a type-erased shape."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "prove-indices-once-an-entry-guard-chunks-exact-mut-or-as-chunks-mut-removes-per-iteration-bounds-checks",
+      "name": "Prove indices once: an entry guard, chunks_exact_mut or as_chunks_mut removes per-iteration bounds checks",
+      "what": "Measured in LLVM IR at opt-level 3: LLVM already hoists the check out of a loop without stores, but a read-modify-write loop keeps one check per iteration; chunks_exact_mut and as_chunks_mut (1.88) leave none, and in the solver the early `n_bodies > MAX_BODIES` return is what removes all 30 checks from the box law's step.",
+      "how": "Measure: `rustc +1.98.1 --crate-type lib -C opt-level=3 -C codegen-units=1 -C panic=abort --emit=llvm-ir x.rs` (host and --target wasm32-unknown-unknown gave the same counts) and count `panic_bounds_check` calls per function and whether they sit inside the loop. `for i in 0..n { s += v[i] }`: one check hoisted before the loop (loop unrolled 8x). `let v = &v[..n];` or `assert!(n <= v.len());` first: one check before the loop, none in it. `v.iter().take(n)`: none. Stride-17 read-modify-write `b[i * 17 + 4] = ...`: one check per iteration inside the loop, not unrolled. The same loop over `b.chunks_exact_mut(17)` or `b.as_chunks_mut::<17>().0`: none. The engine's own `step` (lib.rs minus `mod rapier_law;`): 0 checks as written; with the up-front guard deleted, 30 `panic_bounds_check` call sites and 1,055 IR lines instead of 759. Idioms: guard or slice once at entry (`let rows = &mut buf[..n * STRIDE];`), then iterate rows with chunks_exact_mut(STRIDE) or as_chunks_mut::<STRIDE>(), whose `&mut [f64; STRIDE]` rows make constant indices check-free. `get_unchecked` is the perf book's 'last resort' and needs a SAFETY argument.",
+      "rust_version": "chunks_exact 1.31+; as_chunks / as_chunks_mut 1.88+",
+      "gotchas": "A check inside a storing loop also blocks unrolling and vectorization (the stride loop stayed one element per iteration), so it costs more than the compare. chunks_exact skips the tail silently: the last up to chunk_size-1 elements are only in `.remainder()`, so assert it is empty when the layout must be exact. Checks come back when the guard moves after the loop or when the bound comes from a value the optimizer cannot relate to the slice (measured: 30). In these measurements LLVM hoisted the check only out of the loop without stores; the storing loop kept it at every iteration. Indexing a value the compiler cannot prove in range still panics at run time (exit 101 below).",
+      "engine_note": "lib.rs `step` checks `n_bodies > MAX_BODIES || n_colliders > MAX_COLLIDERS` before touching the fixed-length statics, and that single guard lets LLVM prove every `field(bodies, i, slot)` and `colliders[j * COLLIDER_STRIDE + k]` index. Keep a guard like it first in every new export (T2's solver_restore included). rapier_law.rs `body_at` / `collider_at` copy rows with an index loop; `as_chunks::<BODY_STRIDE>()` would express a row directly, but that is a code change the golden hash must confirm, not a measured win.",
+      "checks": [
+        {
+          "label": "as_chunks gives 64 rows of 17 and no remainder; chunks_exact leaves a tail; get() returns None",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "64 0 2 6 None",
+          "source": "fn main() {\n    let buf = vec![0.0f64; 64 * 17];\n    let (rows, rest) = buf.as_chunks::<17>();\n    let short = [1.0f64; 40];\n    let it = short.chunks_exact(17);\n    println!(\"{} {} {} {} {:?}\", rows.len(), rest.len(), it.len(), it.remainder().len(), short.get(40));\n}\n"
+        },
+        {
+          "label": "the solver's shape: guard first, then fixed rows via as_chunks_mut; 65 bodies is refused",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "1 0 -0.125 -0.001953125",
+          "source": "const MAX_BODIES: usize = 64;\nconst STRIDE: usize = 17;\nconst DT: f64 = 1.0 / 64.0;\n\n// Guard first, then index a fixed-length buffer through [f64; STRIDE] rows.\nfn step(bodies: &mut [f64; MAX_BODIES * STRIDE], n_bodies: u32) -> u32 {\n    if n_bodies as usize > MAX_BODIES {\n        return 0;\n    }\n    let n = n_bodies as usize;\n    let (rows, _) = bodies.as_chunks_mut::<STRIDE>();\n    for row in rows.iter_mut().take(n) {\n        row[4] = row[4] - 8.0 * DT;\n        row[1] = row[1] + row[4] * DT;\n    }\n    1\n}\n\nfn main() {\n    let mut bodies = [0.0f64; MAX_BODIES * STRIDE];\n    let ok = step(&mut bodies, 64);\n    let refused = step(&mut bodies, 65);\n    println!(\"{} {} {} {}\", ok, refused, bodies[4], bodies[63 * STRIDE + 1]);\n}\n"
+        },
+        {
+          "label": "an index the compiler cannot prove in range is still checked at run time: exit 101",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "exit_code": 101,
+          "source": "use std::hint::black_box;\n\nfn main() {\n    let v = vec![0.0f64; 17];\n    let i = black_box(17usize);\n    println!(\"{}\", v[i]);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Performance Book: Bounds Checks",
+          "url": "https://nnethercote.github.io/perf-book/bounds-checks.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Remove bounds checks by iterating, by slicing before the loop, or by asserting index ranges; get_unchecked is a last resort."
+        },
+        {
+          "title": "std::slice::ChunksExact",
+          "url": "https://doc.rust-lang.org/stable/std/slice/struct.ChunksExact.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Stable since 1.31.0; when the length is not a multiple of chunk_size the last up to chunk_size-1 elements are omitted and available from remainder()."
+        },
+        {
+          "title": "Rust 1.88.0 release notes",
+          "url": "https://github.com/rust-lang/rust/releases/tag/1.88.0",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilized <[T]>::as_chunks, as_chunks_mut, as_rchunks and as_rchunks_mut."
+        },
+        {
+          "title": "rust-lang/rust#139656: Stabilize slice_as_chunks library feature",
+          "url": "https://github.com/rust-lang/rust/pull/139656",
+          "year": 2025,
+          "kind": "pr",
+          "identifier": "rust-lang/rust#139656",
+          "claim": "Merged for milestone 1.88.0, stabilizing the as_chunks family of const slice methods."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "reuse-per-quantum-buffers-clear-keeps-capacity-with-capacity-sizes-once-smallvec-arrayvec-for-small-lists",
+      "name": "Reuse per-quantum buffers: clear() keeps capacity, with_capacity sizes once, SmallVec/ArrayVec for small lists",
+      "what": "Vec never shrinks on its own, and refilling a cleared Vec to the same length 'should incur no calls to the allocator', so a buffer cleared each quantum stops allocating once it reaches its peak; SmallVec keeps up to N items inline and spills to the heap; ArrayVec has a hard capacity and never allocates.",
+      "how": "Size once: `Vec::with_capacity(n)` holds at least n elements without reallocating, and vec![x; n] / with_capacity(n) request exactly n elements from the allocator. Reuse: keep the Vec in long-lived state and `clear()` it at the start of each quantum (perf book: clear empties the Vec 'without affecting its capacity'); truncate also keeps capacity; shrink_to_fit gives memory back. Small bounded lists: `SmallVec<[T; N]>` (smallvec 1.16.2) stores N inline and reports `spilled()`; `ArrayVec<T, CAP>` (arrayvec 0.7.8) is backed by a fixed array, push panics when full, try_push returns an error. Measured below: a spilled SmallVec keeps its heap buffer across clear(), and ArrayVec<u32, 4> is 20 bytes. Count allocations before and after a change (divan's AllocProfiler; DHAT on Linux) and profile first: allocation is often not the cost.",
+      "rust_version": "any; smallvec 1.16.2; arrayvec 0.7.8",
+      "gotchas": "A reused buffer's pointer is stable only while it does not grow; growth reallocates and Vec promises no particular growth strategy, so any raw pointer handed out must be re-read after each call (memory-layout lane). clear() on a spilled SmallVec keeps the heap allocation; it does not return to inline storage. SmallVec is slightly slower than Vec per operation because it checks where its data lives (perf book), so use it only where it removes allocations. ArrayVec::push panics on overflow, which is a trap in a panic = abort wasm module; use try_push and return a status. with_capacity counts elements, not bytes.",
+      "engine_note": "rapier_law.rs `rebuild_snapshot` already reuses `SOLVER.snapshot` with `out.clear()`, so the snapshot stops allocating after its largest contact set. Allocations left per quantum: `integrate` builds `plans` and a `collisions` Vec per driven body, `rebuild_snapshot` collects `pairs`, and `solver_clear_warmstart` builds `ptrs`. Measured: in a V8 profile of the scene (100 us sampling, 1,192 wasm samples) the allocator (dlmalloc) took 0.7% and the law's own code 4.0%, so reusing these buffers would be tidiness, not a speed lever, and would still move the digest.",
+      "checks": [
+        {
+          "label": "clear() keeps capacity and the buffer address across 100 refills below capacity",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "true true true 504",
+          "source": "fn main() {\n    let mut snapshot: Vec<u8> = Vec::with_capacity(4096);\n    let (cap0, ptr0) = (snapshot.capacity(), snapshot.as_ptr());\n    let mut peak = 0;\n    for quantum in 0..100u32 {\n        snapshot.clear(); // len = 0, capacity kept\n        for k in 0..(quantum % 64) {\n            snapshot.extend_from_slice(&(k as f64).to_le_bytes());\n        }\n        peak = peak.max(snapshot.len());\n    }\n    println!(\"{} {} {} {}\", cap0 >= 4096, snapshot.capacity() == cap0, snapshot.as_ptr() == ptr0, peak);\n}\n"
+        },
+        {
+          "label": "SmallVec spills on item N+1 and keeps its heap buffer after clear(); ArrayVec refuses past CAP",
+          "edition": "2024",
+          "target": "host",
+          "deps": [
+            "smallvec",
+            "arrayvec"
+          ],
+          "expect": "runs",
+          "stdout": "true true true true 4\ntrue true 20",
+          "source": "use arrayvec::ArrayVec;\nuse smallvec::SmallVec;\n\nfn main() {\n    let mut v: SmallVec<[u32; 4]> = SmallVec::new();\n    for i in 0..4 {\n        v.push(i);\n    }\n    let inline4 = !v.spilled();\n    v.push(4);\n    let spilled5 = v.spilled();\n    let cap = v.capacity();\n    v.clear();\n    println!(\"{} {} {} {} {}\", inline4, spilled5, v.spilled(), v.capacity() == cap, v.inline_size());\n    let mut a: ArrayVec<u32, 4> = ArrayVec::new();\n    for i in 0..4 {\n        a.push(i);\n    }\n    let r = a.try_push(9);\n    println!(\"{} {} {}\", a.is_full(), r.is_err(), std::mem::size_of::<ArrayVec<u32, 4>>());\n}\n"
+        },
+        {
+          "label": "with_capacity(1088) reports exactly 1088; one push past it grows the buffer",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "1088 1088 true",
+          "source": "fn main() {\n    let mut v: Vec<f64> = Vec::with_capacity(1088);\n    let c0 = v.capacity();\n    v.resize(1088, 0.0);\n    let c1 = v.capacity();\n    v.push(1.0);\n    println!(\"{} {} {}\", c0, c1, v.capacity() > 1088);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "std::vec::Vec",
+          "url": "https://doc.rust-lang.org/stable/std/vec/struct.Vec.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Vec never shrinks automatically, refilling an emptied Vec to the same len should make no allocator calls, with_capacity(n) requests exactly n elements, and no growth strategy is guaranteed."
+        },
+        {
+          "title": "The Rust Performance Book: Heap Allocations",
+          "url": "https://nnethercote.github.io/perf-book/heap-allocations.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Reuse a Vec across loop iterations with clear(); SmallVec cuts allocation rates but is slightly slower per operation; ArrayVec has no heap fallback and is a little faster; DHAT measures allocation rates."
+        },
+        {
+          "title": "smallvec 1.16.2: SmallVec",
+          "url": "https://docs.rs/smallvec/1.16.2/smallvec/struct.SmallVec.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A Vec-like container that stores a small number of elements inline; spilled() reports whether the data moved to a heap buffer."
+        },
+        {
+          "title": "arrayvec 0.7.8: ArrayVec",
+          "url": "https://docs.rs/arrayvec/0.7.8/arrayvec/struct.ArrayVec.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A vector with fixed capacity backed by an array; push panics when full and try_push returns an error."
+        },
+        {
+          "title": "divan 0.1.21 documentation",
+          "url": "https://docs.rs/divan/latest/divan/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "AllocProfiler measures GlobalAlloc usage during benchmarks."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "lay-out-hot-data-by-access-struct-of-arrays-when-loops-read-few-fields-rows-sized-against-cache-lines",
+      "name": "Lay out hot data by access: struct-of-arrays when loops read few fields, rows sized against cache lines",
+      "what": "Struct-of-arrays lets a loop load only the fields it reads; array-of-structs keeps one element's fields together; either way the sizes come from size_of / align_of and #[repr(align(N))], and cache-line sizes are per-architecture guesses (crossbeam assumes 128 bytes on x86_64 and aarch64, 64 on most others).",
+      "how": "Know the numbers before choosing: `[T; N]` has size `size_of::<T>() * N` and T's alignment, and a size is always a multiple of its alignment; repr(Rust) guarantees only that fields are aligned, so use repr(C) when a layout is an ABI. Raise alignment with `#[repr(align(64))]` (a power of two up to 2^29; not combinable with packed). SoA in Rust is one Vec per field (or a derive such as soa_derive 0.14.0, which generates a Vec per field) and loops that zip the fields they need; soa_derive states the main advantage is loading only some fields when iterating. Keep hot types small: the perf book notes types larger than 128 bytes are copied with memcpy rather than inline code, and smaller types reduce memory traffic and cache pressure. Cache-line padding (crossbeam-utils CachePadded) exists to stop false sharing between threads.",
+      "rust_version": "any",
+      "gotchas": "SoA gives up indexing into one element as a struct (soa_derive's generated vector cannot be indexed into a reference) and turns a one-element copy into scattered loads. repr(Rust) may reorder fields, so never compute offsets by hand without repr(C). There is no std constant for the cache-line size; crossbeam calls its per-architecture values reasonable guesses. On 1.98.1 a non-power-of-two alignment is E0589 and packed + align is E0587. Changing a layout that crosses an ABI is an interface change, not an optimization.",
+      "engine_note": "The solver ABI is array-of-structs: BODIES is [f64; 64 x 17] = 8,704 bytes, 136 bytes per body (2.125 64-byte lines, so rows straddle lines), and build.mjs hard-codes the stride 17 and every offset. rapier_law.rs `body_at` returns [f64; 17] = 136 bytes by value, just over the perf book's 128-byte memcpy size. The V8 profile of the scene put 65% of wasm samples in parry and Rapier and 4.0% in the law's own code, so there is no measured case for changing the ABI layout.",
+      "checks": [
+        {
+          "label": "a 17-slot f64 row is 136 bytes, the body buffer 8,704; repr(align(64)) makes a 64-byte line",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "136 8 8704 64 64",
+          "source": "use std::mem::{align_of, size_of};\n\n#[repr(align(64))]\nstruct Line([f64; 8]);\n\nfn main() {\n    println!(\"{} {} {} {} {}\", size_of::<[f64; 17]>(), align_of::<[f64; 17]>(), size_of::<[f64; 64 * 17]>(), size_of::<Line>(), align_of::<Line>());\n}\n"
+        },
+        {
+          "label": "repr(align) must be a power of two: E0589",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0589"
+          ],
+          "source": "#[repr(align(3))]\npub struct Row(u8);\n"
+        },
+        {
+          "label": "packed and align cannot be combined: E0587",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0587"
+          ],
+          "source": "#[repr(packed, align(8))]\npub struct Row(u8);\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference: Type layout",
+          "url": "https://doc.rust-lang.org/reference/type-layout.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Size is a multiple of alignment; [T; N] has size size_of::<T>() * N and T's alignment; repr(Rust) guarantees only field alignment; align must be a power of two up to 2^29 and cannot be combined with packed."
+        },
+        {
+          "title": "crossbeam-utils 0.8.23: CachePadded",
+          "url": "https://docs.rs/crossbeam-utils/latest/crossbeam_utils/struct.CachePadded.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Pads to an assumed cache-line length of 128 bytes on x86-64, aarch64 and powerpc64 (the spatial prefetcher pulls pairs of 64-byte lines) and 64 bytes on most others, calling these reasonable guesses."
+        },
+        {
+          "title": "soa_derive 0.14.0 documentation",
+          "url": "https://docs.rs/soa_derive/latest/soa_derive/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "#[derive(StructOfArray)] generates a vector per field; the main advantage of the SoA layout is loading only some fields when iterating."
+        },
+        {
+          "title": "The Rust Performance Book: Type Sizes",
+          "url": "https://nnethercote.github.io/perf-book/type-sizes.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Shrinking often-instantiated types reduces memory traffic and cache pressure; types larger than 128 bytes are copied with memcpy."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "profile-the-law-natively-samply-perf-vtune-superluminal-then-confirm-hot-spots-with-node-cpu-prof",
+      "name": "Profile the law natively (samply, perf, VTune, Superluminal), then confirm hot spots with node --cpu-prof",
+      "what": "A native build of the same crate replayed the scene with byte-identical results and ran 1.9x faster than the wasm in V8, but it takes a different square-root path, so rank Rust hot spots natively and confirm them with V8's profile of the shipped artifact, which names wasm frames only when the name section is kept.",
+      "how": "Profiling build: `[profile.profiling] inherits = \"release\"` + `debug = \"line-tables-only\"` (line tables only: file and line info for backtraces), plus `-C force-frame-pointers=yes` for frame-pointer unwinding (perf book). Tools: samply (`cargo install --locked samply`; `samply record ./target/profiling/<bin>`; macOS, Linux, Windows; Firefox Profiler UI); cargo-flamegraph (`cargo flamegraph`; perf on Linux, xctrace on macOS, blondie or dtrace on Windows); perf (Linux, hardware counters; view in Hotspot or Firefox Profiler); Intel VTune (Windows, Linux, macOS); Superluminal (Windows, Xbox, PlayStation and Linux per its page; recommends release `debug = true`; the superluminal-perf 0.4.0 events compile out on non-Windows); Tracy through tracy-client 0.19.0 (`span!` zones, `frame_mark()`, feature `enable` = TRACY_ENABLE). Native vs V8, measured on this rig with the pinned profile: native x86_64-pc-windows-msvc 9.3 ms per 400 product quanta and 150 us per 400 box steps vs V8 17.6 ms and 203 us; result streams (2,045,632 + 870,400 bytes) identical. In V8: `node --cpu-prof --cpu-prof-interval 100 app.mjs` writes a .cpuprofile (default interval 1000 us); V8 runs wasm in Liftoff first and recompiles hot functions with TurboFan in the background, so warm up before measuring. With the 182,205-byte name section, frames read like `_RNv...si_solver10rapier_law6ensure` (v0-mangled; rustfilt demangles); the strip = \"symbols\" build showed only `wasm-function[N]`. On Linux, V8's `--perf-prof` flag (with `--interpreted-frames-native-stack`) lets perf attribute samples to JIT-compiled frames.",
+      "rust_version": "any; samply, flamegraph, tracy-client 0.19.0, superluminal-perf 0.4.0",
+      "gotchas": "The native build is a proxy with a different mix: libm 0.2.16 takes the hardware sqrtsd path wherever sse2 is enabled but its software path on wasm32 unless the unstable-intrinsics feature is on (the solver resolves libm with only default + arch: `cargo tree -e features -i libm`), and in V8 that software sqrt plus the 128-bit multiply it calls (__multi3) took 22% of wasm samples, cost a native profile cannot show. Speed ratios differ by law (1.9x product, 1.35x box). strip = \"symbols\" saves 12% of the artifact but blinds V8 profiles. Keep profiler crates and their `enable` features out of the pinned build (a feature changes the artifact), and note Tracy may broadcast discovery packets on the local network. At the default 1 ms interval a 400-quantum scene yields only about 80 samples; run longer or sample faster.",
+      "engine_note": "Profile natively from a scratch or bench build of solver/ with crate-type [\"cdylib\", \"rlib\"], never from the pinned profile, replaying input bits dumped from the JS run so the native run computes the same record (identical here). Then confirm with node --cpu-prof on build.mjs's artifact. Measured V8 split (100 us sampling, 1,192 wasm samples): parry3d_f64 34.9%, rapier3d_f64 30.3%, libm 13.9% (sqrt), __multi3 8.4% (called only from libm's sqrt), nalgebra 4.6%, the law's own code 4.0%, dlmalloc 0.7%. The software sqrt comes from `enhanced-determinism` (rapier: simba/libm_force; parry: simba/libm_force, glamx/libm, glamx/scalar-math); whether the wasm f64.sqrt instruction could replace it without moving results is for the float-determinism lane, not a flag to flip here.",
+      "checks": [],
+      "sources": [
+        {
+          "title": "The Rust Performance Book: Profiling",
+          "url": "https://nnethercote.github.io/perf-book/profiling.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Lists perf, VTune (Windows, Linux, macOS), AMD uProf, samply, flamegraph and others with platforms; recommends debug = \"line-tables-only\" and -C force-frame-pointers=yes for profiling release builds."
+        },
+        {
+          "title": "samply README",
+          "url": "https://github.com/mstange/samply",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "samply is a sampling CPU profiler for macOS, Linux and Windows that uses the Firefox Profiler UI; install with cargo install --locked samply and profile a custom profiling profile."
+        },
+        {
+          "title": "flamegraph (cargo-flamegraph) README",
+          "url": "https://github.com/flamegraph-rs/flamegraph",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "cargo flamegraph uses perf on Linux, xctrace on macOS, blondie or dtrace on Windows, and wants debug info in release."
+        },
+        {
+          "title": "tracy-client 0.19.0 documentation",
+          "url": "https://docs.rs/tracy-client/latest/tracy_client/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Safe bindings to the Tracy client with span! and frame_mark(); the enable feature corresponds to TRACY_ENABLE; Tracy may broadcast discovery packets on the local network."
+        },
+        {
+          "title": "Superluminal for Rust",
+          "url": "https://superluminal.eu/applications/rust/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Superluminal resolves and demangles Rust symbols for MSVC and Clang toolchains, lists Windows, Xbox, PlayStation and Linux, and suggests [profile.release] debug = true."
+        },
+        {
+          "title": "superluminal-perf 0.4.0 documentation",
+          "url": "https://docs.rs/superluminal-perf/latest/superluminal_perf/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "begin_event/end_event instrument captures; on non-Windows platforms the events are compiled out."
+        },
+        {
+          "title": "V8: WebAssembly compilation pipeline",
+          "url": "https://v8.dev/docs/wasm-compilation-pipeline",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "V8 compiles wasm with the one-pass Liftoff compiler first and re-compiles functions that reach a hotness threshold with TurboFan on a background thread."
+        },
+        {
+          "title": "Node.js command-line options (--cpu-prof)",
+          "url": "https://nodejs.org/api/cli.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "--cpu-prof writes a .cpuprofile at exit; --cpu-prof-interval sets the sampling interval, default 1000 microseconds."
+        },
+        {
+          "title": "V8: Linux perf integration",
+          "url": "https://v8.dev/docs/linux-perf",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "--perf-prof (with --interpreted-frames-native-stack) lets Linux perf attribute samples to JIT-compiled code."
+        },
+        {
+          "title": "libm 0.2.16 source: src/math/sqrt.rs",
+          "url": "https://docs.rs/crate/libm/0.2.16/source/src/math/sqrt.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "f64 sqrt uses the arch implementation under aarch64 NEON, wasm32 with intrinsics_enabled, or sse2, and otherwise the generic software sqrt."
+        },
+        {
+          "title": "libm 0.2.16 source: configure.rs",
+          "url": "https://docs.rs/crate/libm/0.2.16/source/configure.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "intrinsics_enabled is disabled by default and set only with the unstable-intrinsics feature (unless force-soft-floats)."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 Cargo.toml",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "enhanced-determinism = [\"simba/libm_force\", \"parry3d-f64/enhanced-determinism\"]."
+        },
+        {
+          "title": "parry3d-f64 0.30.2 Cargo.toml",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "enhanced-determinism = [\"simba/libm_force\", \"indexmap\", \"glamx/libm\", \"glamx/scalar-math\"]."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "get-simd-on-stable-from-auto-vectorization-std-arch-and-target-feature-std-simd-is-still-nightly-only",
+      "name": "Get SIMD on stable from auto-vectorization, std::arch and #[target_feature]; std::simd is still nightly-only",
+      "what": "Once a SIMD feature is enabled, LLVM vectorizes elementwise loops and integer reductions but keeps float reductions in order; std::arch intrinsics are safe #[target_feature] functions that need `unsafe` unless the caller itself enables the feature (on wasm they are always safe to call); std::simd (portable_simd) needs nightly.",
+      "how": "Measured on wasm32 (`--emit=asm`, opt-level 3): without a flag all three loops are scalar; with `-C target-feature=+simd128`, `y[i] = y[i] + a * x[i]` becomes f64x2.mul / f64x2.add, a wrapping i64 sum becomes i64x2.add, and an f64 sum stays nine sequential f64.add (unrolled, never reassociated). Enable per function with `#[target_feature(enable = \"simd128\")]` or per crate with `-C target-feature=+simd128`; the flag does not rebuild the precompiled std, and wasm has no runtime detection, so a module either has SIMD and needs an engine with SIMD or has none. x86 native: runtime dispatch with `is_x86_feature_detected!(\"avx2\")` and a `#[target_feature(enable = \"avx2\")]` fn called in `unsafe` (safe functions may carry the attribute since 1.86). Measured on 1.98.1: `_mm_add_pd` (SSE2, in the host's default features) from a plain fn is E0133; from a `#[target_feature(enable = \"sse2\")]` fn it compiles without unsafe. `#![feature(portable_simd)]` is E0554 on stable (tracking issue rust-lang/rust#86656).",
+      "rust_version": "safe #[target_feature] fns 1.86+; wasm32 simd128 intrinsics stable; std::simd nightly-only",
+      "gotchas": "Relaxed-SIMD intrinsics such as f64x2_relaxed_madd have implementation-specific results (core::arch::wasm32 docs); the pinned build disables relaxed-simd and another lane owns the opcode lint. Rewriting a float reduction into lanes changes its result; LLVM will not do it for you, so a law must not do it silently. rustc calls -C target-feature unsafe (undefined behaviour on a CPU without the feature). A target feature enabled only by the global target default did not count as 'the caller enables' on 1.98.1 (E0133 for SSE2): annotate the caller.",
+      "engine_note": "The solver builds with no SIMD feature and -relaxed-simd (FLAGS.md). A +simd128 build of the scratch copy gave identical results on the scene, 1,478,802 bytes (-3.0%), a target_features section of 157 instead of 148 bytes, and 0.95x V8 time (inside the +-10% noise). The small change is consistent with glam 0.33.10 (the version glamx 0.3.1 uses) keeping its simd128 paths in f32 and bool types (0 target_feature cfgs under src/f64). SIMD is not worth a new digest today.",
+      "checks": [
+        {
+          "label": "std::simd needs #![feature(portable_simd)]: E0554 on stable",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0554"
+          ],
+          "source": "#![feature(portable_simd)]\nuse std::simd::f64x2;\n\npub fn double(a: f64x2) -> f64x2 {\n    a + a\n}\n"
+        },
+        {
+          "label": "a safe #[target_feature] fn called from a plain fn needs unsafe: E0133",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0133"
+          ],
+          "source": "#[target_feature(enable = \"avx2\")]\npub fn needs_avx2() -> u32 {\n    2\n}\n\npub fn caller() -> u32 {\n    needs_avx2()\n}\n"
+        },
+        {
+          "label": "runtime detection + unsafe call is the portable x86 pattern",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "10",
+          "source": "#[target_feature(enable = \"avx2\")]\nfn sum4(xs: &[f64; 4]) -> f64 {\n    xs.iter().sum()\n}\n\nfn sum4_dispatch(xs: &[f64; 4]) -> f64 {\n    if is_x86_feature_detected!(\"avx2\") {\n        // SAFETY: the running CPU was just checked for AVX2.\n        unsafe { sum4(xs) }\n    } else {\n        xs.iter().sum()\n    }\n}\n\nfn main() {\n    println!(\"{}\", sum4_dispatch(&[1.0, 2.0, 3.0, 4.0]));\n}\n"
+        },
+        {
+          "label": "an SSE2 intrinsic from a plain fn is E0133 even though sse2 is a default feature",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0133"
+          ],
+          "source": "use std::arch::x86_64::*;\n\npub fn add2(a: __m128d, b: __m128d) -> __m128d {\n    _mm_add_pd(a, b)\n}\n"
+        },
+        {
+          "label": "the same intrinsic compiles without unsafe inside #[target_feature(enable = \"sse2\")]",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "use std::arch::x86_64::*;\n\n#[target_feature(enable = \"sse2\")]\npub fn add2(a: __m128d, b: __m128d) -> __m128d {\n    _mm_add_pd(a, b)\n}\n"
+        },
+        {
+          "label": "on wasm a safe simd128 #[target_feature] fn is callable from a plain fn",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "2",
+          "wasm_call": {
+            "export": "call_simd_fn_safely",
+            "args": []
+          },
+          "source": "#[target_feature(enable = \"simd128\")]\nfn lanes() -> u32 {\n    2\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn call_simd_fn_safely() -> u32 {\n    lanes()\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn simd128_on() -> u32 {\n    cfg!(target_feature = \"simd128\") as u32\n}\n"
+        },
+        {
+          "label": "simd128 is off by default on wasm32-unknown-unknown (1.98.1)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "0",
+          "wasm_call": {
+            "export": "simd128_on",
+            "args": []
+          },
+          "source": "#[target_feature(enable = \"simd128\")]\nfn lanes() -> u32 {\n    2\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn call_simd_fn_safely() -> u32 {\n    lanes()\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn simd128_on() -> u32 {\n    cfg!(target_feature = \"simd128\") as u32\n}\n"
+        },
+        {
+          "label": "-C target-feature=+simd128 turns it on for the whole crate",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "target-feature=+simd128"
+          ],
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_call": {
+            "export": "simd128_on",
+            "args": []
+          },
+          "source": "#[target_feature(enable = \"simd128\")]\nfn lanes() -> u32 {\n    2\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn call_simd_fn_safely() -> u32 {\n    lanes()\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn simd128_on() -> u32 {\n    cfg!(target_feature = \"simd128\") as u32\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "std::arch module documentation",
+          "url": "https://doc.rust-lang.org/stable/std/arch/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Static detection via -C target-cpu=native or -C target-feature plus cfg(target_feature), dynamic detection via is_x86_feature_detected! and #[target_feature] functions; a binary built with a feature must only run on systems that have it."
+        },
+        {
+          "title": "std::simd module documentation",
+          "url": "https://doc.rust-lang.org/stable/std/simd/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Portable SIMD is a nightly-only experimental API behind the portable_simd feature (tracking issue #86656)."
+        },
+        {
+          "title": "The Rust Reference: Code generation attributes",
+          "url": "https://doc.rust-lang.org/reference/attributes/codegen.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "inline, inline(always) and inline(never) only suggest and the compiler may ignore them; cold suggests a function is unlikely to be called; safe #[target_feature] functions need an unsafe context unless the caller enables the same features, except on Wasm where they are always safe."
+        },
+        {
+          "title": "Announcing Rust 1.86.0",
+          "url": "https://blog.rust-lang.org/2025/04/03/Rust-1.86.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilized target_feature_11: safe functions may carry #[target_feature]; calling them is safe only from functions with the same features, otherwise it needs unsafe, typically after is_x86_feature_detected!."
+        },
+        {
+          "title": "core::arch::wasm32 module documentation",
+          "url": "https://doc.rust-lang.org/stable/core/arch/wasm32/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Enable simd128 per function or with -Ctarget-feature=+simd128 (std is not recompiled); wasm has no runtime SIMD detection; relaxed-SIMD intrinsics have implementation-specific behaviour."
+        },
+        {
+          "title": "The rustc Book: Codegen options",
+          "url": "https://doc.rust-lang.org/rustc/codegen-options/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Documents -C opt-level (0 also turns on cfg(debug_assertions)), lto, codegen-units, target-cpu (native = the host's processor), target-feature (\"unsafe and might result in undefined runtime behavior\"), panic (default depends on the target), strip and profile-generate/use."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "keep-target-cpu-native-pgo-and-bolt-out-of-the-pinned-artifact-they-tie-codegen-to-a-machine-or-a-profile",
+      "name": "Keep target-cpu=native, PGO and BOLT out of the pinned artifact: they tie codegen to a machine or a profile",
+      "what": "target-cpu=native targets 'the processor of the host machine' and turns on its features (38 instead of 5 on this rig), which flips any cfg(target_feature) path such as wide 1.7.1's fused mul_add; for wasm32, rustc 1.98.1 ignores it with warnings. PGO bytes depend on a training run and cannot even be instrumented for wasm32-unknown-unknown (E0463 profiler_builtins); BOLT rewrites only x86-64 and AArch64 ELF.",
+      "how": "Measured: `rustc +1.98.1 --print cfg -C target-cpu=native` on this host (rustc names it arrowlake-s) lists 38 target_feature entries against 5 by default (cmpxchg16b, fxsr, sse, sse2, sse3), adding avx, avx2, fma, bmi1/2 and more. For wasm32, `-C target-cpu=native` printed \"'arrowlake-s' is not a recognized processor for this target (ignoring processor)\" plus one ignored-feature warning per x86 feature, and the code section was byte-identical to the default build (the file differed only in the module name, which follows the output filename); `--print target-cpus --target wasm32-unknown-unknown` lists bleeding-edge, generic (default), lime1 and mvp. The checks show the mechanism: a cfg(target_feature = \"fma\") branch prints the fused 2^-54 with +fma and 0 without, while plain a * b + c prints 0 both ways (no contraction). wide 1.7.1's f64x2::mul_add documents the same split (vfmadd single rounding with FMA, vfmaq_f64 on ARM64 NEON, (self * m) + a two roundings otherwise). PGO: rustc's four steps are -Cprofile-generate, run, llvm-profdata merge, -Cprofile-use (cargo-pgo wraps them and BOLT); `-Cprofile-generate` with --target wasm32-unknown-unknown fails with error[E0463]: can't find crate for `profiler_builtins`. BOLT 'operates on X86-64 and AArch64 ELF binaries'. For any native build of the law, pin the target CPU explicitly (never native) and record it next to the digest.",
+      "rust_version": "rustc 1.98.1; wide 1.7.1; cargo-pgo current",
+      "gotchas": "A native binary may use instructions other CPUs lack: std::arch says to run a feature-enabled binary only on systems with the feature, and rustc calls -C target-feature unsafe. PGO output is 'optimized with respect to the profiled workloads' (cargo-pgo), so a different training run gives different bytes and a different workload can even run slower; profiles go stale as code changes. That PGO or BOLT cannot change IEEE results is an inference from the float semantics, not measured here, because wasm could not be instrumented. Do not count on wasm32 ignoring native forever: it is a warning today, and an unpinned flag in RUSTFLAGS is still an unpinned input.",
+      "engine_note": "The wasm artifact is untouched by the builder's CPU today (native is ignored for wasm32 on 1.98.1) and cannot be PGO-instrumented. The real exposure is the planned native host bindings (Godot, then Unreal), where native or +fma flips cfg(target_feature) paths. In the pinned graph those sit in wide (reached through simba 0.10.2) and in glam's f32 types; rapier3d-f64 0.35.3, parry3d-f64 0.30.2, glamx 0.3.1, nalgebra 0.35.0 and simba 0.10.2 have 0 such cfg lines. aarch64-unknown-linux-gnu enables neon by default, so an ARM64 native build selects wide's fused path wherever it is reached. A native law must pin its CPU baseline and match the wasm golden.",
+      "checks": [
+        {
+          "label": "default host features: the cfg(fma) branch takes the unfused path and prints 0",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "fma=false madd=0e0 plain=0e0",
+          "source": "use std::hint::black_box;\n\n// The pattern SIMD libraries use: a fused path only when the target feature is on.\n#[inline]\nfn madd(a: f64, b: f64, c: f64) -> f64 {\n    if cfg!(target_feature = \"fma\") { a.mul_add(b, c) } else { a * b + c }\n}\n\nfn main() {\n    let a = black_box(f64::from_bits(0x3FF0_0000_0200_0000)); // 1 + 2^-27\n    let c = black_box(f64::from_bits(0xBFF0_0000_0400_0000)); // -(1 + 2^-26)\n    println!(\"fma={} madd={:e} plain={:e}\", cfg!(target_feature = \"fma\"), madd(a, a, c), a * a + c);\n}\n"
+        },
+        {
+          "label": "+fma flips the same source to the fused path (2^-54); plain a*b+c still prints 0",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "-C",
+            "target-feature=+fma"
+          ],
+          "expect": "runs",
+          "stdout": "fma=true madd=5.551115123125783e-17 plain=0e0",
+          "source": "use std::hint::black_box;\n\n// The pattern SIMD libraries use: a fused path only when the target feature is on.\n#[inline]\nfn madd(a: f64, b: f64, c: f64) -> f64 {\n    if cfg!(target_feature = \"fma\") { a.mul_add(b, c) } else { a * b + c }\n}\n\nfn main() {\n    let a = black_box(f64::from_bits(0x3FF0_0000_0200_0000)); // 1 + 2^-27\n    let c = black_box(f64::from_bits(0xBFF0_0000_0400_0000)); // -(1 + 2^-26)\n    println!(\"fma={} madd={:e} plain={:e}\", cfg!(target_feature = \"fma\"), madd(a, a, c), a * a + c);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The rustc Book: Codegen options",
+          "url": "https://doc.rust-lang.org/rustc/codegen-options/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Documents -C opt-level (0 also turns on cfg(debug_assertions)), lto, codegen-units, target-cpu (native = the host's processor), target-feature (\"unsafe and might result in undefined runtime behavior\"), panic (default depends on the target), strip and profile-generate/use."
+        },
+        {
+          "title": "std::arch module documentation",
+          "url": "https://doc.rust-lang.org/stable/std/arch/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Static detection via -C target-cpu=native or -C target-feature plus cfg(target_feature), dynamic detection via is_x86_feature_detected! and #[target_feature] functions; a binary built with a feature must only run on systems that have it."
+        },
+        {
+          "title": "wide 1.7.1 source: src/f64x2_.rs (mul_add)",
+          "url": "https://docs.rs/crate/wide/1.7.1/source/src/f64x2_.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "f64x2::mul_add picks a fused instruction under cfg(target_feature = \"fma\") or aarch64 NEON and computes (self * a) + b (two roundings) otherwise; the doc comment calls this platform-specific behaviour."
+        },
+        {
+          "title": "The rustc Book: Profile-guided optimization",
+          "url": "https://doc.rust-lang.org/rustc/profile-guided-optimization.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "PGO collects a profile from an instrumented build (-Cprofile-generate), merges it with llvm-profdata and recompiles with -Cprofile-use; with Cargo the flags go through RUSTFLAGS and --target."
+        },
+        {
+          "title": "cargo-pgo README",
+          "url": "https://github.com/Kobzol/cargo-pgo",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "cargo pgo wraps PGO and experimental BOLT; the binary is optimized for the profiled workloads and may be slower on a substantially different workload."
+        },
+        {
+          "title": "BOLT README (llvm-project)",
+          "url": "https://github.com/llvm/llvm-project/blob/main/bolt/README.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "BOLT is a post-link optimizer that operates on X86-64 and AArch64 ELF binaries linked with relocations, using perf branch profiles."
+        },
+        {
+          "title": "RFC 3514: Float semantics",
+          "url": "https://rust-lang.github.io/rfcs/3514-float-semantics.html",
+          "year": 2023,
+          "kind": "rfc",
+          "identifier": "RFC 3514",
+          "claim": "Primitive float operations produce results that exactly match IEEE 754-2008 except NaN bit patterns, which are non-deterministic and may differ between compile-time and run-time evaluation; strict IEEE precludes turning a*b + c into FMA."
+        },
+        {
+          "title": "The Rust Performance Book: Build Configuration",
+          "url": "https://nnethercote.github.io/perf-book/build-configuration.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Recommends codegen-units = 1, thin/fat LTO and panic = \"abort\" for speed, target-cpu=native only when portability does not matter, PGO via cargo-pgo, and debug = \"line-tables-only\"."
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

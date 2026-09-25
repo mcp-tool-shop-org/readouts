@@ -1,0 +1,372 @@
+{
+  "laneSlug": "crate-licences",
+  "title": "Crate licences for a shipped MIT/Apache product",
+  "tier": "si-jam-sessions",
+  "recipes": [
+    {
+      "name": "Audit wasm32 law dependencies for shipped licences",
+      "what": "The wasm32 law binary statically links crates licensed under MIT, Apache-2.0, Unlicense, and Zlib.",
+      "how": "Review the dependency tree for the `wasm32-unknown-unknown` target. Crates like `midly` (Unlicense), `musicxml` (MIT), and `roxmltree` (MIT OR Apache-2.0) are compiled into the final WebAssembly module. You must comply with the attribution requirements of these licences in your product's documentation.",
+      "rust_version": "1.98.1",
+      "gotchas": "Do not assume all crates are dual-licensed MIT/Apache-2.0. `midly` is Unlicense-only.",
+      "engine_note": "The deterministic wasm law must include attribution for these crates in its accompanying documentation or host wrapper.",
+      "checks": [
+        {
+          "label": "wasm law dependencies compile",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [
+            "midly",
+            "musicxml",
+            "roxmltree"
+          ],
+          "expect": "compiles",
+          "source": "use midly as _; use musicxml as _; use roxmltree as _; #[unsafe(no_mangle)] pub extern \"C\" fn check() {}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 Cargo.toml",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "midly is licensed under the Unlicense.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "musicxml 1.1.2 Cargo.toml",
+          "url": "https://docs.rs/crate/musicxml/1.1.2/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "musicxml is licensed under MIT.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "audit-wasm32-law-dependencies-for-shipped-licences"
+    },
+    {
+      "name": "Audit native host dependencies for shipped licences",
+      "what": "The native host binary links additional crates with Apache-2.0-only and BSD-1-Clause licences.",
+      "how": "The host uses `cpal` (Apache-2.0) for audio and `assert_no_alloc` (BSD-1-Clause) for real-time safety checks. These licences reach the shipped native binary and their specific attribution requirements (including Apache NOTICE files and BSD copyright notices) must be met.",
+      "rust_version": "1.98.1",
+      "gotchas": "Host-only dependencies do not affect the wasm law's licence profile, but they do affect the host application.",
+      "engine_note": "The native host plays committed events through an oscillator, requiring `cpal`, which introduces an Apache-2.0-only requirement.",
+      "checks": [
+        {
+          "label": "host dependencies compile",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "cpal",
+            "assert_no_alloc"
+          ],
+          "expect": "compiles",
+          "source": "fn main() {}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "cpal 0.18.2 Cargo.toml",
+          "url": "https://docs.rs/crate/cpal/0.18.2/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "cpal is licensed strictly under Apache-2.0.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "assert_no_alloc 1.1.2 Cargo.toml",
+          "url": "https://docs.rs/crate/assert_no_alloc/1.1.2/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "assert_no_alloc is licensed under BSD-1-Clause.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "audit-native-host-dependencies-for-shipped-licences"
+    },
+    {
+      "name": "Exclude build-time licences from shipped binary requirements",
+      "what": "Licences for build-dependencies and proc-macros do not reach the shipped binary.",
+      "how": "Crates executed during compilation govern the compiler's execution environment, not the compiled output. You do not need to include their attributions in your shipped product, focusing only on binary dependencies like `abc-parser` and `musicxml`.",
+      "rust_version": "1.98.1",
+      "gotchas": "Automated licence scanners might flag build-time dependencies if not configured to filter by target and dependency kind.",
+      "engine_note": "The build process for the deterministic wasm law uses macros, but the resulting raw C ABI cdylib contains no build-time crate code.",
+      "checks": [],
+      "sources": [
+        {
+          "title": "abc-parser 0.4.0 Cargo.toml",
+          "url": "https://docs.rs/crate/abc-parser/0.4.0/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "abc-parser is MIT licensed and reaches the binary.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "musicxml 1.1.2 Cargo.toml",
+          "url": "https://docs.rs/crate/musicxml/1.1.2/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "musicxml is MIT licensed and reaches the binary.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "exclude-build-time-licences-from-shipped-binary-requirements"
+    },
+    {
+      "name": "Configure cargo-deny to allow the measured licence set",
+      "what": "A `cargo-deny` configuration for this stack must explicitly allow MIT, Apache-2.0, Unlicense, Zlib, and BSD-1-Clause.",
+      "how": "In `deny.toml`, set `[licenses] allow = [\"MIT\", \"Apache-2.0\", \"Unlicense\", \"Zlib\", \"BSD-1-Clause\"]`. Set `confidence-threshold = 0.8` to handle slight variations in licence text. Use `cargo-about` to generate the final attribution document for the shipped product.",
+      "rust_version": "1.98.1",
+      "gotchas": "Failing to include `Unlicense` or `BSD-1-Clause` will break CI when `midly` or `assert_no_alloc` are resolved.",
+      "engine_note": "Ensures no unexpected copyleft licences (like GPL) enter the deterministic law or host.",
+      "checks": [],
+      "sources": [
+        {
+          "title": "quick-xml 0.42.0 Cargo.toml",
+          "url": "https://docs.rs/crate/quick-xml/0.42.0/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "quick-xml is MIT licensed.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "roxmltree 0.21.1 Cargo.toml",
+          "url": "https://docs.rs/crate/roxmltree/0.21.1/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "roxmltree is dual-licensed MIT OR Apache-2.0.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "configure-cargo-deny-to-allow-the-measured-licence-set"
+    },
+    {
+      "name": "Comply with Unlicense for public domain equivalent crates",
+      "what": "The Unlicense (used by `midly`) dedicates the work to the public domain and is fully compatible with MIT/Apache-2.0 products.",
+      "how": "You can statically link `midly` into your wasm law without imposing any copyleft restrictions. While Unlicense does not strictly require attribution, it is best practice to include it in your generated `cargo-about` notices alongside MIT/Apache-2.0 crates.",
+      "rust_version": "1.98.1",
+      "gotchas": "Some corporate legal departments flag Unlicense because public domain dedication is not recognized in all jurisdictions; however, it includes a fallback permissive licence.",
+      "engine_note": "The wasm law parses MIDI using `midly`, inheriting this permissive status.",
+      "checks": [
+        {
+          "label": "midly usage",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [
+            "midly"
+          ],
+          "expect": "compiles",
+          "source": "use midly as _; #[unsafe(no_mangle)] pub extern \"C\" fn parse() {}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 Cargo.toml",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "midly uses the Unlicense.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "musicxml 1.1.2 Cargo.toml",
+          "url": "https://docs.rs/crate/musicxml/1.1.2/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "musicxml uses MIT, another permissive licence.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "comply-with-unlicense-for-public-domain-equivalent-crates"
+    },
+    {
+      "name": "Comply with BSD-1-Clause for host-only crates",
+      "what": "The BSD-1-Clause licence (used by `assert_no_alloc`) requires retaining the copyright notice in source and binary distributions.",
+      "how": "When shipping the native host, you must include the copyright notice from `assert_no_alloc` in your documentation or about screen. It does not require reproducing the licence text itself, unlike BSD-2-Clause or BSD-3-Clause, but doing so is standard practice.",
+      "rust_version": "1.98.1",
+      "gotchas": "Do not confuse BSD-1-Clause with BSD-3-Clause; it lacks the non-endorsement clause but still requires copyright retention.",
+      "engine_note": "Used in the native host to ensure the audio thread (playing committed events) does not allocate.",
+      "checks": [
+        {
+          "label": "assert_no_alloc usage",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "assert_no_alloc"
+          ],
+          "expect": "compiles",
+          "source": "fn main() {}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "assert_no_alloc 1.1.2 Cargo.toml",
+          "url": "https://docs.rs/crate/assert_no_alloc/1.1.2/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "assert_no_alloc is licensed under BSD-1-Clause.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "cpal 0.18.2 Cargo.toml",
+          "url": "https://docs.rs/crate/cpal/0.18.2/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "cpal uses Apache-2.0, another host-side licence.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "comply-with-bsd-1-clause-for-host-only-crates"
+    },
+    {
+      "name": "Comply with Apache-2.0-only for host audio crates",
+      "what": "Crates like `cpal` are licensed strictly under Apache-2.0 (not dual MIT/Apache), requiring specific attribution and state-change notices.",
+      "how": "You must include a copy of the Apache-2.0 licence and retain any copyright, patent, trademark, and attribution notices from `cpal`. If you modify the source code of `cpal` itself, you must state that you changed the files.",
+      "rust_version": "1.98.1",
+      "gotchas": "Assuming all Rust crates are dual MIT/Apache-2.0 can lead to missing Apache-specific requirements like NOTICE files.",
+      "engine_note": "The native host relies on `cpal` for audio output, making the host binary subject to Apache-2.0 terms.",
+      "checks": [
+        {
+          "label": "cpal usage",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "cpal"
+          ],
+          "expect": "compiles",
+          "source": "fn main() {}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "cpal 0.18.2 Cargo.toml",
+          "url": "https://docs.rs/crate/cpal/0.18.2/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "cpal is licensed under Apache-2.0.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "rtrb 0.4.0 Cargo.toml",
+          "url": "https://docs.rs/crate/rtrb/0.4.0/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "rtrb is dual-licensed MIT OR Apache-2.0.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "comply-with-apache-2-0-only-for-host-audio-crates"
+    },
+    {
+      "name": "Handle MPL-2.0 file-level copyleft in static links",
+      "what": "MPL-2.0 is a weak copyleft licence that applies at the file level, allowing static linking into a proprietary or MIT/Apache binary.",
+      "how": "If an MPL-2.0 crate is added to the dependency tree, you can statically link it into the wasm law or host without relicensing your entire project. You only need to make the source code of the MPL-2.0 licensed files (and any modifications to them) available.",
+      "rust_version": "1.98.1",
+      "gotchas": "Unlike GPL, MPL-2.0 does not infect the entire statically linked binary. Do not ban MPL-2.0 in `cargo-deny` if you need a crate that uses it, but ensure you comply with source distribution for that crate.",
+      "engine_note": "Relevant if a future renderer or tempo map crate uses MPL-2.0.",
+      "checks": [],
+      "sources": [
+        {
+          "title": "midir 0.11.0 Cargo.toml",
+          "url": "https://docs.rs/crate/midir/0.11.0/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "midir is MIT licensed.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "ringbuf 0.5.2 Cargo.toml",
+          "url": "https://docs.rs/crate/ringbuf/0.5.2/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "ringbuf is dual-licensed MIT OR Apache-2.0.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "handle-mpl-2-0-file-level-copyleft-in-static-links"
+    },
+    {
+      "name": "Reproduce Apache-2.0 NOTICE files in shipped binaries",
+      "what": "If an Apache-2.0 licensed dependency includes a `NOTICE` file, its contents must be reproduced in the shipped product.",
+      "how": "Check the source repositories of Apache-2.0 crates (like `cpal` or dual-licensed crates like `roxmltree`) for a `NOTICE` file. If present, append its contents to your product's attribution document (e.g., the output of `cargo-about`).",
+      "rust_version": "1.98.1",
+      "gotchas": "Automated tools sometimes miss `NOTICE` files if they only scan for `LICENSE` files. You must manually verify or use a tool that explicitly supports Apache NOTICE aggregation.",
+      "engine_note": "The host and wasm law both use Apache-2.0 crates, so NOTICE file compliance is mandatory for the shipped jam session product.",
+      "checks": [],
+      "sources": [
+        {
+          "title": "cpal 0.18.2 Cargo.toml",
+          "url": "https://docs.rs/crate/cpal/0.18.2/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "cpal is licensed under Apache-2.0, which carries the NOTICE file requirement.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "roxmltree 0.21.1 Cargo.toml",
+          "url": "https://docs.rs/crate/roxmltree/0.21.1/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "claim": "roxmltree is dual-licensed MIT OR Apache-2.0.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "reproduce-apache-2-0-notice-files-in-shipped-binaries"
+    }
+  ]
+}

@@ -1,0 +1,172 @@
+{
+  "wave": 7,
+  "date": "2026-08-19",
+  "title": "Cloud audio measured — Comfy-Agent dialog receipts (the Motif front-end)",
+  "domain_scope": "audio + comfy — EMPIRICAL provenance class: measured on this account (billing feed, pulled workflow records, decoded FLAC headers, LUFS manifests), plus agent-reported live-catalog facts marked as such",
+  "agent_count": 2,
+  "dispatch_path": "waves/wave-07-cloud-audio-measured/dispatch.md",
+  "verifier_note": "NOT a web-retrieval swarm: a 5-round dialog with the Comfy Cloud in-app agent (live-catalog access), every load-bearing claim re-verified from this rig over the official API — jobs re-billed from the account feed, graphs re-pulled by workflow_id, outputs re-downloaded and FLAC-header-decoded, LUFS manifests read. Two agent claims corrected by measurement (stems decode 44.1 kHz, not 48; SFX v2 silently lost its duration input); two KB claims corrected by the agent's catalog access (ACE-Step license string not surfaced by the catalog; Chatterbox now ON cloud, superseding wave-6 'unknown'). Claims that remain single-source (agent catalog browsing, not independently measured) are labeled 'agent-reported 2026-08-19' in their notes and stay advisory until re-measured. Receipts: model-knowledge/dialogs/comfy-agent/ rounds 01-05.",
+  "lanes": [
+    {
+      "slug": "audio",
+      "name": "Audio — cloud nodes, utilities, and the two measured Motif workflows",
+      "research": {
+        "extras": [
+          {
+            "kind": "node",
+            "name": "Core AudioSeparation = Demucs htdemucs 4-stem (MEASURED)",
+            "url": "https://comfy.org/cloud/supported-nodes/",
+            "note": "MEASURED 2026-08-19: the Comfy-core AudioSeparation node outputs exactly Bass/Drums/Other/Vocals and decodes at 44.1 kHz REGARDLESS of input rate (Demucs native) — a 48 kHz ACE-Step mix yields 44.1 kHz stems in the same graph (5,292,000 samples = 120.000 s, header-decoded). MIT code+weights: THE commercial-clean cloud stem path for Motif vertical layering. Params used: chunk 10 s, overlap 0.1, linear fade. SCNet is NOT separately on the allowlist; MelBandRoFormer node exists but its checkpoint identity/license is unverified — route commercial stems through this node."
+          },
+          {
+            "kind": "node",
+            "name": "ChatterBox pack on cloud (FL_Chatterbox*) — supersedes wave-6 'unknown'",
+            "url": "https://comfy.org/cloud/supported-nodes/",
+            "note": "Agent-reported 2026-08-19 from the live catalog: FL_ChatterboxTTS / FL_ChatterboxTurboTTS / FL_ChatterboxMultilingualTTS / FL_ChatterboxDialogTTS / FL_ChatterboxVC all present (June sweep had Chatterbox absent — catalog changed). audio_prompt is an OPTIONAL AUDIO input: unconnected = built-in default voice, so non-cloned VO batching works headlessly on cloud. target_voice (VC) is a REQUIRED AUDIO link input, and the cloud has NO audio-attachment/upload path (unlike images) — consented-voice CLONING therefore stays on the local 5090. MIT + Perth watermark per the wave-4 KB entry."
+          },
+          {
+            "kind": "node",
+            "name": "Qwen3-TTS node inventory (FB_* classes)",
+            "url": "https://comfy.org/cloud/supported-nodes/",
+            "note": "Agent-reported 2026-08-19: ships as FB_Qwen3TTSVoiceClone / FB_Qwen3TTSVoiceDesign / FB_Qwen3TTSDialogueInference / FB_Qwen3TTSCustomVoice plus RoleBank / VoiceClonePrompt under the Qwen3-TTS pack (wave-6 confirmed the pack; this names the classes). Same no-upload constraint as Chatterbox: clone-reference audio cannot be uploaded into a cloud graph — preset/designed voices are the cloud path, cloning is local."
+          },
+          {
+            "kind": "node",
+            "name": "Audio utility inventory on the allowlist (metadata + editing)",
+            "url": "https://comfy.org/cloud/supported-nodes/",
+            "note": "Agent-reported 2026-08-19: AudioBPMDetector (Lum3on) + AudioGetTempo (BPM detection), AudioLoudnessMeter (integrated LUFS; STRING output — reaches the headless manifest only via SaveText, format 'Integrated Loudness: -12.32 LUFS' — MEASURED), AudioTempoMatch, TrimAudioDuration, AudioCrop, AudioConcat, AudioCombine, plus Lum3on AudioTools processors (Delay, FadeIn/Out, Equalizer3Band, AdjustVolume, DeEsser, DeHum, DePlosive). NO key/chroma detector on the allowlist — tempo yes, key no; key detection happens at Motif ingest. Loop seams: AudioConcat/Crop/fades (no SA3 inpaint/continuation node on cloud)."
+          },
+          {
+            "kind": "node",
+            "name": "Partner audio API nodes (prepaid-credit, provider ToS)",
+            "url": "https://comfy.org/cloud/supported-nodes/",
+            "note": "Agent-reported 2026-08-19, partner/audio/* inventory: Sonilo (SoniloTextToMusic, SoniloVideoToMusic — score-to-picture), ByteDanceSeedAudio (SFX+music+speech in one), ElevenLabs (TextToSpeech, TextToDialogue, TextToSoundEffects, VoiceIsolation), HeyGen TTS. All API-metered with provider output-ownership terms. STUDIO POLICY (round-1 reply): prototyping and temp tracks only — shipped game assets stay on open weights so no shipped asset is tethered to a provider's ToS."
+          },
+          {
+            "kind": "workflow",
+            "name": "ace15-track-to-stems (headless, measured)",
+            "url": "workflows/audio/ace15-track-to-stems.json",
+            "note": "The Motif music front-end, MEASURED end-to-end: ACE-Step 1.5 XL instrumental (authored bpm/keyscale/timesignature; euler/simple/50/cfg6/shift3) -> core AudioSeparation -> FLAC mix (48 kHz) + 4 FLAC stems (44.1 kHz) + integrated-LUFS SaveText manifest. 120 s job = 29.7 GPU-sec = ~7.9 credits (~870 runs/mo on the Creator pool); bit-deterministic on fixed seed (cache-hit proof). Cloud record 'Motif builds v2' workflow_id 78a76ecd-7ae2-452a-afea-ad55a8d290f8. Model files: Comfy-Org/ace_step_1.5_ComfyUI_files split_files (HF) — mirrors bit-for-bit to the local 5090."
+          },
+          {
+            "kind": "workflow",
+            "name": "sa3-sfx-batch (headless, measured)",
+            "url": "workflows/audio/sa3-sfx-batch.json",
+            "note": "The Motif SFX batch generator, MEASURED: Stable Audio 3.0 Medium flat graph (no template subgraph, no reprompter), lcm/8-step/cfg 1, one PrimitiveFloat drives EmptyLatentAudio.seconds AND ConditioningStableAudio.seconds_total; FLAC (44.1 kHz) + LUFS SaveText manifest. ~10 s ~= 9.8 GPU-sec ~= 2.6 credits uncached / 0.3 cached. Durations SNAP TO THE LATENT GRID (3.0 s ask -> 131,072 samples = 2.972 s): always read actual duration from the file. Cloud record 'Motif SFX batch v3' workflow_id 2c46c9ed-a0ac-43a7-a594-9616c384f4ca. Encoder is t5gemma_b_b_ul2 — the Gemma-ToU rider component, confirmed on-disk."
+          }
+        ]
+      }
+    },
+    {
+      "slug": "comfy",
+      "name": "ComfyUI — Comfy Cloud platform facts measured during the audio dialog",
+      "research": {
+        "extras": [
+          {
+            "kind": "resource",
+            "name": "Active-GPU-second billing (MEASURED)",
+            "url": "model-knowledge/dialogs/comfy-agent/2026-08-18-audio-03-run-receipts.md",
+            "note": "Billing feed shows per-job gpu_seconds on rtx_pro_6000: the 170 s wall-clock music job billed 31.9 GPU-sec — queue/model-load time is effectively free; the ~0.266 credits/GPU-sec Creator rate (wave-6, verified) converts measured jobs to ~7.9 credits per 120 s track+stems and ~2.6 credits per 10 s SFX. Per-job DOLLAR cost is not exposed (invoice-level rating); gpu_seconds via the billing activity feed is the authoritative per-job figure. The whole 4-round audio dialog (all builds, tests, confirmations) cost ~44 credits = 0.6% of the monthly pool."
+          },
+          {
+            "kind": "resource",
+            "name": "Whole-graph memoization / bit-determinism (MEASURED)",
+            "url": "model-knowledge/dialogs/comfy-agent/2026-08-18-audio-03-run-receipts.md",
+            "note": "Re-running an identical graph + fixed seed billed 1.16 GPU-sec (vs ~9.8 uncached) and returned in 1.65 s wall — the cloud memoizes whole-graph results. Two implications for Motif cue families: (1) generation is bit-deterministic on pinned seeds (regenerate any cue exactly), (2) re-verification of an already-run graph is nearly free. Design every production graph with a shared seed primitive feeding all stochastic nodes."
+          },
+          {
+            "kind": "resource",
+            "name": "No AUDIO upload path into cloud graphs",
+            "url": "model-knowledge/dialogs/comfy-agent/2026-08-18-audio-03-brief.md",
+            "note": "Agent-reported 2026-08-19: AUDIO-type node inputs are link-only — reference audio must be PRODUCED in-graph; there is no audio-attachment path (images have one). Binds every reference-audio workflow to local: voice cloning (Chatterbox VC, Qwen3-TTS clone), audio-style-reference music generation, and any stem-processing of externally produced tracks. Cloud audio is generate-and-process-what-you-generate."
+          },
+          {
+            "kind": "resource",
+            "name": "No audio-LoRA loader on the allowlist",
+            "url": "model-knowledge/dialogs/comfy-agent/2026-08-18-audio-04-brief.md",
+            "note": "Agent-reported 2026-08-19: the generic LoraLoader (MODEL/CLIP) exists but no audio-specific LoRA loader is on the allowlist; the lora category is image/video only (KJNodes, AnimateDiff, LTX). The ACE-Step house-style OST LoRA (trainable locally, ~8 songs / ~1 hr) therefore trains AND infers on the local 5090; the cloud stays the stock-model fan-out. Complements wave-6 Gotcha: the cloud cannot TRAIN LoRAs either."
+          },
+          {
+            "kind": "resource",
+            "name": "Headless-graph trap ledger (MEASURED the hard way)",
+            "url": "model-knowledge/workflows/audio/README.md",
+            "note": "Three traps caught during the dialog, now standing law for every graph built for the API: (1) UI-only nodes — PrimitiveNode ('Song Duration') and template CustomCombo — validate in the editor but NEVER reach /api/prompt; use PrimitiveFloat/PrimitiveInt. (2) SaveAudioMP3 is deprecated in core AND MP3 encoder padding breaks seamless loop points + stem/mix sample alignment — masters are SaveAudioAdvanced FLAC/WAV. (3) STRING node outputs (AudioLoudnessMeter.loudness_info) reach the headless output manifest only through SaveText. Corollary rule: our consumer is POST /api/prompt, so static-validation-green is a hard requirement — editor-only validity does not count."
+          },
+          {
+            "kind": "resource",
+            "name": "SA3 latent-grid duration snapping (MEASURED)",
+            "url": "model-knowledge/dialogs/comfy-agent/2026-08-18-audio-04-run-receipts.md",
+            "note": "Stable Audio 3 output length quantizes to the latent grid, not the requested seconds: 3.0 s ask -> 131,072 samples (exactly 2^17) = 2.972 s; 10 s ask -> 10.031 s. ACE-Step by contrast honored 120 s exactly (5,760,000 samples at 48 kHz). Downstream rule (logged by the Comfy Agent as expected behavior): always read actual duration from the decoded file."
+          }
+        ]
+      }
+    }
+  ],
+  "model_updates": [
+    {
+      "slug": "ace-step-1-5",
+      "cloud_feasible": "yes",
+      "cloud_note": "MEASURED 2026-08-19 (supersedes the wave-6 template-level note): native core node set — TextEncodeAceStepAudio1.5 exposes tags/lyrics/seed/bpm(INT)/duration(FLOAT, no exposed cap)/timesignature(2,3,4,6)/language(50)/keyscale(34 keys) + sampling knobs; decode = 48 kHz 16-bit stereo, honors duration exactly (120.000 s). Recipe: euler/simple/50 steps/cfg 6/AuraFlow shift 3; weights acestep_v1.5_xl_base_bf16 + ace_1.5_vae + dual Qwen encoders (Comfy-Org/ace_step_1.5_ComfyUI_files). 120 s track + 4-stem split = 29.7 GPU-sec ~= 7.9 credits; bit-deterministic on fixed seed. Authored BPM/key at generation = Motif cue families are transition-compatible by construction. Production graph: workflows/audio/ace15-track-to-stems.json."
+    },
+    {
+      "slug": "stable-audio-3-0",
+      "cloud_feasible": "yes",
+      "cloud_note": "MEASURED 2026-08-19: Medium runs headless as a flat graph (CheckpointLoaderSimple stable_audio_3_medium + CLIPLoader t5gemma_b_b_ul2 type stable_audio) — lcm sampler / 8 steps / cfg 1; 44.1 kHz 16-bit; ~10 s ~= 9.8 GPU-sec ~= 2.6 credits uncached. Durations snap to the latent grid (read actual file duration). NO inpaint/continuation node on cloud — loop seams via AudioConcat/Crop/fades or local. The stock template wraps a Qwen3.5-2B in-graph reprompter (credit-free, GPU-time only) — REMOVE it for batch reproducibility, keep only for hero cues. The T5Gemma encoder is the Gemma-ToU §3.2 rider component, confirmed on-disk. TRAP: the template's CustomCombo category selector fails static validation for ANY value — the flat rebuild (workflows/audio/sa3-sfx-batch.json) is the headless-safe form."
+    },
+    {
+      "slug": "stable-audio-3-small-sfx",
+      "cloud_feasible": "unknown",
+      "cloud_note": "Not exercised on cloud: the live catalog's SA3 templates are medium + base (audio_stable_audio_3_medium/_base); no small-sfx template surfaced in the dialog (2026-08-19). The measured cloud SFX path is stable-audio-3-0 Medium via the flat graph; small-sfx remains the local/on-device variant (and its inpainting/continuation for loop tails was NOT found exposed on cloud)."
+    },
+    {
+      "slug": "stable-audio-open-1-0",
+      "cloud_feasible": "yes",
+      "cloud_note": "Present on cloud only as the example template (audio_stable_audio_example, 2026-08-19) — superseded in practice: use Stable Audio 3.0 Medium (newer, licensed training data, measured recipe) for anything new."
+    },
+    {
+      "slug": "hybrid-demucs",
+      "cloud_feasible": "yes",
+      "cloud_note": "MEASURED 2026-08-19: htdemucs IS the Comfy-core AudioSeparation node on the allowlist (outputs Bass/Drums/Other/Vocals) — generate->separate chains in ONE cloud graph (proven, job 6c99f797/b81c6dbf). Outputs decode at 44.1 kHz regardless of input rate (Demucs native), so a 48 kHz ACE-Step mix yields rate-mismatched stems BY DESIGN — Motif resamples at ingest to the 48 kHz runtime standard. MIT code+weights: the commercial-clean cloud stem path."
+    },
+    {
+      "slug": "mel-band-roformer",
+      "cloud_feasible": "partial",
+      "cloud_note": "A MelBandRoFormer separation node IS on the allowlist (agent-reported), but WHICH checkpoint it loads is unidentified — and the top community vocal checkpoint (KimberleyJensen) has no license file (verifier-refuted for commercial use, wave 4). Until the cloud node's checkpoint identity + license are verified, route commercial stem work through core AudioSeparation (Demucs, MIT, measured). Local MSST usage unchanged."
+    },
+    {
+      "slug": "scnet-large",
+      "cloud_feasible": "local",
+      "cloud_note": "Not separately on the Comfy Cloud allowlist (agent-reported 2026-08-19). Local via ZFTurbo MSST (MIT) as before; cloud stems = core AudioSeparation (Demucs)."
+    },
+    {
+      "slug": "scnet-xl",
+      "cloud_feasible": "local",
+      "cloud_note": "Not separately on the Comfy Cloud allowlist (agent-reported 2026-08-19). Local via ZFTurbo MSST (MIT); pick it locally when SDR matters more than speed — cloud stems = core AudioSeparation."
+    },
+    {
+      "slug": "chatterbox-tts",
+      "cloud_feasible": "yes",
+      "cloud_note": "SUPERSEDES wave-6 'unknown' (catalog changed): FL_Chatterbox pack on cloud as of 2026-08-19 — TTS / TurboTTS / MultilingualTTS / DialogTTS / VC (agent-reported from the live catalog). audio_prompt is OPTIONAL: unconnected = built-in default voice, so non-cloned VO batching runs headlessly on cloud. Voice CLONING stays local — audio_prompt/target_voice are AUDIO link inputs and the cloud has no audio upload path. Consent rule stands (MIT does not waive it); every output carries the Perth watermark."
+    },
+    {
+      "slug": "kokoro-82m",
+      "cloud_feasible": "local",
+      "cloud_note": "Absent from the Comfy Cloud allowlist as of 2026-08-19 (node search zero incl. fuzzy — agent-reported). The consent-free preset-voice workhorse runs locally (CPU-capable, frees the 5090); cloud non-cloned VO = FL_ChatterboxTTS default voice or Qwen3-TTS designed voices."
+    },
+    {
+      "slug": "diffrhythm-2",
+      "cloud_feasible": "local",
+      "cloud_note": "Re-confirmed absent 2026-08-19 (node search zero; partner/audio/* holds only ByteDance/ElevenLabs/HeyGen/Sonilo — agent-reported). The Apache-2.0 full-song path stays local; cloud music = ACE-Step 1.5 (measured)."
+    },
+    {
+      "slug": "qwen3-tts",
+      "cloud_feasible": "yes",
+      "cloud_note": "Refresh of the wave-6 entry with measured-era detail: ships as FB_Qwen3TTSVoiceClone / VoiceDesign / DialogueInference / CustomVoice + RoleBank / VoiceClonePrompt (agent-reported 2026-08-19). The no-audio-upload constraint applies to clone REFERENCE audio -> cloning is local; preset speakers + text-designed voices are the cloud path. Still the Apache-2.0 cloud VO pillar alongside FL_Chatterbox default-voice."
+    },
+    {
+      "slug": "uvr5-ultimate-vocal-remover",
+      "cloud_feasible": "partial",
+      "cloud_note": "Refresh: cloud stem prep is core AudioSeparation (Demucs htdemucs — MEASURED, MIT-clean) or the MelBandRoFormer node (checkpoint license unverified — avoid for shipping); the full UVR5 model zoo + GUI stays local. Wave-6 note carried forward with the measured specifics."
+    }
+  ]
+}

@@ -1,0 +1,226 @@
+{
+  "bucket": "architecture-ui",
+  "domains": [
+    "architecture",
+    "ui-tactical"
+  ],
+  "count": 27,
+  "recipes": [
+    {
+      "slug": "autoload-discipline-official-rule-singletons-manage-only-their-own-data",
+      "name": "Autoload discipline — official rule: singletons manage ONLY their own data",
+      "what": "Use autoloads sparingly and ONLY for wide-scope systems that manage their OWN state and do not reach into other objects' data. The official Godot guidance: 'If the autoload is managing its own information and not invading the data of other objects, then it's a great way to create systems that handle broad-scoped tasks.' Systems that modify OTHER systems' data must be regular scripts/scenes, not autoloads. This prevents the god-singleton anti-pattern (a single point of failure, project-wide debugging, mis-allocated resources).",
+      "how": "Keep a SMALL, named set of autoloads, each with a single self-contained responsibility: `Events` (signal bus, no state), `GameState` (run/save data: party roster, gold, story flags — owns this data, nothing else writes it directly), `SceneManager` (owns the current-scene swap + transitions), `AudioDirector` / settings, `DataDB` (read-only registry that preloads and indexes all .tres unit/ability catalogs). A system that needs to MODIFY another's data (e.g. combat resolution mutating unit HP) is NOT an autoload — it's a node in the battle scene that reads from DataDB and writes through owned APIs. Access an autoload by its registered name directly (`GameState.party`, `SceneManager.goto(...)`). NEVER `free()`/`queue_free()` an autoload at runtime — the engine crashes.",
+      "gotchas": "(1) The classic trap is a giant `Global.gd` that holds AND mutates everyone's data — explicitly the anti-pattern the docs warn against. Split by responsibility. (2) Autoload initialization order = their order in the Autoload list; if `GameState` reads `DataDB` at `_ready()`, `DataDB` must be listed FIRST. (3) C# autoloads need a manual `static Instance` property set in `_Ready()`; GDScript exposes the node name globally for free. (4) Autoloads persist across `change_scene_*`, which is exactly why they're right for run-state — but that also means stale data survives a 'new game' unless you explicitly reset it.",
+      "domain": "architecture"
+    },
+    {
+      "slug": "avoid-godot-3-only-apis-the-migration-deprecation-checklist-stale-api-gate",
+      "name": "Avoid Godot-3-only APIs — the migration deprecation checklist (STALE-API GATE)",
+      "what": "A reject-list of Godot-3 APIs/nodes that the LLM crew will hallucinate from stale training data, with their Godot-4 replacements. Any generated GDScript or scene using these is STALE and must be rewritten — flag on sight. Godot 4 renamed nodes for 2D/3D suffix consistency, replaced coroutines, demoted Tween from a node, and renamed scene instancing.",
+      "how": "Reject → replace mapping (current 4.x): `KinematicBody2D`/`KinematicBody3D` → `CharacterBody2D`/`CharacterBody3D` (and `move_and_slide()` now takes NO args — it reads the built-in `velocity` property; you no longer pass velocity in). `Spatial` → `Node3D`; `translation`/`global_translation` → `position`/`global_position` (3D, matching 2D). `yield(obj, \"signal\")` coroutines → `await obj.signal` / `await some_coroutine()`. `Tween` as a NODE → create on-demand objects via `create_tween()` (one-off `Tween` objects, not a child node). `PackedScene.instance()` → `PackedScene.instantiate()`. `get_tree().change_scene(path)` → `change_scene_to_file(path)` / `change_scene_to_packed(packed)`. `export var x` (old keyword) → `@export var x` (annotation). `onready var` → `@onready var`. `setget` → property `set:`/`get:` blocks. `OS.get_ticks_msec()` still exists but prefer `Time.get_ticks_msec()`. `KinematicCollision2D`/raycast and signal-connect syntax (`obj.connect(\"sig\", self, \"_m\")`) → first-class `obj.sig.connect(_m)`.",
+      "gotchas": "(1) The most insidious is `move_and_slide()` — old code passes a velocity arg and 'works' syntactically in some snippets but is semantically Godot-3; in 4.x set `velocity = ...` THEN call `move_and_slide()` with no args. (2) `await` only suspends inside a function; you can't `await` at class scope. (3) `create_tween()` tweens are bound to the node that created them and auto-free — don't keep a long-lived Tween node around like in 3.x. (4) Connecting signals with the old string-based 4-arg `connect(\"name\", target, \"method\")` still half-exists via Callable in 4.x but is the wrong idiom — use `signal.connect(callable)`. (5) Some tutorials/blogs (and kidscancode 3.x recipes) are still Godot-3 — verify the page's version before trusting a snippet.",
+      "domain": "architecture"
+    },
+    {
+      "slug": "composition-over-inheritance-entity-parent-node-component-child-nodes-resources",
+      "name": "Composition over inheritance — entity = parent node + component child nodes/Resources",
+      "what": "Build game entities by COMPOSING reusable components rather than deep inheritance trees. Godot nodes are already a composition system (a node IS a component in a scene). The canonical pattern: an 'entity' is a parent node whose 'components' are child nodes (HealthComponent, MoveComponent, LootComponent) and/or attached data Resources. This scales to the combinatorial variety a tactical RPG needs (a unit that is both 'shootable' and 'meltdown-on-death' and 'lootable') where inheritance can't combine orthogonal traits.",
+      "how": "Two complementary Godot-4 composition styles: (a) NODE components — give a Unit child nodes like `HealthComponent` (`class_name HealthComponent extends Node`, holds hp, emits `died`), `StatusComponent`, `LootComponent`; the Unit wires them or they self-register to a group. (b) RESOURCE components — the Unit's behavior set is an `Array[AbilityData]` / `Array[PartData]` of data Resources swapped per unit (data-driven composition, ideal for LLM authoring). Mix both: nodes for runtime behavior + lifecycle, Resources for the authorable stat/ability/part loadout. Do NOT adopt a parallel ECS framework — it means abandoning Godot's node system; the node tree already gives you composition. Keep inheritance shallow (one `Unit` base at most); push variation into components/Resources.",
+      "gotchas": "(1) Resist real ECS (e.g. bolting on a third-party ECS): it discards Godot's node niceties and creates a parallel world — community + docs consensus is 'use nodes as components, not ECS'. (2) Over-componentizing (a node per trivial field) adds tree bloat and indirection — group cohesive data into one component/Resource. (3) Components that need to talk should go through the Unit (call down / signal up) or the `Events` bus, not sibling `get_node` tree-walking. (4) A component child node still costs per-instance memory — for purely-data traits prefer a Resource over a node.",
+      "domain": "architecture"
+    },
+    {
+      "slug": "custom-resources-tres-as-the-data-driven-authoring-layer-for-units-abilities-parts",
+      "name": "Custom Resources (.tres) as the data-driven authoring layer for Units / Abilities / Parts",
+      "what": "Model all designer/LLM-authorable game data (unit stats, abilities, lootable parts, loot tables, status effects) as custom Resource scripts (`class_name UnitData extends Resource`) saved as.tres text files. Resources are pure data containers with no scene presence — cheap to load, share, and version-control. Nodes are 'things that exist in the world'; Resources are 'the data things are made of'. This is the single highest-leverage Godot-4 pattern for a 1-director + LLM-crew studio because.tres is a plain-text, diffable, deterministic format the crew can generate and edit without opening the editor.",
+      "how": "Define `class_name UnitData extends Resource` with `@export` fields (`@export var max_hp: int`, `@export var move_range: int`, `@export var abilities: Array[AbilityData]`, `@export var parts: Array[PartData]`). Use TYPED arrays (`Array[AbilityData]`) — they filter the inspector's resource picker to the correct type and give static-typing safety. Group fields with `@export_group(\"Combat\")` / `@export_category` for inspector legibility. Compose, don't inherit: a `UnitData` HOLDS an `Array[AbilityData]` and an `Array[PartData]` rather than subclassing per unit. Load at runtime with `load(\"res://data/units/enemy_chassis.tres\")` or `preload(...)` for compile-time-known paths. For reactive data, back an `@export` with a setter that calls `emit_changed()` (Resources do NOT auto-emit `changed` on property writes) and have UI `connect` to the `changed` signal — this kills signal-cascading through intermediate nodes (e.g. a `health` resource shared by the unit and its HP bar). Convert.tres →.res only for release builds (binary: faster load, smaller, but not human-readable).",
+      "gotchas": "(1) THE SHARED-INSTANCE TRAP — Resources are shared by reference by default. If 5 enemy scenes all reference `enemy_chassis.tres`, they share ONE HP value; damaging one damages all. Call `resource.duplicate(true)` (deep) when instantiating a runtime unit so each combatant gets its own mutable copy. (2) `resource_local_to_scene = true` is buggy under node DUPLICATION (godot#45350): duplicated scene instances still share the resource instead of getting unique copies — prefer explicit `.duplicate()` in code over relying on local-to-scene for combat-instance uniqueness. (3) Put NO heavy runtime logic in Resources (keep them data + tiny helpers); behavior lives in nodes/systems. (4) NEVER store a Node reference in a Resource you save — it won't serialize and corrupts saves.",
+      "domain": "architecture"
+    },
+    {
+      "slug": "event-bus-autoload-signals-only-singleton-for-decoupled-cross-system-communication",
+      "name": "Event Bus autoload (signals-only singleton) for decoupled cross-system communication",
+      "what": "Create ONE autoload named `Events` (a.k.a. EventBus / SignalBus) that extends Node and declares only `signal` definitions — no state, no logic. Distant systems that can't easily get a node reference (combat resolver → UI log, loot system → inventory, turn manager → camera) emit and listen via this single hub. Implements the Observer pattern globally: emitters fire events without knowing who listens, keeping far-apart nodes decoupled at low cost.",
+      "how": "Script `events.gd`: `extends Node` then a block of signals, e.g. `signal unit_damaged(unit, amount)`, `signal part_looted(part_data, from_unit)`, `signal turn_started(unit)`, `signal ability_resolved(result)`. Register it in Project Settings > Globals > Autoload with name `Events`. Anywhere: `Events.part_looted.emit(part, target)` to fire; `Events.part_looted.connect(_on_part_looted)` to subscribe. Name signals as PAST-TENSE events ('this happened'), never as commands. The bus is a post office, not a warehouse: it carries messages, it does not hold game state. Keep the signal list curated and documented in one file so the LLM crew has a single legible contract for all global events.",
+      "gotchas": "(1) Do NOT route everything through the bus — for parent↔child or near neighbors, a direct signal or a node group is simpler and more debuggable. Over-use produces 'signal spaghetti' that's hard to trace. (2) The bus must hold NO mutable game state (that belongs in a dedicated GameState system, see the autoload-discipline recipe) — mixing the two recreates the god-object anti-pattern. (3) Connections to a bus persist for the listener's lifetime; free'd listeners auto-disconnect, but a listener that outlives its relevance keeps firing — disconnect explicitly when a node's interest ends.",
+      "domain": "architecture"
+    },
+    {
+      "slug": "godot-4-7-2-maintenance-release",
+      "name": "Godot 4.7.2 maintenance release",
+      "what": "Current stable is Godot 4.7.2 (maintenance of the 4.7 line); not a 5.x cut.",
+      "how": "See source URL; STUDY-002 Verifier-verified finding. Do not invent recipe beyond pack text.",
+      "gotchas": "No invent 5.x recipes.",
+      "domain": "architecture"
+    },
+    {
+      "slug": "godot-4-7-2-stable-github-tag",
+      "name": "Godot 4.7.2-stable GitHub tag",
+      "what": "Tagged stable release confirming 4.7.2 as the Aug 2026 ship.",
+      "how": "See source URL; STUDY-002 Verifier-verified finding. Do not invent recipe beyond pack text.",
+      "gotchas": "Do not flip recipes 37/42/49. No invent 5.x.",
+      "domain": "architecture"
+    },
+    {
+      "slug": "godot-release-policy-5-0-not-branched",
+      "name": "Godot release policy — 5.0 not branched",
+      "what": "4.7 supported; 4.8 estimated Q4 2026 (master); Godot 5.0 not branched; patch upgrades recommended on a stable branch.",
+      "how": "See source URL; STUDY-002 Verifier-verified finding. Do not invent recipe beyond pack text.",
+      "gotchas": "Do not flip recipes 37/42/49. No invent 5.x.",
+      "domain": "architecture"
+    },
+    {
+      "slug": "node-based-finite-state-machine-for-the-deterministic-combat-turn-loop",
+      "name": "Node-based Finite State Machine for the deterministic combat turn loop",
+      "what": "Implement the combat flow (and per-unit behavior) as a node-based FSM: a `StateMachine` Node holding child `State` nodes, each State owning the code for one phase. The machine is in exactly one state at a time; states request their own transitions. This is the standard Godot-4 pattern for anything that needs per-state enter/exit hooks (play an animation, highlight valid cells, lock input) — far cleaner than a sprawling `match` on an enum once you have setup/teardown per phase.",
+      "how": "Base class `class_name State extends Node` with the interface `enter(previous_state: State)`, `exit()`, `process(delta)`, `physics_process(delta)`, and (for combat) `handle_input(event)`. `class_name StateMachine extends Node` exposes `@export var initial_state: State` (drag-assigned in the inspector), and in `_ready()` INJECTS references into each child state (`state.state_machine = self`, `state.host = get_parent()`) — do NOT use `@onready` in State for these (it fights inheritance order in Godot 4). The machine delegates `_process`/`_physics_process`/input to the active state. States transition by calling `state_machine.transition_to(target_state)`, which runs `current.exit()` → swaps → `next.enter(prev)`. For combat, model states as `SelectUnit → SelectAction → SelectTarget → ResolveAction → EnemyTurn → CheckVictory`. Use typed `@export var` State references over NodePath strings for type-safety.",
+      "gotchas": "(1) In Godot 4, inject `state_machine`/`host` refs from `StateMachine._ready()` — do NOT `@onready var sm = ...` inside State; inheritance + ready-order makes that unreliable. (2) `class_name` State/StateMachine are global names — pick project-unique names (`CombatState`, `CombatStateMachine`) to avoid collisions with other FSMs (unit-behavior vs turn-flow). (3) For only 3-5 trivial states with no enter/exit work, a plain enum + `match` is lighter — don't node-ify reflexively. (4) Guard against re-entrant transitions (a state calling `transition_to` from inside `exit()`).",
+      "domain": "architecture"
+    },
+    {
+      "slug": "recast-api-docs-climb-layers-partial-analog",
+      "name": "Recast API docs — climb/layers (partial analog)",
+      "what": "Recast Extern API documents walkableClimb / layered floors.",
+      "how": "Partial hold only; continuous climb ≠ discrete Vector2i AP cells.",
+      "gotchas": "Partial only. Do not flip 37/42/49. Leave 62/63 verified=0.",
+      "domain": "architecture"
+    },
+    {
+      "slug": "save-load-with-custom-resources-resourcesaver-resourceloader-and-the-untrusted-resource-security-rule",
+      "name": "Save / Load with custom Resources (ResourceSaver/ResourceLoader) — and the untrusted-resource security rule",
+      "what": "For a Godot-native, type-safe save system, persist a `SaveGame extends Resource` (party roster, looted-parts inventory, campaign flags, RNG seed) via `ResourceSaver.save()` and reload via `ResourceLoader.load(..., CACHE_MODE_IGNORE)`. Resources beat JSON for game saves on type-safety, brevity, and performance (they round-trip Vector2/Color/typed arrays natively). Use JSON only for data EXCHANGE or human-editable config — JSON can't represent Godot types without manual dict conversion. CRITICAL SECURITY caveat below.",
+      "how": "Define `class_name SaveGame extends Resource` with `@export` fields. Save: `ResourceSaver.save(save_game, \"user://slot1.tres\")` (write to `user://`, the per-user writable dir; check the returned `Error` == OK). Load: `var sg = ResourceLoader.load(\"user://slot1.tres\", \"\", ResourceLoader.CACHE_MODE_IGNORE)` — CACHE_MODE_IGNORE forces a fresh read from disk instead of returning the in-memory cached copy (without it, reloading a slot returns stale data). For sensitive/anti-tamper saves use `FileAccess.open_encrypted_with_pass()`. Alternative binary path: `FileAccess.store_var()` / `get_var()` — secure by default (object/code serialization OFF) and needs no conversion code.",
+      "gotchas": "(1) SECURITY — Godot scenes/scripts ARE Resources, so `ResourceLoader.load()` on an UNTRUSTED .tres can execute code. For player-shared / cloud / mod saves, do NOT plain-load: use `FileAccess.store_var()` (object serialization disabled), or a vetted add-on like 'Godot Safe Resource Loader' that validates .tres content before loading. For purely local single-player saves the risk is low but still real if a save file could be swapped. (2) Forgetting `CACHE_MODE_IGNORE` on load returns the cached resource → 'my save won't update' bugs. (3) Never store live Node references in `SaveGame` — they don't serialize. (4) `.tres` saves are human-readable = trivially editable by players (fine for SP; not for competitive/anti-cheat — encrypt then).",
+      "domain": "architecture"
+    },
+    {
+      "slug": "scene-composition-call-down-signal-up-and-design-scenes-with-no-external-dependencies",
+      "name": "Scene composition: 'call down, signal up' and design scenes with no external dependencies",
+      "what": "Official scene-organization doctrine: design every scene to be as self-contained and dependency-free as possible; when scenes must interact, parents 'call down' (method calls / injected callables / node refs) to children, and children 'signal up' (past-tense event signals) to parents — children never reach UP into parents. The parent-child test: a node should be a child ONLY if it's truly an element of its parent (removing the parent implies removing the child); otherwise make them siblings under a coordinating parent.",
+      "how": "Structure each reusable piece (a Unit, an AbilityResolver, a GridCursor, a CombatLogPanel) as its own scene with a clear external interface. To send data DOWN: call a method on the child, assign an exported node reference, or hand the child a `Callable` (safest — child doesn't need to own the method). To send events UP: declare a `signal` on the child (`signal moved(to_cell)`, `signal part_targeted(part)`) and let the parent connect. Use dependency INJECTION: the parent provides what a child needs (`battle.gd` injects the `GridState` into each `Unit`), rather than the child calling `get_node(\"../../GridState\")` and hard-coding tree paths. Prefer `@export var grid: GridState` (inspector-assigned) over fragile `get_node(\"../..\")` traversal.",
+      "gotchas": "(1) `get_node(\"../../Something\")` absolute/relative tree-walking is the #1 coupling smell — it silently breaks the moment a scene moves. Inject references instead. (2) Signals are for 'respond to behavior', not to START behavior — don't use a signal where a direct downward method call is clearer. (3) Don't over-nest: if two nodes aren't existentially dependent, they're siblings, not parent/child. (4) `owner` vs `get_parent()` differ: `owner` is the scene root that saved the node, not its tree parent — don't confuse them when instancing.",
+      "domain": "architecture"
+    },
+    {
+      "slug": "scene-management-scenemanager-autoload-using-change-scene-to-packed-change-scene-to-file",
+      "name": "Scene management: SceneManager autoload using change_scene_to_packed / change_scene_to_file",
+      "what": "Centralize scene switching (title → overworld → battle → results) in a `SceneManager` autoload that owns the swap and the transition animation, rather than scattering `get_tree().change_scene_*` calls across gameplay code. Autoloads persist across scene changes, so run-state (in GameState) survives while the visible scene is replaced — minimizing memory vs keeping whole scenes alive. Use the Godot-4 API names (the 3.x `change_scene(path)` is gone).",
+      "how": "Two current APIs: `get_tree().change_scene_to_file(\"res://scenes/battle.tscn\")` (loads + swaps by path), or `get_tree().change_scene_to_packed(packed_scene)` when you already hold a `PackedScene` (e.g. one `@export var battle_scene: PackedScene` set in the inspector, or a threaded-loaded result — avoids a second disk hit). Wrap both in `SceneManager.goto(target)` that plays an `AnimationPlayer` fade-out, performs the swap (deferred), then fades in — so transitions are uniform and the crew calls one method. For custom control, the docs' deferred pattern: free the old scene, `instantiate()` the new, add it, and set `get_tree().current_scene`. Pass context between scenes via `GameState` (not via the freed scene).",
+      "gotchas": "(1) STALE-API FLAG — `change_scene(path)` and `change_scene_to(node)` are Godot-3-era and removed/renamed in 4.x; use `change_scene_to_file(path)` or `change_scene_to_packed(packed)`. (2) Calling `change_scene_*` mid-signal can free the node you're still executing in — do the swap deferred (`call_deferred`) or from a safe point. (3) NEVER `queue_free()` an autoload to 'reset' it — engine crash; expose a `reset()` method instead and call it on new-game. (4) `change_scene_to_file` reloads the .tscn from disk each call; for a frequently-revisited scene, hold a preloaded `PackedScene` and use `change_scene_to_packed` to skip re-reading.",
+      "domain": "architecture"
+    },
+    {
+      "slug": "threaded-background-loading-resourceloader-load-threaded-request-a-read-only-datadb-registry",
+      "name": "Threaded background loading (ResourceLoader.load_threaded_request) + a read-only DataDB registry",
+      "what": "Two complementary loading practices: (a) at boot, build a read-only `DataDB` autoload that preloads and INDEXES every unit/ability/part .tres into typed dictionaries so gameplay code looks data up by id, not path; (b) for heavy transitions (entering a battle scene, loading a map), use the threaded loading API to load off the main thread behind a progress bar instead of a synchronous `load()` that freezes a frame. Avoids both magic-string paths scattered through code AND hitch-on-load stutters.",
+      "how": "DataDB: in `_ready()`, scan `res://data/units/` (via `DirAccess` or a manifest), `load()` each .tres into `units[id] = res`, exposing `DataDB.get_unit(id)`. Register DataDB FIRST in the autoload order. Threaded load for big scenes: `ResourceLoader.load_threaded_request(path)` to start; each frame call `ResourceLoader.load_threaded_get_status(path, progress)` (pass an empty `Array` — engine fills `progress[0]` with 0.0–1.0 for the loading bar); when status == `THREAD_LOAD_LOADED`, retrieve with `ResourceLoader.load_threaded_get(path)` and instance via `packed_scene.instantiate()`. Use `ResourceLoader.exists(path)` to guard. `use_sub_threads=true` speeds large dependency graphs.",
+      "gotchas": "(1) `load_threaded_get_status` needs the SAME path string you requested and an empty Array for the progress out-param — mismatches return INVALID_RESOURCE. (2) Don't `await` a poll loop without yielding a frame, or you re-block the main thread and defeat the purpose. (3) Known bug: threaded background loading may never finish on HTML5/Web exports in 4.5 beta (#109914) — if the project ever targets web, fall back to sync `load()` there. (4) DataDB preloading EVERYTHING at boot lengthens startup; for a very large catalog, lazy-load cold data with the threaded API instead of front-loading all of it.",
+      "domain": "architecture"
+    },
+    {
+      "slug": "build-the-hud-skeleton-with-nested-containers-size-flags-never-hand-place-tactical-ui",
+      "name": "Build the HUD skeleton with nested Containers + size flags (never hand-place tactical UI)",
+      "what": "Compose the tactical HUD from Container nodes that own their children's geometry, instead of anchoring/positioning Controls manually. Godot 4 provides HBoxContainer, VBoxContainer, GridContainer, MarginContainer, PanelContainer, ScrollContainer, HFlowContainer/VFlowContainer (wrapping), CenterContainer, AspectRatioContainer, TabContainer, and SplitContainer. Children inside a Container cannot set their own position/anchors — the parent drives layout; you steer it with size flags.",
+      "how": "Wrap the action bar in an HBoxContainer, the unit/squad column in a VBoxContainer, pad anything with MarginContainer (set theme constants margin_left/top/right/bottom), and give every panel a PanelContainer so its StyleBox auto-sizes to content. Control children inside a container respond to two properties: `size_flags_horizontal` / `size_flags_vertical` (flags: SIZE_FILL default, SIZE_EXPAND to claim leftover space, SIZE_SHRINK_BEGIN/CENTER/END for alignment, SIZE_EXPAND_FILL = fill+expand) and `size_flags_stretch_ratio` (float) to split shared expand space — ratio 2.0 takes double the space of 1.0. Set a `custom_minimum_size` (Vector2) on any panel that must never collapse below a legible size (this is the Godot-4 name; the Godot-3 `rect_min_size` is GONE). For the loot-part grid use a GridContainer with `columns` set, or an HFlowContainer if part chips should wrap to a new row when the panel narrows.",
+      "gotchas": "A Control placed as a direct child of a Container ignores its own anchors/offsets — if you anchor-position something and it 'snaps back', it's inside a container; move it out or use a plain Control/MarginContainer wrapper. SIZE_EXPAND with no FILL leaves a gap; you almost always want SIZE_EXPAND_FILL. Deeply nested containers re-sort on every resize — keep nesting shallow for the per-frame HUD.",
+      "domain": "ui-tactical"
+    },
+    {
+      "slug": "centralize-all-hud-styling-in-one-theme-resource-assigned-at-the-root-control",
+      "name": "Centralize all HUD styling in ONE Theme resource assigned at the root Control",
+      "what": "Author a single `.tres` Theme resource (StyleBoxes, Colors, Fonts, font_sizes, Constants, Icons) and assign it to the root Control's `theme` property. Every descendant Control inherits from the nearest ancestor that has a Theme, so one assignment styles the whole tactical UI consistently and data-drivenly.",
+      "how": "Open the Theme editor (bottom panel when a Theme `.tres` is selected), add types (Button, Label, PanelContainer, RichTextLabel…) and set their StyleBox/Color/Font/font_size/constant items. Save as e.g. `hud_theme.tres`, then set it on the root Control node's Theme property in the Inspector. At runtime you can hot-swap the whole look with `control.theme = load(\"res://ui/hud_theme.tres\")`. KEY DISTINCTION: a Theme **resource** propagates and is inherited; a **theme override** (the per-node 'Add item override' you set in the Inspector or via `add_theme_color_override()` / `add_theme_stylebox_override()`) is LOCAL to that one node — it does NOT propagate to children and children never see a parent's override. So broad look = Theme resource; one-off tweak = override.",
+      "gotchas": "If a child panel 'won't pick up' the parent's styling, you almost certainly set an override on the parent instead of editing the Theme resource — overrides don't inherit. StyleBoxEmpty is the explicit 'draw nothing' box; don't leave a panel with a default StyleBoxFlat if you want it transparent. Theme font_size lives as a theme constant/font_size per type, not on the Font resource itself.",
+      "domain": "ui-tactical"
+    },
+    {
+      "slug": "covariant-return-type-control-tooltip-analog",
+      "name": "Covariant return type — Control tooltip analog",
+      "what": "Analog: override may return a narrower type; callers still see the declared type. Holds for recipe 42 (_make_custom_tooltip → Object but must be Control-derived).",
+      "how": "See source URL; STUDY-002 Verifier-verified finding. Do not invent recipe beyond pack text.",
+      "gotchas": "Do not flip recipes 37/42/49. No invent 5.x.",
+      "domain": "ui-tactical"
+    },
+    {
+      "slug": "decouple-combat-state-from-hud-with-custom-signals-typed-parameterized",
+      "name": "Decouple combat state from HUD with custom signals (typed, parameterized)",
+      "what": "Have combat/unit logic emit typed custom signals (e.g. `health_changed(hp, max_hp)`, `ap_changed(ap, max_ap)`, `shot_resolved(resolution)`, `collateral_risk_changed(level)`); HUD widgets connect and update themselves. The emitter doesn't know the HUD exists — the decoupling is the point and keeps the shown-everything UI maintainable.",
+      "how": "Declare `signal health_changed(current: int, maximum: int)` on the unit script and `emit_signal(\"health_changed\", hp, max_hp)` (or `health_changed.emit(hp, max_hp)`) whenever it changes. In the HUD: `unit.health_changed.connect(_on_health_changed)` and `func _on_health_changed(cur, max): bar.max_value = max; bar.value = cur`. Pass BOTH current and max so the widget is self-sufficient. For app-wide events (turn start, selection change) use an autoload 'event bus' singleton that re-emits; for direct parent↔child stay with local signals. This is the idiomatic Godot-4 alternative to the panel polling state every frame.",
+      "gotchas": "Connect once (e.g. in `_ready` or on bind) — reconnecting on every turn duplicates handlers and the bar updates N times. Use `CONNECT_ONE_SHOT` for one-time events. Prefer the typed `signal.connect(callable)` over string-based `connect(\"name\", ...)` for compile-time safety. An over-used global event bus can become a hidden-coupling soup — keep gameplay-local signals local.",
+      "domain": "ui-tactical"
+    },
+    {
+      "slug": "draw-range-threat-collateral-overlays-with-draw-queue-redraw-cached-event-driven",
+      "name": "Draw range / threat / collateral overlays with _draw() + queue_redraw() (cached, event-driven)",
+      "what": "For the grid overlays that the HUD implies — movement/attack range tint, line-of-fire, collateral splash radius — override `_draw()` on a CanvasItem (Control or Node2D) and issue primitive draw commands. Draws are cached after one call; you refresh only when state changes by calling `queue_redraw()`.",
+      "how": "Override `_draw()` and use the CanvasItem primitives: `draw_rect(Rect2, Color, filled=true, width=-1.0)` for tinting/outlining cells (pass `filled=false` + width for an outline; shift coords by 0.5 for odd widths), `draw_line(from, to, Color, width, antialiased)` for line-of-fire, `draw_circle(center, radius, Color)` or `draw_arc(...)` for splash/collateral radius, `draw_polyline`/`draw_colored_polygon` for AOE footprints, and `draw_string(font, pos, text, h_align, width, font_size)` for in-grid AP/damage numerals. `_draw()` runs once then caches — call `queue_redraw()` from your setter or input handler when the hovered cell / selected ability changes (NOT every frame unless animating). Use a Color with alpha for translucent tints so the painterly sprite underneath still reads.",
+      "gotchas": "Godot-3 muscle memory: the redraw call is `queue_redraw()`, NOT `update()` — `update()` was repurposed/removed for this. Calling `queue_redraw()` every `_process` frame for a static overlay wastes the cache benefit. `draw_*` only works inside `_draw()` (or via the lower-level RenderingServer); calling them elsewhere does nothing. For odd-width strokes, offset by 0.5px or lines look blurry/off-center.",
+      "domain": "ui-tactical"
+    },
+    {
+      "slug": "drive-hud-panels-from-custom-resources-with-a-setter-emit-changed-reactive-data-first",
+      "name": "Drive HUD panels from custom Resources with a setter + emit_changed (reactive, data-first)",
+      "what": "Model combat-UI data (a part definition, a unit's AP/HP block, a called-shot resolution) as custom `Resource` scripts with `class_name` and `@export` fields saved as `.tres`. A panel script holds that resource and rebuilds its widgets whenever the resource's `changed` signal fires — UI updates follow data, with no tight node coupling.",
+      "how": "Define `class_name PartDef extends Resource` (or `UnitState`, `ShotResolution`) with `@export var name: String`, `@export var disable_chance: int`, etc. Author instances via FileSystem → right-click → New Resource → pick the class → save `.tres`; edit fields in the Inspector. To make the panel reactive, give mutable fields a setter that calls `emit_changed()` — custom Resources do NOT auto-emit `changed` (built-ins do), so you must: `@export var hp: int: set(v): if v != hp: hp = v; emit_changed()`. In the panel: `func bind(res): if data: data.changed.disconnect(_refresh); data = res; data.changed.connect(_refresh); _refresh()`, and `_refresh()` reads `data` and sets labels/bars. The crew authors content as `.tres`; the panel is generic.",
+      "gotchas": "Without the setter, mutating a custom-Resource field NEVER fires `changed` and the panel goes stale — this is the #1 reported gotcha. Always `disconnect` the old resource before binding a new one or you leak stale connections (use `is_connected`/`disconnect`). `.tres` resources can be shared instances — duplicate() if a panel must edit its own copy without mutating the shared asset.",
+      "domain": "ui-tactical"
+    },
+    {
+      "slug": "encode-semantic-ui-states-as-theme-type-variations-dangerbutton-disabledchippanel-collaterallabel",
+      "name": "Encode semantic UI states as Theme Type Variations (DangerButton, DisabledChipPanel, CollateralLabel)",
+      "what": "Theme Type Variations let you define named variants that extend a base type (e.g. a `DangerButton` that IS a Button but overrides bg color + font color). You then set a Control's `theme_type_variation` (StringName) to that name and it gets base styling plus the variant's overrides — without per-node overrides or subclassing.",
+      "how": "In the Theme editor, click the '+' next to the Type dropdown, name the variation (e.g. `LootChip`, `CollateralWarn`, `APCostLabel`), set its base type, and override only the items that differ (font_color, StyleBox, font_size). On the Control, set the `Theme Type Variation` field in the Inspector (or `node.theme_type_variation = &\"CollateralWarn\"` in code). The control composites base + variation, variation winning on conflicts and able to add items the base never defined.",
+      "gotchas": "Variation name is a StringName — typos silently fall back to base type with no error. Variations live inside the Theme resource, so the node must still inherit that Theme (root assignment from Recipe 2). They extend exactly one base type; you can't multi-inherit variations.",
+      "domain": "ui-tactical"
+    },
+    {
+      "slug": "liskov-substitution-tooltip-contract-analog",
+      "name": "Liskov substitution — tooltip contract analog",
+      "what": "Analog: return types must be covariant. Holds as the reason a bare Object that is not a Control breaks the tooltip contract; does not flip recipe 42.",
+      "how": "See source URL; STUDY-002 Verifier-verified finding. Do not invent recipe beyond pack text.",
+      "gotchas": "Do not flip recipes 37/42/49. No invent 5.x.",
+      "domain": "ui-tactical"
+    },
+    {
+      "slug": "lock-ui-legibility-across-resolutions-with-stretch-mode-canvas-items-a-base-size",
+      "name": "Lock UI legibility across resolutions with stretch_mode = canvas_items + a base size",
+      "what": "Configure Project Settings → Display → Window so the whole 2.5D game + UI scales crisply from one authored base resolution, instead of the HUD rendering tiny on 4K or clipping on ultrawide. Set a base Viewport size, stretch Mode = `canvas_items`, and an Aspect.",
+      "how": "Project Settings → Display → Window → Size: set `Viewport Width/Height` to your design base (e.g. 1920×1080 for painterly 2.5D, or 640×360 for a pixel base), and a larger `Window Width/Height Override` for the actual window. Under Stretch: Mode = `canvas_items` (scales all CanvasItems — sprites + UI — relative to base, crisp UI), Aspect = `keep` (letterbox, no distortion) or `expand` (show more world on wide screens; design the HUD with anchors/containers so edge panels reflow). For a pixel-art base add Scale Mode = `integer` to avoid shimmer. These can also be set at runtime via the Window/Viewport content-scale properties. Combine with Recipe 1 containers + `custom_minimum_size` so panels never collapse below readable size even under `expand`.",
+      "gotchas": "A documented regression: `canvas_items` scaling reportedly misbehaves in Godot 4.4 where 4.3 worked — pin your engine version and test fullscreen + windowed before committing. `expand` aspect reveals more screen edge, so anchor/contain edge HUD or it drifts; `keep` letterboxes instead. Don't mix integer scale mode with a non-pixel base or you forfeit smooth scaling. Verify on the actual target, not just the editor viewport.",
+      "domain": "ui-tactical"
+    },
+    {
+      "slug": "nn-g-progressive-disclosure-tooltip-analog",
+      "name": "NN/g progressive disclosure — tooltip analog",
+      "what": "Analog: HCI — defer detail to secondary reveal. Holds for recipe 42 tooltip craft; limit: UX pattern only — does not constrain Godot return type.",
+      "how": "See source URL; STUDY-002 Verifier-verified finding. Do not invent recipe beyond pack text.",
+      "gotchas": "Do not flip recipe 42.",
+      "domain": "ui-tactical"
+    },
+    {
+      "slug": "nn-g-timing-guidelines-hover-reveal-analog",
+      "name": "NN/g timing guidelines — hover reveal analog",
+      "what": "Analog: HCI hover timing (0.3–0.5 s intent). Holds for tactical tooltip reveal pacing; limit: timing ≠ Godot Control return type.",
+      "how": "See source URL; STUDY-002 Verifier-verified finding. Do not invent recipe beyond pack text.",
+      "gotchas": "Do not flip recipes 37/42/49. No invent 5.x.",
+      "domain": "ui-tactical"
+    },
+    {
+      "slug": "override-make-custom-tooltip-to-show-full-deterministic-breakdowns-on-hover",
+      "name": "Override _make_custom_tooltip() to show full deterministic breakdowns on hover",
+      "what": "Replace Godot's plain-text tooltip with a designed Control (a styled panel + RichTextLabel) by overriding `_make_custom_tooltip(for_text: String) -> Object`. This lets a hovered target/part/ability surface its complete, formatted outcome math instead of a one-line string.",
+      "how": "On a Control (or a small script you attach to many widgets), override: `func _make_custom_tooltip(for_text: String) -> Control: var t = preload(\"res://ui/shot_tooltip.tscn\").instantiate(); t.populate(for_text); return t`. Godot auto-wraps the returned Control in a PopupPanel and draws that panel's StyleBox behind it. Feed structured data either by parsing `for_text` or (cleaner) by reading the hovered widget's bound Resource (Recipe 4) before returning. Set the trigger string via the node's `tooltip_text` property (the Godot-4 name; Godot-3 `hint_tooltip` is gone) — it must be non-empty for the tooltip to appear.",
+      "gotchas": "The auto-added PopupPanel draws its own background ON TOP — to remove the default box, set the PopupPanel/tooltip StyleBox to StyleBoxEmpty (or theme it) or you get a double-background. Tooltip placement has known quirks (issue #39677). `tooltip_text` must be non-empty or the override never fires. Returning a node that's already in the tree throws — always instantiate a fresh one.",
+      "domain": "ui-tactical"
+    },
+    {
+      "slug": "render-shown-outcomes-as-bbcode-in-a-richtextlabel-color-coded-append-text-not",
+      "name": "Render shown outcomes as BBCode in a RichTextLabel (color-coded, append_text not +=)",
+      "what": "Use a RichTextLabel with `bbcode_enabled = true` to render multi-color, multi-style outcome text — disable %, damage breakdown, status icons inline — so the deterministic result is readable at a glance rather than a flat label string.",
+      "how": "Set `bbcode_enabled = true`, then either write BBCode (`[color=#ff5555]DISABLE 100%[/color]  [color=#aaa]−2 AP[/color]`) or build programmatically with `push_color(Color)` / `push_bold()` / `append_text(...)` / `pop()`. CRITICAL performance rule: append with `append_text(\"...\")`, which only parses the new fragment — do NOT use `+= text` or reassign `.text`, which re-parses the whole buffer and erases any `push_*` formatting. Inline sprites via `[img]res://icon.png[/img]`; clickable refs via `[url=part_id]...[/url]` handled through the `meta_clicked` signal (and `meta_hover_started` for hover). Use `[lb]`/`[rb]` to print literal brackets so dynamic strings can't inject BBCode.",
+      "gotchas": "Using `+=` or setting `.text` on a bbcode label nukes all prior push_* formatting and is slow — always `append_text`. `[img]` without a fixed width can blow up line height; size it. `meta` tags only do something if you connect `meta_clicked`. Forgetting to escape player/enemy names that contain '[' can break the parse — use `[lb]`/`[rb]`.",
+      "domain": "ui-tactical"
+    }
+  ]
+}

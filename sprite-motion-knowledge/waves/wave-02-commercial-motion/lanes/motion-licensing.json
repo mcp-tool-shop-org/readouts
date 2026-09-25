@@ -1,0 +1,399 @@
+{
+  "laneSlug": "motion-licensing",
+  "title": "Motion data licensing doctrine",
+  "recipes": [
+    {
+      "slug": "data-license-governs-not-code-license",
+      "name": "Data license governs — not the code license",
+      "kind": "principle",
+      "engine_family": "n/a",
+      "applicable_to": "licensing",
+      "claim": "An MIT or Apache LICENSE file in a motion-gen repo covers the source code only; the trained weights and the dataset used to produce them are governed by their own separate instruments, which may be strictly non-commercial.",
+      "summary": "Open-source code licenses (MIT, Apache 2.0, BSD) attach to software source text — algorithms, training scripts, inference code. They say nothing about the legality of the weights produced by running that code, nor about the dataset the code consumed. When a text-to-motion repo ships an MIT LICENSE, that license covers the Python files. The HumanML3D data it trained on is non-commercial (AMASS terms), and the SMPL parameters it emits are research-only (Max Planck terms). A commercial studio that ships generated clips from such a model has violated two separate instruments while correctly reading the code license. This confusion is the primary trap in the motion-generation space.",
+      "design_implication": "For every motion source — library, generative model, or dataset — evaluate THREE licenses independently: (1) the code/tool license, (2) the data/dataset license, (3) the body-model or output-representation license. Only when all three are green does the source become shippable.",
+      "evidence_strength": "community-claim",
+      "license": "n/a — doctrine",
+      "commercial_use": "conditional",
+      "commercial_notes": "Conditional on all three license layers being permissive. The code being MIT is necessary but not sufficient.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": ["license-audit", "due-diligence"],
+      "failures": [
+        {
+          "symptom": "ship motion clips from a 'MIT-licensed' generative model and receive a cease-and-desist from Max Planck",
+          "cause": "confused the code license for the data and body-model license",
+          "remediation": "audit all three license layers; treat non-MIT data/body-model as non-commercial regardless of code license",
+          "severity": "blocker",
+          "recipe_field": "commercial_use"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "explainer",
+          "title": "Licensing Machine Learning Models — The Turing Way",
+          "authors": "The Turing Way Community",
+          "year": "2024",
+          "identifier": "",
+          "url": "https://book.the-turing-way.org/reproducible-research/licensing/licensing-ml/",
+          "claim": "Different components of an ML system (data, source code, weights, applications) may have separate licenses; a permissive code license does not govern the dataset or the weights produced from it."
+        }
+      ]
+    },
+    {
+      "slug": "royalty-free-is-not-do-anything-mixamo",
+      "name": "\"Royalty-free\" ≠ \"do anything\" — the Mixamo case",
+      "kind": "principle",
+      "engine_family": "n/a",
+      "applicable_to": "licensing",
+      "claim": "Mixamo animations are royalty-free for use in commercial games when incorporated as rendered output, but the raw FBX/BVH files cannot be redistributed, and bulk-downloading for ML training is explicitly prohibited.",
+      "summary": "Adobe's Mixamo service grants a broad royalty-free license for commercial use of character animations inside shipped products — you may sell a game containing Mixamo-driven characters. The license has two hard limits: you cannot distribute the raw animation files as a standalone asset (e.g., as part of an asset pack, template, or to end-users), and you explicitly cannot use the content to train machine-learning models. The phrase 'royalty-free' means no per-unit payment, not that any use is permitted. Studios that want to use Mixamo clips as ML training data — to fine-tune a motion generator or build a retargeting dataset — cannot do so legally.",
+      "design_implication": "Mixamo is safe for in-game character animation (royalty-free commercial incorporation). It is NOT safe as a source of ML training data for motion generation. Do not include Mixamo clips in any training pipeline, even if the output model's code is MIT-licensed.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "Adobe Mixamo Terms of Service / Creative Cloud EULA",
+      "commercial_use": "conditional",
+      "commercial_notes": "Commercial use allowed only when animations are incorporated into the shipped product. Raw-file redistribution and ML training are prohibited regardless of commercial intent.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": ["in-game-animation", "license-audit"],
+      "failures": [
+        {
+          "symptom": "cease-and-desist for using Mixamo BVH files as a motion-generator training corpus",
+          "cause": "interpreted 'royalty-free commercial use' as permission for any downstream purpose",
+          "remediation": "never use Mixamo files as ML training data; use only for in-game character animation as incorporated output",
+          "severity": "blocker",
+          "recipe_field": "commercial_use"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "Mixamo FAQ — Licensing, Royalties, Ownership, EULA and TOS (Adobe Community)",
+          "authors": "Adobe / Mixamo Team",
+          "year": "2023",
+          "identifier": "",
+          "url": "https://community.adobe.com/t5/mixamo-discussions/mixamo-faq-licensing-royalties-ownership-eula-and-tos/td-p/13234775",
+          "claim": "Animations may be used in commercial projects; raw file redistribution is prohibited; 'the only research application Mixamo content can't be used in is training machine-learning models.'"
+        },
+        {
+          "kind": "docs",
+          "title": "Mixamo License for Machine Learning Datasets (Adobe Community)",
+          "authors": "Adobe Support",
+          "year": "2022",
+          "identifier": "",
+          "url": "https://community.adobe.com/questions-696/mixamo-license-for-machine-learning-datasets-589715",
+          "claim": "Bulk downloading Mixamo content to use for machine learning applications is explicitly not allowed under the license."
+        }
+      ]
+    },
+    {
+      "slug": "academic-mocap-datasets-non-commercial",
+      "name": "Academic mocap datasets are non-commercial — AMASS, Human3.6M, HumanAct12",
+      "kind": "principle",
+      "engine_family": "n/a",
+      "applicable_to": "licensing",
+      "claim": "AMASS, Human3.6M, and HumanAct12 are licensed for non-commercial scientific research only; using them — or any model trained on them — in a commercial game is a license violation.",
+      "summary": "The three most widely-used academic motion-capture datasets all carry explicit non-commercial restrictions. AMASS (Max-Planck) prohibits commercial use and explicitly bans training ML models for commercial use. Human3.6M (IMAR Bucharest) limits access to academic institutions and prohibits commercial use. HumanAct12, co-authored with AMASS, inherits the same restriction. These datasets collectively underlie the vast majority of published text-to-motion and motion-diffusion research, making their non-commercial status a pipeline-wide concern, not a narrow edge case.",
+      "design_implication": "Treat any motion dataset that requires an academic-email access request, or that references Max Planck / IMAR licensing, as non-commercial until documented otherwise. Build a whitelist of confirmed-permissive datasets rather than a blacklist.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "AMASS Non-Commercial License (Max-Planck) / Human3.6M Academic License",
+      "commercial_use": "no",
+      "commercial_notes": "Non-commercial restriction applies to both direct use (training data) and to models whose weights were produced from these datasets.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": ["license-audit", "dataset-selection"],
+      "failures": [
+        {
+          "symptom": "shipping a commercial title that used AMASS data in the motion pipeline",
+          "cause": "assumed academic-paper dataset availability implied permissive licensing",
+          "remediation": "read every dataset's access agreement before incorporating into any pipeline step; require ps-license@tue.mpg.de commercial license for AMASS",
+          "severity": "blocker",
+          "recipe_field": "commercial_use"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "AMASS Dataset License — Max-Planck-Gesellschaft",
+          "authors": "MPI-IS / Max-Planck",
+          "year": "2023",
+          "identifier": "",
+          "url": "https://amass.is.tue.mpg.de/license.html",
+          "claim": "AMASS grants a non-exclusive, non-transferable right for non-commercial scientific research, education, or artistic projects only; 'this license also prohibits the use of the Dataset to train methods/algorithms/neural networks/etc. for commercial use of any kind.'"
+        },
+        {
+          "kind": "explainer",
+          "title": "Human3.6M Dataset — License Overview (Encord summary citing official access terms)",
+          "authors": "Encord / IMAR Bucharest",
+          "year": "2024",
+          "identifier": "",
+          "url": "https://encord.com/blog/15-best-free-pose-estimation-datasets/",
+          "claim": "Human3.6M licenses free of charge are limited to academic use only; the dataset may not be rented, leased, lent, sub-licensed, or transferred."
+        }
+      ]
+    },
+    {
+      "slug": "amass-downstream-poison-rule",
+      "name": "The non-commercial training-data poison rule (AMASS / HumanML3D)",
+      "kind": "principle",
+      "engine_family": "n/a",
+      "applicable_to": "licensing",
+      "claim": "A generative motion model trained on non-commercial data (AMASS/HumanML3D) propagates that restriction to its outputs, so an MIT code license on a text-to-motion repo does NOT make its generated clips shippable in a commercial game.",
+      "summary": "Most published text-to-motion models — MDM, MotionDiffuse, MoMask, T2M-GPT, and their derivatives — were trained on HumanML3D, which is built from AMASS and HumanAct12, both non-commercial. AMASS explicitly prohibits training commercial ML models. Even when the repo's source code is MIT/Apache, the weights encode the non-commercial training data and are therefore non-commercial by the terms of the upstream license. The generated motion clips themselves are outputs of those weights and inherit the same restriction. 'Clean code' does not launder unclean training data. The only safe generated motion is from a model with fully documented clean-data provenance.",
+      "design_implication": "For every generated-motion source — API or local model — trace the TRAINING SET before trusting the output. If the paper cites HumanML3D as its benchmark/training corpus, default to non-shippable. Require a written statement of clean-data provenance from any commercial motion-gen vendor before shipping.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "n/a — doctrine (AMASS NC + HumanML3D NC)",
+      "commercial_use": "no",
+      "commercial_notes": "Applies to any model trained on AMASS-derived data. The code license is irrelevant to the output's commercial usability.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": ["license-audit", "motion-generation-vetting"],
+      "failures": [
+        {
+          "symptom": "shipped generated motion that infringes AMASS terms because the code repo had an MIT license",
+          "cause": "trusted the code license without checking training data provenance",
+          "remediation": "trace training set; require documented clean-data provenance; default generated motion to non-shippable absent proof",
+          "severity": "blocker",
+          "recipe_field": "commercial_use"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "AMASS Dataset License — Max-Planck-Gesellschaft",
+          "authors": "MPI-IS / Max-Planck",
+          "year": "2023",
+          "identifier": "",
+          "url": "https://amass.is.tue.mpg.de/license.html",
+          "claim": "The AMASS license explicitly prohibits using the dataset to train methods or neural networks for commercial use of any kind."
+        },
+        {
+          "kind": "paper",
+          "title": "HumanML3D: A Large and Diverse 3D Human Motion-Language Dataset (GitHub README)",
+          "authors": "Eric Guo et al.",
+          "year": "2022",
+          "identifier": "arXiv:2212.04048",
+          "url": "https://github.com/EricGuo5513/HumanML3D",
+          "claim": "HumanML3D is composed from AMASS and HumanAct12, both released for academic research only and free for non-commercial purposes; the repo's MIT code license does not override the dataset's non-commercial terms."
+        },
+        {
+          "kind": "explainer",
+          "title": "AMASS: Unified Motion Capture Dataset — Dataset Overview",
+          "authors": "Robotics Center AI / Max-Planck summary",
+          "year": "2024",
+          "identifier": "",
+          "url": "https://www.roboticscenter.ai/datasets/amass-motion-capture",
+          "claim": "AMASS serves as the default training corpus for motion generation models (MDM, MotionDiffuse, MoMask); all carry the upstream non-commercial restriction."
+        }
+      ]
+    },
+    {
+      "slug": "smpl-smplx-body-model-poison",
+      "name": "The SMPL / SMPL-X body-model poison — research-only even with clean motion data",
+      "kind": "principle",
+      "engine_family": "n/a",
+      "applicable_to": "licensing",
+      "claim": "The SMPL and SMPL-X body models from Max Planck are research-only; any pipeline that emits or depends on SMPL/SMPL-X parameters is non-commercial regardless of the motion data's license, unless a separate commercial license is obtained via Meshcapade.",
+      "summary": "SMPL (Skinned Multi-Person Linear Model, Loper et al., SIGGRAPH Asia 2015) and SMPL-X are parametric body models distributed under a Max Planck non-commercial research license. Practically every academic motion-capture dataset that has been fit to a body model uses SMPL parameters as its representation — AMASS stores motions as SMPL-H/SMPL-X sequences. Text-to-motion models that output joint rotations in SMPL format, or any retargeting pipeline that fits to SMPL, therefore carry this license even if the upstream motion data were permissive. The license prohibits commercial products, commercial services, and training commercial ML models. Commercial licensing is available through Meshcapade.com.",
+      "design_implication": "Audit every motion source for SMPL/SMPL-X dependency. Any pipeline step that fits to or emits SMPL parameters requires a Meshcapade commercial license. Prefer pipelines that output directly to skeleton formats (BVH, joint angles in engine-native rig) without SMPL as an intermediate representation.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "SMPL / SMPL-X Non-Commercial Research License (Max Planck Innovation)",
+      "commercial_use": "no",
+      "commercial_notes": "Commercial licensing available through Meshcapade.com (smpl@max-planck-innovation.de). Without it, any pipeline step touching SMPL/SMPL-X parameters is non-commercial.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": ["license-audit", "pipeline-design"],
+      "failures": [
+        {
+          "symptom": "shipped a motion retargeting pipeline that uses SMPL as an intermediate representation without a Meshcapade commercial license",
+          "cause": "motion data was permissively licensed but body model was overlooked as a separate license layer",
+          "remediation": "obtain Meshcapade commercial license or rebuild pipeline to output BVH/joint angles without SMPL intermediate",
+          "severity": "blocker",
+          "recipe_field": "commercial_use"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "SMPL Model License — Max-Planck-Gesellschaft",
+          "authors": "MPI-IS / Max-Planck Innovation",
+          "year": "2023",
+          "identifier": "",
+          "url": "https://smpl.is.tue.mpg.de/modellicense.html",
+          "claim": "The SMPL body model is licensed for non-commercial scientific research, non-commercial education, or non-commercial artistic projects only; any commercial use is prohibited; commercial licensing is available via Meshcapade."
+        },
+        {
+          "kind": "docs",
+          "title": "SMPL-X Model License — Max-Planck-Gesellschaft",
+          "authors": "MPI-IS / Max-Planck Innovation",
+          "year": "2023",
+          "identifier": "",
+          "url": "https://smpl-x.is.tue.mpg.de/modellicense.html",
+          "claim": "SMPL-X permits use 'for the sole purpose of performing non-commercial scientific research, non-commercial education, or non-commercial artistic projects'; incorporation in a commercial product or service is explicitly prohibited."
+        }
+      ]
+    },
+    {
+      "slug": "creative-commons-variants-for-motion",
+      "name": "Creative Commons license variants — which are shippable in a commercial game",
+      "kind": "reference",
+      "engine_family": "n/a",
+      "applicable_to": "licensing",
+      "claim": "CC0 and CC-BY are shippable in commercial games (with attribution for CC-BY); CC-BY-NC and CC-BY-ND are not — the NC variant explicitly prohibits commercial use and the ND variant blocks the derivatives any retargeting pipeline produces.",
+      "summary": "Creative Commons offers a family of licenses with different commercial and derivative-work restrictions. CC0 (public domain dedication) waives all rights worldwide and permits any use including commercial without restriction. CC-BY 4.0 permits commercial use and adaptations, requiring only attribution. CC-BY-NC 4.0 explicitly prohibits use 'primarily intended for commercial advantage or monetary compensation' — a commercial Steam game is unambiguously commercial. CC-BY-ND 4.0 prohibits adapted or transformed works, which means retargeted or processed motion clips are technically derivative works and prohibited. CC-BY-SA requires derivatives to share the same license (copyleft), which is problematic for a shipped game binary. For motion data: only CC0 and CC-BY are safe for a commercial shipping pipeline.",
+      "design_implication": "When evaluating a motion dataset, map its CC variant to the above decision tree before ingesting. Treat CC-BY-NC, CC-BY-NC-SA, and CC-BY-ND as blockers. Treat CC0 and CC-BY as green with attribution tracking. Treat CC-BY-SA as needing legal review before use in shipped binary.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "Creative Commons License Suite (CC0, CC-BY, CC-BY-NC, CC-BY-ND, CC-BY-SA — each a distinct instrument)",
+      "commercial_use": "conditional",
+      "commercial_notes": "CC0: yes, unrestricted. CC-BY: yes with attribution. CC-BY-NC: no. CC-BY-ND: no (derivatives blocked). CC-BY-SA: requires legal review.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": ["license-audit", "dataset-selection"],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "CC0 1.0 Universal — Creative Commons",
+          "authors": "Creative Commons",
+          "year": "2009",
+          "identifier": "CC0 1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "claim": "CC0 dedicates the work to the public domain; you may copy, modify, distribute and perform the work, even for commercial purposes, all without asking permission."
+        },
+        {
+          "kind": "docs",
+          "title": "CC BY 4.0 — Creative Commons",
+          "authors": "Creative Commons",
+          "year": "2013",
+          "identifier": "CC BY 4.0",
+          "url": "https://creativecommons.org/licenses/by/4.0/",
+          "claim": "CC BY 4.0 permits copying, adapting, and commercial distribution of the material, provided appropriate credit is given."
+        },
+        {
+          "kind": "docs",
+          "title": "CC BY-NC 4.0 — Creative Commons",
+          "authors": "Creative Commons",
+          "year": "2013",
+          "identifier": "CC BY-NC 4.0",
+          "url": "https://creativecommons.org/licenses/by-nc/4.0/",
+          "claim": "CC BY-NC 4.0 explicitly prohibits use for commercial purposes, defined as 'primarily intended for commercial advantage or monetary compensation.'"
+        }
+      ]
+    },
+    {
+      "slug": "engine-marketplace-motion-grants",
+      "name": "Engine marketplace motion grants — incorporated-use only, no raw redistribution",
+      "kind": "reference",
+      "engine_family": "n/a",
+      "applicable_to": "licensing",
+      "claim": "Fab (Epic/Unreal) and Unity Asset Store animation clips are licensed for commercial use only when incorporated into a shipped product; raw file redistribution and ML training are not permitted under the standard marketplace EULA.",
+      "summary": "The Fab Standard License (which replaced the Unreal Engine Marketplace EULA in October 2024) permits commercial use of animation assets in games, films, and VFX projects across any engine. The Unity Asset Store EULA similarly permits commercial game use when assets are embedded in a shipped product. Both platforms share two hard limits: (1) you cannot redistribute the raw asset files as a standalone product (asset packs, templates, direct file delivery to customers), and (2) Fab assets tagged with the NoAI meta tag must not be used for generative AI data collection — meaning ML training is contingent on the absence of that tag. Neither marketplace explicitly grants ML training rights as a default. For Unity, this means the animation BVH or FBX cannot be extracted and sold or distributed separately. For Fab, a Standard License grants the purchaser rights to use in their project, not to re-sell the files.",
+      "design_implication": "Marketplace motion clips are safe for in-game character animation as long as the clips are baked into the shipped game (not distributed as separate downloadable files). They are not safe as ML training data unless the specific asset has no NoAI tag and the publisher explicitly permits it — check per-asset. Do not use marketplace clips as a training corpus for a motion generator.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "Fab Standard License (Epic Games) / Unity Asset Store EULA",
+      "commercial_use": "conditional",
+      "commercial_notes": "Commercial use allowed for incorporated in-game use. Raw file redistribution and ML training are excluded from the grant. Verify per-asset NoAI tagging on Fab.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": ["in-game-animation", "license-audit"],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "Fab Standard License — Epic Games",
+          "authors": "Epic Games / Fab",
+          "year": "2024",
+          "identifier": "",
+          "url": "https://www.fab.com/eula",
+          "claim": "The Fab Standard License permits commercial use of assets in games, animations, and VFX; the NoAI meta tag indicates an asset must not be used for generative AI data collection."
+        },
+        {
+          "kind": "docs",
+          "title": "Unity Asset Store Terms of Service and EULA",
+          "authors": "Unity Technologies",
+          "year": "2024",
+          "identifier": "",
+          "url": "https://unity.com/legal/as-terms",
+          "claim": "Asset Store assets may be used in commercial games when incorporated and embedded in the shipped product; redistribution, resale, or sublicensing of the raw asset files is prohibited."
+        },
+        {
+          "kind": "docs",
+          "title": "Licenses and Pricing in Fab — Epic Developer Community Documentation",
+          "authors": "Epic Games",
+          "year": "2024",
+          "identifier": "",
+          "url": "https://dev.epicgames.com/documentation/fab/licenses-and-pricing-in-fab",
+          "claim": "The NoAI meta tag on Fab assets indicates the asset must not be used for generative AI data collection, restricting ML training use on a per-asset basis."
+        }
+      ]
+    },
+    {
+      "slug": "safe-harbor-recipe",
+      "name": "The safe-harbor recipe for shippable motion",
+      "kind": "reference",
+      "engine_family": "n/a",
+      "applicable_to": "all-motion",
+      "claim": "The only unambiguously shippable motion pipeline for a commercial game combines: own-capture or confirmed-permissive source data (CMU mocap, CC0, CC-BY), zero SMPL/SMPL-X intermediate representation, and documented chain-of-title records for every asset.",
+      "summary": "Given the license restrictions on academic datasets (AMASS, Human3.6M), body models (SMPL, SMPL-X), Mixamo ML training, and most text-to-motion outputs, the safe-harbor path for a commercial studio has three components. First, motion source: own-studio mocap (performer releases + ownership of the capture) or datasets with confirmed permissive terms — the CMU Motion Capture Database is explicitly 'free for use in research and commercial projects worldwide' with no additional restrictions. Second, body representation: avoid SMPL parameters as an intermediate; output directly to BVH or engine-native joint angles (or obtain a Meshcapade commercial license). Third, provenance records: maintain a per-asset chain-of-title document (source dataset or performer release → processing steps → final game asset) sufficient to answer a legal inquiry or a due-diligence question from an acquirer.",
+      "design_implication": "Build a motion asset registry that records for each animation: (a) source dataset or performer release date, (b) license name and URL, (c) processing steps applied, (d) body model used (if any) and its license status, (e) whether it has been cleared for commercial shipping. Default any undocumented asset to 'blocked' until cleared. Perform a clean-source audit before each gold release.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "n/a — doctrine (CMU open + CC0 + own-capture)",
+      "commercial_use": "yes",
+      "commercial_notes": "Applies when all three conditions are met: permissive source, no non-commercial body model, and documented chain of title. Any gap defaults the asset to non-shippable.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": ["pipeline-design", "release-readiness", "legal-due-diligence"],
+      "failures": [
+        {
+          "symptom": "failed IP due diligence before an acquisition or publishing deal because motion assets lack provenance records",
+          "cause": "no chain-of-title documentation maintained during development",
+          "remediation": "establish motion asset registry at project start; retroactively audit and document existing assets; block undocumented assets from gold build",
+          "severity": "blocker",
+          "recipe_field": "commercial_use"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "CMU Motion Capture Database — READMEFIRST (BVH conversion by Bruce Hahne)",
+          "authors": "Carnegie Mellon University / Bruce Hahne",
+          "year": "2003",
+          "identifier": "",
+          "url": "https://github.com/una-dinosauria/cmu-mocap/blob/master/READMEFIRST.txt",
+          "claim": "CMU mocap data is 'free for use in research and commercial projects worldwide'; the BVH conversion places no additional restrictions; attribution to mocap.cs.cmu.edu and NSF EIA-0196217 is requested for publications."
+        },
+        {
+          "kind": "docs",
+          "title": "CC0 1.0 Universal — Creative Commons",
+          "authors": "Creative Commons",
+          "year": "2009",
+          "identifier": "CC0 1.0",
+          "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "claim": "CC0 permits all uses including commercial with no restrictions."
+        },
+        {
+          "kind": "docs",
+          "title": "SMPL Model License — Max-Planck-Gesellschaft (commercial licensing via Meshcapade)",
+          "authors": "MPI-IS / Max-Planck Innovation",
+          "year": "2023",
+          "identifier": "",
+          "url": "https://smpl.is.tue.mpg.de/modellicense.html",
+          "claim": "Commercial licensing for SMPL is available through Meshcapade.com, providing the clean-body-model path for studios that require SMPL-based pipelines."
+        }
+      ]
+    }
+  ]
+}

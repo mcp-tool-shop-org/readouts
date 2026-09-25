@@ -1,0 +1,126 @@
+# Open mocap datasets & license traps
+_Open/research motion-capture datasets and their licenses: CMU, AMASS, LAFAN1, Motion-X, 100STYLE, HumanML3D — which are commercial-safe vs RESEARCH-ONLY (the NC trap that poisons every downstream model trained on them)._ · wave 8 · 2026-09-07 · [‹ catalog index](README.md)
+
+9 recipes · 2 recommended · 0 measured-on-rig.
+
+| ↓ | Recipe | Engine | Applies | Evidence | Comm | Rig | Studio | ✓ |
+|---|--------|--------|---------|----------|------|-----|--------|---|
+| 2 | 100STYLE — Edinburgh Locomotion Style Dataset | n/a | locomotion/stylized-motion | ▸ reproduced | ✅ yes | 3 | 3 | ✓ |
+| 5 | Truebones — Commercial Creature & Human Mocap Library | n/a | creature/locomotion/combat | partial | ✅ yes | 4 | 4 | ✓ |
+| 6 | CMU Graphics Lab Motion Capture Database | n/a | locomotion/combat/interaction/research | ▸ reproduced | ⚠ cond | 2 | 3 | ✓ |
+| 11 | AMASS — Archive of Motion Capture as Surface Shapes | n/a | research-only | ▸ reproduced | ⛔ no | 1 | 0 | ✓ |
+| 11 | BANDAI NAMCO Research Motion Dataset | n/a | locomotion/combat/research-only | ▸ reproduced | ⛔ no | 2 | 0 | ✓ |
+| 11 | Human3.6M — Large Scale 3D Human Pose Dataset | n/a | research-only | ▸ reproduced | ⛔ no | 1 | 0 | ✓ |
+| 11 | HumanML3D — Text-to-Motion Dataset | n/a | research-only | ▸ reproduced | ⛔ no | 1 | 0 | ✓ |
+| 11 | LAFAN1 — Ubisoft La Forge Animation Dataset | n/a | locomotion/research-only | ▸ reproduced | ⛔ no | 2 | 0 | ✓ |
+| 11 | Motion-X — Large-scale 3D Expressive Whole-body Dataset | n/a | research-only | ▸ reproduced | ⛔ no | 1 | 0 | ✓ |
+
+## Detail
+
+### 100STYLE — Edinburgh Locomotion Style Dataset · `recommended` · ▸ reproduced
+**100STYLE is a rare commercially-usable open mocap dataset: 100 locomotion styles (old, injured, proud, sneaky, etc.) from the University of Edinburgh under CC BY 4.0 — attribution required, commercial use permitted.**
+Released in 2022 by Mason, Starke, and Komura at the University of Edinburgh, 100STYLE contains motion sequences for 100 distinct walking/running style categories, captured from multiple subjects, in BVH format. The dataset is hosted on Zenodo under CC BY 4.0. The style diversity is directly applicable to character personality differentiation in a JRPG — NPCs, party members, and enemies moving distinctively without needing creature mocap. Human motion only.
+- **For the pipeline:** Commercially clean for direct use as animation reference or as training data for style-transfer models (provided model is kept internal or model outputs licensed appropriately). Retarget onto humanoid 2.5D rigs in Spine. Attribution required: cite Mason, Starke, Komura (2022). No creature motion; applies to the humanoid 30% of the roster, not the exotic species.
+- **Engine:** n/a · **Applies to:** locomotion|stylized-motion · **Kind:** dataset
+- **VRAM:** n/a
+- **Output license:** commercial **yes** (license: CC BY 4.0 (Creative Commons Attribution 4.0 International)) — CC BY 4.0 permits commercial use, redistribution, and adaptation with attribution. No share-alike clause — derivative datasets and trained models are not forced open. This is the cleanest license in this lane for commercially-usable human locomotion variety.
+- **Fit:** rig 3/5 · studio 3/5
+- **Verify:** cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed] -> confirmed [confirmed by 3 of 3 juror(s) [confirmed]]
+- **Sources:** [100STYLE Dataset — Zenodo](https://zenodo.org/records/8127870) (Mason, Starke, Komura (University of Edinburgh), 2022) — Licensed under Creative Commons Attribution 4.0 International (CC-BY-4.0). Commercial use is permitted with attribution.
+
+### Truebones — Commercial Creature & Human Mocap Library · `recommended` · partial
+**Truebones is a paid commercial mocap vendor offering royalty-free BVH/FBX packs for games, movies, and VR — including creature and animal content — with explicit commercial shipping rights. The main restriction is no redistribution of the raw data files.**
+Truebones sells large packs of BVH/FBX motion captures through Gumroad, including 'The Motherlode' (30,000+ clips) and the FBX/BVH Zoo (75+ animated animals). License is explicitly royalty-free for commercial use in shipped products including games, movies, and VR. Redistribution or resale of the raw motion files is prohibited. The creature content (Zoo pack, ~$99) is particularly relevant for the studio's non-humanoid roster. Pricing is accessible for indie scale.
+- **For the pipeline:** The FBX/BVH Zoo is the highest-leverage purchase in this lane for the studio: 75+ animated creatures give motion reference and retargeting source for exotic species. Integrate clips via Sprite Foundry's Spine rig layer — the prohibition on raw file redistribution is not triggered by embedding motion into a shipped game. Verify creature coverage against your specific roster species before purchasing.
+- **Engine:** n/a · **Applies to:** creature|locomotion|combat · **Kind:** dataset
+- **VRAM:** n/a
+- **Output license:** commercial **yes** (license: Proprietary — royalty-free commercial license (no redistribution of raw files)) — Truebones terms (as of 2019, confirmed consistent through 2023): 'absolutely royalty free and can be used for any and all purposes even commercial, including Movies, Animations, Games, VR, AR, Research, and Education.' Re-Distribution or ReSale of raw .FBX, .BVH, or i-Motion files is prohibited. Attribution (credit) is requested. Evidence strength is 'partial' because the full TOS page is gated and the sourced summary comes from community aggregation — review the live TOS at truebones.gumroad.com before purchasing.
+- **Fit:** rig 4/5 · studio 4/5
+
+**Failure modes**
+
+| Symptom | Cause | Fix | Field |
+|---|---|---|---|
+| No guarantee of coverage for highly exotic species (undead, elemental, abstract creatures) |  |  |  |
+
+- **Best for:** creature-motion-reference (-, fit -) ; retarget-source (-, fit -) ; exotic-species-proxy (-, fit -)
+- **Verify:** cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed] -> confirmed [confirmed by 3 of 3 juror(s) [confirmed]]
+- **Sources:** [Truebones Terms of Service and Use Restrictions](https://truebones.gumroad.com/l/vlvPq) (Truebones Studios, 2019) — Products are absolutely royalty free and can be used for any and all purposes even commercial, including Movies, Animations, Games, VR, AR, Research, and Education. Re-Distribution or ReSale of Truebones in.FBX,.BVH or i-Motion formats is strictly prohibited. ; [Truebones FBX/BVH ZOO — 75+ Animals with Animations](https://truebones.gumroad.com/l/skZMC) (Truebones Studios, 2023) — Over 75 animated animals in FBX/BVH format, royalty-free for commercial use including game productions.
+
+### CMU Graphics Lab Motion Capture Database · `situational` · ▸ reproduced
+**The CMU mocap database is the most comprehensive free optical mocap archive (~2,500 sequences, 144 subjects) and permits inclusion in commercial products — but only prohibits resale of the raw data itself, making it conditionally safe for shipped games.**
+Maintained by CMU since the early 2000s, this database covers a broad range of human motion including walking, sports, interaction, and acrobatics in AMC/BVH format. Its terms explicitly allow commercial product inclusion — the restriction is against reselling the raw data or converted clips as a standalone product. Attribution is requested but not legally mandated. All motion is human-only; no creature or animal content. For a 2.5D JRPG with a humanoid cast fraction, this is a viable low-cost starting source for secondary motion reference.
+- **For the pipeline:** Safe to bake CMU clips into Spine proxy rigs or retarget onto humanoid characters in a shipped Steam game, provided you are not selling the raw BVH files. Verify the data came from mocap.cs.cmu.edu directly (several conversions float on the web under unclear terms). Credit the source in acknowledgments as requested.
+- **Engine:** n/a · **Applies to:** locomotion|combat|interaction|research · **Kind:** dataset
+- **VRAM:** n/a
+- **Output license:** commercial **conditional** (license: Custom permissive (no named SPDX) — free for research and commercial products; no resale of raw data) — Commercial product inclusion is explicitly permitted; reselling the motion data itself (even in converted form like FBX) is prohibited. No downstream model poisoning since this is raw BVH/AMC data, not a model. Use in a shipped game as animation source is clean.
+- **Fit:** rig 2/5 · studio 3/5
+- **Verify:** cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed] -> confirmed [confirmed by 3 of 3 juror(s) [confirmed]]
+- **Sources:** [CMU Graphics Lab Motion Capture Database — FAQs & License](https://mocap.cs.cmu.edu/faqs.php) (CMU Graphics Lab, 2003) — Data is free for use in research projects; you may include this data in commercially-sold products, but you may not resell this data directly, even in converted form.
+
+### AMASS — Archive of Motion Capture as Surface Shapes · `avoid` · ▸ reproduced
+**AMASS is the dominant unified mocap dataset but it is NON-COMMERCIAL research-only, and because most text-to-motion models train on it, those models' outputs inherit the restriction — the central license trap of generated motion.**
+Unifies 15+ optical mocap datasets (CMU, SFU, ACCAD, Eyes-Japan, KIT, BMLrub, BioMotionLab, DFaust, EKUT, HDM05, MPI-Limits, MPI-mosh, MPI-PoseLimits, PosePrior, Transition, TotalCapture, WEIZMANN) into a common SMPL-X parameterization (~40h, 300+ subjects). The backbone of HumanML3D, BABEL, and nearly every text-to-motion model. Its license restricts use to non-commercial scientific research, education, or artistic projects. The underlying SMPL/SMPL-X body model is itself research-only (contact ps-license@tue.mpg.de for commercial licensing).
+- **For the pipeline:** AVOID for shipping AND avoid any motion model whose training set includes AMASS unless the model owner provides a separate commercial grant. This is the poison to trace through every text-to-motion recipe in this wave. The training prohibition is explicit: 'use of the Dataset to train algorithms/neural networks for commercial use of any kind' is prohibited.
+- **Engine:** n/a · **Applies to:** research-only · **Kind:** dataset
+- **VRAM:** n/a
+- **Output license:** commercial **no** (license: Custom non-commercial research license + SMPL-X body model research-only license (MPI Tübingen)) — AMASS terms explicitly prohibit incorporation into commercial products, use in commercial services, and training models for commercial use. A model trained on AMASS propagates this restriction. Commercial licensing inquiries go to ps-license@tue.mpg.de — not a public grant. Sub-datasets absorbed into AMASS (SFU, ACCAD, Eyes-Japan etc.) are similarly research-only and lose individual dataset permissions once SMPL-parameterized.
+- **Fit:** rig 1/5 · studio 0/5
+- **Verify:** cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed] -> confirmed [confirmed by 3 of 3 juror(s) [confirmed]]
+- **Sources:** [AMASS Dataset License — Max-Planck-Gesellschaft](https://amass.is.tue.mpg.de/license.html) (Mahmood et al. (MPI Tübingen), 2019) — Single-user, non-exclusive, non-transferable, free of charge right for non-commercial scientific research, education, or artistic projects only. Any commercial purpose, including training neural networks for commercial use, is explicitly prohibited.
+
+### BANDAI NAMCO Research Motion Dataset · `avoid` · ▸ reproduced
+**The BANDAI NAMCO Research motion dataset is often cited as 'more permissive' than academic datasets — this is a trap. Its actual license is CC BY-NC 4.0: non-commercial only, making it unusable for a shipped commercial game.**
+Released 2022 via GitHub, the repository contains two datasets: Dataset-1 (17 content types including daily activities, fighting, dance; 36,673 frames) and Dataset-2 (locomotion and hand actions; 384,931 frames) in BVH format. Content is game-adjacent (fighting stances, locomotion variety) making it attractive for JRPG work, but the CC BY-NC 4.0 license blocks commercial use. The Blender plugin bundled with it is MIT-licensed — that tool can be used commercially, the motion data cannot.
+- **For the pipeline:** Do not use in production. The 'from a game studio' origin misleads many developers into assuming commercial clearance. The CC BY-NC license is explicit. Useful for non-commercial prototyping/research to evaluate motion quality before sourcing commercially-licensed equivalents.
+- **Engine:** n/a · **Applies to:** locomotion|combat|research-only · **Kind:** dataset
+- **VRAM:** n/a
+- **Output license:** commercial **no** (license: CC BY-NC 4.0 (Creative Commons Attribution-NonCommercial 4.0 International)) — CC BY-NC 4.0 prohibits use 'primarily intended for or directed towards commercial advantage or monetary compensation.' Shipping in a commercial Steam game meets this definition. The Blender visualization utility in the same repo is MIT-licensed and is commercially safe — only the motion data files are NC.
+- **Fit:** rig 2/5 · studio 0/5
+- **Verify:** cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed] -> confirmed [confirmed by 3 of 3 juror(s) [confirmed]]
+- **Sources:** [BANDAI NAMCO Research Motion Dataset — GitHub LICENSE file](https://github.com/BandaiNamcoResearchInc/Bandai-Namco-Research-Motiondataset/blob/master/dataset/Bandai-Namco-Research-Motiondataset-1/LICENSE) (BANDAI NAMCO Research Inc., 2022) — Licensed under Creative Commons Attribution-NonCommercial 4.0 International. NonCommercial means not primarily intended for or directed towards commercial advantage or monetary compensation.
+
+### Human3.6M — Large Scale 3D Human Pose Dataset · `avoid` · ▸ reproduced
+**Human3.6M is a major 3D human pose benchmark but restricts use to academic institutions — licenses are free only from academic email addresses and commercial use requires separate contact, making it unavailable for indie commercial shipping.**
+11 actors performing 17 scenarios (~3.6 million frames), widely used as pose estimation and motion benchmark. Access is gated by EULA: licenses are granted only to academic-address registrants for non-commercial research. The dataset is important to understand because many pose-lifting and 3D human motion models were trained on or validated against it, which may affect the cleanness of those models' commercial terms.
+- **For the pipeline:** Do not access or integrate Human3.6M for commercial pipeline use. If you are evaluating a pretrained motion model, check whether its evaluation or training set included Human3.6M — that creates ambiguity in commercial clearance. The EULA explicitly forbids sub-licensing and transfer, so third-party redistributions carry no legal weight.
+- **Engine:** n/a · **Applies to:** research-only · **Kind:** dataset
+- **VRAM:** n/a
+- **Output license:** commercial **no** (license: Custom academic EULA — academic use only, non-commercial, non-transferable) — License is granted only from an academic email address; personal or commercial users must contact the lab separately. EULA prohibits rent, lease, sub-license, or transfer. Commercial use requires explicit permission from IMAR Bucharest — not a public grant.
+- **Fit:** rig 1/5 · studio 0/5
+- **Verify:** cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed] -> confirmed [confirmed by 3 of 3 juror(s) [confirmed]]
+- **Sources:** [Human3.6M License Agreement — EULA](https://vision.imar.ro/human3.6m/eula.php) (Ionescu et al. (IMAR Bucharest / University of Bucharest), 2014) — Licenses free of charge are limited to academic use only, provided you send the request from an academic address. The product may only be used by you; you may not rent, lease, lend, sub-license or transfer the dataset.
+
+### HumanML3D — Text-to-Motion Dataset · `avoid` · ▸ reproduced
+**HumanML3D is the standard text-annotated motion dataset used to train most text-to-motion diffusion models, but it is built on AMASS and HumanAct12 — both research-only — so the non-commercial restriction fully propagates to HumanML3D and every model trained on it.**
+~14,616 motion sequences with 44,970 natural language descriptions, covering ~28.59h of human motion. Constructed by re-parameterizing AMASS clips and layering human-written text annotations. Due to AMASS's distribution policy, HumanML3D itself cannot be redistributed directly — users must reproduce it via scripts from the AMASS source. Nearly every popular text-to-motion model (MDM, MLD, MotionDiffuse, T2M-GPT) is trained on this corpus.
+- **For the pipeline:** Any text-to-motion model trained on HumanML3D is non-commercial by inheritance. When evaluating motion generation tools, immediately ask: 'Was this trained on HumanML3D or AMASS?' If yes, the outputs are legally tainted for commercial shipping. This is the most common invisible trap in the text-to-motion ecosystem.
+- **Engine:** n/a · **Applies to:** research-only · **Kind:** dataset
+- **VRAM:** n/a
+- **Output license:** commercial **no** (license: Academic research only (inherits AMASS CC non-commercial + HumanAct12 research-only terms)) — HumanML3D's own documentation states it is 'released for academic research only and is free to researchers from educational or research institutes for non-commercial purposes.' AMASS inheritance is load-bearing: the dataset cannot be used commercially, and models trained on it carry the same taint unless the model owner has obtained separate commercial clearance from MPI.
+- **Fit:** rig 1/5 · studio 0/5
+- **Verify:** cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed] -> confirmed [confirmed by 3 of 3 juror(s) [confirmed]]
+- **Sources:** [HumanML3D GitHub Repository — License Notes](https://github.com/EricGuo5513/HumanML3D) (Guo et al. (Peking University), 2022) — HumanML3D is released for academic research only; due to the AMASS distribution policy, creators are not allowed to distribute data directly and provide scripts to reproduce it from AMASS. Non-commercial purposes only.
+
+### LAFAN1 — Ubisoft La Forge Animation Dataset · `avoid` · ▸ reproduced
+**LAFAN1 is a high-quality motion-in-betweening reference corpus from Ubisoft but its CC BY-NC-ND 4.0 license prohibits commercial use AND derivative works — not suitable for a shipped game.**
+Released alongside the SIGGRAPH 2020 paper 'Robust Motion In-Betweening', LAFAN1 contains 496 motion sequences (~15 minutes) from 5 subjects covering locomotion, sport, and dance. The BVH quality is high and representative of AAA game motion. Despite being from a game studio, the dataset is licensed CC BY-NC-ND 4.0: no commercial use, and no derivatives, making even retargeting legally questionable.
+- **For the pipeline:** Do not use LAFAN1 clips as direct animation source for a shipped game. It is valuable as visual benchmark/reference for motion quality and can be used to evaluate your own motion-matching pipeline against a known standard — but only in non-commercial research context. The ND clause also blocks retargeting and format conversion for commercial purposes.
+- **Engine:** n/a · **Applies to:** locomotion|research-only · **Kind:** dataset
+- **VRAM:** n/a
+- **Output license:** commercial **no** (license: CC BY-NC-ND 4.0 (Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International)) — NonCommercial = no shipping in a game. NoDerivatives = retargeting or format conversion for commercial purposes is also restricted. Both clauses together make this unusable as production input for Sprite Foundry's commercial pipeline.
+- **Fit:** rig 2/5 · studio 0/5
+- **Verify:** cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed] -> confirmed [confirmed by 3 of 3 juror(s) [confirmed]]
+- **Sources:** [Ubisoft La Forge Animation Dataset — GitHub](https://github.com/ubisoft/ubisoft-laforge-animation-dataset) (Harvey et al. (Ubisoft La Forge), 2020) — Licensed under Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License. Data is NOT licensed for commercial use.
+
+### Motion-X — Large-scale 3D Expressive Whole-body Dataset · `avoid` · ▸ reproduced
+**Motion-X is a NeurIPS 2023 whole-body dataset (face + hands + body) distributed CC BY-NC-SA 4.0 — non-commercial with share-alike viral clause, making both the dataset and derivative models non-commercial.**
+~60,000 sequences from 8 public sub-datasets and 15,000 online videos, providing expressive whole-body annotations including face expressions and hand poses. The overarching license is CC BY-NC-SA 4.0; several sub-datasets (GRAB, AMASS via HumanML3D) are independently research-only. The share-alike clause means any model trained on Motion-X must also be released under an equivalent non-commercial license.
+- **For the pipeline:** Non-commercial and share-alike — doubly poisonous. A model trained on Motion-X cannot be kept internal and used commercially; the SA clause requires open/NC release of derivatives. Avoid for any training dataset role in the studio's commercial pipeline.
+- **Engine:** n/a · **Applies to:** research-only · **Kind:** dataset
+- **VRAM:** n/a
+- **Output license:** commercial **no** (license: CC BY-NC-SA 4.0 (Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International)) — NC clause blocks commercial use; SA clause requires derivative works (including trained models) to be released under equivalent NC terms. Multiple sub-datasets carry independent research-only restrictions (GRAB, AMASS). Commercial licensing would require clearance from IDEA Research and all constituent sub-dataset rights holders — not practically available.
+- **Fit:** rig 1/5 · studio 0/5
+- **Verify:** cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed] -> confirmed [confirmed by 3 of 3 juror(s) [confirmed]]
+- **Sources:** [Motion-X Dataset Homepage — License Statement](https://motion-x-dataset.github.io/) (Lin et al. (IDEA Research, International Digital Economy Academy), 2023) — All data is distributed under CC BY-NC-SA (Attribution-NonCommercial-ShareAlike) license. Commercial applications are not permitted.
+

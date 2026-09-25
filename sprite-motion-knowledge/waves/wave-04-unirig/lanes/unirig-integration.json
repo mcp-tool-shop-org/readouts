@@ -1,0 +1,270 @@
+{
+  "laneSlug": "rigging",
+  "title": "UniRig pipeline integration & ecosystem",
+  "recipes": [
+    {
+      "slug": "unirig-trellis-to-render-pipeline-slot",
+      "name": "UniRig in the studio flow: TRELLIS.2 mesh → UniRig rig → weapon_grip chain → Blender 8-dir render",
+      "kind": "pipeline",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "UniRig is the rig stage between the TRELLIS.2 mesh and the Blender 8-direction sprite render: auto-rig the mesh with two shell scripts, append the rigid weapon_grip→weapon_tip bone chain, animate NLA actions, then render — turning a static mesh into an animatable game asset in one open-source pipeline.",
+      "summary": "Import the TRELLIS.2 GLB (decimated to 30-50k tris), run generate_skeleton.sh (outputs FBX skeleton), run generate_skin.sh (outputs FBX with skinning weights), run merge.sh to produce the final rigged GLB. The rigged GLB drops straight into Blender for armature inspection and weapon_grip chain append (see weapon-grip-rigid-bone-chain recipe). After appending weapon bones, build NLA actions (walk, attack, idle, hurt, death) and render 8 orthographic directions. UniRig's FBX/GLB output is the rig that wave-2 mocap retargets onto — it is the skeleton anchor for the whole motion line.",
+      "design_implication": "This is the rig backbone for the 68-character mesh game-asset line. It connects the TRELLIS.2 mesh path (sprites-knowledge) directly to wave-1 motion render and wave-2 retarget content. Because UniRig is MIT and its output is the studio's IP, the full line is commercial-clean with no redistribution restrictions.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "MIT (UniRig); Blender output unrestricted",
+      "commercial_use": "yes",
+      "commercial_notes": "All stages commercial-clean. UniRig MIT license confirmed via GitHub LICENSE file. Rigged GLB output is studio IP.",
+      "vram_gb": "8-16",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "predecessor_slug": "unirig-blackwell-wsl2-skeleton-skin-measured",
+      "stage_order": 1,
+      "sources": [
+        {
+          "kind": "github",
+          "title": "VAST-AI-Research/UniRig — README pipeline commands",
+          "authors": "VAST AI Research",
+          "year": "2025",
+          "identifier": "github.com/VAST-AI-Research/UniRig",
+          "url": "https://github.com/VAST-AI-Research/UniRig",
+          "claim": "Documents the three-command pipeline: generate_skeleton.sh (GLB in → FBX skeleton), generate_skin.sh (FBX skeleton → FBX with weights), merge.sh (FBX + original GLB → rigged GLB). Supports batch mode via --input_dir / --output_dir."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-blender-addon-vrm-fork",
+      "name": "UniRig Blender VRM addon — VRM import/export for rigged mesh handoff",
+      "kind": "technique",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "UniRig ships a modified VRM-Addon-for-Blender (add-on-vrm-v2.20.77_modified.zip) that installs into Blender via one Python command and enables.vrm import/export — useful only for VRM-format input meshes; the primary studio path (TRELLIS.2 GLB in, rigged GLB out) does not require the addon.",
+      "summary": "The addon is installed with: `python -c \"import bpy, os; bpy.ops.preferences.addon_install(filepath=os.path.abspath('blender/add-on-vrm-v2.20.77_modified.zip'))\"`. It is a fork of the open-source VRM-Addon-for-Blender and adds.vrm import/export capability to Blender for use with UniRig's VRM input path. UniRig accepts.obj,.fbx,.glb, and.vrm — so the addon is only required when the source mesh is a VRM file (e.g. a VRoid character). For the studio's TRELLIS.2 GLB input pipeline, the addon is not needed: generate_skeleton.sh and merge.sh consume and produce GLB/FBX natively via UniRig's own Python environment.",
+      "design_implication": "Skip the Blender addon for the standard TRELLIS.2 → rigged GLB path. Reserve it for any VRoid or VRM-sourced character mesh. Do not conflate 'Blender addon' with 'Blender integration' — UniRig's Blender interaction is primarily through importing the rigged GLB output into Blender manually, not through a live Blender addon interface.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "MIT (UniRig repo, which includes the addon); original VRM-Addon-for-Blender is MIT",
+      "commercial_use": "yes",
+      "commercial_notes": "MIT license; addon covers VRM file handling only, output is unrestricted.",
+      "vram_gb": "n/a",
+      "rig_fit": 2,
+      "studio_fit": 1,
+      "status": "situational",
+      "failures": [
+        "The addon enables VRM I/O only — it does not expose a UniRig 'rig this mesh' button inside Blender. UniRig rigging still runs as Python shell commands outside Blender.",
+        "VRM is a humanoid-avatar format (VRChat, VRoid). TRELLIS.2 outputs GLB, not VRM — the addon adds no value for the standard studio path."
+      ],
+      "sources": [
+        {
+          "kind": "github",
+          "title": "VAST-AI-Research/UniRig — Blender addon install command",
+          "authors": "VAST AI Research",
+          "year": "2025",
+          "identifier": "github.com/VAST-AI-Research/UniRig",
+          "url": "https://github.com/VAST-AI-Research/UniRig",
+          "claim": "README documents the Python install command for add-on-vrm-v2.20.77_modified.zip; identifies it as modified from VRM-Addon-for-Blender; input formats listed as.obj,.fbx,.glb,.vrm."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-comfyui-nodes-pozzettiandrea",
+      "name": "ComfyUI-UniRig — ComfyUI wrapper nodes for UniRig rigging inside ComfyUI",
+      "kind": "workflow",
+      "engine_family": "comfyui",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "ComfyUI-UniRig (PozzettiAndrea, GPL-3.0) is a verified ComfyUI custom-node package that wraps UniRig's rigging pipeline in 16 graph nodes — including UniRig:Load Model, UniRig:Auto Rig, UniRig:Apply Animation, UniRig:Export Posed FBX, and UniRig:Save Mesh — installable via ComfyUI Manager.",
+      "summary": "The package provides 16 nodes covering the full UniRig pipeline inside ComfyUI: load a 3D mesh, load the UniRig model, extract skeleton, apply ML skinning, apply animation, export posed FBX, preview the rigged mesh, and save the result. A parallel MIA (Make-It-Animatable, CVPR 2025) node set is also included. Installation is via ComfyUI Manager (search 'UniRig') or manual git clone. Hardware overhead is modest — 8 GB GPU handles UniRig alongside other ComfyUI workflows. The package is active (420+ commits as of research date). Output format includes FBX (UniRig:Export Posed FBX node confirmed); GLB output via UniRig:Save Mesh.",
+      "design_implication": "ComfyUI-UniRig enables a fully node-graph rigging pipeline — paste the TRELLIS.2 GLB into a ComfyUI workflow that auto-rigs via UniRig, applies a BVH animation clip, and exports a posed FBX in one shot, without leaving ComfyUI. The GPL-3.0 license on the wrapper does NOT affect the rigged output files — it covers the Python node wrapper code, not the 3D assets produced. Evaluate as an alternative to the shell-script WSL2 path for operators more comfortable in ComfyUI's visual graph.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "GPL-3.0 (ComfyUI wrapper nodes); MIT (UniRig model itself)",
+      "commercial_use": "yes",
+      "commercial_notes": "GPL-3.0 covers the Python wrapper code, not rigged 3D asset output. Produced GLB/FBX assets are the studio's IP. Confirm GPL interpretation before redistributing the node package itself.",
+      "vram_gb": "8-16",
+      "rig_fit": 4,
+      "studio_fit": 3,
+      "status": "situational",
+      "failures": [
+        "ComfyUI-UniRig still requires UniRig's Python environment (flash_attn, spconv, torch_scatter) installed in the ComfyUI Python — the Blackwell WSL2 setup complexity from the measured recipe still applies.",
+        "Output format details (FBX vs GLB per node) require per-node verification — not all nodes document their output format in the registry listing."
+      ],
+      "sources": [
+        {
+          "kind": "repo",
+          "title": "PozzettiAndrea/ComfyUI-UniRig — GitHub",
+          "authors": "PozzettiAndrea",
+          "year": "2025",
+          "identifier": "github.com/PozzettiAndrea/ComfyUI-UniRig",
+          "url": "https://github.com/PozzettiAndrea/ComfyUI-UniRig",
+          "claim": "GPL-3.0 licensed ComfyUI custom node package; installable via ComfyUI Manager; 420+ commits, active; provides 16 nodes including UniRig:Auto Rig, UniRig:Apply Animation, UniRig:Export Posed FBX."
+        },
+        {
+          "kind": "docs",
+          "title": "ComfyUI-UniRig node listing — runcomfy.com",
+          "authors": "runcomfy.com",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://www.runcomfy.com/comfyui-nodes/ComfyUI-UniRig",
+          "claim": "Lists all 16 ComfyUI-UniRig nodes by name including UniRig:Load Model, UniRig:Auto Rig, UniRig:Apply Animation, UniRig:Export Posed FBX, UniRig:Save Mesh, UniRig:Preview Rigged Mesh, and MIA:Auto Rig."
+        },
+        {
+          "kind": "web",
+          "title": "ComfyUI UniRig Automatic Rigging Guide 2025 — Apatero",
+          "authors": "Apatero",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://www.apatero.com/blog/comfyui-unirig-automatic-skeleton-rigging-guide-2025",
+          "claim": "Community guide confirms 8 GB GPU handles UniRig in ComfyUI alongside other workflows; ComfyUI Manager install path verified."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-retarget-bone-remap",
+      "name": "UniRig skeleton → mocap retarget: non-standard bone-name remap via ARP Remap or Blender Retarget addon",
+      "kind": "workflow",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "UniRig generates skeletons with non-standardized bone names (inherited from training data diversity, not aligned to Mixamo/Blender/UE5 conventions); a manual bone-name remap pass — via Auto-Rig Pro Remap's 'Replace Namespace' feature or the Blender Retarget addon presets — is required before any commercial mocap BVH/FBX can retarget onto a UniRig skeleton.",
+      "summary": "UniRig's autoregressive skeleton predictor outputs bone names derived from its Rig-XL training corpus, which contains diverse rigging conventions. These names do not match Mixamo's 'mixamorig:Hips' scheme, Blender's '.L/.R' convention, 100STYLE's BVH names, or CMU Mocap Database joint names. To retarget commercial BVH/FBX mocap onto a UniRig skeleton in Blender, build a custom bone-name mapping JSON (ARP Batch Retargeting workflow: github.com/Shimingyi/ARP-Batch-Retargeting) or use ARP Remap's interactive bone-pair UI with Replace Namespace to handle name prefix differences. The Blender Retarget addon (extensions.blender.org) also provides interactive source-to-target bone pairing. Build and save a per-species preset — reuse across all characters of the same UniRig topology. This remap is a one-time setup cost per species skeleton family.",
+      "design_implication": "The wave-2 mocap retarget lane uses UniRig skeletons as the target rig — but UniRig gives no naming guarantee. Budget one remap-preset authoring session per species family (humanoid, tortle, kenku, sahuagin, etc.) before the mocap retarget wave begins. Store each remap preset as a.blend template. This is the key integration seam between UniRig (wave-4) and the retarget lane (wave-2).",
+      "evidence_strength": "community-claim",
+      "license": "Blender Retarget addon: free (Blender Extensions); ARP Remap: paid (~$40); technique itself: free",
+      "commercial_use": "yes",
+      "commercial_notes": "The remap/retarget step does not launder the source mocap clip license — verify commercial-use rights on the mocap clip itself (see mocap-datasets and motion-licensing lanes).",
+      "vram_gb": "n/a",
+      "rig_fit": 4,
+      "studio_fit": 4,
+      "status": "recommended",
+      "failures": [
+        "Skipping the remap step and running ARP Remap with a Mixamo preset on a UniRig skeleton will fail silently — most bones will be unmapped, resulting in a frozen rig with only root motion.",
+        "UniRig bone count varies by mesh complexity — exotic species may get fewer or more predicted bones than humanoids, making a generic remap preset unusable across species."
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "Remap — AutoRigPro Documentation (Replace Namespace)",
+          "authors": "artell",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://www.lucky3d.fr/auto-rig-pro/doc/remap_doc.html",
+          "claim": "Documents the Replace Namespace function for handling bone-name prefix differences when preset names don't match source names (e.g. 'mixamorig:Hips' vs 'matthew:Hips'); applicable to UniRig's non-standard names."
+        },
+        {
+          "kind": "repo",
+          "title": "ARP-Batch-Retargeting — GitHub (Shimingyi)",
+          "authors": "Shimingyi",
+          "year": "2024",
+          "identifier": "github.com/Shimingyi/ARP-Batch-Retargeting",
+          "url": "https://github.com/Shimingyi/ARP-Batch-Retargeting",
+          "claim": "JSON-based bone mapping pipeline for batch BVH retargeting via ARP; demonstrates 100STYLE_to_Mixamo and SMPL_to_Mixamo mappings — the same JSON approach works for UniRig-to-Mixamo bone name mapping."
+        },
+        {
+          "kind": "docs",
+          "title": "Retarget — Blender Extensions",
+          "authors": "Blender Foundation community",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://extensions.blender.org/add-ons/retarget/",
+          "claim": "Free Blender Extension with presets for Mixamo, Unreal, VRoid, MMD, Daz, Auto Rig Pro — includes interactive source-to-target bone pairing for custom skeletons like UniRig output."
+        }
+      ]
+    },
+    {
+      "slug": "skintokens-tokenrig-successor",
+      "name": "SkinTokens / TokenRig — VAST-AI UniRig successor (arXiv Feb 2026, MIT)",
+      "kind": "model",
+      "engine_family": "python",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI-Research/SkinTokens",
+      "predecessor_slug": "unirig-ai-auto-rigger-mit",
+      "stage_order": 2,
+      "claim": "SkinTokens (VAST-AI, arXiv 2602.04805, February 2026) is the verified MIT-licensed successor to UniRig that unifies skeleton prediction and skinning into a single autoregressive token sequence (TokenRig), reporting 98-133% skinning accuracy improvement and 17-22% bone prediction improvement over UniRig; code and model weights are available on GitHub as of May 2026.",
+      "summary": "Where UniRig runs two sequential stages (skeleton prediction → skin weight prediction), TokenRig represents both skeleton joints and skinning weights as a single unified discrete token sequence, predicted autoregressively. The SkinTokens representation is the key innovation: learned discrete tokens replace the per-vertex skinning weight matrices of UniRig, enabling the entire rig to be generated in one forward pass. Input is a 3D mesh GLB; output is a rigged GLB. MIT license confirmed in the GitHub repo. The Hugging Face Space demo is live. Code last updated May 12, 2026 per GitHub. No Blender addon is documented for SkinTokens; the workaround for Blender import is to 'remove the glTF_not_exported node when importing results into Blender.'",
+      "design_implication": "SkinTokens is the upgrade path from UniRig for the studio's mesh-asset line — when it is confirmed stable on the Blackwell WSL2 setup (same torch/flash_attn dependencies expected), migrate the rigging step to get better skinning quality on the exotic species roster. Do not migrate until WSL2 compatibility is measured on the RTX 5090. The Blender import workaround (remove glTF_not_exported node) must be scripted into the merge step to avoid manual cleanup per character.",
+      "evidence_strength": "single-reported-run",
+      "license": "MIT (confirmed in GitHub repository)",
+      "commercial_use": "yes",
+      "commercial_notes": "MIT license; rigged output is studio IP. No usage restrictions beyond attribution in papers.",
+      "vram_gb": "8-16",
+      "rig_fit": 5,
+      "studio_fit": 4,
+      "status": "watch",
+      "failures": [
+        "WSL2 Blackwell (sm_120) compatibility not yet measured — same dependency stack as UniRig expected but unverified as of research date (2026-06-25).",
+        "Blender import requires removing the 'glTF_not_exported' node from the output GLB — must be scripted or the mesh will have invisible geometry on import.",
+        "ComfyUI-UniRig wrapper does not yet cover SkinTokens/TokenRig — separate wrapper or shell-script path required."
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "SkinTokens: A Learned Compact Representation for Unified Autoregressive Rigging",
+          "authors": "VAST AI Research",
+          "year": "2026",
+          "identifier": "arXiv:2602.04805",
+          "url": "https://arxiv.org/abs/2602.04805",
+          "claim": "TokenRig unifies skeleton and skinning prediction into a single autoregressive sequence via SkinTokens; reports 98-133% skinning accuracy and 17-22% bone prediction improvement over state-of-art baselines including UniRig."
+        },
+        {
+          "kind": "github",
+          "title": "VAST-AI-Research/SkinTokens — GitHub",
+          "authors": "VAST AI Research",
+          "year": "2026",
+          "identifier": "github.com/VAST-AI-Research/SkinTokens",
+          "url": "https://github.com/VAST-AI-Research/SkinTokens",
+          "claim": "MIT-licensed repository; last updated May 12, 2026; GLB input/output confirmed via demo command `python demo.py --input examples/giraffe.glb --output results/giraffe.glb`; Blender import note: remove glTF_not_exported node."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-community-adoption-pipeline-reality",
+      "name": "UniRig community adoption and real-pipeline usage evidence (2025-2026)",
+      "kind": "technique",
+      "engine_family": "python",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "UniRig has measurable community adoption beyond academic use: a maintained ComfyUI wrapper (420+ commits, ComfyUI Manager installable), a Hugging Face Spaces demo (jkorstad/Mesh_Rigger), community tutorial articles, and confirmed end-to-end studio use on exotic non-humanoid meshes (studio RTX 5090 measured run) — evidence that it is a real production-path tool, not vaporware.",
+      "summary": "Adoption evidence: (1) ComfyUI-UniRig wrapper by PozzettiAndrea (GPL-3.0, 420+ commits, installable via ComfyUI Manager) is actively maintained and integrates UniRig + Make-It-Animatable in one node graph. (2) Hugging Face Space jkorstad/Mesh_Rigger hosts a public demo using UniRig's README directly. (3) Community tutorial articles (Apatero, ComfyUI Wiki) document real installation and workflow steps. (4) Studio measured run on RTX 5090 / WSL2 confirmed end-to-end pipeline on an armored humanoid mesh (28 predicted bones, learned skinning, Blender pose-test). UniRig's SIGGRAPH 2025 / ACM TOG publication and 215%/194% accuracy improvements over prior art (Rignet, TripoSG-rigging) make it academically credible. The successor (SkinTokens, arXiv Feb 2026) validates the research lineage. No evidence of false-start or abandoned status.",
+      "design_implication": "UniRig is a safe bet for the studio's mesh-asset line: real code, real weights, real community adoption, real SIGGRAPH paper, real successor in development. The ComfyUI-UniRig wrapper gives a visual-graph alternative to shell scripts for operators uncomfortable with WSL2. The jkorstad Mesh_Rigger HF Space gives a zero-setup sanity-check demo for testing new mesh types before committing to the full WSL2 install.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "MIT (UniRig); GPL-3.0 (ComfyUI wrapper); output unrestricted",
+      "commercial_use": "yes",
+      "commercial_notes": "All adoption paths commercial-clean on the output. GPL-3.0 wrapper does not affect produced 3D assets.",
+      "vram_gb": "8-16",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "sources": [
+        {
+          "kind": "repo",
+          "title": "PozzettiAndrea/ComfyUI-UniRig — GitHub (adoption evidence)",
+          "authors": "PozzettiAndrea",
+          "year": "2025",
+          "identifier": "github.com/PozzettiAndrea/ComfyUI-UniRig",
+          "url": "https://github.com/PozzettiAndrea/ComfyUI-UniRig",
+          "claim": "420+ commits; ComfyUI Manager installable; active maintenance; community usage via tutorial documentation — concrete adoption signal beyond the research paper."
+        },
+        {
+          "kind": "demo",
+          "title": "jkorstad/Mesh_Rigger — Hugging Face Space (UniRig demo)",
+          "authors": "jkorstad",
+          "year": "2025",
+          "identifier": "huggingface.co/spaces/jkorstad/Mesh_Rigger",
+          "url": "https://huggingface.co/spaces/jkorstad/Mesh_Rigger/blob/main/UniRig/README.md",
+          "claim": "Public HF Space demo using UniRig's pipeline directly; confirms the model weights and inference scripts are functional in a zero-setup environment — useful for testing new mesh types before WSL2 install."
+        },
+        {
+          "kind": "measured-on-rig",
+          "title": "Studio RTX 5090 / WSL2 Ubuntu — UniRig measured run 2026-06-25",
+          "authors": "mcp-tool-shop studio",
+          "year": "2026",
+          "identifier": "see unirig-blackwell-wsl2-skeleton-skin-measured recipe",
+          "url": "https://github.com/VAST-AI-Research/UniRig",
+          "claim": "End-to-end UniRig (skeleton + skin + merge) confirmed on Blackwell RTX 5090 / WSL2 Ubuntu; 28 predicted bones + learned skin; Blender pose-test confirms deformation — production-path validation."
+        }
+      ]
+    }
+  ]
+}

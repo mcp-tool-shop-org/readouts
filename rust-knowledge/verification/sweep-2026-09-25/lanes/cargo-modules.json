@@ -1,0 +1,305 @@
+{
+  "bucket": "cargo-modules",
+  "verifier_note": "Checked all 27 unique warrant sources by retrieval (Rust Reference, Cargo Book, rustc Book, rustup Book, and 5 blog/release-notes posts, all 2021+) and independently reproduced nearly every measured 'how' claim myself with rustc/cargo/rustup 1.98.1 in scratch directories (never inside si-rpg-engine): the caret-range and --locked error messages (recipe 3), the rust-version rejection and all three 'Locking to latest Rust X.Y' message variants (recipe 8), the cwd-vs-manifest-path toolchain/config split (recipe 9), Cargo's actual release-profile rustc flags and the workspace-member profile warning (recipe 5), the virtual-workspace resolver-default warning and the workspace.lints-to---forbid mapping (recipe 6), the 4-package feature-union cfg lists and cargo tree -i output (recipe 4), cargo fix --edition's exact 3-fix diff (recipe 7), the four-mutually-exclusive-RUSTFLAGS-sources matrix (recipe 10), and the wasm pub-export gotcha (recipe 1). For recipe 2 I rebuilt the actual solver crate (fetched read-only from mcp-tool-shop-org/si-rpg-engine via gh api) in a scratch copy with rapier3d-f64 0.35.3 and reproduced the crate-type-changes-the-digest claim almost exactly: my absolute byte counts differed from the recipe's (different Cargo.lock resolution / no --remap-path-prefix) but the delta from adding rlib was +28 bytes in both, and the dependency-graph shape (45 lib, 4 proc-macro, 8 build-script bin, 1 cdylib) matched exactly. Every engine_note fact checked against the live repo (Cargo.toml, rust-toolchain.toml, .cargo/config.toml, Cargo.lock package count/versions, lib.rs/rapier_law.rs source, build.mjs) matched verbatim. I found zero currency or attribution defects. The one systemic weakness is mechanical, not a knowledge gap: two checks (recipe 2's check 1 and recipe 6's check 3) have a label that bundles two claims ('exports X and imports nothing', 'compiles and without a warning') but the check body only encodes an oracle assertion for the first half (missing wasm_no_imports:true / no_warnings:true respectively), so the oracle would silently keep passing if the unasserted half regressed. I verified both unasserted halves are true today by building the exact check sources directly, so this is a check-authoring completeness gap, not a wrong claim.",
+  "verdicts": [
+    {
+      "slug": "split-a-crate-into-file-modules-with-mod-name-and-share-internals-via-pub-crate-pub-super-not-pub",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Reproduced E0603 and E0583 verbatim on rustc 1.98.1. Reproduced the wasm gotcha myself: a cdylib with plain pub fn + pub(crate) fn beside #[no_mangle] api exported only memory,api.",
+      "evidence_url": "https://doc.rust-lang.org/reference/visibility-and-privacy.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/reference/visibility-and-privacy.html",
+          "supported": true,
+          "note": "Confirms private/descendant scope, pub(crate)/pub(super)/pub(self)/pub(in path), 2018 path rule, all quoted verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/reference/items/modules.html",
+          "supported": true,
+          "note": "Confirms name.rs/name/mod.rs loading and that having both is disallowed, quoted verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/ch07-01-packages-and-crates.html",
+          "supported": true,
+          "note": "Confirms crate = smallest compiler unit, max one lib crate per package, lib.rs/main.rs as roots."
+        }
+      ]
+    },
+    {
+      "slug": "choose-lib-crate-type-by-who-loads-it-cdylib-for-the-wasm-module-rlib-for-rust-callers-staticlib-for-c",
+      "verdict": "corrected",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Rebuilt the real solver (rapier3d-f64 0.35.3) in scratch: adding rlib changed the wasm SHA-256, delta +28 bytes matching the recipe's claimed delta exactly; dep graph counts (45 lib/4 proc-macro/8 bin) matched exactly.",
+      "evidence_url": "https://doc.rust-lang.org/reference/linkage.html",
+      "corrections": {
+        "claim": "Check 1's label says the wasm cdylib 'imports nothing' but the check body omits wasm_no_imports:true, so the oracle never asserts it (only exports+wasm_call are checked). Verified true myself: building the exact check source gave wasm_imports: []."
+      },
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html",
+          "supported": true,
+          "note": "Confirms crate-type is an array, lib/example only, default \"lib\", full option list, quoted verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/reference/linkage.html",
+          "supported": true,
+          "note": "Confirms lib/cdylib/staticlib/rlib definitions verbatim, including staticlib is never linked by rustc."
+        },
+        {
+          "url": "https://doc.rust-lang.org/book/ch07-01-packages-and-crates.html",
+          "supported": true,
+          "note": "Confirms a package has at most one library crate, quoted verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "read-a-bare-0-35-3-requirement-as-0-35-3-0-36-commit-cargo-lock-and-build-the-artifact-with-locked",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Reproduced all 4 measured cargo error/update messages word-for-word on 1.98.1: the ^0.35.3 and =0.35.3 'failed to select a version' rejections, --locked's 'cannot update'/'cannot create', and the plain-build auto-update line.",
+      "evidence_url": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html",
+          "supported": true,
+          "note": "Confirms caret default (incl. 0.0.3 case), = exact requirement, and path-dep version enforcement, all quoted."
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/commands/cargo-build.html",
+          "supported": true,
+          "note": "Confirms --locked/--offline/--frozen semantics verbatim, matching my own --locked reproduction."
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/resolver.html",
+          "supported": true,
+          "note": "Confirms Cargo.lock gets highest resolution priority, with the bitflags example, quoted verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html",
+          "supported": true,
+          "note": "Confirms 'exact information...maintained by Cargo' and 'when in doubt, check in' guidance verbatim."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2023/08/29/committing-lockfiles/",
+          "supported": true,
+          "note": "2023-08-29, Cargo team; confirms the guidance change to 'do what is best' and cargo new no longer ignoring the lock."
+        }
+      ]
+    },
+    {
+      "slug": "assume-a-cargo-feature-enabled-by-any-dependent-is-on-for-all-audit-with-cargo-tree-e-features-i-crate",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Built the exact 4-package workspace: printed 'a sees core_c mode=parallel std=true' verbatim; whole-ws build shows core_c getting default+parallel+std cfgs, -p a alone gets none; cargo tree -i named b as the enabler.",
+      "evidence_url": "https://doc.rust-lang.org/cargo/reference/features.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/features.html",
+          "supported": true,
+          "note": "Confirms union-of-features, default-features=false override risk, dep:/pkg?/feat syntax, cargo tree -i."
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/resolver.html",
+          "supported": true,
+          "note": "Confirms all-features-enabled lockfile pass then a second pass for actual compile features, quoted verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "set-profile-only-in-the-root-manifest-and-remember-config-files-and-cargo-profile-env-vars-override-it",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Reproduced Cargo's real rustc invocations on 1.98.1: default release emits -C opt-level=3 -C strip=debuginfo; +debug-assertions=true adds explicit -C overflow-checks=off; member [profile] warning text matched verbatim.",
+      "evidence_url": "https://doc.rust-lang.org/cargo/reference/profiles.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/profiles.html",
+          "supported": true,
+          "note": "Confirms root-only profiles, dev/release defaults (strip=\"none\" documented), override precedence, panic/lto/rpath ban."
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/config.html",
+          "supported": true,
+          "note": "Confirms config [profile] overrides manifest and package tables exclude panic/lto/rpath, quoted verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/rustc/codegen-options/index.html",
+          "supported": true,
+          "note": "Confirms debug-assertions only at opt-level 0, overflow-checks follows debug-assertions, lto thin-local default."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2024/03/21/Rust-1.77.0/",
+          "supported": true,
+          "note": "2024-03-21; confirms strip=\"debuginfo\" became the effective default when no debuginfo is enabled, quoted verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "share-lock-target-dir-and-lints-across-crates-with-workspace-dependencies-and-workspace-lints",
+      "verdict": "corrected",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Reproduced the virtual-workspace resolver warning and the [workspace.lints] to --forbid=unsafe_code mapping verbatim on 1.98.1, incl. the unsafe-block rejection and E0453 under forbid.",
+      "evidence_url": "https://doc.rust-lang.org/cargo/reference/workspaces.html",
+      "corrections": {
+        "claim": "Check 3's label says allow-under-deny compiles 'without a warning' but the check body omits no_warnings:true, so the oracle doesn't assert it (only expect:compiles is checked). Verified true myself: raw rustc stderr was 0 bytes for that exact source."
+      },
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/workspaces.html",
+          "supported": true,
+          "note": "Confirms shared Cargo.lock/target, root-only [patch]/[replace]/[profile.*], resolver requirement, lints inheritance."
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/manifest.html",
+          "supported": true,
+          "note": "Confirms [lints] levels, local-package-only scope, and 'respected as of 1.74', quoted verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/config.html",
+          "supported": true,
+          "note": "Confirms Cargo does not read config files from member crates inside a workspace, quoted verbatim."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2023/11/16/Rust-1.74.0/",
+          "supported": true,
+          "note": "2023-11-16; confirms the new [lints] table and workspace.lints inheritance via [lints] workspace=true, quoted."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2022/09/22/Rust-1.64.0/",
+          "supported": true,
+          "note": "2022-09-22; confirms workspace inheritance for shared values across members, quoted verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "migrate-a-crate-s-edition-with-cargo-fix-edition-then-edit-edition-yourself-then-rebuild-and-test",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Ran cargo fix --edition on a solver-shaped cdylib: got 'Migrating src\\lib.rs...(3 fixes)' verbatim, exactly the 2 no_mangle+1 extern-C rewrites described, edition key left at 2021, static-mut-ref left as a warning.",
+      "evidence_url": "https://doc.rust-lang.org/cargo/commands/cargo-fix.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/edition-guide/editions/index.html",
+          "supported": true,
+          "note": "Confirms per-crate edition choice and mandatory cross-edition interop, quoted verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/manifest.html",
+          "supported": true,
+          "note": "Confirms edition applies to all targets and defaults to 2015 when absent, quoted verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/commands/cargo-fix.html",
+          "supported": true,
+          "note": "Confirms --edition never updates Cargo.toml itself; inactive cfg/features aren't migrated. Matched my repro."
+        }
+      ]
+    },
+    {
+      "slug": "declare-rust-version-and-choose-the-resolver-edition-2024-makes-resolver-3-lock-msrv-compatible-versions",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Reproduced the rust-version rejection message and --ignore-rust-version verbatim, plus 2 of the 3 claimed 'Locking to latest Rust X.Y compatible version' message variants exactly (edition2024 w/o and with rust-version).",
+      "evidence_url": "https://doc.rust-lang.org/cargo/reference/rust-version.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/rust-version.html",
+          "supported": true,
+          "note": "Confirms bare-version format, error unless --ignore-rust-version, resolver/cargo-add/clippy readers, since 1.56."
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/resolver.html",
+          "supported": true,
+          "note": "Confirms resolver \"2\"/\"3\" edition defaults, the fallback change, and the global/virtual-workspace rule, quoted verbatim."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2025/01/09/Rust-1.84.0/",
+          "supported": true,
+          "note": "2025-01-09; confirms MSRV-aware resolver stabilization, opt-in paths, CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS."
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/workspaces.html",
+          "supported": true,
+          "note": "Confirms virtual workspaces must set resolver explicitly since there's no package.edition, quoted verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "pin-the-compiler-with-rust-toolchain-toml-and-run-cargo-from-that-directory-rustup-finds-it-from-the-cwd",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Reproduced the central claim precisely: --manifest-path from the parent dir used the default (stable) toolchain and dropped the .cargo/config.toml --cfg flag; running from inside the dir used 1.98.1 and kept it.",
+      "evidence_url": "https://rust-lang.github.io/rustup/overrides.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://rust-lang.github.io/rustup/overrides.html",
+          "supported": true,
+          "note": "Confirms precedence order and upward directory-walk discovery; matched my active-toolchain repro exactly."
+        },
+        {
+          "url": "https://rust-lang.github.io/rustup/concepts/profiles.html",
+          "supported": true,
+          "note": "Confirms minimal=rustc/rust-std/cargo, default adds rust-docs/rustfmt/clippy, affects only new installs."
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/config.html",
+          "supported": true,
+          "note": "Confirms Cargo's config search also walks up from the cwd (not manifest-path), consistent with the reproduced gap."
+        }
+      ]
+    },
+    {
+      "slug": "treat-cargo-s-rustflags-sources-as-exclusive-any-rustflags-even-empty-drops-cargo-config-toml-rustflags",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Reproduced the full 4-source exclusivity matrix on 1.98.1: target config silences build config; RUSTFLAGS overrides both; CARGO_ENCODED_RUSTFLAGS wins over RUSTFLAGS; either set to empty yields zero flags, not a fallback.",
+      "evidence_url": "https://doc.rust-lang.org/cargo/reference/config.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/config.html",
+          "supported": true,
+          "note": "Confirms the 4 mutually-exclusive rustflags sources in priority order; matched my repro exactly."
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/environment-variables.html",
+          "supported": true,
+          "note": "Confirms RUSTFLAGS whitespace-splitting and CARGO_ENCODED_RUSTFLAGS's 0x1f separator, quoted verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html",
+          "supported": true,
+          "note": "Confirms LLVM-generic-CPU defaults and the 1.87 nontrapping-fptoint/bulk-memory change; relaxed-simd not named here."
+        }
+      ]
+    }
+  ]
+}

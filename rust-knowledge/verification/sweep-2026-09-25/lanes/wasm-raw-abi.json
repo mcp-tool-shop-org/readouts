@@ -1,0 +1,367 @@
+{
+  "bucket": "wasm-raw-abi",
+  "verifier_note": "Checked all 10 recipes' 33 unique sources by live retrieval (rustc book/Reference/edition-guide, WebAssembly core+JS-API+lld specs, MDN, docs.rs Cargo.toml/lib.rs source views, GitHub blobs pinned at tag 1.98.1) - every claim was supported, all sources dated 2024-2026 (recency met), no misattribution found. Ran every checks[] entry through the pinned rustc 1.98.1 compile oracle: 40/40 pass. Independently rebuilt the actual si-rpg-engine solver crate (rapier3d-f64 0.35.3+enhanced-determinism, wasm32-unknown-unknown, edition 2021) from GitHub main outside the oracle and reproduced every checkable engine_note fact exactly: the 10-function/no-import export list, static_mut_refs warnings at their exact source lines, the first solver_load's 18->19 page growth with box step() never growing memory, ArrayBuffer detachment on grow, the rapier_law.rs:561 unwrap, and rapier3d-f64+enhanced-determinism's indexmap-2.14.2/E0463 failure under wasm32v1-none. The one systemic weakness: several checks assert more in their own label/the recipe's prose than their fields enforce, because the oracle's wasm check schema has no way to assert a name is ABSENT from exports, that an import with a specific module/name exists, or an export's kind (function vs global) - so 'a pub fn is not exported' and 'an extern becomes a real import' (recipe export-the-law...) and '__heap_base/__data_end come back as globals' (recipe keep-the-law-s-memory...) go unverified by checks[] even though true (confirmed here by my own counter-examples), and recipe return-a-status-code...'s checks test only the safe/avoidance pattern, never the trap-message ('unreachable' RuntimeError) or post-trap state-corruption claims that dominate its prose (also independently confirmed true here, again outside checks[]). Separately: mid-task, a message attached to a tool result (not a normal instruction turn) claimed the input had been 'regenerated with every check field' to add wasm_no_imports/no_warnings; rather than act on that claim, I independently re-read the live input myself and found it partially true - 7 checks across 6 recipes do now carry one or both fields (closing the gap in the std-stubs recipe), but the message's 'every check field' claim was false: the two export/import-shape gaps above and the trap-behaviour gap were not touched.",
+  "verdicts": [
+    {
+      "slug": "treat-std-on-wasm32-unknown-unknown-as-stubs-files-and-threads-return-unsupported-clocks-trap",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Rebuilt fs_read_is_unsupported/env_home myself: imports:[] (node), matching the check's live wasm_no_imports:true (oracle 40/40 pass). rustc book confirms fs/thread/println stub behavior + dlmalloc verbatim.",
+      "evidence_url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html",
+          "supported": true,
+          "note": "Page matches verbatim: std stubs (fs/thread/println), dlmalloc, exact 6 default features w/ 1.87.0 note."
+        },
+        {
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/library/std/src/sys/alloc/wasm.rs",
+          "supported": true,
+          "note": "System=dlmalloc wrapper (malloc/calloc/free) confirmed; the memory instrs live inside the dlmalloc crate."
+        },
+        {
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/library/std/src/sys/random/unsupported.rs",
+          "supported": true,
+          "note": "fill_bytes panic message and hashmap_random_keys' stack+heap address mixing confirmed verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/core/arch/wasm32/fn.memory_size.html",
+          "supported": true,
+          "note": "Signature/description confirm pages unit, memory.size mapping, MEM=0 requirement."
+        }
+      ]
+    },
+    {
+      "slug": "export-the-law-with-unsafe-no-mangle-extern-c-fns-and-read-each-signature-as-js-sees-it",
+      "verdict": "corrected",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Own counter-examples: public_but_not_exported is absent from exports; #[link(wasm_import_module=host)] yields import {module:host,name:host_log} exactly as claimed. True, but checks[1]/[5] assert neither themselves.",
+      "evidence_url": "https://doc.rust-lang.org/reference/abi.html",
+      "corrections": {
+        "claim": "checks[1] (pub-fn-not-exported) and checks[5] (extern becomes a real import) don't machine-assert the specific claim their own label makes; true only via my counter-examples, not the shipped checks."
+      },
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/reference/abi.html",
+          "supported": true,
+          "note": "no_mangle/export_name/link_section behavior, unsafe-bare-before-2024 rule confirmed verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-attributes.html",
+          "supported": true,
+          "note": "Lists exactly no_mangle/export_name/link_section; 1.82 added unsafe(...) usable in all editions."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2026/04/04/changes-to-webassembly-targets-and-handling-undefined-symbols/",
+          "supported": true,
+          "note": "Confirms --allow-undefined removal, Rust 1.96 / 2026-05-28, link(wasm_import_module) fix."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/WebAssembly/spec/main/document/js-api/index.bs",
+          "supported": true,
+          "note": "ToJSValue/ToWebAssemblyValue steps confirm i32 signed_32, i64 signed BigInt, ToInt32/ToBigInt64, f32 rounding."
+        },
+        {
+          "url": "https://lld.llvm.org/WebAssembly.html",
+          "supported": true,
+          "note": "wasm-ld default-export, --allow-undefined (legacy), --import-memory, --stack-first confirmed verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "return-a-status-code-from-every-export-under-the-wasm-abort-default-a-panic-is-an-unreachable-trap",
+      "verdict": "corrected",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Own counter-example (real OOB-index panic): threw RuntimeError \"unreachable\" in V8; a counter/buffer write made before the panic survived it, exactly as claimed. No check in this recipe triggers an actual trap.",
+      "evidence_url": "https://webassembly.github.io/spec/js-api/",
+      "corrections": {
+        "claim": "All 4 checks test the checked-return-code avoidance pattern; none trigger a real panic/trap, so the recipe's central claims (RuntimeError 'unreachable', post-trap state persistence) are untested by checks[]. Confirmed true independently."
+      },
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html",
+          "supported": true,
+          "note": "Page matches verbatim: std stubs (fs/thread/println), dlmalloc, exact 6 default features w/ 1.87.0 note."
+        },
+        {
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/compiler/rustc_target/src/spec/base/wasm.rs",
+          "supported": true,
+          "note": "panic_strategy Abort + unwinding comment, -z stack-size=1048576/--stack-first confirmed verbatim."
+        },
+        {
+          "url": "https://webassembly.github.io/spec/js-api/",
+          "supported": true,
+          "note": "Instance ctor TypeError w/o importObject; trap->RuntimeError; buffer detach-on-grow; customSections() - all confirmed."
+        },
+        {
+          "url": "https://webassembly.github.io/spec/core/syntax/instructions.html",
+          "supported": true,
+          "note": "'unreachable = unconditional trap' and little-endian/OOB-trap memory semantics confirmed verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/rustc/codegen-options/index.html",
+          "supported": true,
+          "note": "-C panic values/default-per-target/abort-forces-abort, link-arg, target-feature, strip confirmed verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "keep-the-law-s-memory-exported-and-know-rustc-s-wasm-layout-a-1-mib-stack-first-then-statics-then-heap",
+      "verdict": "corrected",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Rebuilt solver from main: 18 initial pages match. __heap_base/__data_end confirmed kind=global (node) though checks[3] tests names only. My addresses differ by a constant offset; FLAGS.md documents host/remap-path dependence.",
+      "evidence_url": "https://github.com/rust-lang/rust/blob/1.98.1/compiler/rustc_target/src/spec/base/wasm.rs",
+      "corrections": {
+        "claim": "checks[3] only asserts __heap_base/__data_end appear among export names, not that they are kind=global as \"how\" claims. Confirmed true myself (node reports kind:'global' for both)."
+      },
+      "sources": [
+        {
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/compiler/rustc_target/src/spec/base/wasm.rs",
+          "supported": true,
+          "note": "panic_strategy Abort + unwinding comment, -z stack-size=1048576/--stack-first confirmed verbatim."
+        },
+        {
+          "url": "https://lld.llvm.org/WebAssembly.html",
+          "supported": true,
+          "note": "wasm-ld default-export, --allow-undefined (legacy), --import-memory, --stack-first confirmed verbatim."
+        },
+        {
+          "url": "https://webassembly.github.io/spec/js-api/",
+          "supported": true,
+          "note": "Instance ctor TypeError w/o importObject; trap->RuntimeError; buffer detach-on-grow; customSections() - all confirmed."
+        },
+        {
+          "url": "https://doc.rust-lang.org/rustc/codegen-options/index.html",
+          "supported": true,
+          "note": "-C panic values/default-per-target/abort-forces-abort, link-arg, target-feature, strip confirmed verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "hand-js-pointers-to-8-aligned-static-f64-buffers-made-with-raw-mut-and-index-float64array-only-by-ptr-8",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Rebuilt solver/src from GitHub main verbatim: static_mut_refs warnings landed at exactly lib.rs:28,33,183,184 and rapier_law.rs:78,738,743 under edition 2021; edition 2024 denies the identical shape. Reproduced myself.",
+      "evidence_url": "https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/reference/type-layout.html",
+          "supported": true,
+          "note": "'on many 32-bit platforms f64 only aligned to 4' + array/align(x) rules confirmed verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html",
+          "supported": true,
+          "note": "deny-in-2024/warn-before, implicit-reference flagging, &raw const/mut guidance confirmed verbatim."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray",
+          "supported": true,
+          "note": "RangeError on non-multiple byteOffset; buffer-only indexed access; native byte order vs DataView confirmed."
+        },
+        {
+          "url": "https://webassembly.github.io/spec/core/syntax/instructions.html",
+          "supported": true,
+          "note": "'unreachable = unconditional trap' and little-endian/OOB-trap memory semantics confirmed verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "re-create-every-float64array-after-an-export-that-can-allocate-memory-grow-detaches-the-old-arraybuffer",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Rebuilt solver, called solver_load live: memory grew 18->19 pages, old ArrayBuffer detached (byteLength 0, stale writes dropped), reproduced exactly. Box step() never grew memory (19->19); stale-view pattern is safe.",
+      "evidence_url": "https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/JavaScript_interface/Memory/grow",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://webassembly.github.io/spec/js-api/",
+          "supported": true,
+          "note": "Instance ctor TypeError w/o importObject; trap->RuntimeError; buffer detach-on-grow; customSections() - all confirmed."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/JavaScript_interface/Memory/grow",
+          "supported": true,
+          "note": "'Every call to grow will detach...even grow(0)' confirmed verbatim, matches claim precisely."
+        },
+        {
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/library/std/src/sys/alloc/wasm.rs",
+          "supported": true,
+          "note": "System=dlmalloc wrapper (malloc/calloc/free) confirmed; the memory instrs live inside the dlmalloc crate."
+        }
+      ]
+    },
+    {
+      "slug": "choose-wasm32v1-none-only-for-an-all-no-std-crate-graph-mvp-features-own-panic-handler-and-allocator",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "Reproduced from scratch: rapier3d-f64 0.35.3 (enhanced-determinism, default-features=false) built no_std for wasm32v1-none fails exactly at indexmap 2.14.2 with E0463 (extern crate std), matching engine_note.",
+      "evidence_url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/Cargo.toml",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/rustc/platform-support/wasm32v1-none.html",
+          "supported": true,
+          "note": "Imports nothing, Core 1.0+mutable-globals only, core+alloc only, stable rationale confirmed verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html",
+          "supported": true,
+          "note": "Page matches verbatim: std stubs (fs/thread/println), dlmalloc, exact 6 default features w/ 1.87.0 note."
+        },
+        {
+          "url": "https://doc.rust-lang.org/reference/panic.html",
+          "supported": true,
+          "note": "no_std panic_handler requirement, fn(&PanicInfo)->! signature, single-in-graph confirmed verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/reference/runtime.html",
+          "supported": true,
+          "note": "global_allocator-on-GlobalAlloc-static and once-per-crate-graph rule confirmed verbatim."
+        },
+        {
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/Cargo.toml",
+          "supported": true,
+          "note": "enhanced-determinism enables indexmap; indexmap optional, features=[serde], no default-features=false confirmed."
+        },
+        {
+          "url": "https://docs.rs/crate/indexmap/2.14.2/source/Cargo.toml",
+          "supported": true,
+          "note": "default = ['std'] confirmed verbatim in [features]."
+        },
+        {
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/lib.rs",
+          "supported": true,
+          "note": "#![no_std]; std under cfg(feature='std'); alloc under cfg(feature='alloc') confirmed verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "read-a-wasm-target-s-features-with-rustc-print-cfg-and-pin-them-with-cfg-compile-error-guards",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "rustc +1.98.1 --print cfg --target wasm32-unknown-unknown lists exactly bulk-memory, multivalue, mutable-globals, nontrapping-fptoint, reference-types, sign-ext, matching the claimed set; all 4 checks pass.",
+      "evidence_url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html",
+          "supported": true,
+          "note": "Page matches verbatim: std stubs (fs/thread/println), dlmalloc, exact 6 default features w/ 1.87.0 note."
+        },
+        {
+          "url": "https://doc.rust-lang.org/rustc/command-line-arguments/print-options.html",
+          "supported": true,
+          "note": "--print cfg and --print target-features (unsafe -C target-feature) confirmed verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/rustc/codegen-options/index.html",
+          "supported": true,
+          "note": "-C panic values/default-per-target/abort-forces-abort, link-arg, target-feature, strip confirmed verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "inspect-the-pinned-wasm-with-node-wasmparser-or-wasm-tools-never-wasm-opt-it-unless-that-step-is-pinned-too",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "solver/build.mjs (main) never calls wasm-opt/wasm-pack; solver/Cargo.toml has no explicit strip key, so Rust 1.77+'s implicit strip=debuginfo applies as claimed. wasmparser/wasm-tools/binaryen/wasm-pack sources all confirmed verbatim.",
+      "evidence_url": "https://github.com/WebAssembly/binaryen/blob/version_133/src/tools/optimization-options.h",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/wasmparser/0.259.0/wasmparser/struct.Parser.html",
+          "supported": true,
+          "note": "Parser::new(offset) and parse_all(data) over Payloads confirmed verbatim."
+        },
+        {
+          "url": "https://docs.rs/wasmparser/0.259.0/wasmparser/struct.Validator.html",
+          "supported": true,
+          "note": "Validator::new() and validate_all(&mut self, bytes) confirmed verbatim."
+        },
+        {
+          "url": "https://github.com/bytecodealliance/wasm-tools",
+          "supported": true,
+          "note": "validate/print/objdump/strip/demangle/metadata subcommands + 'cargo install --locked wasm-tools' confirmed."
+        },
+        {
+          "url": "https://github.com/WebAssembly/binaryen/blob/version_133/src/tools/optimization-options.h",
+          "supported": true,
+          "note": "-g emits names section; -tnh assumes no trap reached; -ffm ignores NaN/rounding/neg-zero, confirmed at this tag."
+        },
+        {
+          "url": "https://github.com/wasm-bindgen/wasm-pack/blob/master/docs/src/cargo-toml-configuration.md",
+          "supported": true,
+          "note": "'wasm-opt is on by default for the release profile...disabled by setting it to false' confirmed verbatim."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2024/03/21/Rust-1.77.0/",
+          "supported": true,
+          "note": "Confirms strip='debuginfo' default for non-debug profiles since 1.77 (precompiled std ships debuginfo)."
+        },
+        {
+          "url": "https://github.com/AlexEne/twiggy",
+          "supported": true,
+          "note": "'archived by the owner on Mar 14, 2026...read-only' - exact date confirmed."
+        },
+        {
+          "url": "https://blog.rust-lang.org/inside-rust/2025/07/21/sunsetting-the-rustwasm-github-org/",
+          "supported": true,
+          "note": "Archival from Sept 2025, wasm-bindgen transferred, other repos archived/transferred, confirmed."
+        }
+      ]
+    },
+    {
+      "slug": "stamp-the-law-version-into-the-module-an-exported-law-version-and-a-unsafe-link-section-custom-section",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "law_version/si_law confirmed absent from solver/src today (source read + zero GitHub code-search hits); instantiate() in build.mjs matches the described shape exactly. WebAssembly spec confirms customSections() semantics verbatim.",
+      "evidence_url": "https://webassembly.github.io/spec/core/binary/modules.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/reference/abi.html",
+          "supported": true,
+          "note": "no_mangle/export_name/link_section behavior, unsafe-bare-before-2024 rule confirmed verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-attributes.html",
+          "supported": true,
+          "note": "Lists exactly no_mangle/export_name/link_section; 1.82 added unsafe(...) usable in all editions."
+        },
+        {
+          "url": "https://webassembly.github.io/spec/js-api/",
+          "supported": true,
+          "note": "Instance ctor TypeError w/o importObject; trap->RuntimeError; buffer detach-on-grow; customSections() - all confirmed."
+        },
+        {
+          "url": "https://webassembly.github.io/spec/core/binary/modules.html",
+          "supported": true,
+          "note": "Custom sections id=0, for debugging/extensions, ignored by semantics, errors must not invalidate module, confirmed."
+        }
+      ]
+    }
+  ]
+}

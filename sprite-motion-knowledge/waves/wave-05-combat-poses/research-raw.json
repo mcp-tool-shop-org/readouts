@@ -1,0 +1,304 @@
+{
+  "wave": 5,
+  "date": "2026-06-25",
+  "title": "Combat key-poses + deform-safe rigid-armor posing",
+  "domain_scope": "combat-craft, rigging, motion-verify",
+  "agent_count": 3,
+  "verifier_note": "Research-grounded-advisor citation gate: retrieval oracle (WebFetch) confirmed 7/7 load-bearing citations + 2 non-Claude families (minimax-m3, kimi-k2.6) grounded 6/6, no ANDON halt. Measured-on-rig recipes validated on the blackguard (RTX 5090).",
+  "lanes": [
+    {
+      "laneSlug": "combat-craft",
+      "title": "Combat key-pose authoring (instantiated poses)",
+      "recipes": [
+        {
+          "slug": "combat-keypose-authoring-grounded",
+          "name": "Author the 6 battle key-poses to biomechanical targets (hand-author, don't retarget, don't guess)",
+          "kind": "technique",
+          "engine_family": "blender",
+          "applicable_to": "all-motion",
+          "claim": "For static combat key-poses (idle-ready, guard, anticipation, strike, recovery, hurt) on an auto-rigged custom character, hand-author to biomechanical/silhouette targets solved numerically — it is faster than retarget-and-scrub for one frame, it is what shipped 2.5D/2D-from-3D games do, and it keeps restrictive mocap licenses out of the project.",
+          "summary": "The combat-craft principles (key-pose-first, exaggerate 30-50%, silhouette-reads-8-ways) say WHAT makes a pose read but not the joint angles. This recipe instantiates the 6 canonical poses with construction targets: idle-ready = lowered COM, flexed hips/knees, weight on balls of feet, ASYMMETRIC (no twinning). guard = bladed/staggered feet, bent knees, hands raised to chest/face, ELBOWS TUCKED IN (boxing guard; longsword Pflug/Ochs). anticipation = move OPPOSITE the strike first (weapon drawn back, rear foot loaded, torso counter-rotated). strike = held extreme at the far end of the wind-up arc, clean profile silhouette. recovery = overshoot then settle, loose parts (cape) drag after the main mass. hurt = COM thrown outside the base of support (a discrete labelable class). Author by SOLVING joint angles to a target hand/foot position (numeric forward-kinematics), not eyeballing — the sprite-motion poser uses world-axis delta rotations solved to chest-height hand targets; a single-axis guess threw the arms up (a touchdown). Mocap libraries amortize MOTION, not a single frame, and the clean-licensed humanoid libraries (CMU, 100STYLE, Mixamo) rarely beat hand-posing for one key-frame; the non-commercial traps (AMASS/SMPL, Ubisoft LaFAN1) are blocked for a shipped game and retargeting does NOT relicense them.",
+          "design_implication": "Build a numeric pose-solver into the rig-proxy lane: name each key-pose's end-effector targets (hand at chest for guard, weapon-back for anticipation) and solve the bone rotations, then verify the silhouette in 8 directions. Cap authored joint flexion (see the rigging-lane deform recipe). The pose representation is role-keyed world-axis deltas (port across skeletons) resolved via the per-character roleMap. Never retarget AMASS/LaFAN1/Unreal-Lyra into a shippable asset.",
+          "evidence_strength": "reproduced-from-source",
+          "license": "n/a",
+          "commercial_use": "yes",
+          "commercial_notes": "Animation principles + biomechanics; hand-authored poses are studio IP. AMASS/SMPL and Ubisoft LaFAN1 are NON-COMMERCIAL and must not be retargeted into shipped assets; CMU Mocap / 100STYLE (CC BY) / Mixamo (in-product) are the clean fallbacks if a clip is ever used.",
+          "vram_gb": "n/a",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "failures": [
+            {
+              "symptom": "Hand-authored pose looks wrong / arms thrown up (a 'touchdown' instead of a guard)",
+              "cause": "Guessing joint angles, or a single world-axis rotation that cannot express a real stance (a guard needs >1 axis per joint)",
+              "remediation": "Solve the bone rotations numerically to a named end-effector target (hand at chest height, elbows tucked); use a multi-axis-per-role pose format",
+              "severity": "quality",
+              "recipe_field": "summary"
+            },
+            {
+              "symptom": "All propless/posed characters default to the same splayed pose",
+              "cause": "No per-pose target authored; the rig falls back to a neutral spread",
+              "remediation": "Author distinct body-attached targets per pose AND per character; validate the pose is deliberate and distinct, not just defect-free",
+              "severity": "quality",
+              "recipe_field": "summary"
+            }
+          ],
+          "purposes": [
+            "combat-keypose",
+            "rig-proxy-lane",
+            "pose-authoring"
+          ],
+          "sources": [
+            {
+              "kind": "book",
+              "title": "The Illusion of Life: Disney Animation",
+              "authors": "Frank Thomas, Ollie Johnston",
+              "year": "1981",
+              "identifier": "ISBN 978-0-7868-6070-8",
+              "url": "https://en.wikipedia.org/wiki/Twelve_basic_principles_of_animation",
+              "claim": "Staging, anticipation (move opposite first), and solid drawing without twinning are the structural grammar of a readable pose; the pose must read in silhouette before any detail."
+            },
+            {
+              "kind": "book",
+              "title": "The Animator's Survival Kit",
+              "authors": "Richard Williams",
+              "year": "2001",
+              "identifier": "ISBN 978-0-571-23834-7",
+              "url": "https://archive.org/details/TheAnimatorsSurvivalKitRichardWilliams",
+              "claim": "Test every key-pose in profile silhouette; the strike is the held extreme at the far end of the wind-up arc that then recoils."
+            },
+            {
+              "kind": "video",
+              "title": "GDC Animation Bootcamp: Fluid and Powerful Animation within Frame Restrictions",
+              "authors": "Mariel Cartwright (Lab Zero Games)",
+              "year": "2014",
+              "identifier": "GDC Vault 1020017",
+              "url": "https://www.gdcvault.com/play/1020017",
+              "claim": "With a ~6-frame punch budget, spend it on a distinct wind-up key + a held strike key (Skullgirls) — strong exaggerated extremes carry the read, not frame count."
+            },
+            {
+              "kind": "paper",
+              "title": "NTU RGB+D: A Large Scale Dataset for 3D Human Activity Analysis",
+              "authors": "Amir Shahroudy, Jun Liu, Tian-Tsong Ng, Gang Wang",
+              "year": "2016",
+              "identifier": "arXiv:1604.02808",
+              "url": "https://arxiv.org/abs/1604.02808",
+              "claim": "Strike and stagger are enumerated reproducible action classes (punch/kick/push and staggering/falling), confirming the key-pose set maps to real labeled poses."
+            },
+            {
+              "kind": "web",
+              "title": "Art Design Deep Dive: Using a 3D pipeline for 2D animation in Dead Cells",
+              "authors": "Thomas Vasseur (Motion Twin)",
+              "year": "2018",
+              "identifier": "",
+              "url": "https://www.gamedeveloper.com/production/art-design-deep-dive-using-a-3d-pipeline-for-2d-animation-in-i-dead-cells-i-",
+              "claim": "Dead Cells renders hand-keyframed 3D rigs down to pixel sprites ('animations are designed, like 2D animations, on key frames'); the 3D-to-2D win is asset reuse, not motion capture."
+            },
+            {
+              "kind": "docs",
+              "title": "AMASS dataset license",
+              "authors": "Max Planck Institute (Mahmood et al.)",
+              "year": "2019",
+              "identifier": "",
+              "url": "https://amass.is.tue.mpg.de/license.html",
+              "claim": "AMASS prohibits 'any use for commercial purposes... incorporation in a commercial product' and bars training methods for commercial use; retargeting does not relicense it."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "laneSlug": "motion-verify",
+      "title": "Vision-jury calibration (reference-anchored QA)",
+      "recipes": [
+        {
+          "slug": "vision-jury-reference-anchor",
+          "name": "Anchor the cross-family vision jury with a bug-free reference image (kill false positives on dark/ornate characters)",
+          "kind": "technique",
+          "engine_family": "n/a",
+          "applicable_to": "all-motion",
+          "claim": "A refute-by-default cross-family vision jury with a defect taxonomy but NO bug-free reference image hallucinates defects ('melted', 'collapsed', 'detached', 'shards') on dark plate-armor + tattered-cloth + spiky-silhouette characters — failing even a CLEAN bind pose. The fix (grounded, not optional) is to give each check an explicit bug-free REFERENCE render so the jury compares against known-clean instead of free-associating.",
+          "summary": "MEASURED ON RIG (2026-06-25, blackguard): the jury fails the CLEAN re-rigged bind pose (rest front 1/3, back 1/3) and the clean posed guard (side/back), flagging 'melted forearm', 'collapsed lower body', 'foot shards' that full-res inspection shows are NOT present (solid greaves, solid sabatons, clean creased elbow). The intended tattered cape/loincloth reads as 'torn' and the intentionally spiky pauldrons read as 'blobby protrusions'. minimax-m3 is the reliable juror here; kimi-k2.6 and the gemini canary over-refute the aesthetic. This is the PREDICTED failure mode of reference-less VLM visual-QA: GlitchBench (Taesiri et al.) shows VLM QA needs explicit defect categories AND a bug-free reference image to be reliable. FIX: (1) pass a known-clean reference render of the same character per check (the bind-pose render, jury-passed) so the prompt says 'compare to this clean reference; flag only NEW defects'; (2) tell the jury which features are intended (ragged cloth, spiked pauldrons, horns); (3) weight the jurors (minimax > kimi/gemini on ornate dark characters) or expand the roster; (4) keep the human full-res look as the final arbiter (the full-res law). Self-certification is still forbidden; the reference anchor makes the external verifier trustworthy.",
+          "design_implication": "Before batching 68 mostly-dark-armored characters through the jury, add the reference-anchor: store each character's jury-passed bind-pose render as its reference, and have _rigqa.py pass it alongside the test image with a 'flag only deviations from this clean reference' prompt + an intended-features note. Re-tune the consensus rule (canary stays advisory; consider minimax-weighted). Without this, the jury blocks clean assets and the batch stalls on false positives.",
+          "evidence_strength": "measured-on-rig",
+          "license": "n/a",
+          "commercial_use": "yes",
+          "commercial_notes": "Verifier tooling; no license constraint.",
+          "vram_gb": "n/a (cloud jury, server-side)",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "measured_conditions": "ollama-cloud jury (minimax-m3 / kimi-k2.6 / gemini-3-flash canary), refute-by-default 2-of-3; blackguard clean hifi rig fails rest+guard on hallucinated defects contradicted by full-res inspection.",
+          "failures": [
+            {
+              "symptom": "Jury fails a clean asset, flagging melted/collapsed/detached geometry not present at full-res",
+              "cause": "Reference-less refute-by-default VLM QA free-associates defects on dark/ornate/ragged characters; intended cloth and spikes read as damage",
+              "remediation": "Pass a bug-free reference render per check + an intended-features note; weight reliable jurors; confirm any flag at full-res before acting",
+              "severity": "blocking",
+              "recipe_field": "summary"
+            }
+          ],
+          "purposes": [
+            "vision-qa",
+            "verifier",
+            "batch-gate"
+          ],
+          "sources": [
+            {
+              "kind": "paper",
+              "title": "GlitchBench: Can Large Multimodal Models Detect Video Game Glitches?",
+              "authors": "Mohammad Reza Taesiri et al.",
+              "year": "2024",
+              "identifier": "arXiv:2312.05291",
+              "url": "https://arxiv.org/abs/2312.05291",
+              "claim": "VLM visual-QA needs explicit defect categories and a bug-free reference image to be reliable; without a reference, models miss real defects and hallucinate false ones."
+            },
+            {
+              "kind": "paper",
+              "title": "Prometheus / panel-of-LLM-judges robustness (cross-family verification)",
+              "authors": "Verga et al. (PoLL)",
+              "year": "2024",
+              "identifier": "arXiv:2404.18796",
+              "url": "https://arxiv.org/abs/2404.18796",
+              "claim": "A disjoint-family judge panel is less biased than a single judge; juror reliability varies, supporting reliability-weighting over flat consensus."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "laneSlug": "rigging",
+      "title": "Posing rigid-armor auto-rigs cleanly (deform-safe)",
+      "recipes": [
+        {
+          "slug": "hifi-decimate-sliver-cleanup-measured",
+          "name": "High-fidelity TRELLIS decimate with sliver cleanup (the fix for ribbon/shard armor artifacts)",
+          "kind": "technique",
+          "engine_family": "blender",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "Collapse-decimating a dense TRELLIS mesh leaves THIN SLIVER triangles on thin plate armor (greaves, sabatons, pauldrons) that render as 'ribbon strips' and 'triangular shards' and fail the vision jury; a post-collapse cleanup pass (merge-by-distance + DISSOLVE DEGENERATE + delete-loose) removes them. The fix is the cleanup, not a higher triangle count.",
+          "summary": "MEASURED ON RIG (2026-06-25, blackguard): the original collapse-decimate to ~224k tris still showed sliver artifacts on lower-leg/foot armor that the cross-family jury flagged. Re-decimating the 992k-tri TRELLIS mesh to 150k tris with a cleanup pass removed 97,341 sliver/loose elements (~40% of post-collapse verts), yielding a clean 149k-tri, 148k-vert game mesh with solid greaves and sabatons (verified full-res). The cleanup (bpy: remove_doubles 0.00015 -> dissolve_degenerate 0.0002 -> delete_loose -> normals_make_consistent) is the load-bearing step; it did NOT punch holes (full-res confirmed). A ~1:1 vert:tri ratio after cleanup is normal here because the tattered cape/cloth are open sheets, not damage. Decimate-then-rig so UniRig computes skin for the final game-weight geometry.",
+          "design_implication": "Add the sliver-cleanup pass to the decimate step for EVERY armored character in the 68-char roster (the artifact recurs on all plate armor). 150k tris is a fine high-fidelity target for a sprite source; tri count is not the lever, the degenerate-dissolve is. Render the decimated mesh full-res before spending UniRig time on it.",
+          "evidence_strength": "measured-on-rig",
+          "license": "GPL (Blender); MIT (UniRig)",
+          "commercial_use": "yes",
+          "commercial_notes": "Blender GPL covers the tool; decimated mesh + rigged GLB are studio IP.",
+          "vram_gb": "n/a",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "measured_conditions": "RTX 5090 / Blender 5.0.1; blackguard.glb 817k verts/992k tris -> 150k-tri collapse -> cleanup -> 148k verts/149k tris (97,341 removed); UniRig WSL2 re-rig (28-bone skeleton + learned skin).",
+          "failures": [
+            {
+              "symptom": "Lower-leg/foot/pauldron armor renders as flat ribbon strips or triangular shards",
+              "cause": "Collapse decimation produces near-zero-area sliver triangles on thin plate geometry",
+              "remediation": "After modifier_apply: remove_doubles -> dissolve_degenerate (threshold ~0.0002) -> delete_loose -> recalc normals; re-rig the cleaned mesh",
+              "severity": "quality",
+              "recipe_field": "summary"
+            }
+          ],
+          "purposes": [
+            "mesh-prep",
+            "trellis-pipeline",
+            "game-asset",
+            "decimation"
+          ],
+          "sources": [
+            {
+              "kind": "docs",
+              "title": "Blender Manual — Mesh Cleanup (Merge by Distance, Degenerate Dissolve)",
+              "authors": "Blender Foundation",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://docs.blender.org/manual/en/latest/modeling/meshes/editing/mesh/cleanup.html",
+              "claim": "Degenerate Dissolve removes edges/faces with zero area or length; Merge by Distance welds coincident verts — the standard cleanup for decimation slivers."
+            },
+            {
+              "kind": "paper",
+              "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig",
+              "authors": "Zhang et al. (VAST AI Research)",
+              "year": "2025",
+              "identifier": "arXiv:2504.12451",
+              "url": "https://arxiv.org/abs/2504.12451",
+              "claim": "UniRig samples a point cloud from the mesh surface; clean manifold geometry before auto-rig gives better skeleton + skin."
+            }
+          ]
+        },
+        {
+          "slug": "rigid-armor-rigidify-dqs-rom-cap-measured",
+          "name": "Pose rigid plate armor on a learned auto-rig: ROM cap + DQS bake + skin rigidify",
+          "kind": "technique",
+          "engine_family": "blender",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "UniRig emits STANDARD linear-blend-skinning weights, so a posed character inherits LBS's candy-wrapper collapse at bent joints regardless of weight accuracy — worst on rigid plate armor. Three stacked fixes make it pose cleanly: (1) cap authored joint flexion <= ~85deg; (2) bake with dual-quaternion skinning (Armature use_deform_preserve_volume); (3) RIGIDIFY the limb-armor skin so plates crease instead of melt.",
+          "summary": "MEASURED ON RIG (2026-06-25, blackguard guard pose): the auto-rig skin is cleanly smooth, not noisy (<=4 influences, no stray weights) but ~49-51% of elbow-band verts blend across the joint = the candy-wrapper zone. A 100deg elbow flex melted the armor (jury FAIL 0/3 front). The fix stack: (a) cap the elbow to ~70deg (inside the clean-LBS <=85deg zone); (b) DQS bake (preserve-volume) avoids the volume collapse; (c) RIGIDIFY (per limb-armor vert, push weight toward the dominant bone by ~0.75 and shrink the rest) so the plate rotates rigidly and creases at the joint instead of melting — this approximates the shipped-practice 'rigid-bind each plate to one bone, segment at the joint' rule on a single auto-mesh we cannot physically segment. RESULT: posed FRONT jury moved 0/3 -> 2/3 PASS (matching the clean-rest baseline). Cloth (cape/loincloth, dominated by torso bones) is EXCLUDED from rigidify so it stays soft. HONEST CEILING: a single continuous auto-rig armor shell cannot fold perfectly at a sharp joint (melt vs crack); the true fix is upstream segmented overlapping plates (hand-modeled), and since 2.5D bakes a posed render to a sprite, painterly repaint-in-post is a valid final option.",
+          "design_implication": "In the pose bridge: cap ROM, enable DQS on the Armature modifier before baking, and run a rigidify weight pass on limb-armor verts (exclude cloth). For the roster, rigidify is scriptable and reusable. When creasing is insufficient, add pose-space corrective shapes (the learned corrective branch UniRig lacks). Reserve repaint-in-post for the residual.",
+          "evidence_strength": "measured-on-rig",
+          "license": "GPL (Blender); MIT (UniRig)",
+          "commercial_use": "yes",
+          "commercial_notes": "Tooling is Blender/UniRig; output is studio IP.",
+          "vram_gb": "n/a",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "measured_conditions": "RTX 5090 / Blender 5.0.1; blackguard hifi rig (28 bones); elbow cap 70deg, DQS preserve_volume, rigidify 0.75 on limb-armor verts; cross-family jury front 0/3 -> 2/3.",
+          "failures": [
+            {
+              "symptom": "Melted / torn / stretched armor at the bent elbow or shoulder when posed",
+              "cause": "Linear blend skinning averages transforms not rotations -> volume collapse; UniRig outputs standard LBS weights; rigid plate cannot fold like skin",
+              "remediation": "Cap flexion <=85deg + DQS bake + rigidify limb-armor verts toward the dominant bone; correctives or repaint for the residual",
+              "severity": "quality",
+              "recipe_field": "summary"
+            }
+          ],
+          "purposes": [
+            "posing",
+            "skinning",
+            "rigid-armor",
+            "deform-safe"
+          ],
+          "sources": [
+            {
+              "kind": "paper",
+              "title": "Geometric Skinning with Approximate Dual Quaternion Blending",
+              "authors": "Ladislav Kavan, Steven Collins, Jiri Zara, Carol O'Sullivan",
+              "year": "2008",
+              "identifier": "DOI 10.1145/1409625.1409627",
+              "url": "https://users.cs.utah.edu/~ladislav/kavan08geometric/kavan08geometric.html",
+              "claim": "LBS collapses volume at bent/twisted joints (candy-wrapper, severe near 180deg); DQS blends rigid transforms to remove the collapse, at the cost of mild joint bulging."
+            },
+            {
+              "kind": "paper",
+              "title": "Pose Space Deformation: A Unified Approach to Shape Interpolation and Skeleton-Driven Deformation",
+              "authors": "J.P. Lewis, Matt Cordner, Nickson Fong",
+              "year": "2000",
+              "identifier": "SIGGRAPH 2000",
+              "url": "https://scribblethink.org/Work/PSD/index.html",
+              "claim": "Artist-sculpted corrective shapes interpolated over the skinning envelope repair collapsed elbows/shoulders (the basis of corrective shape keys / pose drivers)."
+            },
+            {
+              "kind": "paper",
+              "title": "Learning Skeletal Articulations with Neural Blend Shapes",
+              "authors": "Peizhuo Li, Kfir Aberman et al.",
+              "year": "2021",
+              "identifier": "arXiv:2105.02451",
+              "url": "https://arxiv.org/abs/2105.02451",
+              "claim": "Adds a learned corrective pose-dependent shape branch to fix the joint-region artifacts of standard rigging/skinning — the corrective branch UniRig does not implement."
+            },
+            {
+              "kind": "paper",
+              "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig",
+              "authors": "Zhang et al. (VAST AI Research)",
+              "year": "2025",
+              "identifier": "arXiv:2504.12451",
+              "url": "https://arxiv.org/abs/2504.12451",
+              "claim": "UniRig predicts a per-vertex skinning-weight matrix applied through standard LBS, so posed UniRig characters inherit LBS deformation artifacts."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,184 @@
+{
+  "bucket": "types-patterns",
+  "verifier_note": "Checked all 36 distinct external warrants (rust-lang.org Book/Reference/std/rustc-book/edition-guide pages, docs.rs rapier3d-f64 0.35.3 pages, release blogs, one merged PR) by direct retrieval; all 5 si-rpg-engine repo files (lib.rs, rapier_law.rs, world.js, Cargo.toml, dispatch-t2-restore.md) via read-only gh api at both the cited commit e5fbcb9 and at main, which are byte-identical for the two Rust files (diff empty), so no staleness; and all 56 embedded checks by running the actual pinned rustc 1.98.1 through this lane's own scripts/compile_oracle.py (56/56 passed exactly: every error code, lint name, stderr substring, stdout string, and wasm export/call matched). I also independently reproduced recipe 4's dated 'measured' engine claim by hand-compiling the real solver/src/{lib,rapier_law}.rs with -W rust_2024_incompatible_pat against the pinned rapier3d-f64 0.35.3 rlib: zero sites for that lint (only unrelated static_mut_refs warnings), exactly as claimed. Nothing was refuted or found unsupported. The one systemic weakness: this lane's sharpest, most decisive claims (exact rustc diagnostic wording, f64 -0.0/NaN pattern edge cases, the 'Measured on 1.98.1' engine-integration asides) carry no sources[] citation at all -- their only warrant is the recipe's own embedded checks[] entry. That is sound today because the oracle is real and I re-ran it independently, but structurally the lane's credibility for its hardest claims rests entirely on the compile_oracle being executed faithfully and never silently edited after the fact, not on any second, independently-checkable source.",
+  "verdicts": [
+    {
+      "slug": "pick-named-field-tuple-or-unit-structs-by-meaning-hang-constructors-and-constants-on-impl-blocks",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Book 5.1/5.3 + Reference associated-items confirmed verbatim (lazy const eval, self-param defines method); all 4 checks pass on real rustc 1.98.1 (E0599, E0080 exact).",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/items/associated-items.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/book/ch05-01-defining-structs.html", "supported": true, "note": "Confirms 3 struct kinds + 'each struct is its own type' claim verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/book/ch05-03-method-syntax.html", "supported": true, "note": "Confirms self-less fns are not methods, Type::fn syntax, multiple impl blocks."},
+        {"url": "https://doc.rust-lang.org/stable/reference/items/associated-items.html", "supported": true, "note": "Confirms 'evaluated only when referenced' for assoc consts; self-param = method."}
+      ]
+    },
+    {
+      "slug": "model-a-closed-set-of-body-states-as-an-enum-with-per-variant-data-not-a-flag-number-or-parallel-vectors",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Book 6.1/Reference enumerations+operator-expr/API guidelines confirmed; lib.rs step(), rapier_law.rs signature(), world.js solverModes byte-identical to claims (e5fbcb9==main). All 4 checks pass.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/src/rapier_law.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/book/ch06-01-defining-an-enum.html", "supported": true, "note": "Confirms 'one of a possible set' + per-variant data of different types/amounts."},
+        {"url": "https://doc.rust-lang.org/stable/reference/items/enumerations.html", "supported": true, "note": "Confirms discriminants need unit-only/repr; fieldless enums cast via `as`."},
+        {"url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html", "supported": true, "note": "Confirms Enum-cast row (enum->int) exists; no int->enum row anywhere."},
+        {"url": "https://rust-lang.github.io/api-guidelines/type-safety.html", "supported": true, "note": "C-CUSTOM-TYPE wording on bool/u8/Option interpretations matches verbatim."},
+        {"url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/src/lib.rs", "supported": true, "note": "step()'s `!=0.0` driven test and Face/rank() match exactly, e5fbcb9==main."},
+        {"url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/src/rapier_law.rs", "supported": true, "note": "signature()'s ==1.0||==2.0/==3.0 and Loaded{kinematic,handles} match exactly."},
+        {"url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/packages/tick/world.js", "supported": true, "note": "solverModes() 3/2/1/0 assignment order matches claim exactly."}
+      ]
+    },
+    {
+      "slug": "list-every-variant-in-a-match-a-arm-silently-absorbs-variants-added-later",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "E0004/non_exhaustive/guard rules confirmed on Book+Reference. RigidBodyType (4 variants, no non_exhaustive) matches docs.rs 0.35.3. non_exhaustive_omitted_patterns confirmed still feature-gated. All 7 checks pass.",
+      "evidence_url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/enum.RigidBodyType.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/book/ch06-02-match.html", "supported": true, "note": "Confirms E0004, catch-all-must-be-last, unreachable-arm warning verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/reference/attributes/type_system.html", "supported": true, "note": "Confirms non_exhaustive is a no-op in-crate; needs wildcard + blocks construction outside."},
+        {"url": "https://doc.rust-lang.org/stable/book/ch19-03-pattern-syntax.html", "supported": true, "note": "Confirms 'compiler doesn't check exhaustiveness when guards are involved' verbatim."},
+        {"url": "https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/", "supported": true, "note": "Confirms if-let guards + non-exhaustiveness-for-guards, dated 2026-04-16."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/enum.RigidBodyType.html", "supported": true, "note": "0.35.3 page: exactly Dynamic=0/Fixed=1/KinematicPositionBased=2/KinematicVelocityBased=3, no non_exhaustive."}
+      ]
+    },
+    {
+      "slug": "keep-patterns-edition-2024-clean-no-mut-ref-or-inside-an-implicitly-borrowing-pattern",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Edition guide + Reference patterns + rustc lint listing confirmed (2021->2024 binding-mode change). I recompiled real solver/src with -W rust_2024_incompatible_pat: 0 sites, matching the dated engine_note claim. All 5 checks pass.",
+      "evidence_url": "https://doc.rust-lang.org/edition-guide/rust-2024/match-ergonomics.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/match-ergonomics.html", "supported": true, "note": "Confirms mut/ref/&-under-implicit-mode is a 2024 error; names the lint + cargo fix --edition."},
+        {"url": "https://doc.rust-lang.org/stable/reference/patterns.html", "supported": true, "note": "Confirms default binding mode + pre-2024 'mut resets to move' behavior verbatim."},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html", "supported": true, "note": "Confirms rust-2024-incompatible-pat lint description matches verbatim."},
+        {"url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/Cargo.toml", "supported": true, "note": "Confirms edition 2021, crate-type cdylib, rapier3d-f64 0.35.3 enhanced-determinism exactly."}
+      ]
+    },
+    {
+      "slug": "flatten-refutable-matches-with-let-else-1-65-let-chains-need-edition-2024-if-let-guards-work-since-1-95",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "1.65.0/1.88.0/1.95.0 release notes + Reference statements/if-expr + PR #141295 confirmed verbatim (dates, scope, all-editions claim). All 7 checks pass, incl. the surprising if-let-guard-compiles-in-2021 case.",
+      "evidence_url": "https://github.com/rust-lang/rust/pull/141295",
+      "corrections": null,
+      "sources": [
+        {"url": "https://blog.rust-lang.org/2022/11/03/Rust-1.65.0/", "supported": true, "note": "Confirms let-else + diverging else, dated 2022-11-03."},
+        {"url": "https://doc.rust-lang.org/stable/reference/statements.html", "supported": true, "note": "Confirms else must diverge; initializer can't be lazy-bool or end with `}`."},
+        {"url": "https://blog.rust-lang.org/2025/06/26/Rust-1.88.0/", "supported": true, "note": "Confirms let chains stabilized, edition-2024-only, dated 2025-06-26."},
+        {"url": "https://doc.rust-lang.org/stable/reference/expressions/if-expr.html", "supported": true, "note": "Confirms &&-only joins, || needs parens, pre-2024 LetChain disallowed."},
+        {"url": "https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/", "supported": true, "note": "Confirms if-let guards + non-exhaustiveness wording, dated 2026-04-16."},
+        {"url": "https://github.com/rust-lang/rust/pull/141295", "supported": true, "note": "Title/author confirmed; merged 2026-02-19; PR text says 'stabilizes on all editions'."}
+      ]
+    },
+    {
+      "slug": "use-slice-range-and-array-patterns-and-matches-instead-of-index-arithmetic-and-comparison-chains",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "matches!/Reference patterns/Book 19.3/1.80.0 announcement confirmed verbatim. All 7 checks pass on real rustc 1.98.1, incl. -0.0/NaN float-pattern edge cases, E0527, and the two range lints firing together.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/patterns.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/macro.matches.html", "supported": true, "note": "Confirms bool return, match-arm syntax + optional if guard, Since 1.42.0."},
+        {"url": "https://doc.rust-lang.org/stable/reference/patterns.html", "supported": true, "note": "Confirms 5 range forms, non-empty rule, NaN-endpoint ban, @ binding, paren rule."},
+        {"url": "https://doc.rust-lang.org/stable/book/ch19-03-pattern-syntax.html", "supported": true, "note": "Confirms numeric/char-only ranges + `id @ 3..=7` example verbatim."},
+        {"url": "https://blog.rust-lang.org/2024/07/25/Rust-1.80.0/", "supported": true, "note": "Confirms exclusive range patterns + both new lints, dated 2024-07-25."},
+        {"url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/src/rapier_law.rs", "supported": true, "note": "body_at()'s [f64; BODY_STRIDE] return confirmed exactly, e5fbcb9==main."}
+      ]
+    },
+    {
+      "slug": "chain-option-and-result-with-map-and-then-filter-ok-or-else-and-convert-between-them-explicitly",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Option/Result/bool docs confirm map/and_then/ok_or_else, is_some_and(1.70), is_none_or(1.82), flatten(1.89), From<bool>(1.28) exactly. rapier_law.rs's `?` in quat_from_body and let-else in build_world confirmed verbatim. Both checks pass.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/option/enum.Option.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/option/enum.Option.html", "supported": true, "note": "Confirms map/and_then/filter/ok_or_else, is_some_and Since 1.70.0, is_none_or Since 1.82.0."},
+        {"url": "https://doc.rust-lang.org/stable/std/result/enum.Result.html", "supported": true, "note": "Confirms map/map_err/and_then/ok, flatten Since 1.89.0, eager-eval warnings."},
+        {"url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html", "supported": true, "note": "Confirms ? semantics: Some(v)->v/None early-return; Ok(v)->v/Err(From::from(e))."},
+        {"url": "https://doc.rust-lang.org/stable/book/ch09-02-recoverable-errors-with-result.html", "supported": true, "note": "Confirms ? needs matching Result/Option type; no auto-conversion; use ok/ok_or."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.bool.html", "supported": true, "note": "Confirms From<bool> for every integer type, Since 1.28.0."}
+      ]
+    },
+    {
+      "slug": "wrap-units-and-ids-in-tuple-struct-newtypes-keep-type-aliases-for-renames-and-long-names",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Book 20.3/Reference type-aliases/API guidelines confirmed. docs.rs BodyStatus alias (deprecated, 'renamed as RigidBodyType') matches 0.35.3. solver_load/solver_step params + SLEEP_QUANTA*DT confirmed in rapier_law.rs. All 6 checks pass.",
+      "evidence_url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/type.BodyStatus.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/book/ch20-03-advanced-types.html", "supported": true, "note": "Confirms newtype static-enforcement + Millimeters/Meters; alias gives 'no type-check benefit'."},
+        {"url": "https://doc.rust-lang.org/stable/reference/items/type-aliases.html", "supported": true, "note": "Confirms alias = new name for existing type; can't be a tuple/unit struct's constructor."},
+        {"url": "https://rust-lang.github.io/api-guidelines/type-safety.html", "supported": true, "note": "Confirms C-NEWTYPE Miles/Kilometers wording verbatim."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/type.BodyStatus.html", "supported": true, "note": "0.35.3: `pub type BodyStatus = RigidBodyType;` deprecated 'renamed as RigidBodyType', exact."},
+        {"url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/src/rapier_law.rs", "supported": true, "note": "solver_load/solver_step params + SLEEP_QUANTA*DT->time_until_sleep confirmed exactly."}
+      ]
+    },
+    {
+      "slug": "treat-as-as-silent-truncation-or-saturation-convert-integers-with-from-or-tryfrom-so-a-loss-is-visible",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Reference cast table/Nomicon/TryFrom/usize/f64/bool docs confirmed, incl. missing From<u32> for usize, missing From<u64> for f64, bool:TryFrom<int> Since 1.95.0. rebuild_snapshot's `as f64` pushes confirmed. All 5 checks pass.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html", "supported": true, "note": "Confirms truncate/extend/round-toward-zero/saturate/NaN->0/round-to-nearest cast table verbatim."},
+        {"url": "https://doc.rust-lang.org/nomicon/casts.html", "supported": true, "note": "Confirms casts infallible at runtime, `7u8 as bool` doesn't compile, casting not transitive."},
+        {"url": "https://doc.rust-lang.org/stable/std/convert/trait.TryFrom.html", "supported": true, "note": "Confirms TryFrom is the fallible-conversion trait; i64->i32 example matches recipe's framing."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.usize.html", "supported": true, "note": "Confirms From<bool/u8/u16> but only TryFrom for u32/u64/i32+; 4B/8B by target."},
+        {"url": "https://doc.rust-lang.org/stable/reference/types/numeric.html", "supported": true, "note": "Confirms usize/isize = pointer width, at least 16 bits wide."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f64.html", "supported": true, "note": "Confirms From<bool,f16,f32,i8,i16,i32,u8,u16,u32>; no From<i64/u64/isize/usize>."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.bool.html", "supported": true, "note": "Confirms TryFrom<integer> for bool, Since 1.95.0, else TryFromIntError."},
+        {"url": "https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/", "supported": true, "note": "Confirms bool:TryFrom<{integer}> listed among 1.95.0's stabilized APIs."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ColliderHandle.html", "supported": true, "note": "0.35.3: into_raw_parts(self) -> (u32,u32) confirmed exact signature."},
+        {"url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/src/rapier_law.rs", "supported": true, "note": "i1/g1/i2/g2/pairs.len()/n_points `as f64` pushes confirmed exactly, e5fbcb9==main."}
+      ]
+    },
+    {
+      "slug": "at-the-raw-extern-c-edge-bounds-check-counts-and-tryfrom-each-mode-number-into-an-enum-refuse-the-rest",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Reference cast/TryFrom/enumerations/usize docs confirmed. lib.rs step(), rapier_law.rs signature(), and shape==1 capsule branch match exactly. dispatch-t2-restore.md's refusal conditions confirmed verbatim. All 7 checks pass.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/docs/dispatch-t2-restore.md",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html", "supported": true, "note": "Confirms float->int saturate/NaN->0, zero-extend, shift-overflow-checks wording."},
+        {"url": "https://doc.rust-lang.org/stable/std/convert/trait.TryFrom.html", "supported": true, "note": "Confirms TryFrom returns Err rather than a lossy value (GreaterThanZero-style)."},
+        {"url": "https://doc.rust-lang.org/stable/reference/items/enumerations.html", "supported": true, "note": "Confirms explicit discriminants on repr(u8) unit enums cast to discriminant via `as`."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.usize.html", "supported": true, "note": "Confirms usize is 4B/8B by target width, basis for the wasm32-32-bit claim."},
+        {"url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/src/lib.rs", "supported": true, "note": "step()'s n_bodies-as-usize>MAX_BODIES(64) guard before indexing confirmed exactly."},
+        {"url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/src/rapier_law.rs", "supported": true, "note": "signature()'s capacity guard + driven|=1u64<<i / carried|=1u64<<i confirmed exactly."},
+        {"url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/docs/dispatch-t2-restore.md", "supported": true, "note": "solver_restore signature + all 4 refusal conditions confirmed verbatim, dated 2026-09-25."},
+        {"url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/Cargo.toml", "supported": true, "note": "panic=\"abort\", overflow-checks=false in [profile.release] confirmed exactly."}
+      ]
+    }
+  ]
+}

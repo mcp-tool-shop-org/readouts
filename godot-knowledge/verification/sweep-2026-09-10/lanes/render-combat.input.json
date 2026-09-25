@@ -1,0 +1,186 @@
+{
+  "bucket": "render-combat",
+  "domains": [
+    "rendering-2.5d",
+    "turn-combat"
+  ],
+  "count": 22,
+  "recipes": [
+    {
+      "slug": "2d-normal-maps-via-canvastexture-so-painterly-sprites-catch-light-like-reliefs",
+      "name": "2D normal maps via CanvasTexture so painterly sprites catch light like reliefs",
+      "what": "Flat sprites lit by Light2D look flat (uniform brightening). A normal map per sprite tells Godot which way each pixel 'faces' so lights produce directional shading — the rim of a shoulder pauldron catches the lamp, the recess stays dark. In Godot 4 the clean way to attach diffuse+normal(+specular) is the CanvasTexture resource, not a bare Normal Map slot.",
+      "how": "Create a CanvasTexture resource and assign it as the Sprite2D's Texture. On it set Diffuse > Texture (the painted color sprite), Normal Map > Texture (the normal map image), and optionally Specular > Texture/Color/Shininess for wet/metal highlights. IMPORTANT: after adding normals, raise the Height property on your PointLight2D / DirectionalLight2D — with Height at 0 the light is in-plane and normals barely register; a positive Height makes the directional shading read. Normal maps only affect surfaces actually reached by a Light2D (they do nothing in pure CanvasModulate ambient).",
+      "gotchas": "Wrong-handedness or Y-flipped normal maps make light come from the wrong side — verify against the diffusion pipeline's normal convention. Normals do nothing without a Light2D AND a nonzero light Height — the classic 'I added a normal map and see no change'. The normal-map texture itself should import as a raw (non-sRGB) texture so its vectors aren't color-corrected.",
+      "domain": "rendering-2.5d"
+    },
+    {
+      "slug": "2d-shadows-lightoccluder2d-scoped-with-light-cull-masks-for-legibility",
+      "name": "2D shadows + LightOccluder2D, scoped with light/cull masks for legibility",
+      "what": "Hard 2D shadows are produced by giving a PointLight2D/DirectionalLight2D Shadow > Enabled and placing LightOccluder2D nodes (with an OccluderPolygon2D) on shadow-casting geometry. The pair of MASK systems controls exactly which sprites a light touches and which cast shadows — critical so combat reads cleanly instead of every prop self-shadowing into mush.",
+      "how": "Per light: Shadow > Enabled = true, set Shadow Color, and Filter = None / PCF5 / PCF13 (PCF softens edges at a cost). Per occluder: add LightOccluder2D with an OccluderPolygon2D tracing the blocker's footprint. Two mask layers do the scoping: an object's Visibility > Light Mask = which light layers touch it; a light's Range > Item Cull Mask = which object layers it brightens (counterintuitively named — a layer enabled here GETS lit). The light's Shadow > Item Cull Mask selects which occluders cast for that light and which layers receive shadow. Use these to, e.g., let a light illuminate units but not re-shadow the floor tiles they stand on.",
+      "gotchas": "Item Cull Mask vs Light Mask is the single most-confused pair in Godot 2D — remember: Light Mask = layers the light touches; Range Item Cull Mask = which object layers the light lights. There are known engine reports where DirectionalLight2D item cull masks don't restrict coverage as expected (godot#101714) — test, and prefer PointLight2D scoping when you need precise exclusion. Tiles self-occluding their own light is a notorious pain (two-tilemap / mask workarounds exist).",
+      "domain": "rendering-2.5d"
+    },
+    {
+      "slug": "ambient-darkness-with-canvasmodulate-as-the-mood-floor",
+      "name": "Ambient darkness with CanvasModulate as the mood floor",
+      "what": "CanvasModulate is a single node that multiplies the whole 2D canvas by one color, acting as the global ambient/base tint — it is the color the scene reads as in areas no Light2D reaches. It is the cheapest, most impactful tool for a grimy mood: set it to a dark desaturated value and the world goes from 'flat daylight sprites' to 'underlit ruin', and every PointLight2D you add then carves brightness back out of that darkness.",
+      "how": "Add one CanvasModulate node per scene (only the last one in tree order is active). Set its Color to a dark, slightly tinted gray-blue or rust tone (e.g. RGB around 0.12–0.22, cool or warm to taste) rather than pure black so unlit areas keep a readable silhouette. Because it MULTIPLIES, sprite art should be authored close to neutral/bright so the modulate can darken it — don't pre-darken the textures or you lose dynamic range. Pair it with Light2D nodes (next recipes) whose Blend Mode = Add to punch light back in.",
+      "gotchas": "Multiple CanvasModulate nodes don't blend — only one wins, which surprises people layering scenes. Pure black (0,0,0) ambient makes unlit tactical units invisible — bad for legibility; keep a small floor value. Under hdr_2d, CanvasModulate still works but combine it thoughtfully with glow threshold so darkening doesn't accidentally kill the bloom you wanted.",
+      "domain": "rendering-2.5d"
+    },
+    {
+      "slug": "animatedsprite2d-vs-animationplayer-animationtree-pick-per-need-drive-combat-with-multi-track-sync",
+      "name": "AnimatedSprite2D vs AnimationPlayer (+ AnimationTree) — pick per need, drive combat with multi-track sync",
+      "what": "Two native paths. AnimatedSprite2D uses a SpriteFrames resource (named clips of frames) and is purpose-built, low-overhead frame playback — ideal for simple state loops (idle/walk). AnimationPlayer is general-purpose: it keyframes ANY property on ANY node over a timeline — a Sprite2D's frame, plus modulate, position, a hitbox's disabled flag, an audio trigger, a particle emit — all synced. For a tactical RPG's discrete, event-precise actions, AnimationPlayer (optionally fed by an AnimationTree state machine) is the stronger backbone.",
+      "how": "Simple ambient/loop motion -> AnimatedSprite2D: build a SpriteFrames (add frames from a sprite sheet via the editor, set FPS/loop per clip), then play(\"walk\")/stop() in code. Event-coupled combat -> AnimationPlayer: drive a Sprite2D's frame via either AnimatedSprite2D's clip OR a Sprite2D with hframes/vframes and keyframe the Frame property; on the same timeline keyframe Call Method tracks (apply damage on the exact contact frame), enable/disable a hit Area2D, fire VFX/audio. Wrap multiple AnimationPlayer clips in an AnimationTree (AnimationNodeStateMachine) for clean idle->aim->fire->recoil->hit transitions. Trigger one-shot logic with the animation_finished signal.",
+      "gotchas": "Don't reach for AnimationPlayer when AnimatedSprite2D suffices — it's more setup for no gain on a pure loop. Mixing both on one actor (AnimatedSprite2D playing AND AnimationPlayer keying its frame) causes fighting over the frame property. Any old tutorial using `yield(...)` to wait on animation is Godot-3-stale — use `await player.animation_finished`. AnimationTree must have .active = true and a configured state-machine playback or nothing plays.",
+      "domain": "rendering-2.5d"
+    },
+    {
+      "slug": "bevy-ecs-system-order-multi-track-sync-analog",
+      "name": "Bevy ECS system order — multi-track sync analog",
+      "what": "Analog: incompatible systems need explicit .before/.after/.chain. Holds for multi-track AnimationPlayer / turn-state sync (recipe 37 combat backbone); limit: ECS schedule ≠ SpriteFrames vs AnimationPlayer product choice.",
+      "how": "See source URL; STUDY-002 Verifier-verified finding. Do not invent recipe beyond pack text.",
+      "gotchas": "Do not flip recipes 37/42/49. No invent 5.x.",
+      "domain": "rendering-2.5d"
+    },
+    {
+      "slug": "glow-bloom-via-worldenvironment-canvas-background-with-a-controlled-hdr-threshold",
+      "name": "Glow / bloom via WorldEnvironment (Canvas background) with a controlled HDR threshold",
+      "what": "Glow/bloom is a post-process on the 2D canvas, enabled by a WorldEnvironment node whose Environment has Background.Mode = Canvas and Glow.Enabled = true. Done right it makes neon and emissive marks blossom; done wrong (no real threshold) it fogs the entire frame. The threshold-correct path requires HDR 2D so 'bright' is a meaningful, isolable value.",
+      "how": "Add ONE WorldEnvironment to the main scene; on its Environment set Background.Mode = Canvas, Glow.Enabled = true, choose Glow Blend Mode (Additive/Screen/Softlight), and set the per-level Glow intensity/strength/bloom. Turn ON Project Settings > Rendering > Viewport > HDR 2D and tune Glow HDR Threshold so only pixels above the threshold bloom. Make things glow by pushing their modulate/Color or shader output above 1.0 (set via the inspector RAW tab, or `modulate = Color(2.0, 1.6, 0.4)` in code, or an emissive canvas_item shader). On 4.4+ glow blends before tonemapping for a clean, hue-stable bloom.",
+      "gotchas": "Without a working threshold (i.e. without hdr_2d) the whole screen glows — the recurring 4.2 complaint (godot#86098). To exclude a CanvasLayer (e.g. crisp UI text) from glow, isolate it on its own viewport/CanvasLayer outside the glowing canvas. Modulate >1.0 only blooms when hdr_2d is on; in non-HDR it clips at 1.0 (godot#75153). The 4.6 line shuffled the 2D glow threshold control — re-verify after upgrades.",
+      "domain": "rendering-2.5d"
+    },
+    {
+      "slug": "import-settings-for-high-fidelity-painterly-sprites-linear-filter-mipmaps-lossless-not-pixel-art-nearest",
+      "name": "Import settings for HIGH-FIDELITY painterly sprites (linear filter + mipmaps, lossless) — NOT pixel-art nearest",
+      "what": "Godot's per-texture Import dock controls Filter, Mipmaps, and Compression. Pixel-art guides say 'Nearest, no mipmaps' — that is WRONG here. Painterly diffusion sprites are smooth high-resolution art that gets scaled by camera/parallax, so they want Linear filtering and Mipmaps for clean minification, with Lossless compression to preserve the painted detail.",
+      "how": "For painterly sprites: in the texture's Import tab set Compress > Mode = Lossless (stores the PNG faithfully; avoid VRAM Compressed which adds artifacts to gradients), Mipmaps > Generate = ON (clean downscaling when the tactical camera zooms or sprites sit at varied scale; costs ~33% more VRAM per texture — acceptable for the visual tier), and leave Filter at the linear default (sharp 'Nearest' would make smooth art look harsh). Set the global default once in Project Settings > Rendering > Textures > Canvas Textures > Default Texture Filter = Linear (or Linear Mipmap). Click Reimport after any change. Atlas related sprites into a TextureAtlas/sprite sheet to cut draw calls, but keep generous padding so mipmaps don't bleed neighbors.",
+      "gotchas": "Don't copy pixel-art tutorials wholesale — Nearest + no-mipmaps is correct for 16-bit, wrong here. VRAM Compressed (S3TC/BPTC) introduces gradient banding ugly on painterly art — stay Lossless. Mipmaps without atlas padding cause edge bleed between packed sprites. You MUST Reimport for changes to take effect; per-file settings override the project default.",
+      "domain": "rendering-2.5d"
+    },
+    {
+      "slug": "pick-the-renderer-deliberately-forward-for-hdr-2d-glow-on-a-desktop-painterly-game",
+      "name": "Pick the renderer deliberately: Forward+ for HDR-2D glow on a desktop painterly game",
+      "what": "Godot 4 ships three rendering methods, set in Project Settings > Rendering > Rendering Method (rendering/renderer/rendering_method): forward_plus, mobile, and gl_compatibility. The choice is a one-line project setting but it gates which 2D features exist. For a high-fidelity painterly-sprite game (sprites + controlled neon glow + grimy mood, PC-only) the decisive features are HDR 2D and MSAA 2D, which exist ONLY on Forward+ and Mobile — Compatibility (the GLES3/WebGL path) supports neither. The common 'Compatibility is good enough for 2D' advice is true for flat-lit games, but breaks for a bloom-driven look that needs a real brightness threshold.",
+      "how": "Set forward_plus (the desktop default). Then enable Project Settings > Rendering > Viewport > HDR 2D (rendering/viewport/hdr_2d = true) so the 2D canvas renders in linear/HDR and pixels brighter than 1.0 actually drive glow. Add a WorldEnvironment node with an Environment resource: Background.Mode = Canvas, Glow.Enabled = true, tune Glow HDR Threshold so only the bright neon/emissive pixels bloom (not the whole grimy frame). As of Godot 4.4 glow blends BEFORE tonemapping on all three renderers (avoids the old hue-shift/hard-edge artifacts), but the HDR threshold workflow itself still needs hdr_2d, hence Forward+. Note the renderer can be set per-platform in the export-style override dropdown, but a desktop-only title can just commit to forward_plus.",
+      "gotchas": "Compatibility is the ONLY web-export path — choosing Forward+ forfeits web export (fine for a PC tactical RPG, but document it). With hdr_2d ON, any custom canvas_item shader sampling a color texture MUST mark the sampler uniform `source_color` (hint_color) or it renders washed-out, because the 2D pass is now linear. To set modulate/Color values above 1.0 in the inspector you must use the RAW tab (RGB/HSV tab clamps at 1.0). 4.6 briefly removed/changed the 2D glow threshold UI — pin your exact 4.x point release and re-verify the glow knobs after any engine upgrade.",
+      "domain": "rendering-2.5d"
+    },
+    {
+      "slug": "pointlight2d-directionallight2d-the-split-light2d-and-how-to-drive-it",
+      "name": "PointLight2D / DirectionalLight2D — the split Light2D and how to drive it",
+      "what": "Godot 3's single Light2D was SPLIT in Godot 4 into PointLight2D (omni/spot light from a light Texture — torches, optics, muzzle flashes) and DirectionalLight2D (parallel rays — sun/moon). Both inherit the Light2D base (Enabled, Color, Energy, Blend Mode, Range/Z-Min-Max). Any code or tutorial referencing a bare `Light2D` node to place in the scene is Godot-3-stale; instantiate the concrete subclass.",
+      "how": "PointLight2D needs a Texture that defines its falloff/shape — a soft radial gradient PNG is the standard 'lamp' look; Texture Scale multiplies its reach without re-authoring the texture, and Offset moves the light glow without moving its shadow origin. Set Energy for intensity and Blend Mode = Add (default) so lights accumulate additively over the CanvasModulate darkness; Subtract makes a negative/shadow light, Mix replaces. DirectionalLight2D gives a uniform wash with a direction; its Height property tilts how normal-mapped sprites catch it. For glow integration, push light Color/Energy so lit hotspots exceed 1.0 under hdr_2d and bloom.",
+      "gotchas": "Forgetting the Texture on a PointLight2D = no visible light. Lights stack additively, so several mid-energy lights blow out to white fast under HDR — budget energies per scene. Blend Mode Mix is rarely what you want over a dark ambient (it replaces rather than adds). Light Range Z-Min/Z-Max can silently exclude sprites on certain z layers from being lit.",
+      "domain": "rendering-2.5d"
+    },
+    {
+      "slug": "unity-mecanim-faq-dual-animation-paths-analog",
+      "name": "Unity Mecanim FAQ — dual animation paths analog",
+      "what": "Analog: dual animation paths (Animator/Mecanim vs legacy Animation). Holds for recipe 37 (AnimatedSprite2D vs AnimationPlayer): pick path by need; limit: Unity deprecates legacy — Godot keeps both current.",
+      "how": "See source URL; STUDY-002 Verifier-verified finding. Do not invent recipe beyond pack text.",
+      "gotchas": "Do not flip recipe 37.",
+      "domain": "rendering-2.5d"
+    },
+    {
+      "slug": "y-sort-the-modern-way-y-sort-enabled-property-not-the-removed-ysort-node",
+      "name": "Y-sort the modern way: y_sort_enabled property, NOT the removed YSort node",
+      "what": "Correct front/back ordering of overlapping sprites on a 2.5D field. In Godot 4 the dedicated YSort node from Godot 3 is GONE — sorting is now a boolean property, Y Sort Enabled (y_sort_enabled), available on any CanvasItem (Node2D, TileMapLayer). When enabled on a parent, its direct children are drawn ordered by their global Y: lower-on-screen (higher Y) draws in front. Any tutorial telling you to 'add a YSort node' is Godot-3-stale.",
+      "how": "On the container node (e.g. a Node2D named World or the unit layer) set y_sort_enabled = true. Each sortable actor (a CharacterBody2D/Node2D for a squad unit) must be a DIRECT child of that container — a grandchild won't sort against its peers. Sorting uses the node's ORIGIN, so position each unit's Sprite2D so the sprite's visual feet sit at the parent node's origin (push the texture up via the Sprite2D Offset, or set centered=false and offset accordingly). Keep z_index = 0 on the sprites and disable 'Z as Relative' where it would otherwise override the Y order. For tiles use TileMapLayer (the 4.3+ replacement for TileMap's internal layers) with Y Sort Enabled on the layer and a correct Y Sort Origin per tile in the TileSet so tall props (walls, machinery) sort by their base, not their center.",
+      "gotchas": "z_index hard-overrides y-sort — a stray nonzero z_index (or 'Z as Relative' on a child) silently breaks ordering; this is the #1 'y-sort not working' cause. Godot does NOT auto-sort BETWEEN separate sibling layers/TileMapLayers — cross-layer ordering must be managed by layer order or a shared sorting container. For multi-tile-tall objects the TileSet tile's Y Sort Origin must be moved to the visual base or it pops in front of/behind units incorrectly.",
+      "domain": "rendering-2.5d"
+    },
+    {
+      "slug": "abilities-stats-and-parts-as-custom-resources-data-driven-tres-the-crew-authors",
+      "name": "Abilities, stats, and parts as custom Resources (data-driven .tres the crew authors)",
+      "what": "Define every ability, stat block, and bolt-on part as a `Resource` subclass with `class_name` + `@export` fields, saved as `.tres` text files. This is the single highest-leverage pattern for a 1-director + LLM-crew studio: the crew generates/edits human-readable `.tres` (and the script can even write/load them programmatically) WITHOUT touching engine code, designers tune by editing exported fields in the Inspector, and shared assets are real external files referenced by id.",
+      "how": "`class_name AbilityResource extends Resource` with `@export var id: StringName`, `@export var display_name: String`, `@export var ap_cost: int`, `@export var power: int`, `@export var target_kind: int` (enum: self/ally/enemy/part), `@export var charge_meter: bool`, `@export var status_to_apply: StatusResource`. Make `BattlerStats extends Resource` hold base stats AND derive `final` stats by folding active modifiers (GDQuest's base-vs-final pattern). Create `.tres` via right-click → New Resource → pick the class, or `ResourceSaver.save(res, \"res://data/abilities/disable_arm.tres\")`; load with `load(...)` / `preload(...)`. CRITICAL 4.x note: call `.duplicate()` on a Resource you mutate per-instance — Resources are shared by reference, so an un-duplicated stat block is shared across every unit. For data that ships with the game, an exported `Array[AbilityResource]` on an autoload registry gives one lookup table.",
+      "gotchas": "Forgetting `.duplicate()` is THE classic Resource bug — a shared `BattlerStats.tres` means buffing one unit buffs all of them; duplicate on instantiate. `@export` typed arrays (`Array[AbilityResource]`) need Godot 4.x; older untyped patterns lose Inspector type-safety. Keep `.tres` (text) not `.res` (binary) so the crew and git can diff them. Resource scripts with `class_name` must compile before the editor can create the New Resource entry.",
+      "domain": "turn-combat"
+    },
+    {
+      "slug": "action-point-ap-economy-as-plain-integer-state-on-the-battler",
+      "name": "Action-point (AP) economy as plain integer state on the Battler",
+      "what": "A simple, fully-visible AP budget: each unit has `ap_max` and `ap_current`; abilities declare an `ap_cost`; the SelectAction state only offers abilities whose cost ≤ remaining AP, spends on commit, and ends the unit's turn when AP is exhausted or the player passes. No hidden stamina math — the number is on screen.",
+      "how": "On the Battler: `@export var ap_max := 2`, `var ap_current := 2`, plus `func can_afford(a: AbilityResource) -> bool: return a.ap_cost <= ap_current` and `func spend(n: int) -> void: ap_current = max(0, ap_current - n); ap_changed.emit(ap_current, ap_max)`. Reset `ap_current = ap_max` in the queue's per-turn `enter`. Keep AP as an `int` (deterministic, trivially testable); never derive it from `_process` time. Multi-cost moves (a 2-AP heavy strike vs two 1-AP shots) fall straight out of this. The Godot Gameplay Systems addon ships turn-based + action-point nodes if you want a pre-built base, but a hand-rolled int is lighter and easier for the crew to reason about.",
+      "gotchas": "Don't conflate AP with the charge meter — they are orthogonal pressures (AP = this turn's actions; charge = loot-tier gate). Keeping them as separate ints prevents the self-contradicting single-meter the combat-design critic flagged. Emit `ap_changed` through the bus rather than letting the HUD poll AP each frame.",
+      "domain": "turn-combat"
+    },
+    {
+      "slug": "deterministic-damage-effect-resolver-subtraction-floor-model-no-rng-hit-chance",
+      "name": "Deterministic damage/effect resolver (subtraction-floor model, no RNG hit-chance)",
+      "what": "A pure function `resolve(attacker_stats, defender_part, ability) -> DamageResult` with zero randomness: same inputs → same output, every time. Use a defense model that never collapses to a flat 0 and that keeps player-facing numbers legible. Two battle-tested options: subtraction `dmg = max(min_dmg, atk + power - def)` (small, Fire-Emblem-predictable numbers) or the multiplicative floor `dmg = atk * (100.0 / (100.0 + def))` (high defense always still takes something). Pick one and keep it visible.",
+      "how": "Put the math in a static/standalone resolver (e.g. `class_name CombatMath`) that takes data, not nodes, and returns a small result struct/Dictionary `{ amount, target_part, disabled: bool, loot_tier }`. Round explicitly (`int(floor(x))`) so results are integers and reproducible. Because there is NO to-hit roll, there is no `randi()`/`randf()` anywhere in resolution — the only 'randomness' you might want (e.g. cosmetic variance) must be excluded from the combat model to keep it a visible number. If you ever DO need reproducible variance elsewhere, seed a dedicated `RandomNumberGenerator` instance with `.seed =...` and keep it out of the damage path. Design guidance: make the player-facing stats (atk, def, the targeted part's armor) dominate the output so the player can predict damage by reading the screen.",
+      "gotchas": "Plain `atk - def` subtraction hits the classic 'high def = 0 damage' wall (e.g. 200 atk vs 200 def → 0); guard with a `min_dmg` floor or use the multiplicative form. Keep the resolver free of scene-tree lookups so it runs headless in tests (recipe 9). Do not sprinkle `randf()` 'for feel' into resolution — that breaks the deterministic contract and the pre-commit preview.",
+      "domain": "turn-combat"
+    },
+    {
+      "slug": "enemy-ai-as-a-sandboxed-battlerai-returning-an-action-utility-scoring-deterministic",
+      "name": "Enemy AI as a sandboxed BattlerAI returning an Action (utility scoring, deterministic)",
+      "what": "Each AI-controlled Battler owns a swappable `BattlerAI` object whose single job is: given the battle state, return the chosen Action (ability + target). Use Utility AI — score every (ability, target) candidate with normalized 0–1 considerations (distance, target part HP, kill-secure, collateral) and pick the highest. Keep the AI's scoring deterministic so behavior is testable and the player can learn enemy logic.",
+      "how": "GDQuest's sandboxing pattern: `class_name BattlerAI` with `func choose_action(state) -> Action`. For utility scoring, structure considerations as small objects/Resources each returning a 0–1 score, optionally shaped by a `Curve` (`curve.sample(normalized_value)`), then combine per candidate (multiply or average) and take the max via a `get_best_action()` loop. Normalize EVERY consideration to the same 0–1 scale (the one hard rule of utility AI). Return a Command-pattern `Action` object the ResolveAction state executes — same Action type player input produces, so resolution code is shared. Subclass BattlerAI per archetype (Aggressor, Executioner, the courteous Steward) instead of branching one giant `if`. For movement targeting, reuse the AStarGrid2D path/range from recipe 6.",
+      "gotchas": "Keep the AI a sandboxed object that returns a decision — do NOT let it directly mutate battler state or drive animations; that belongs to ResolveAction. Don't seed AI choices with `randf()` if you want learnable, deterministic enemies (tie-break by a stable rule like lowest part HP, not a roll). A plain idle/patrol/chase state-machine AI (the common tutorials) is the WRONG shape for tactical turn combat — you need per-turn decision scoring, not real-time behavior states. Avoid one monolithic scoring function; per-archetype subclasses keep each enemy's logic legible and tunable.",
+      "domain": "turn-combat"
+    },
+    {
+      "slug": "headless-unit-tests-for-the-deterministic-combat-core-gut-or-gdunit4",
+      "name": "Headless unit tests for the deterministic combat core (GUT or gdUnit4)",
+      "what": "Because resolution is deterministic and lives in pure functions/Resources, the entire combat math is unit-testable without rendering. Use GUT (Godot Unit Test, 9.x = Godot 4.x) or gdUnit4 to assert exact damage numbers, part-disable thresholds, loot-tier drops, AP spend, and AI decisions — and run them headless in CI on a fixed input set.",
+      "how": "Write `extends GutTest` scripts with `test_*` methods asserting concrete outputs: `assert_eq(CombatMath.resolve(atk, part, ability).amount, 14)`, `assert_true(result.disabled)`, `assert_eq(part.loot_tier, 2)`. Test the AI by asserting `BattlerAI.choose_action(fixed_state)` returns the expected Action for a known board (proves the cold-equation enemy always picks the kill-secure). Run headless via the CLI: `godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://test -gexit`. gdUnit4 adds mocking/spies and flaky-test detection if you need scene-level tests; for the pure resolver, plain GUT asserts are enough. Keep every test input fixed (no randomness) — trivial precisely because the model has no hit-roll.",
+      "gotchas": "GUT versions matter: use GUT 9.x for Godot 4.x (older GUT is Godot 3). Keep the resolver free of scene-tree/node dependencies (recipes 1 & 4) or tests need a full SceneTree and stop being pure unit tests. Don't test through the UI — test the combat core directly; the signal bus (recipe 8) means the core runs with no UI attached, which is exactly what makes headless CI fast.",
+      "domain": "turn-combat"
+    },
+    {
+      "slug": "herobench-long-horizon-grid-rpg-planning",
+      "name": "HeroBench — long-horizon grid RPG planning",
+      "what": "Grid RPG with turn-based combat, gear, and discrete locations — long-horizon tactics remain planning over grid state, matching a loot/fight spine.",
+      "how": "See source URL; STUDY-002 Verifier-verified finding. Do not invent recipe beyond pack text.",
+      "gotchas": "Do not flip recipes 37/42/49. No invent 5.x.",
+      "domain": "turn-combat"
+    },
+    {
+      "slug": "initiative-turn-order-queue-with-an-interleaved-re-sortable-order",
+      "name": "Initiative / turn-order queue with an interleaved (re-sortable) order",
+      "what": "A TurnQueue/ActiveTurnQueue node that collects all Battler children, orders them by an initiative key (speed, or speed derived from installed parts), and yields the next actor each round. For an interleaved Wasteland-3-style order (units act woven together, not all-allies-then-all-enemies), keep a per-round sorted list and re-derive it whenever speed-affecting state changes.",
+      "how": "Build an `Array[Battler]`, sort with a custom comparator: `battlers.sort_custom(func(a, b): return a.stats.speed > b.stats.speed)`. Pop the front for the active actor; advance with index wrap `idx = (idx + 1) % battlers.size()` OR rebuild the list at round start so newly-applied speed buffs reorder next round. Expose `signal round_started`, `signal actor_changed(b)`, `signal round_ended`. Two valid flow styles: (a) callback/`play_turn()` chaining (papierkorp's pattern: `queue.play_turn()` → `actor.play_turn()` → on done, `check_turn_end()` advances), or (b) `await`-driven (`await actor.turn_finished`) which reads top-to-bottom — prefer (b) for legibility (recipe 8). Keep `is_player_controlled` on the Battler so the queue knows whether to await UI input or call the AI (recipe 7).",
+      "gotchas": "`sort_custom` in 4.x takes a Callable returning bool (true = a before b); Godot-3 `sort_custom(obj, \"method\")` (object + method-name string) is stale — do not use it. Don't store the active actor only by array index if units can die mid-round (queue_free shifts indices); hold a direct reference and null-check it. If you `await actor.turn_finished`, guarantee that signal always fires (even on skip/stun) or the queue deadlocks (recipe 8 gotcha).",
+      "domain": "turn-combat"
+    },
+    {
+      "slug": "node-based-combat-state-machine-combatstate-child-nodes-a-tiny-combatstatemachine",
+      "name": "Node-based combat state machine (CombatState child nodes + a tiny CombatStateMachine)",
+      "what": "Model the battle loop as an explicit finite state machine where each phase is its own Node with a script: StartRound, SelectActor, SelectAction, SelectTarget, ResolveAction, EndTurn, CheckVictory. One CombatStateMachine node holds `current_state`, owns enter/exit/transition, and is visible in the remote scene tree at runtime so you can watch which phase you're in. This is the Godot-idiomatic FSM (node-per-state), the most inspectable and the easiest for an LLM crew to author one small file per state.",
+      "how": "Define `class_name CombatState extends Node` with virtual methods `enter(msg:={})`, `exit()`, `update(delta)`, `handle_input(e)` and a signal `transitioned(state_name: StringName, msg: Dictionary)`. The owner `CombatStateMachine extends Node` keeps `@export var initial_state: NodePath`, a `current_state: CombatState`, builds a `{StringName: CombatState}` map from its children in `_ready()`, and on `transitioned` calls `current_state.exit()` then `next.enter(msg)`. Use `StringName` (the `&\"resolve\"` literal) for state keys — cheaper comparisons than String in 4.x. Drive `update`/`handle_input` by forwarding `_process` / `_unhandled_input` from the machine to the active state only. Keep ALL combat rules out of `_physics_process`; a turn game advances on events (input, `await` of an animation), not per-frame ticks.",
+      "gotchas": "Do NOT port a Godot-3 FSM that used `yield(...)` to sequence states — that is stale; use `await` (recipe 8). Avoid the trap of running combat logic in `_process(delta)` every frame; a turn game is event-driven, and frame-tick logic reintroduces nondeterminism. Keep the FSM as pure orchestration — the damage math belongs in plain resolver functions you can unit-test headless (recipe 9), not buried in a state node that needs the scene tree.",
+      "domain": "turn-combat"
+    },
+    {
+      "slug": "per-part-called-shot-targeting-hooks-parts-as-a-sub-grid-of-hp-armor-on-each-battler",
+      "name": "Per-part / called-shot targeting hooks (parts as a sub-grid of HP+armor on each Battler)",
+      "what": "Give each Battler an ordered set of targetable PartResources (e.g. head/torso/left-arm/right-arm/legs/core), each with its own hp, armor, `disabled` flag, `loot_tier`, and the stat-deltas it contributes. Targeting selects a unit AND a part; the resolver (recipe 4) applies damage to that part's armor/hp; reaching 0 disables it (drops its stat contribution and, when the loot gate is met, drops it as loot).",
+      "how": "`class_name PartResource extends Resource` with `@export var slot: StringName`, `@export var hp: int`, `@export var armor: int`, `@export var disabled: bool`, `@export var loot_tier: int`, `@export var stat_mods: Dictionary`. On the Battler keep `@export var parts: Array[PartResource]` and `func target_part(slot) -> PartResource`. In SelectTarget, the player picks a unit then a part from a small radial/list; feed `defender_part` into `CombatMath.resolve`. On disable, recompute `BattlerStats.final` by folding only non-disabled parts' `stat_mods`. Looting = `attacker_owner.add_part(dropped_part.duplicate())`. Targeting validity (range, line-of-fire) reuses the AStarGrid2D grid distance from recipe — gate selectable parts by whether the unit is in weapon range. Keep all of this as data + pure functions so the pre-commit preview can show 'this shot disables the arm.'",
+      "gotchas": "Duplicate the PartResource when moving it between battlers (same shared-reference trap as recipe 5) or the enemy and your unit will share one mutating part. Don't bake part geometry into the visual sprite — keep parts as data so the painterly 2.5D art (which is NOT real-time 3D) stays decoupled from the hit model; the sprite shows the result, the data IS the result. Recompute `final` stats only from enabled parts, or disabled limbs keep buffing the unit.",
+      "domain": "turn-combat"
+    },
+    {
+      "slug": "sequence-turns-with-await-on-signals-coroutines-not-yield-a-signal-bus-for-ui-decoupling",
+      "name": "Sequence turns with `await` on signals/coroutines (NOT yield) + a signal-bus for UI decoupling",
+      "what": "Two complementary 4.x patterns. (1) Sequencing: use the `await` keyword to write turn flow as linear top-to-bottom code — await player input, await an animation, await resolution — instead of nested callbacks. (2) Decoupling: route combat-to-UI communication through an autoload signal bus ('Events'/'CombatEvents') so the HUD, initiative strip, and damage popups react to events without any hard reference into the combat system.",
+      "how": "Sequencing: `await battler.action_chosen` (player), `await anim_player.animation_finished` (Godot 4.x `animation_finished` fires even on interruption and passes the anim name), `await resolver_done`. The instant a function uses `await` it becomes a coroutine — no special declaration. Decoupling: make an autoload `Events extends Node` holding signals like `signal unit_hp_changed(unit, hp, max)`, `signal ap_changed(unit, cur, max)`, `signal actor_changed(unit)`, `signal part_disabled(unit, slot)`, `signal part_dropped(part)`; combat code does `Events.unit_hp_changed.emit(...)`, UI nodes `Events.unit_hp_changed.connect(_on_hp)`. Namespace event names and unsubscribe on `_exit_tree` for nodes that come and go. Not everything needs a signal — a parent configuring its own child should just call the method; use the bus for distant/decoupled listeners only.",
+      "gotchas": "`yield(...)` is GODOT-3-ONLY and removed in 4.x — every `yield` must become `await`; flag any tutorial using `yield` as stale. THE await deadlock: if you `await unit.turn_finished` but the unit is `queue_free()`d (dies mid-turn) before emitting, the signal is disconnected and the coroutine hangs forever — always guarantee the awaited signal fires (emit on skip/stun/death paths) or await with a timeout fallback. Don't overuse the bus into 'signal spaghetti'; reserve it for genuine decoupling. Connect in code (not only via the editor) so combat wiring is greppable and reviewable.",
+      "domain": "turn-combat"
+    },
+    {
+      "slug": "starbench-turn-based-rpg-agent-bench",
+      "name": "StarBench — turn-based RPG agent bench",
+      "what": "Turn-based RPG agent benchmark; tool-assisted action space separates strategy from UI grounding — supports turn-combat lane as decision + readable HUD, not graphics-only.",
+      "how": "See source URL; STUDY-002 Verifier-verified finding. Do not invent recipe beyond pack text.",
+      "gotchas": "Do not flip recipes 37/42/49. No invent 5.x.",
+      "domain": "turn-combat"
+    }
+  ]
+}

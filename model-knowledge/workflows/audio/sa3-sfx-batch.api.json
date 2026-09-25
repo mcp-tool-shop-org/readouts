@@ -1,0 +1,15 @@
+{
+  "1331719064726027": {"inputs": {"ckpt_name": "stable_audio_3_medium.safetensors"}, "class_type": "CheckpointLoaderSimple", "_meta": {"title": "Load Checkpoint"}},
+  "2470939640121223": {"inputs": {"clip_name": "t5gemma_b_b_ul2.safetensors", "type": "stable_audio", "device": "default"}, "class_type": "CLIPLoader", "_meta": {"title": "Load CLIP"}},
+  "4368898907426789": {"inputs": {"value": "[describe the sound effect: source, material, mic distance, dry/wet, no music]"}, "class_type": "PrimitiveStringMultiline", "_meta": {"title": "Text (Multiline)"}},
+  "4384367358852713": {"inputs": {"clip": ["2470939640121223", 0], "text": ["4368898907426789", 0]}, "class_type": "CLIPTextEncode", "_meta": {"title": "CLIP Text Encode (Prompt)"}},
+  "3180992983931049": {"inputs": {"text": "", "clip": ["2470939640121223", 0]}, "class_type": "CLIPTextEncode", "_meta": {"title": "CLIP Text Encode (Prompt)"}},
+  "2173907295868469": {"inputs": {"value": 10}, "class_type": "PrimitiveFloat", "_meta": {"title": "Float"}},
+  "4410301302602210": {"inputs": {"seconds_start": 0, "positive": ["4384367358852713", 0], "negative": ["3180992983931049", 0], "seconds_total": ["2173907295868469", 0]}, "class_type": "ConditioningStableAudio", "_meta": {"title": "ConditioningStableAudio"}},
+  "2160607633123760": {"inputs": {"batch_size": 1, "seconds": ["2173907295868469", 0]}, "class_type": "EmptyLatentAudio", "_meta": {"title": "Empty Latent Audio"}},
+  "3984138532823763": {"inputs": {"seed": 1038503484137406, "steps": 8, "cfg": 1, "sampler_name": "lcm", "scheduler": "simple", "denoise": 1, "model": ["1331719064726027", 0], "positive": ["4410301302602210", 0], "negative": ["4410301302602210", 1], "latent_image": ["2160607633123760", 0]}, "class_type": "KSampler", "_meta": {"title": "KSampler"}},
+  "773858179268881": {"inputs": {"samples": ["3984138532823763", 0], "vae": ["1331719064726027", 2]}, "class_type": "VAEDecodeAudio", "_meta": {"title": "VAE Decode Audio"}},
+  "4087275058335795": {"inputs": {"filename_prefix": "motif/sfx", "format": "flac", "audio": ["773858179268881", 0]}, "class_type": "SaveAudioAdvanced", "_meta": {"title": "Save Audio (Advanced)"}},
+  "1198276133900970": {"inputs": {"audio": ["773858179268881", 0]}, "class_type": "AudioLoudnessMeter", "_meta": {"title": "Loudness Meter (LUFS)"}},
+  "223828718622399": {"inputs": {"text": ["1198276133900970", 0], "filename_prefix": "motif/sfx_lufs", "format": "txt"}, "class_type": "SaveText", "_meta": {"title": "Save Text"}}
+}

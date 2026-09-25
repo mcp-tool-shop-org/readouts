@@ -1,0 +1,191 @@
+{
+  "wave": 6,
+  "date": "2026-06-07",
+  "lanes": [
+    {
+      "slug": "diffusion-flux-lora",
+      "research": {
+        "techniques": [
+          {
+            "slug": "chroma-rank-dim-sweep-measured-5090",
+            "name": "Chroma LoRA rank/dim sweep (8/16/32) — MEASURED on the 5090 (size linear; higher rank binds the saturated palette more completely — unlike SDXL)",
+            "kind": "recipe",
+            "method_family": "lora",
+            "applicable_to": "diffusion",
+            "base_model_family": "Chroma",
+            "base_model_slug": "chroma1-hd",
+            "claim": "MEASURED 3-way on the 5090 (Chroma1-HD, networks.lora_flux, fp8_base, #168 recipe, dim/alpha 8/16/32): training perf + VRAM are FLAT across rank (2.67-2.70 s/it, 18.8-19.6 GB — the 8.9B DiT forward dominates), so rank's only training cost is adapter SIZE, linear at 53.5 / 107.0 / 213.8 MB. On fidelity, unlike SDXL (where rank was ~neutral), higher rank binds the saturated cyanotype palette MORE completely: dim32 has the best CMMD (0.186 vs dim8 0.218) and a visibly more uniform Prussian-blue field with white-linework, where dim8 leaves the ship naturalistic/warm. CLIP-sim is monotonic (0.7034/0.7143/0.7224) but each step ~1 SEM, so CMMD + the looked-at grid carry the signal.",
+            "summary": "Held the #168 recipe constant, varied only --network_dim/--network_alpha. 600 steps, seed 42, fp8_base. Eval = 10 held-out subjects x 2 seeds (n=20) per rank via the validated flux_minimal_inference fp8 + real-CFG path (strength 3.0), scored CLIP-sim to the 16-img cyanotype style centroid + CMMD, plus looked-at grids. Result (s/it / peak VRAM / MB / CLIP-sim / CMMD): dim8 2.67 / 18.8 / 53.5 / 0.7034 / 0.2175; dim16 2.69 / 19.1 / 107.0 / 0.7143 / 0.2197; dim32 2.70 / 19.6 / 213.8 / 0.7224 / 0.1857. All clear the >=0.70 in-style bar. The looked-at ships: dim8 = naturalistic warm hull (palette under-bound), dim32 = strong uniform blue field + white linework (palette fully transformed). For a strong-palette base-swap style the rank capacity is what carries the global palette transform; SDXL's subtler style did not need it (wave 4/5).",
+            "design_implication": "For Chroma saturated-palette styles, default dim16 (sweet spot) but step to dim32 when palette fidelity matters — the +CMMD/visible-blue gain is real, at 2x the adapter (107->214 MB). Use dim8 only when size-constrained (half the MB, ~1 SEM lower CLIP-sim, visibly weaker palette). Note this DIFFERS from the SDXL finding (rank ~fidelity-neutral there); the difference is the saturated-palette transform, which needs capacity.",
+            "evidence_strength": "measured-on-rig",
+            "seed": "42",
+            "num_runs": 3,
+            "variance_note": "n=20/config (SEM 0.012-0.016 CLIP-sim). Rank steps are ~1 SEM on CLIP-sim individually; CMMD (dim32 best by ~0.03) and the looked-at grid are the decisive signals.",
+            "tuning_budget": "3 matched runs (dim 8/16/32)",
+            "search_method": "same-recipe 3-way A/B, eval n=20 + looked-at",
+            "measured_conditions": "RTX 5090 32GB; Chroma1-HD + fp8_base, t5xxl_fp8, ae; networks.lora_flux; #168 recipe; dim/alpha 8/16/32; AdamW lr 1e-4 constant; 600 steps; eval via flux_minimal_inference fp8 + cfg 4 + neg, strength 3.0, 26 steps. Health: peak 74C, no throttle. 2026-06-07.",
+            "commercial_use": "yes",
+            "commercial_notes": "Chroma1-HD Apache-2.0 (LoRA inherits); output license = base + dataset.",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "supersedes": "flux-rank-dim-alpha-vs-sdxl",
+            "hparams": [
+              {"name": "rank_dim8", "value": "2.67 s/it / 18.8 GB / 53.5 MB / CLIP 0.7034 / CMMD 0.2175"},
+              {"name": "rank_dim16", "value": "2.69 s/it / 19.1 GB / 107.0 MB / CLIP 0.7143 / CMMD 0.2197", "note": "= shift 3.0 default; the sweet spot"},
+              {"name": "rank_dim32", "value": "2.70 s/it / 19.6 GB / 213.8 MB / CLIP 0.7224 / CMMD 0.1857", "note": "best CMMD + strongest visible cyanotype"},
+              {"name": "network_module", "value": "networks.lora_flux", "required": true, "note": "Flux/Chroma DiT LoRA module — NOT networks.lora"},
+              {"name": "fp8_base", "value": "required", "required": true, "note": "bf16+live-T5 spills 32 GB; see chroma-fp8-base"},
+              {"name": "adapter_size_scaling", "value": "linear in rank", "note": "53.5/107/214 MB for dim 8/16/32"}
+            ],
+            "failures": [
+              {"symptom": "cyanotype palette stays naturalistic / under-bound", "cause": "rank too low (dim8) for a strong global-palette transform", "remediation": "raise rank to 16-32; palette binding scales with capacity for Chroma", "recipe_field": "network_dim", "severity": "quality"}
+            ],
+            "evals": [
+              {"eval_kind": "diffusion-style", "metric": "CLIP-sim-to-style-centroid", "harness": "_eval_chroma.py", "n_shot": 20, "result": "0.7224", "threshold": ">=0.70", "accepted": true, "judge_model_family": "clip-vit-b32", "note": "dim32 — in-style, best CMMD 0.1857"},
+              {"eval_kind": "diffusion-style", "metric": "CLIP-sim-to-style-centroid", "harness": "_eval_chroma.py", "n_shot": 20, "result": "0.7034", "threshold": ">=0.70", "accepted": true, "judge_model_family": "clip-vit-b32", "note": "dim8 — in-style but palette weakest, CMMD 0.2175"}
+            ],
+            "best_for": [
+              {"purpose": "strongest cyanotype palette fidelity (Chroma)", "fitness": 5, "use_tag": "chroma"},
+              {"purpose": "smallest Chroma style adapter at acceptable fidelity", "fitness": 4, "use_tag": "chroma"}
+            ],
+            "sources": [
+              {"kind": "receipt", "title": "training-knowledge wave-6 Chroma rank sweep (dim 8/16/32, n=20 eval + looked-at)", "url": "https://github.com/mcp-tool-shop-org/readouts", "claim": "rig-measured RTX 5090 2026-06-07; _chroma_dim{8,16,32}_result.txt + eval_grid_chroma + _eval_chroma.json", "finding_supported": "SUPPORTED"},
+              {"kind": "docs", "title": "kohya-ss sd-scripts flux_train_network (LoRA rank/dim)", "authors": "kohya-ss", "year": "2024", "identifier": "github.com/kohya-ss/sd-scripts", "url": "https://github.com/kohya-ss/sd-scripts/blob/main/docs/flux_train_network.md", "claim": "Flux/Chroma LoRA via networks.lora_flux; rank/alpha control adapter capacity", "finding_supported": "SUPPORTED"},
+              {"kind": "paper", "title": "Rethinking FID: Towards a Better Evaluation Metric for Image Generation (CMMD)", "authors": "Jayasumana et al.", "year": "2024", "identifier": "arXiv:2401.09603", "url": "https://arxiv.org/abs/2401.09603", "claim": "CLIP-MMD is a more reliable small-sample distribution metric than FID — the discriminating signal here", "finding_supported": "SUPPORTED"}
+            ],
+            "engine_recipe_ref": "training-chroma-flux-lora-baseswap-cyanotype-recipe-5090"
+          },
+          {
+            "slug": "chroma-flow-shift-sweep-measured-5090",
+            "name": "Chroma discrete_flow_shift sweep (1/3/6) — MEASURED (footprint-neutral; shift 6 marginally best fidelity; weakest lever)",
+            "kind": "recipe",
+            "method_family": "lora",
+            "applicable_to": "diffusion",
+            "base_model_family": "Chroma",
+            "base_model_slug": "chroma1-hd",
+            "claim": "MEASURED at fixed dim16 on the 5090: --discrete_flow_shift (the flow-matching Euler schedule shift) is FOOTPRINT-neutral (2.76 s/it, ~19.5 GB, 107 MB at all values) and the WEAKEST fidelity lever of the wave. shift 6.0 gives the best fidelity (CLIP-sim 0.7313, CMMD 0.2148), shift 1.0 ~ shift 3.0 (0.7127 / 0.7143), but shift6-vs-shift3 is only ~0.9 SEM. The kohya training default 3.0 is fine; nudge to 6.0 for a marginal palette edge.",
+            "summary": "Held the #168 recipe constant at dim16, varied only --discrete_flow_shift (1.0 / 3.0-default / 6.0). 3.0 is the dim16 rank-sweep datapoint. Eval n=20 (held-out subjects x 2 seeds), CLIP-sim to the cyanotype centroid + CMMD + looked-at. Result (CLIP-sim / CMMD): shift1 0.7127 / 0.2327; shift3 0.7143 / 0.2197; shift6 0.7313 / 0.2148. Looked-at: shift6 = clean deep-blue field, shift1 = more naturalistic/textured. The trend favors higher shift but stays within ~1 SEM, so shift is a fine-tuning lever, not a primary one.",
+            "design_implication": "Leave discrete_flow_shift at the 3.0 default for Chroma cyanotype; optionally raise to ~6.0 for a marginal fidelity/palette nudge (free — no perf/VRAM/size cost). Do not expect a large effect; rank (capacity) and strength (inference) move fidelity far more.",
+            "evidence_strength": "measured-on-rig",
+            "seed": "42",
+            "num_runs": 2,
+            "variance_note": "2 new runs (shift 1.0, 6.0) + the dim16 shift-3.0 datapoint; n=20/config; shift6-vs-shift3 ~0.9 SEM (marginal).",
+            "tuning_budget": "2 new matched runs + the dim16 midpoint",
+            "search_method": "same-recipe shift A/B at fixed rank, eval n=20 + looked-at",
+            "measured_conditions": "RTX 5090 32GB; Chroma1-HD fp8_base; networks.lora_flux dim16; AdamW lr 1e-4 constant; --discrete_flow_shift 1/3/6; 600 steps; eval flux_minimal_inference fp8 + cfg 4, strength 3.0. Health peak 74C. 2026-06-07.",
+            "commercial_use": "yes",
+            "commercial_notes": "Chroma1-HD Apache-2.0; output license = base + dataset.",
+            "rig_fit": 5,
+            "studio_fit": 4,
+            "status": "recommended",
+            "supersedes": "flux-shift-schedule-depth",
+            "hparams": [
+              {"name": "shift1", "value": "2.76 s/it / 19.4 GB / CLIP 0.7127 / CMMD 0.2327"},
+              {"name": "shift3_default", "value": "CLIP 0.7143 / CMMD 0.2197", "note": "= the dim16 rank run; kohya default"},
+              {"name": "shift6", "value": "2.76 s/it / 19.6 GB / CLIP 0.7313 / CMMD 0.2148", "note": "marginally best fidelity"},
+              {"name": "discrete_flow_shift", "value": "3.0", "note": "kohya default; footprint-neutral across 1-6"}
+            ],
+            "failures": [],
+            "evals": [
+              {"eval_kind": "diffusion-style", "metric": "CLIP-sim-to-style-centroid", "harness": "_eval_chroma.py", "n_shot": 20, "result": "0.7313", "threshold": ">=0.70", "accepted": true, "judge_model_family": "clip-vit-b32", "note": "shift6 — marginally best, within ~1 SEM of shift3"}
+            ],
+            "best_for": [
+              {"purpose": "marginal free fidelity nudge on Chroma cyanotype", "fitness": 3, "use_tag": "chroma"}
+            ],
+            "sources": [
+              {"kind": "receipt", "title": "training-knowledge wave-6 Chroma shift sweep (1/3/6, n=20 eval + looked-at)", "url": "https://github.com/mcp-tool-shop-org/readouts", "claim": "rig-measured RTX 5090 2026-06-07; _chroma_shift{1,6}_result.txt + eval_grid_chroma + _eval_chroma.json", "finding_supported": "SUPPORTED"},
+              {"kind": "docs", "title": "kohya-ss sd-scripts --discrete_flow_shift (FlowMatch Euler scheduler)", "authors": "kohya-ss", "year": "2024", "identifier": "library/flux_train_utils.py default=3.0", "url": "https://github.com/kohya-ss/sd-scripts/blob/main/docs/flux_train_network.md", "claim": "discrete_flow_shift sets the flow-matching Euler schedule shift; default 3.0", "finding_supported": "SUPPORTED"}
+            ],
+            "engine_recipe_ref": "training-chroma-flux-lora-baseswap-cyanotype-recipe-5090"
+          },
+          {
+            "slug": "chroma-fp8-base-required-32gb-measured-5090",
+            "name": "fp8_base is REQUIRED for Chroma LoRA on 32 GB — bf16 + live T5 spills the card (MEASURED 31974 MiB / 34 s/it)",
+            "kind": "failure-fix",
+            "method_family": "lora",
+            "applicable_to": "diffusion",
+            "base_model_family": "Chroma",
+            "base_model_slug": "chroma1-hd",
+            "claim": "MEASURED on this rig: bf16 Chroma1-HD + live T5 (Chroma requires --apply_t5_attn_mask which is incompatible with --cache_text_encoder_outputs, so T5 runs live) SPILLS the 32 GB card — VRAM pinned 31974/32607 MiB and step time ballooned 5 -> 34 s/it via WDDM paging. --fp8_base is REQUIRED: ~20 GB, 2.65-2.71 s/it, ~27 min/600 steps. Corroborated this wave: all 5 fp8_base rank/shift runs sat 18.8-19.6 GB at 2.67-2.76 s/it with zero spill.",
+            "summary": "The bf16-spill A/B was measured hands-on in the #167 baseline session (2026-06-03; engine-room receipt training-chroma-flux-lora-baseswap-cyanotype-baseline-5090). No fresh spill re-run was needed (Mike's call 2026-06-07) — the #167 data is a complete A/B and this wave's 5 fp8_base runs independently confirm the fp8 side on the same rig (18.8-19.6 GB, 2.67-2.76 s/it, peak 74C, no throttle). The two load-bearing Chroma gotchas: (1) --cache_text_encoder_outputs + --apply_t5_attn_mask crashes at step 0 (input_ids_list=None) so TE caching must be dropped (T5 live); (2) that live bf16 T5 is what spills, so fp8_base is mandatory on 32 GB.",
+            "design_implication": "Always pass --fp8_base for Chroma LoRA on a 32 GB card. Never try bf16 base here — it pages to system RAM and runs ~13x slower. Keep --cache_latents, drop --cache_text_encoder_outputs.",
+            "evidence_strength": "measured-on-rig",
+            "num_runs": 6,
+            "variance_note": "bf16-spill from #167 (1 run); fp8 confirmed across this wave's 5 runs.",
+            "measured_conditions": "RTX 5090 32GB; Chroma1-HD; bf16 vs --fp8_base; t5xxl_fp8 live (--apply_t5_attn_mask, no TE cache). bf16 from #167 2026-06-03; fp8 corroborated 2026-06-07.",
+            "commercial_use": "yes",
+            "commercial_notes": "Chroma1-HD Apache-2.0.",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "supersedes": "flux-fp8-vs-bf16-base-precision-32gb",
+            "hparams": [
+              {"name": "bf16_base_live_t5", "value": "31974/32607 MiB pinned -> 34 s/it (WDDM paging)", "note": "from #167 — unusable on 32 GB"},
+              {"name": "fp8_base", "value": "~20 GB / 2.65-2.71 s/it / ~27 min per 600 steps", "required": true, "note": "REQUIRED; corroborated 18.8-19.6 GB across 5 wave-6 runs"},
+              {"name": "cache_text_encoder_outputs", "value": "MUST OMIT", "note": "incompatible with --apply_t5_attn_mask (crash at step 0); T5 runs live"}
+            ],
+            "failures": [
+              {"symptom": "Chroma training pins VRAM ~32 GB and runs ~34 s/it", "cause": "bf16 base + live bf16 T5 exceeds 32 GB -> WDDM pages to system RAM", "remediation": "--fp8_base (~20 GB, 2.65 s/it)", "recipe_field": "fp8_base", "severity": "blocker"},
+              {"symptom": "crash at step 0: 'NoneType' object is not iterable (input_ids_list=None)", "cause": "--cache_text_encoder_outputs combined with --apply_t5_attn_mask (Chroma needs the mask)", "remediation": "drop --cache_text_encoder_outputs (run T5 live); keep --cache_latents", "recipe_field": "cache_text_encoder_outputs", "severity": "blocker"}
+            ],
+            "best_for": [
+              {"purpose": "fitting Chroma/Flux LoRA training on a 32 GB card", "fitness": 5, "use_tag": "single-gpu"}
+            ],
+            "sources": [
+              {"kind": "receipt", "title": "tensor-engine #167 Chroma baseline (bf16-spill vs fp8 A/B, measured 2026-06-03)", "url": "https://github.com/mcp-tool-shop-org/readouts", "claim": "rig-measured bf16 spill 31974 MiB/34 s/it; fp8 ~20 GB/2.65 s/it", "finding_supported": "SUPPORTED"},
+              {"kind": "receipt", "title": "training-knowledge wave-6 fp8 corroboration (5 runs)", "url": "https://github.com/mcp-tool-shop-org/readouts", "claim": "5 fp8_base runs 18.8-19.6 GB / 2.67-2.76 s/it / no spill", "finding_supported": "SUPPORTED"}
+            ],
+            "engine_recipe_ref": "training-chroma-flux-lora-baseswap-cyanotype-recipe-5090"
+          },
+          {
+            "slug": "chroma-eval-inference-fp8-realcfg-measured-5090",
+            "name": "Chroma LoRA eval/inference on the rig — kohya samplers give NOISE; use flux_minimal_inference fp8 + REAL CFG (the scriptable path)",
+            "kind": "failure-fix",
+            "method_family": "lora",
+            "applicable_to": "diffusion",
+            "base_model_family": "Chroma",
+            "base_model_slug": "chroma1-hd",
+            "claim": "MEASURED this wave: generating a scriptable Chroma LoRA eval grid is NOT the SDXL lycoris trick. kohya's flux training-sampler (--sample_at_first) emits PURE RGB NOISE for Chroma, and so does flux_minimal_inference.py at cfg_scale 1.0. The fix: Chroma needs REAL CFG (--cfg_scale ~4 + a negative prompt), not the flux distilled-guidance path. The working, RAM-lean eval path is flux_minimal_inference.py --model_type chroma --flux_dtype fp8 (NO --offload; ~25-28 GB VRAM, ~30% system RAM), --guidance 0 --cfg_scale 4 --negative_prompt, 26 steps, LoRA strength ~3.0.",
+            "summary": "#168 always validated Chroma in ComfyUI (UNETLoader + ModelSamplingAuraFlow shift 1.0 + CFGGuider cfg 4); kohya CLI Chroma inference was never proven. This wave establishes a scriptable CLI eval path. Strength ~3.0 is needed (vs ComfyUI's ~1.5) because flux_minimal_inference does not replicate AuraFlow shift 1.0 — a consistent, fair inference for within-Chroma comparison. Interactive mode loads the model once and batches all 20 prompts/config. The earlier bf16 + --offload + disable_mmap loads were the RAM-heavy path (spiked ~90% system RAM); fp8 + no-offload is the lean fix (RAM ~30%).",
+            "design_implication": "To score a Chroma/Flux LoRA, use flux_minimal_inference.py fp8 + real CFG (cfg ~4 + negative) at strength ~2.5-3.0 — NOT the kohya training-sampler (noise) and NOT cfg_scale 1.0 (noise). For the strongest cyanotype, ComfyUI with ModelSamplingAuraFlow shift 1.0 at strength ~1.5 remains the reference (#168); the CLI path is the scriptable batch alternative.",
+            "evidence_strength": "measured-on-rig",
+            "num_runs": 1,
+            "measured_conditions": "RTX 5090; Chroma1-HD fp8 DiT, t5xxl_fp8, ae; flux_minimal_inference.py --interactive; cfg 1.0 (noise) vs cfg 4 + neg (works); strength sweep 1/2/3 -> cyanotype onset ~3.0. 2026-06-07.",
+            "commercial_use": "yes",
+            "commercial_notes": "inference/eval method; metric models measure only.",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [
+              {"name": "inference_script", "value": "flux_minimal_inference.py --model_type chroma --flux_dtype fp8", "required": true, "note": "NO --offload; ~25-28 GB VRAM, ~30% RAM"},
+              {"name": "cfg", "value": "--guidance 0 --cfg_scale 4 --negative_prompt", "required": true, "note": "REAL CFG mandatory; cfg_scale 1.0 -> pure noise"},
+              {"name": "strength", "value": "~2.5-3.0", "note": "higher than ComfyUI ~1.5 (no AuraFlow shift in this path)"},
+              {"name": "kohya_training_sampler", "value": "BROKEN for Chroma (pure noise)", "note": "--sample_at_first emits RGB static; do not use"}
+            ],
+            "failures": [
+              {"symptom": "Chroma LoRA samples are pure RGB noise", "cause": "kohya training-sampler, or cfg_scale 1.0 (flux distilled-guidance path) — Chroma needs real CFG", "remediation": "flux_minimal_inference fp8 + --cfg_scale 4 + negative prompt", "recipe_field": "cfg_scale", "severity": "blocker"},
+              {"symptom": "system RAM spikes ~90% during Chroma inference", "cause": "bf16 DiT (17 GB) + --offload (T5 resident in RAM) + disable_mmap full-file read", "remediation": "--flux_dtype fp8, drop --offload (~30% RAM, ~25-28 GB VRAM)", "recipe_field": "flux_dtype", "severity": "quality"}
+            ],
+            "best_for": [
+              {"purpose": "scriptable Chroma/Flux LoRA eval-grid generation", "fitness": 5, "use_tag": "eval"}
+            ],
+            "sources": [
+              {"kind": "receipt", "title": "training-knowledge wave-6 A0 de-risk (Chroma inference path)", "url": "https://github.com/mcp-tool-shop-org/readouts", "claim": "rig-tested 2026-06-07: kohya sampler + cfg1.0 = noise; fp8+realCFG+strength3 = faithful cyanotype (looked-at)", "finding_supported": "SUPPORTED"},
+              {"kind": "docs", "title": "kohya-ss flux_minimal_inference.py (--model_type chroma, --lora_weights, real CFG)", "authors": "kohya-ss", "year": "2024", "identifier": "github.com/kohya-ss/sd-scripts flux_minimal_inference.py", "url": "https://github.com/kohya-ss/sd-scripts", "claim": "supports chroma + lora_weights path;multiplier + cfg_scale + negative_prompt", "finding_supported": "SUPPORTED"}
+            ],
+            "engine_recipe_ref": "training-chroma-flux-lora-baseswap-cyanotype-recipe-5090"
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {"slug": "chroma-rank-dim-sweep-measured-5090", "overall": "confirmed", "currency": "measured 2026-06-07", "note": "rig measurement + n=20 eval + looked-at grids; oracle = rig + harness, not the study-swarm verifier"},
+          {"slug": "chroma-flow-shift-sweep-measured-5090", "overall": "confirmed", "currency": "measured 2026-06-07", "note": "rig measurement + n=20 eval + looked-at"},
+          {"slug": "chroma-fp8-base-required-32gb-measured-5090", "overall": "confirmed", "currency": "measured 2026-06-03 (#167) + corroborated 2026-06-07", "note": "bf16-spill from #167; fp8 side confirmed across 5 wave-6 runs"},
+          {"slug": "chroma-eval-inference-fp8-realcfg-measured-5090", "overall": "confirmed", "currency": "measured 2026-06-07", "note": "the eval path itself, looked-at (noise vs faithful)"}
+        ]
+      }
+    }
+  ]
+}

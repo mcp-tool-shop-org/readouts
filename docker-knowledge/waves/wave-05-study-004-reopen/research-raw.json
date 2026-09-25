@@ -1,0 +1,611 @@
+{
+  "wave": 5,
+  "date": "2026-09-06",
+  "title": "Wave 5 — STUDY-004 reopen: GPU package/measure/place (CDI/MIG/Blackwell)",
+  "domain_scope": "container-runtime, hw-measurement, moe-placement, throughput-prediction",
+  "agent_count": 3,
+  "verifier_note": "STUDY-014 from STUDY-004 Verifier ✅. Vulkan A4/A6 Cloudflare omitted. Omitted already-in-DB: CTK arch-overview, container-images wiki. Axis invented: 0. Do not write decisive_axis. New rows verified=0.",
+  "notes": "decisive_axis stays empty.",
+  "lanes": [
+    {
+      "slug": "container-runtime",
+      "name": "Container runtime / CDI package",
+      "research": {
+        "domain": "package = host toolkit + CDI",
+        "findings": [
+          {
+            "name": "CRIUgpu — CDI + NVIDIA Container Toolkit",
+            "slug": null,
+            "kind": "craft",
+            "claim": "GPU container checkpoint/restore integrates CDI + NVIDIA Container Toolkit; libnvidia-container injects devices/libs — package surface is CDI/toolkit, not image-baked drivers.",
+            "detail": "GPU container checkpoint/restore integrates CDI + NVIDIA Container Toolkit; libnvidia-container injects devices/libs — package surface is CDI/toolkit, not image-baked drivers.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "Package = host toolkit + CDI; no image-baked driver.",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "CRIUgpu — CDI + NVIDIA Container Toolkit",
+                "authors": "Stoyanov et al.",
+                "year": 2025,
+                "identifier": null,
+                "url": "https://arxiv.org/abs/2502.16631",
+                "claim": "GPU container checkpoint/restore integrates CDI + NVIDIA Container Toolkit; libnvidia-container injects devices/libs — package surface is CDI/toolkit, not image-baked drivers.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          },
+          {
+            "name": "Subedar — nvidia-ctk cdi generate contract",
+            "slug": null,
+            "kind": "craft",
+            "claim": "Repro path: nvidia-ctk cdi generate then Podman --device nvidia.com/gpu=all — CDI generate as compose/runtime attach contract.",
+            "detail": "Repro path: nvidia-ctk cdi generate then Podman --device nvidia.com/gpu=all — CDI generate as compose/runtime attach contract.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "STUDY-004 Verifier-verified",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Subedar — nvidia-ctk cdi generate contract",
+                "authors": "Subedar et al.",
+                "year": 2025,
+                "identifier": null,
+                "url": "https://arxiv.org/abs/2504.15497",
+                "claim": "Repro path: nvidia-ctk cdi generate then Podman --device nvidia.com/gpu=all — CDI generate as compose/runtime attach contract.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          },
+          {
+            "name": "NVIDIA CTK install guide",
+            "slug": null,
+            "kind": "craft",
+            "claim": "Install packages then nvidia-ctk runtime configure --runtime=docker rewriting daemon.json — host-side prerequisite before --gpus.",
+            "detail": "Install packages then nvidia-ctk runtime configure --runtime=docker rewriting daemon.json — host-side prerequisite before --gpus.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "STUDY-004 Verifier-verified",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "docs",
+                "title": "NVIDIA CTK install guide",
+                "authors": "",
+                "year": 2026,
+                "identifier": null,
+                "url": "https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html",
+                "claim": "Install packages then nvidia-ctk runtime configure --runtime=docker rewriting daemon.json — host-side prerequisite before --gpus.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          },
+          {
+            "name": "Docker Engine --gpus",
+            "slug": null,
+            "kind": "craft",
+            "claim": "Expose with docker run --gpus all or device=<index|UUID>; requires NVIDIA driver + toolkit on the host.",
+            "detail": "Expose with docker run --gpus all or device=<index|UUID>; requires NVIDIA driver + toolkit on the host.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "STUDY-004 Verifier-verified",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "docs",
+                "title": "Docker Engine --gpus",
+                "authors": "",
+                "year": 2026,
+                "identifier": null,
+                "url": "https://docs.docker.com/engine/containers/gpu/",
+                "claim": "Expose with docker run --gpus all or device=<index|UUID>; requires NVIDIA driver + toolkit on the host.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          },
+          {
+            "name": "Compose GPU devices",
+            "slug": null,
+            "kind": "craft",
+            "claim": "Place GPUs via deploy.resources.reservations.devices; capabilities:[gpu] mandatory; count and device_ids mutually exclusive.",
+            "detail": "Place GPUs via deploy.resources.reservations.devices; capabilities:[gpu] mandatory; count and device_ids mutually exclusive.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "STUDY-004 Verifier-verified",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "docs",
+                "title": "Compose GPU devices",
+                "authors": "",
+                "year": 2026,
+                "identifier": null,
+                "url": "https://docs.docker.com/compose/how-tos/gpu-support/",
+                "claim": "Place GPUs via deploy.resources.reservations.devices; capabilities:[gpu] mandatory; count and device_ids mutually exclusive.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          },
+          {
+            "name": "Compose deploy devices spec",
+            "slug": null,
+            "kind": "craft",
+            "claim": "Device reservations require capabilities; count/device_ids exclusive.",
+            "detail": "Device reservations require capabilities; count/device_ids exclusive.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "STUDY-004 Verifier-verified",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "docs",
+                "title": "Compose deploy devices spec",
+                "authors": "",
+                "year": 2026,
+                "identifier": null,
+                "url": "https://docs.docker.com/reference/compose-file/deploy/#devices",
+                "claim": "Device reservations require capabilities; count/device_ids exclusive.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          },
+          {
+            "name": "NVIDIA CDI support",
+            "slug": null,
+            "kind": "craft",
+            "claim": "From toolkit v1.12.0 CDI specs; v1.18.0 nvidia-cdi-refresh auto-writes nvidia.yaml; devices nvidia.com/gpu=all|0|….",
+            "detail": "From toolkit v1.12.0 CDI specs; v1.18.0 nvidia-cdi-refresh auto-writes nvidia.yaml; devices nvidia.com/gpu=all|0|….",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "STUDY-004 Verifier-verified",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "docs",
+                "title": "NVIDIA CDI support",
+                "authors": "",
+                "year": 2026,
+                "identifier": null,
+                "url": "https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html",
+                "claim": "From toolkit v1.12.0 CDI specs; v1.18.0 nvidia-cdi-refresh auto-writes nvidia.yaml; devices nvidia.com/gpu=all|0|….",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          },
+          {
+            "name": "k8s-device-plugin — host inject analog",
+            "slug": null,
+            "kind": "craft",
+            "claim": "DaemonSet injects device nodes + health; host driver not in the image. Holds for NVIDIA Container Toolkit --gpus injection; limit: k8s ≠ Docker CDI on WSL2.",
+            "detail": "DaemonSet injects device nodes + health; host driver not in the image. Holds for NVIDIA Container Toolkit --gpus injection; limit: k8s ≠ Docker CDI on WSL2.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "STUDY-004 Verifier-verified",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "docs",
+                "title": "k8s-device-plugin — host inject analog",
+                "authors": "",
+                "year": 2026,
+                "identifier": null,
+                "url": "https://github.com/NVIDIA/k8s-device-plugin",
+                "claim": "DaemonSet injects device nodes + health; host driver not in the image. Holds for NVIDIA Container Toolkit --gpus injection; limit: k8s ≠ Docker CDI on WSL2.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          },
+          {
+            "name": "K8s schedule GPUs",
+            "slug": null,
+            "kind": "craft",
+            "claim": "Expose vendor device resources (nvidia.com/gpu) and schedule via limits=requests. Holds for honest device placement; limit: cluster ≠ single-card.",
+            "detail": "Expose vendor device resources (nvidia.com/gpu) and schedule via limits=requests. Holds for honest device placement; limit: cluster ≠ single-card.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "STUDY-004 Verifier-verified",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "docs",
+                "title": "K8s schedule GPUs",
+                "authors": "",
+                "year": 2026,
+                "identifier": null,
+                "url": "https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/",
+                "claim": "Expose vendor device resources (nvidia.com/gpu) and schedule via limits=requests. Holds for honest device placement; limit: cluster ≠ single-card.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": []
+      }
+    },
+    {
+      "slug": "moe-placement",
+      "name": "MIG/MPS place (incl. B200)",
+      "research": {
+        "domain": "place = MIG isolates; MPS shares",
+        "findings": [
+          {
+            "name": "GPU-Virt-Bench — MIG incl. B200",
+            "slug": null,
+            "kind": "craft",
+            "claim": "MIG on A100/H100/H200/B200 and RTX PRO; software vGPU vs ideal MIG for container multi-tenancy.",
+            "detail": "MIG on A100/H100/H200/B200 and RTX PRO; software vGPU vs ideal MIG for container multi-tenancy.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "B200 in MIG scope",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "GPU-Virt-Bench — MIG incl. B200",
+                "authors": "Jithin/Ditto",
+                "year": 2025,
+                "identifier": null,
+                "url": "https://arxiv.org/abs/2512.22125",
+                "claim": "MIG on A100/H100/H200/B200 and RTX PRO; software vGPU vs ideal MIG for container multi-tenancy.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          },
+          {
+            "name": "Villarrubia — MPS vs MIG on Blackwell",
+            "slug": null,
+            "kind": "craft",
+            "claim": "MIG isolates; MPS shares memory (contention) on Ampere/Hopper/Blackwell B200 — profile before choosing.",
+            "detail": "MIG isolates; MPS shares memory (contention) on Ampere/Hopper/Blackwell B200 — profile before choosing.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "STUDY-004 Verifier-verified",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Villarrubia — MPS vs MIG on Blackwell",
+                "authors": "Villarrubia et al.",
+                "year": 2026,
+                "identifier": null,
+                "url": "https://arxiv.org/abs/2604.22430",
+                "claim": "MIG isolates; MPS shares memory (contention) on Ampere/Hopper/Blackwell B200 — profile before choosing.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          },
+          {
+            "name": "Flex-MIG — NVIDIA_VISIBLE_DEVICES UUIDs",
+            "slug": null,
+            "kind": "craft",
+            "claim": "K8s pods set NVIDIA_VISIBLE_DEVICES to MIG UUIDs; place craft is UUID visibility + MIG leaves, not ad-hoc --gpus all.",
+            "detail": "K8s pods set NVIDIA_VISIBLE_DEVICES to MIG UUIDs; place craft is UUID visibility + MIG leaves, not ad-hoc --gpus all.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "STUDY-004 Verifier-verified",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Flex-MIG — NVIDIA_VISIBLE_DEVICES UUIDs",
+                "authors": "Kim et al.",
+                "year": 2025,
+                "identifier": null,
+                "url": "https://arxiv.org/abs/2511.09143",
+                "claim": "K8s pods set NVIDIA_VISIBLE_DEVICES to MIG UUIDs; place craft is UUID visibility + MIG leaves, not ad-hoc --gpus all.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          },
+          {
+            "name": "GKE NVIDIA MPS — sharing fails honest refusal",
+            "slug": null,
+            "kind": "craft",
+            "claim": "MPS time-slice/share exists; does not transfer into honest single-GPU refusal axis.",
+            "detail": "MPS time-slice/share exists; does not transfer into honest single-GPU refusal axis.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "Sharing fails honest single-GPU refusal.",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "docs",
+                "title": "GKE NVIDIA MPS — sharing fails honest refusal",
+                "authors": "",
+                "year": 2026,
+                "identifier": null,
+                "url": "https://cloud.google.com/kubernetes-engine/docs/how-to/nvidia-mps-gpus",
+                "claim": "MPS time-slice/share exists; does not transfer into honest single-GPU refusal axis.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": []
+      }
+    },
+    {
+      "slug": "hw-measurement",
+      "name": "Measure / observability",
+      "research": {
+        "domain": "measure = NVML/NCCL/eBPF + O_DIRECT",
+        "findings": [
+          {
+            "name": "Darzi — host-side eBPF + NVML/NCCL",
+            "slug": null,
+            "kind": "craft",
+            "claim": "eBPF host signals correlated with NVML + NCCL for GPU tail latency RCA.",
+            "detail": "eBPF host signals correlated with NVML + NCCL for GPU tail latency RCA.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "STUDY-004 Verifier-verified",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Darzi — host-side eBPF + NVML/NCCL",
+                "authors": "Darzi et al.",
+                "year": 2025,
+                "identifier": null,
+                "url": "https://arxiv.org/abs/2510.16946",
+                "claim": "eBPF host signals correlated with NVML + NCCL for GPU tail latency RCA.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          },
+          {
+            "name": "fio O_DIRECT / libaio honesty",
+            "slug": null,
+            "kind": "craft",
+            "claim": "O_DIRECT + async engine or you measure page cache / sync fallback. Holds for NVMe honesty.",
+            "detail": "O_DIRECT + async engine or you measure page cache / sync fallback. Holds for NVMe honesty.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "STUDY-004 Verifier-verified",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "docs",
+                "title": "fio O_DIRECT / libaio honesty",
+                "authors": "",
+                "year": 2026,
+                "identifier": null,
+                "url": "https://manpages.debian.org/unstable/fio/fio.1.en.html",
+                "claim": "O_DIRECT + async engine or you measure page cache / sync fallback. Holds for NVMe honesty.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          },
+          {
+            "name": "Kernel AIO / O_DIRECT caveats",
+            "slug": null,
+            "kind": "craft",
+            "claim": "Async without O_DIRECT quietly becomes sync — headline sequential >> realistic QD1 pattern.",
+            "detail": "Async without O_DIRECT quietly becomes sync — headline sequential >> realistic QD1 pattern.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "STUDY-004 Verifier-verified",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "docs",
+                "title": "Kernel AIO / O_DIRECT caveats",
+                "authors": "",
+                "year": 2026,
+                "identifier": null,
+                "url": "http://lse.sourceforge.net/io/aio.html",
+                "claim": "Async without O_DIRECT quietly becomes sync — headline sequential >> realistic QD1 pattern.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          },
+          {
+            "name": "RLIMIT_MEMLOCK — package cap",
+            "slug": null,
+            "kind": "craft",
+            "claim": "Unprivileged lockable RAM ceiling (mlock/pinned). Holds for container-gated cudaHostAlloc caps.",
+            "detail": "Unprivileged lockable RAM ceiling (mlock/pinned). Holds for container-gated cudaHostAlloc caps.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "STUDY-004 Verifier-verified",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "docs",
+                "title": "RLIMIT_MEMLOCK — package cap",
+                "authors": "",
+                "year": 2026,
+                "identifier": null,
+                "url": "https://www.man7.org/linux/man-pages/man2/setrlimit.2.html",
+                "claim": "Unprivileged lockable RAM ceiling (mlock/pinned). Holds for container-gated cudaHostAlloc caps.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": []
+      }
+    },
+    {
+      "slug": "throughput-prediction",
+      "name": "Blackwell / CUDA currency",
+      "research": {
+        "domain": "Blackwell needs CUDA≥12.8",
+        "findings": [
+          {
+            "name": "Jarmusch — Blackwell CUDA 12.8 / PTX 8.7",
+            "slug": null,
+            "kind": "craft",
+            "claim": "CUDA 12.8 / PTX 8.7 unlock Blackwell 5th-gen tensor ops — toolkit currency gates compute.",
+            "detail": "CUDA 12.8 / PTX 8.7 unlock Blackwell 5th-gen tensor ops — toolkit currency gates compute.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "Blackwell needs CUDA≥12.8.",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Jarmusch — Blackwell CUDA 12.8 / PTX 8.7",
+                "authors": "Jarmusch et al.",
+                "year": 2025,
+                "identifier": null,
+                "url": "https://arxiv.org/abs/2507.10789",
+                "claim": "CUDA 12.8 / PTX 8.7 unlock Blackwell 5th-gen tensor ops — toolkit currency gates compute.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          },
+          {
+            "name": "Yadav — sm_100 ≠ sm_120",
+            "slug": null,
+            "kind": "craft",
+            "claim": "B200/sm_100 and RTX PRO 6000/sm_120 stacks use CUDA 12.8+; sm_120 ≠ sm_100.",
+            "detail": "B200/sm_100 and RTX PRO 6000/sm_120 stacks use CUDA 12.8+; sm_120 ≠ sm_100.",
+            "applies_to": "docker; nvidia-ctk; gpu-container",
+            "design_implication": "STUDY-004 Verifier-verified",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "directional",
+            "verified": false,
+            "verify_note": "STUDY-014 from STUDY-004 Verifier ✅; default verified=0",
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Yadav — sm_100 ≠ sm_120",
+                "authors": "Yadav et al.",
+                "year": 2026,
+                "identifier": null,
+                "url": "https://arxiv.org/abs/2604.23466",
+                "claim": "B200/sm_100 and RTX PRO 6000/sm_120 stacks use CUDA 12.8+; sm_120 ≠ sm_100.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "STUDY-004 Verifier held"
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": []
+      }
+    }
+  ],
+  "measurements": []
+}

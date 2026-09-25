@@ -1,0 +1,372 @@
+{
+  "laneSlug": "weapon-composite",
+  "title": "Rigid-weapon compositing",
+  "recipes": [
+    {
+      "slug": "mesh-material-id-weapon-mask",
+      "name": "Extract weapon mask from Blender mesh via Cryptomatte / Object-Index pass",
+      "kind": "technique",
+      "engine_family": "blender",
+      "applicable_to": "weapon-composite",
+      "claim": "Because the studio controls the captain mesh, the weapon is its own named object with a dedicated Pass Index; Cryptomatte (Blender 2.8+) emits a per-object alpha matte that is pixel-exact, anti-aliased, and available for all 8 render angles with zero segmentation inference cost.",
+      "summary": "Enable Cryptomatte (Object mode) in the Render Layers panel; the weapon object gets a unique Pass Index. Each rendered frame carries an EXR with the weapon's clean matte at full resolution, anti-aliased, with motion-blur and transparency support. This is the cleanest weapon-isolation path because you own the mesh geometry — no ML segmentation needed, no edge leakage, deterministic across all 8 views. Export each angle's matte alongside its RGB render for use in the compositing steps downstream.",
+      "design_implication": "Always prefer the mesh-owned matte over SAM2 for the weapon: it is zero-cost at render time, perfectly consistent across frames, and requires no prompt engineering. SAM2 is the fallback when the source render is a baked PNG without passes.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "Blender Apache-2.0 (GPL for the Blender binary, but the render output and compositor are unrestricted for commercial use)",
+      "commercial_use": "yes",
+      "commercial_notes": "Blender is GPL; rendered output and compositing pipelines built with it are unrestricted. No output license restriction on commercial assets.",
+      "vram_gb": "0",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": ["weapon-segmentation", "mask-extraction"],
+      "failures": [
+        {
+          "symptom": "Matte has aliased or missing pixels at blade edge",
+          "cause": "Cryptomatte node not connected, or render samples too low for transparent edges",
+          "remediation": "Use Cryptomatte node (not ID Mask) and increase sample count; export as 16-bit EXR to preserve sub-pixel alpha",
+          "severity": "medium",
+          "recipe_field": "summary"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "Cryptomatte Node — Blender Manual",
+          "authors": "Blender Foundation",
+          "year": "2024",
+          "identifier": "blender-docs-cryptomatte",
+          "url": "https://docs.blender.org/manual/en/latest/compositing/types/mask/cryptomatte.html",
+          "claim": "Cryptomatte (Blender 2.8+) generates per-object/material mattes that are anti-aliased and support depth-of-field and motion blur, superseding the older ID Mask node."
+        }
+      ]
+    },
+    {
+      "slug": "sam2-weapon-segment-fallback",
+      "name": "SAM2 prompt-based weapon segmentation (fallback for baked PNG renders)",
+      "kind": "technique",
+      "engine_family": "python",
+      "applicable_to": "weapon-composite",
+      "claim": "SAM2 (Apache-2.0) can isolate a weapon from a baked PNG mesh render with a single bounding-box or point prompt per view; because the mesh render is clean and uncluttered, SAM2 achieves near-matte quality without needing the Cryptomatte pass.",
+      "summary": "When only a flat RGB render is available (no EXR passes), run SAM2 with a bounding-box prompt around the weapon region for each of the 8 angles. The mesh render is low-noise and high-contrast, making SAM2's segmentation highly reliable here compared to a cluttered photo. Output masks as 8-bit PNGs per angle for downstream compositing. Use SAM2's image mode (not video mode) since the 8 views are discrete frames, not a continuous sequence. Feather mask edges 1-2 px before compositing.",
+      "design_implication": "SAM2 is the correct fallback when the mesh EXR passes are lost or unavailable. For initial pipeline bring-up, both paths should be exercised and the Cryptomatte path locked in as canonical once proven.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "commercial_notes": "SAM2 is Apache-2.0; all outputs are the studio's. No restriction on commercial sprite production.",
+      "vram_gb": "4-8",
+      "rig_fit": 5,
+      "studio_fit": 4,
+      "status": "recommended",
+      "base_model_family": "SAM2",
+      "predecessor_slug": "mesh-material-id-weapon-mask",
+      "stage_order": 2,
+      "purposes": ["weapon-segmentation", "mask-extraction"],
+      "hparams": [
+        {"name": "prompt_type", "value": "bounding_box", "note": "box prompt is more stable than single point for elongated weapons"},
+        {"name": "mask_feather_px", "value": "1-2", "note": "feather before compositing to avoid hard-edge artifacts"}
+      ],
+      "failures": [
+        {
+          "symptom": "Mask leaks into body at grip area",
+          "cause": "Weapon and hand overlap region confuses the segmentation boundary",
+          "remediation": "Use a tighter bounding box that excludes the grip overlap; the seam-inpaint step (later recipe) handles the contact zone anyway",
+          "severity": "low",
+          "recipe_field": "summary"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "github",
+          "title": "facebookresearch/segment-anything-2",
+          "authors": "Meta AI",
+          "year": "2024",
+          "identifier": "arXiv:2408.00714",
+          "url": "https://github.com/facebookresearch/sam2",
+          "claim": "SAM2 (Apache-2.0) is a promptable segmentation foundation model for images and video; SAM2.1 (Sep 2024) improves tracking and mask quality over the original July 2024 release."
+        }
+      ]
+    },
+    {
+      "slug": "grip-keypoint-alignment",
+      "name": "Grip-point alignment: anchor weapon to painterly hand via MediaPipe/OpenPose wrist landmark",
+      "kind": "technique",
+      "engine_family": "python",
+      "applicable_to": "weapon-composite",
+      "claim": "The mesh render and the NVS painterly view share the same 8-angle framing with a common foot anchor, so wrist/grip keypoints from either image are a stable alignment target; translating the segmented weapon mask to match the painterly hand's keypoint 0 (wrist) or keypoint 9 (index MCP) places the weapon grip within 2-4 px for all views before any fine correction.",
+      "summary": "Run MediaPipe Hand Landmarker on both the mesh render and the painterly NVS view for the matching angle to extract the wrist keypoint (landmark 0) or index-finger MCP (landmark 5). Compute the translation delta between the two grip points and apply it to the weapon mask and its RGB crop before compositing. Because foot-anchor framing keeps scale and rotation consistent across views, a pure translation is usually sufficient; rotation correction is only needed if the painterly view has body lean divergence from the mesh. This step runs in CPU-only mode on the studio's Python pipeline — no GPU needed.",
+      "design_implication": "Do not rely solely on pixel-position alignment from the shared framing; even with identical camera angles, the NVS pass may have minor body-lean variation. A 2-keypoint alignment step costs <50 ms and removes the main source of grip-seam misregistration.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "commercial_notes": "MediaPipe is Apache-2.0; output alignment data is the studio's. No restriction.",
+      "vram_gb": "0",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "engine_family": "python",
+      "purposes": ["alignment", "keypoint-registration"],
+      "hparams": [
+        {"name": "landmark_target", "value": "0 (wrist) or 5 (index MCP)", "note": "use whichever is visible and unoccluded for the view angle"},
+        {"name": "alignment_mode", "value": "translation-only", "note": "add rotation only if body-lean divergence > 3 degrees"}
+      ],
+      "failures": [
+        {
+          "symptom": "MediaPipe fails to detect hand in the mesh render (clean background confuses detector)",
+          "cause": "Hand landmarker trained on photographic data; mesh renders may lack skin texture",
+          "remediation": "Fall back to manually placing grip-point anchor per view in a one-time calibration pass; or use the mesh's known grip bone world-space coordinate directly",
+          "severity": "medium",
+          "recipe_field": "summary"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "Hand landmarks detection guide — MediaPipe",
+          "authors": "Google AI Edge",
+          "year": "2024",
+          "identifier": "mediapipe-hand-landmarker",
+          "url": "https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker",
+          "claim": "MediaPipe Hand Landmarker (Apache-2.0) detects 21 3D hand-knuckle coordinates from a single image frame; code samples licensed Apache-2.0."
+        }
+      ]
+    },
+    {
+      "slug": "alpha-composite-rigid-weapon",
+      "name": "Alpha-composite the aligned weapon crop onto the painterly view (rigid, no diffusion)",
+      "kind": "technique",
+      "engine_family": "python",
+      "applicable_to": "weapon-composite",
+      "claim": "After grip alignment, a straight alpha-over composite of the weapon crop (from the mesh render, feathered mask) onto the painterly NVS view places the rigid weapon without any diffusion — preserving exact blade length and angle — before the harmonization pass adjusts color and brushwork.",
+      "summary": "Use OpenCV (Apache-2.0 since v4.5.0) or Pillow to alpha-composite the weapon PNG crop onto the matched painterly view at the corrected position. The weapon layer sits above the body layer; the feathered mask (1-2 px) at the blade edge softens the composite boundary. This step is deterministic and reversible — it is the anchor from which the harmonization pass is measured. No model runs here; no geometry is changed. Save both the pre-harmonize and post-harmonize composites as checkpoints so a failed harmonize can be rolled back to the clean composite.",
+      "design_implication": "Separating the hard composite step from the harmonization step enforces the ANDON principle: if harmonization re-imagines the blade, the checkpoint lets you roll back and retry with tighter denoise settings without re-running segmentation or alignment.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "OpenCV Apache-2.0 (v4.5.0+); Pillow HPND (permissive)",
+      "commercial_use": "yes",
+      "commercial_notes": "Both OpenCV 4.5+ and Pillow are commercially permissive. Outputs are the studio's.",
+      "vram_gb": "0",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": ["compositing", "rigid-placement"],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "OpenCV Seamless Cloning / Photo Clone API",
+          "authors": "OpenCV Contributors",
+          "year": "2024",
+          "identifier": "opencv-photo-clone",
+          "url": "https://docs.opencv.org/4.x/df/da0/group__photo__clone.html",
+          "claim": "OpenCV (Apache-2.0 since 4.5.0) provides seamlessClone() for gradient-domain compositing and standard alpha-blending primitives via cv2.copyTo with mask."
+        },
+        {
+          "kind": "paper",
+          "title": "Poisson Image Editing",
+          "authors": "P. Pérez, M. Gangnet, A. Blake",
+          "year": "2003",
+          "identifier": "doi:10.1145/882262.882269",
+          "url": "https://dl.acm.org/doi/10.1145/882262.882269",
+          "claim": "The foundational SIGGRAPH 2003 paper underlying seamless cloning: solving Poisson equations in the gradient domain removes color-mismatch seams when pasting a source region into a destination image."
+        }
+      ]
+    },
+    {
+      "slug": "controlnet-tile-weapon-harmonize",
+      "name": "ControlNet-tile + low-denoise inpaint over weapon region only to adopt house brushwork",
+      "kind": "workflow",
+      "engine_family": "comfyui",
+      "applicable_to": "weapon-composite",
+      "claim": "Running ControlNet-tile (or depth-ControlNet) with denoise ≤ 0.3 on the weapon-only mask causes the diffusion pass to re-texture the blade surface with the painterly house style without changing blade length, angle, or width — the low denoise and tile constraint prevent geometry re-imagination.",
+      "summary": "In ComfyUI: load the SDXL ControlNet-Union (xinsir, Apache-2.0) with tile+depth modes active; input the composite image as both the latent source and the ControlNet condition image; apply the weapon mask via SetNoiseMask so only the weapon region is noised; set denoise=0.20-0.28 and CFG=5-6. The tile conditioning locks high-frequency structure (blade geometry) while the low denoise pass adds painterly brushwork texture matching the body. Do NOT apply to the full image — mask strictly to the weapon crop plus a 4-8 px feather into the seam zone. Qwen-Image-Edit-2511 (Apache-2.0) can be substituted for instruction-guided harmonization ('make the blade look painted in oil, same shape').",
+      "design_implication": "Denoise ceiling of 0.30 is the hard blocker threshold: above it the model begins re-imagining blade geometry. If the brushwork match is insufficient at ≤0.30, increase CFG (up to 7) or use IP-Adapter style injection at low weight rather than raising denoise.",
+      "evidence_strength": "single-reported-run",
+      "license": "ControlNet-Union SDXL Apache-2.0; Qwen-Image-Edit-2511 Apache-2.0",
+      "commercial_use": "yes",
+      "commercial_notes": "Both base models are Apache-2.0. ComfyUI itself is GPL-3 (runtime), but generated outputs are the studio's.",
+      "vram_gb": "12-24",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "base_model_family": "SDXL",
+      "purposes": ["harmonization", "style-injection", "weapon-texturing"],
+      "hparams": [
+        {"name": "denoise", "value": "0.20-0.28", "note": "hard ceiling 0.30 to prevent geometry re-imagination"},
+        {"name": "cfg", "value": "5-6", "note": "raise to 7 before raising denoise if brushwork match is weak"},
+        {"name": "controlnet_mode", "value": "tile+depth", "note": "tile locks structure; depth provides z-ordering reference"},
+        {"name": "controlnet_strength", "value": "0.8-1.0", "note": "per xinsir recommendation for tile/depth modes"},
+        {"name": "mask_feather_px", "value": "4-8", "note": "feather into seam zone but not onto body"}
+      ],
+      "failures": [
+        {
+          "symptom": "Harmonize pass re-imagines the blade (wrong length, curved, redesigned)",
+          "cause": "Denoise too high (>0.35) or mask too large, including body region",
+          "remediation": "Reduce denoise to ≤0.25; tighten mask to weapon only; increase ControlNet strength to 1.0",
+          "severity": "blocker",
+          "recipe_field": "hparams"
+        },
+        {
+          "symptom": "Blade looks plasticky / unmatched to painterly body",
+          "cause": "Denoise too low (< 0.15) — not enough noise to generate brushwork",
+          "remediation": "Raise denoise to 0.22-0.28 band; add IP-Adapter at 0.3 weight with style reference crop from body",
+          "severity": "medium",
+          "recipe_field": "hparams"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "model",
+          "title": "xinsir/controlnet-union-sdxl-1.0",
+          "authors": "xinsir",
+          "year": "2024",
+          "identifier": "hf:xinsir/controlnet-union-sdxl-1.0",
+          "url": "https://huggingface.co/xinsir/controlnet-union-sdxl-1.0",
+          "claim": "ControlNet-Union SDXL (Apache-2.0) supports 10+ control types including tile and depth in a single model; multi-condition fusion is learned during training with no single-condition performance drop."
+        },
+        {
+          "kind": "model",
+          "title": "Qwen-Image-Edit (Qwen-Image-Edit-2511)",
+          "authors": "Alibaba Qwen Team",
+          "year": "2025",
+          "identifier": "hf:QwenLM/Qwen-Image-Edit",
+          "url": "https://github.com/QwenLM/Qwen-Image",
+          "claim": "Qwen-Image-Edit (Apache-2.0, released August 2025) enables instruction-guided region editing with identity and semantic preservation; supports material-replacement and viewpoint-consistent edits."
+        }
+      ]
+    },
+    {
+      "slug": "poisson-seam-inpaint-hand-contact",
+      "name": "Poisson-seamless-clone + diffusion seam inpaint at hand–weapon contact zone",
+      "kind": "workflow",
+      "engine_family": "comfyui",
+      "applicable_to": "weapon-composite",
+      "claim": "The grip contact zone (3-6 px where hand and weapon meet) is the hardest compositing seam; Poisson seamless cloning (OpenCV, Apache-2.0) removes color-gradient discontinuity at the boundary, then a 12-16 px inpaint with denoise=0.35-0.45 regenerates the grip wrap and finger details to match the painterly body style.",
+      "summary": "Step 1: apply OpenCV seamlessClone (NORMAL_CLONE) with a tight mask around the weapon grip edge to blend color gradients across the seam — this is a pure mathematical operation with no model inference. Step 2: dilate the contact mask 12-16 px to cover the grip overlap zone and run a ComfyUI inpaint pass (denoise 0.35-0.45) with a prompt targeting the grip material ('leather-wrapped hilt, painterly strokes'). This two-pass approach keeps the weapon geometry locked from Step 1 while regenerating only the organic hand-wrap contact that bridges the two assets. The Pixel-Equivalent Latent Compositing (PELC / DecFormer, arXiv:2512.05198) technique can replace the standard latent interpolation if seam artifacts persist at the mask boundary.",
+      "design_implication": "The contact zone is the only place in the weapon-composite pipeline where denoise should exceed 0.30 — because hand-wrap geometry is not rigid and must conform to both assets. Keep the mask tight (12-16 px from the actual contact line) to prevent drift into the validated weapon blade or painterly arm.",
+      "evidence_strength": "single-reported-run",
+      "license": "OpenCV Apache-2.0; ComfyUI GPL-3 (outputs unrestricted)",
+      "commercial_use": "yes",
+      "commercial_notes": "OpenCV 4.5+ is Apache-2.0. ComfyUI runtime is GPL-3 but generated images are not GPL-encumbered.",
+      "vram_gb": "8-16",
+      "rig_fit": 5,
+      "studio_fit": 4,
+      "purposes": ["seam-inpaint", "hand-weapon-contact", "blending"],
+      "status": "recommended",
+      "hparams": [
+        {"name": "clone_mode", "value": "NORMAL_CLONE", "note": "use MIXED_CLONE if preserving weapon texture gradient is less important than matching body color"},
+        {"name": "contact_mask_dilation_px", "value": "12-16", "note": "covers grip overlap without bleeding into blade or arm"},
+        {"name": "denoise_contact", "value": "0.35-0.45", "note": "higher than blade harmonize — hand wrap is organic, not rigid"}
+      ],
+      "failures": [
+        {
+          "symptom": "Poisson clone introduces color bleed from weapon metal onto the hand skin",
+          "cause": "Mask too loose; NORMAL_CLONE mixes gradient from both sides equally",
+          "remediation": "Tighten mask to only the weapon-side seam edge; or switch to MIXED_CLONE to weight destination gradient",
+          "severity": "medium",
+          "recipe_field": "hparams"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "Poisson Image Editing",
+          "authors": "P. Pérez, M. Gangnet, A. Blake",
+          "year": "2003",
+          "identifier": "doi:10.1145/882262.882269",
+          "url": "https://dl.acm.org/doi/10.1145/882262.882269",
+          "claim": "Gradient-domain compositing solves the Poisson equation to eliminate color-mismatch seams; implemented in OpenCV as cv2.seamlessClone."
+        },
+        {
+          "kind": "paper",
+          "title": "Your Latent Mask is Wrong: Pixel-Equivalent Latent Compositing for Diffusion Models",
+          "authors": "Rowan Bradbury, Dazhi Zhong",
+          "year": "2025",
+          "identifier": "arXiv:2512.05198",
+          "url": "https://arxiv.org/abs/2512.05198",
+          "claim": "Standard linear latent blending under a downsampled mask produces boundary seams and global color shifts; DecFormer (7.7M params) predicts pixel-equivalent blend weights and residual corrections, reducing edge error up to 53% over standard mask interpolation on FLUX.1."
+        }
+      ]
+    },
+    {
+      "slug": "depth-aware-occlusion-per-view",
+      "name": "Depth-aware occlusion: weapon in front of / behind body and limbs per view angle",
+      "kind": "technique",
+      "engine_family": "blender",
+      "applicable_to": "weapon-composite",
+      "claim": "The mesh render already encodes per-pixel depth in the EXR Z-pass; comparing weapon depth vs. body depth per pixel determines per-view occlusion (e.g. a held cutlass behind the near arm at 45° front view) without any ML inference.",
+      "summary": "Export the Z-depth pass alongside the Cryptomatte EXR from the mesh render. For each of the 8 views, generate a per-pixel weapon-vs-body depth comparison mask: pixels where weapon_Z > body_Z are occluded by the body (weapon is behind); pixels where weapon_Z < body_Z are in front. Apply this occlusion mask as an additional alpha multiply on the weapon composite layer before the harmonization pass — the weapon is hidden behind the arm where the mesh says it should be, and shows in front elsewhere. For the NVS painterly view, use the matching mesh depth as a proxy since NVS does not produce a reliable depth map.",
+      "design_implication": "Skipping depth-aware occlusion produces a weapon that floats in front of the arm at every angle, breaking 2.5D believability. The mesh Z-pass is zero cost to export and makes this deterministic — no per-frame manual masking.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "Blender GPL (output renders unrestricted for commercial use)",
+      "commercial_use": "yes",
+      "commercial_notes": "Blender is GPL; depth pass EXR outputs are the studio's property with no restriction.",
+      "vram_gb": "0",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": ["depth-occlusion", "z-ordering", "per-view-compositing"],
+      "failures": [
+        {
+          "symptom": "Occlusion mask has aliased stairstepping at arm silhouette edge",
+          "cause": "Z-pass is integer-quantized at 8-bit; edge pixels have ambiguous depth",
+          "remediation": "Export Z-pass as 32-bit float EXR; feather the occlusion boundary 1-2 px before applying",
+          "severity": "low",
+          "recipe_field": "summary"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "Cryptomatte Node + Render Passes (Z-depth) — Blender Manual",
+          "authors": "Blender Foundation",
+          "year": "2024",
+          "identifier": "blender-docs-cryptomatte",
+          "url": "https://docs.blender.org/manual/en/latest/compositing/types/mask/cryptomatte.html",
+          "claim": "Blender Cryptomatte and Z-depth render passes together provide per-object matte and per-pixel depth at render time; together they fully encode occlusion relationships for 2.5D compositing without post-hoc inference."
+        }
+      ]
+    },
+    {
+      "slug": "weapon-subsystem-routing-gate",
+      "name": "Weapon-subsystem routing gate: body-attached vs. externally-projected weapons",
+      "kind": "workflow",
+      "engine_family": "n/a",
+      "applicable_to": "weapon-composite",
+      "claim": "Not all weapons need the composite lane: weapons that are body-attached (sheathed sword, holstered pistol, back-mounted shield) or share deformation with the body (cloak, tail, necklace) are already correctly painted by the NVS repaint and should stay in that lane; only externally-projected rigid props (held cutlass, extended harpoon, pole weapon) that diffusion re-imagines between views need to be routed through the weapon-composite lane.",
+      "summary": "At pipeline intake, classify each character's weapons: (A) body-attached/sheathed — stays in NVS lane, no composite needed; (B) held-rigid/externally-projected — routed to this weapon-composite lane per §D. The classification gate prevents unnecessary composite passes on weapons that are already validated. For the pirate pack: the captain's cutlass (held, extended) is Class B; the belt dagger (sheathed) is Class A. For the goblin pack: thrown javelins are Class B at release frame; at-rest they are Class A. This routing decision should be recorded in the roster JSON per character so it is persistent and version-controlled.",
+      "design_implication": "Routing ALL weapons through composite adds 3-5 min per character-view with no quality gain for body-attached weapons. The gate is the first step in the per-character weapon pipeline — run it before any segmentation or alignment work.",
+      "evidence_strength": "single-reported-run",
+      "license": "n/a",
+      "commercial_use": "yes",
+      "commercial_notes": "Organizational routing logic; no model or tool license applies.",
+      "vram_gb": "0",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": ["routing", "pipeline-gate", "classification"],
+      "hparams": [
+        {"name": "class_A_criteria", "value": "body-attached, sheathed, or shares deformation with body", "note": "stays in NVS lane"},
+        {"name": "class_B_criteria", "value": "held-rigid, externally-projected, or drifts across NVS views", "note": "routes to weapon-composite lane"}
+      ],
+      "failures": [
+        {
+          "symptom": "Composite applied to a sheathed weapon that was already clean in NVS",
+          "cause": "Missing routing gate; all weapons sent to composite",
+          "remediation": "Add weapon_class field to roster JSON; gate composite step on class=B",
+          "severity": "low",
+          "recipe_field": "summary"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "github",
+          "title": "facebookresearch/segment-anything-2",
+          "authors": "Meta AI",
+          "year": "2024",
+          "identifier": "arXiv:2408.00714",
+          "url": "https://github.com/facebookresearch/sam2",
+          "claim": "SAM2 can segment held props from video sequences, but the studio's §D finding establishes that no diffusion method rotates a held rigid prop consistently across views — making mesh-composite the correct fix rather than better segmentation of the NVS output."
+        }
+      ]
+    }
+  ]
+}

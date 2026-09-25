@@ -1,0 +1,446 @@
+{
+  "laneSlug": "combat-craft",
+  "title": "Combat animation craft",
+  "recipes": [
+    {
+      "slug": "attack-anticipation-active-recovery",
+      "name": "Attack structure: anticipation → active/hit frame → follow-through → recovery",
+      "kind": "principle",
+      "engine_family": "n/a",
+      "applicable_to": "attack",
+      "claim": "A readable attack is authored in four beats — anticipation, active/hit frame, follow-through, recovery — not generated as uniform motion.",
+      "summary": "Pull back to telegraph (anticipation), snap to the active/hit key frame (the moment the blow lands), continue the arc (follow-through), then settle to an idle-compatible end (recovery). The hit frame is the clearest, most exaggerated pose in the animation; the anticipation sells the weight that precedes it. For a 10-frame slash: ~2f anticipation/wind-up, 1f launch, 1–2f active+smear, 2f follow-through, 2f recovery, 1f return to idle-ready. Compressing any beat muddles the read; skipping anticipation makes the attack feel teleported rather than struck.",
+      "design_implication": "Every combat attack in the roster is storyboarded to these four beats before any rig or AI work begins. The hit frame is the storyboard's anchor — motion-verify checks for it explicitly. Recovery must land on a pose compatible with the idle loop so the character doesn't pop when the action ends.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "n/a",
+      "commercial_use": "yes",
+      "commercial_notes": "Animation principle, no license.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "hparams": [
+        {"name": "attack_slash_frames", "value": 10, "unit": "frames", "note": "10f budget: 2 anticipation, 1 launch, 2 active/smear, 2 follow-through, 2 recovery, 1 return"},
+        {"name": "attack_heavy_frames", "value": 16, "unit": "frames", "note": "Heavy/cast attacks can stretch to 14–16f; add more anticipation and longer recovery, not more smear"}
+      ],
+      "failures": [
+        "Uniform-speed motion across all beats — the swing looks mechanical, not weighty",
+        "Missing anticipation — attack reads as teleport, player cannot react",
+        "Recovery that doesn't resolve to idle-compatible pose — causes visible pop on loop"
+      ],
+      "sources": [
+        {
+          "kind": "book",
+          "title": "The Animator's Survival Kit",
+          "authors": "Richard Williams",
+          "year": "2001",
+          "identifier": "ISBN 9780571202287",
+          "url": "https://www.amazon.com/Animators-Survival-Kit-Richard-Williams/dp/0571202284",
+          "claim": "Codifies anticipation, the extreme key-pose method, and timing/spacing as the foundation of readable action in every animation medium including games."
+        },
+        {
+          "kind": "book",
+          "title": "The Illusion of Life: Disney Animation",
+          "authors": "Frank Thomas, Ollie Johnston",
+          "year": "1981",
+          "identifier": "ISBN 9780786860708",
+          "url": "https://www.amazon.com/Illusion-Life-Disney-Animation/dp/0786860707",
+          "claim": "Introduces and defines the 12 principles of animation including anticipation and follow-through as the structural grammar of believable motion."
+        },
+        {
+          "kind": "GDC talk",
+          "title": "Animation Bootcamp: Fluid and Powerful Animation within Frame Restrictions",
+          "authors": "Mariel Cartwright (Lab Zero Games)",
+          "year": "2014",
+          "identifier": "GDC 2014 Animation Bootcamp",
+          "url": "https://gdcvault.com/play/1020575/Animation-Bootcamp-Fluid-and-Powerful",
+          "claim": "Demonstrates via Skullgirls and Street Fighter III that strong key frames plus anticipation and timing are the irreducible elements of readable combat animation, even within six-frame budgets."
+        }
+      ]
+    },
+    {
+      "slug": "key-pose-first-authoring",
+      "name": "Key-pose-first authoring: extremes before breakdowns before inbetweens",
+      "kind": "principle",
+      "engine_family": "n/a",
+      "applicable_to": "attack",
+      "claim": "Author the extreme key poses first — the clearest, most readable silhouettes of each beat — then place breakdowns, then inbetweens; never animate straight-ahead for combat.",
+      "summary": "Pose-to-pose (key poses → breakdowns → inbetweens) gives the animator control over every important moment: you know exactly what frame the hit lands, what frame the anticipation peaks, what the recovery silhouette looks like. Straight-ahead animation drifts — characters migrate on-canvas and intent blurs into procedural motion. For sprite combat, draw the five load-bearing extremes first (idle-ready, anticipation peak, launch, active/hit, recovery) at full exaggeration, then populate inbetweens. If the extremes don't read at thumbnail size, adding inbetweens makes them worse, not better.",
+      "design_implication": "In the studio pipeline, the rig proxy's extremes are posed, rendered, and reviewed before any in-between frames are committed. This gives motion-verify a ground truth to check before AI polish is applied — catching silhouette failures cheaply rather than after the diffusion pass.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "n/a",
+      "commercial_use": "yes",
+      "commercial_notes": "Animation principle, no license.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "hparams": [
+        {"name": "extremes_count_attack_slash", "value": 5, "unit": "key poses", "note": "idle-ready / anticipation-peak / launch / active-hit / recovery"},
+        {"name": "breakdowns_per_beat", "value": 1, "unit": "breakdown frames", "note": "One breakdown between each adjacent pair of extremes is usually enough at 8–12f total"}
+      ],
+      "failures": [
+        "Straight-ahead sprite animation — character migrates across the canvas, hit frame loses its position",
+        "Adding inbetweens before fixing a weak extreme — propagates the bad pose rather than correcting it"
+      ],
+      "sources": [
+        {
+          "kind": "book",
+          "title": "The Animator's Survival Kit",
+          "authors": "Richard Williams",
+          "year": "2001",
+          "identifier": "ISBN 9780571202287",
+          "url": "https://www.amazon.com/Animators-Survival-Kit-Richard-Williams/dp/0571202284",
+          "claim": "Contrasts pose-to-pose and straight-ahead methods, establishing that pose-to-pose gives the animator control over key dramatic moments; inbetweens only work if extremes are strong."
+        },
+        {
+          "kind": "article",
+          "title": "12 Principles for Game Animation",
+          "authors": "Christopher Totten",
+          "year": "2021",
+          "identifier": "Game Developer, December 2021",
+          "url": "https://www.gamedeveloper.com/game-platforms/12-principles-for-game-animation",
+          "claim": "Explains that pose-to-pose is the foundation of readability for game sprites: 'draw the key ones (key poses and extremes) and one or two breakdowns, which were enough to define the motion.'"
+        }
+      ]
+    },
+    {
+      "slug": "readable-silhouette-8-direction",
+      "name": "Readable silhouette: every key pose reads at thumbnail size in all 8 directions",
+      "kind": "principle",
+      "engine_family": "n/a",
+      "applicable_to": "attack",
+      "claim": "A combat pose must communicate its beat (anticipation, active, recovery) from its silhouette alone — no fill color, no detail — at every cardinal and diagonal direction.",
+      "summary": "The staging principle (Thomas & Johnston) applied to 2.5D game sprites: if you fill the character with flat grey and can still identify the beat, the pose reads. This matters especially for 8-direction sprites because the oblique directions (NE/NW/SE/SW) often collapse depth cues: a side-slash that reads clearly at 0° can look like a forward-push at 45°. Each directional variant needs its own silhouette check. In pixel art, the rule tightens further — at 32×32 you may have 4–6 pixels of weapon arc to carry the read. Exaggerate limb separation and weapon angle beyond what feels right; it will read correctly at game resolution.",
+      "design_implication": "Every extreme key pose is silhouette-checked (desaturated flat render) before approval. The 8-direction render matrix exposes collapsed reads at oblique angles. Directional variants with failed silhouettes go back to the pose stage, not the inbetween stage.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "n/a",
+      "commercial_use": "yes",
+      "commercial_notes": "Animation principle, no license.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "failures": [
+        "Poses that read at the side angle but collapse at oblique — looks like a push or stumble instead of a slash",
+        "Over-reliance on color or shading to carry the read — when colors are flattened, the beat disappears",
+        "Small-sprite anticipation that is too subtle — body pull-back of 2px reads as idle micro-motion, not telegraph"
+      ],
+      "sources": [
+        {
+          "kind": "book",
+          "title": "The Illusion of Life: Disney Animation",
+          "authors": "Frank Thomas, Ollie Johnston",
+          "year": "1981",
+          "identifier": "ISBN 9780786860708",
+          "url": "https://www.amazon.com/Illusion-Life-Disney-Animation/dp/0786860707",
+          "claim": "Staging principle: 'the presentation of any idea so that it is completely and unmistakably clear' — the pose must communicate through silhouette before any secondary information is added."
+        },
+        {
+          "kind": "book",
+          "title": "Game Anim: Video Game Animation Explained (2nd ed.)",
+          "authors": "Jonathan Cooper",
+          "year": "2021",
+          "identifier": "ISBN 9780367707651",
+          "url": "https://www.amazon.com/Game-Anim-Video-Animation-Explained/dp/0367707659",
+          "claim": "Emphasizes hyper-real pose exaggeration for game animation: 'real life never looks real enough' — poses must be held and accentuated beyond naturalistic positions to read from all angles."
+        },
+        {
+          "kind": "GDC talk",
+          "title": "GDC 2015: Animating Ori and the Blind Forest",
+          "authors": "James Benson (Moon Studios)",
+          "year": "2015",
+          "identifier": "GDC 2015 Animation Bootcamp",
+          "url": "https://zyzyz.github.io/en/2018/01/GDC2015-Animating-Ori/",
+          "claim": "The team rendered the protagonist as a pure white silhouette against detailed backgrounds to ensure the character read clearly at all times — silhouette is the primary communication channel, not detail."
+        }
+      ]
+    },
+    {
+      "slug": "hit-stop-impact-frame",
+      "name": "Hit-stop / freeze frame: the moment of impact is held to deliver game feel",
+      "kind": "technique",
+      "engine_family": "n/a",
+      "applicable_to": "attack",
+      "claim": "Holding the active/hit frame for 6–14 frames on successful contact (hit-stop) transforms a visual animation event into a physical sensation — the player feels the weight of the blow.",
+      "summary": "Hit-stop (also called impact freeze) pauses both the attacker and the hit target at the moment of contact, converting the tail of the active period into held frames. The duration scales with attack weight: light attacks ~6–9f freeze, medium ~11f, heavy ~13–14f. During the freeze the hit-flash VFX and sound cue fire, compressing the sensory signal. Without hit-stop, attacks feel like they pass through enemies; with it, even a simple sprite animation communicates mass and consequence. The principle is engine-agnostic — it is applied at the state-machine level, not in the sprite frames themselves.",
+      "design_implication": "In the studio's combat system, the sprite sheet contains the active/hit key frame as a discrete frame. The engine state machine holds that frame index for the hit-stop duration, then resumes the follow-through strip. This means the sprite artist draws one definitive hit frame — the engine multiplies its screen time. Hit-stop duration is a tuning parameter (not baked into the sprite), so it can be adjusted without re-exporting assets.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "n/a",
+      "commercial_use": "yes",
+      "commercial_notes": "Animation principle/technique, no license.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "hparams": [
+        {"name": "hitstop_light_frames", "value": 8, "unit": "frames", "note": "Light attack hit-stop: 6–9f typical"},
+        {"name": "hitstop_medium_frames", "value": 11, "unit": "frames", "note": "Medium attack hit-stop: 10–12f typical"},
+        {"name": "hitstop_heavy_frames", "value": 13, "unit": "frames", "note": "Heavy/magic hit-stop: 12–14f; scale up for boss-level impact"}
+      ],
+      "failures": [
+        "Zero hit-stop — attack looks like it passes through the enemy, no physical weight communicated",
+        "Hit-stop duration baked into the sprite sheet rather than the engine — makes tuning require re-export",
+        "Asymmetric hit-stop (only attacker freezes, target animates freely) — breaks the visual lock and reduces impact"
+      ],
+      "sources": [
+        {
+          "kind": "article",
+          "title": "Impact Freeze",
+          "authors": "Maj (sonichurricane.com)",
+          "year": "2010",
+          "identifier": "sonic hurricane blog, January 2010",
+          "url": "https://sonichurricane.com/?p=1043",
+          "claim": "Defines and measures impact freeze in Street Fighter series: light attacks freeze ~9f, medium ~11f, hard ~13f; the freeze window is the primary mechanism for making contact feel weighty and enables cancel timing windows."
+        },
+        {
+          "kind": "book",
+          "title": "Game Feel: A Game Designer's Guide to Virtual Sensation",
+          "authors": "Steve Swink",
+          "year": "2008",
+          "identifier": "ISBN 9780123743282",
+          "url": "https://www.amazon.com/Game-Feel-Designers-Sensation-Kaufmann/dp/0123743281",
+          "claim": "Identifies freeze frames and time distortion as core mechanisms of virtual sensation — brief pauses at moment of impact amplify the perceived weight of an action far beyond what continuous animation can achieve."
+        }
+      ]
+    },
+    {
+      "slug": "smear-frame-fast-limb",
+      "name": "Smear / multi-position blur frame: one frame captures the full arc of a fast swing",
+      "kind": "technique",
+      "engine_family": "n/a",
+      "applicable_to": "attack",
+      "claim": "On the fastest frame of a swing, draw the limb or weapon as a smeared arc across its full travel path rather than as a frozen position — one smear frame sells speed that no inbetween can.",
+      "summary": "A smear frame distorts, stretches, or ghost-multiples a limb across the frame to simulate motion blur in a medium that has no sub-frame timing. Instead of the sword at one angle, you draw a color-trail arc showing the path from entry to exit. At game playback speed (60fps or 24fps) this single frame registers as blinding velocity; paused or scrubbed it looks abstract. Three smear types (Thomas & Johnston codify these implicitly, later game-animation literature names them explicitly): elongated inbetween (limb stretched along path), motion trail (fading ghost copies), multiples (multiple limb positions overlaid). For 32×32 pixel sprites a 2–3 pixel wide color trail is sufficient.",
+      "design_implication": "The smear frame is the 3rd–4th frame of the 10-frame slash budget, placed immediately after launch and before the hold on the hit-pose. The AI polish pass must not remove or blur the smear — it is an authored intent frame, not a motion artifact. In sprite QA, the smear frame is checked to confirm it is distinct from its neighbors (not a duplicate), covers the expected arc, and doesn't bleed into the background boundary.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "n/a",
+      "commercial_use": "yes",
+      "commercial_notes": "Animation technique, no license.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "hparams": [
+        {"name": "smear_frame_count", "value": 1, "unit": "frames", "note": "Usually 1 smear frame per fast swing beat; heavy attacks may use 2 sequential smear frames for a longer arc"},
+        {"name": "smear_frame_position", "value": 3, "unit": "frame index (1-based)", "note": "In 10-frame slash: frame 3 = smear (launch→active transition)"}
+      ],
+      "failures": [
+        "No smear frame — the swing looks choppy or slow regardless of hit-stop",
+        "Smear that is too similar to adjacent frames — AI polish may average it away; make the shape distinct",
+        "Smear applied to slow attacks — smears only read as speed; on slow/heavy swings, use slow-in/slow-out instead"
+      ],
+      "sources": [
+        {
+          "kind": "thesis",
+          "title": "Smearframes in Video Games",
+          "authors": "Christoph Lendenfeld",
+          "year": "2018",
+          "identifier": "FH Hagenberg master thesis",
+          "url": "https://theses.fh-hagenberg.at/system/files/pdf/Lendenfeld18.pdf",
+          "claim": "Surveys smear frame types (elongated inbetweens, motion trails, multiples) and their use in game animation, with case studies from Overwatch, showing that smear frames communicate rapid motion in real-time interactive contexts without increasing frame rates."
+        },
+        {
+          "kind": "book",
+          "title": "The Illusion of Life: Disney Animation",
+          "authors": "Frank Thomas, Ollie Johnston",
+          "year": "1981",
+          "identifier": "ISBN 9780786860708",
+          "url": "https://www.amazon.com/Illusion-Life-Disney-Animation/dp/0786860707",
+          "claim": "Overlapping action and follow-through principles imply that extreme fast-moving limbs between key poses must communicate the arc of travel, not a frozen intermediate position — the conceptual basis for smear frames."
+        }
+      ]
+    },
+    {
+      "slug": "slow-in-slow-out-weight",
+      "name": "Slow-in / slow-out (ease in/out): spacing that makes attacks feel weighted, not mechanical",
+      "kind": "principle",
+      "engine_family": "n/a",
+      "applicable_to": "attack",
+      "claim": "Attacks that accelerate into the strike and decelerate out of it read as physically real; uniform-speed motion across all frames reads as mechanical puppet animation regardless of pose quality.",
+      "summary": "Slow-in/slow-out (Thomas & Johnston principle 6) describes spacing: more frames (closer together in position) near the extremes, fewer and further-apart frames in the middle of an arc. Applied to a 10-frame slash: the anticipation pullback moves slowly at first (2–3 small-step frames), snaps fast through the active zone (smear + hit frame — wide spacing, few frames), then slows again in the follow-through settling frames. The deceleration into the recovery reads as inertia absorbed. The snap in the middle is what delivers impact. Flipping this (fast start, slow through, fast end) produces a floaty, underpowered read.",
+      "design_implication": "When posing the rig proxy, the animator deliberately over-spaces the active frames (large angular difference per frame) and under-spaces the recovery frames (small increments). Inbetween placement is checked against the spacing chart before AI polish, because diffusion models tend to average spacing toward uniform.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "n/a",
+      "commercial_use": "yes",
+      "commercial_notes": "Animation principle, no license.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "failures": [
+        "Uniform spacing across all 10 frames — swing looks robotic; player perceives no weight",
+        "Fast start / slow end — reads as a limp push, not a strike; power feels absent at the active frame",
+        "Ease-in only (slow start, fast end with no follow-through deceleration) — character feels like it has no mass after the hit"
+      ],
+      "sources": [
+        {
+          "kind": "book",
+          "title": "The Illusion of Life: Disney Animation",
+          "authors": "Frank Thomas, Ollie Johnston",
+          "year": "1981",
+          "identifier": "ISBN 9780786860708",
+          "url": "https://www.amazon.com/Illusion-Life-Disney-Animation/dp/0786860707",
+          "claim": "Slow-in/slow-out (principle 6): most natural actions accelerate from rest and decelerate before stopping; even spacing between key poses produces mechanical, lifeless motion."
+        },
+        {
+          "kind": "book",
+          "title": "The Animator's Survival Kit",
+          "authors": "Richard Williams",
+          "year": "2001",
+          "identifier": "ISBN 9780571202287",
+          "url": "https://www.amazon.com/Animators-Survival-Kit-Richard-Williams/dp/0571202284",
+          "claim": "Devotes extended chapters to spacing and timing as the primary mechanism of weight; demonstrates how inbetween placement (not pose) is what makes an action feel heavy or light."
+        }
+      ]
+    },
+    {
+      "slug": "follow-through-secondary-motion",
+      "name": "Follow-through and overlapping action: capes, hair, cloth settle after the primary motion ends",
+      "kind": "principle",
+      "engine_family": "n/a",
+      "applicable_to": "all-motion",
+      "claim": "Secondary elements — cape, hair, scarf, loose belt — continue moving and settle after the character's primary mass stops, giving the attack weight and the idle loop organic life.",
+      "summary": "Follow-through means parts of the body continue past the action and settle over time (sword arm swings past the hit line before returning). Overlapping action means different parts of the body move at different rates out of phase — the torso leads, the weapon arm lags; the cape lags the torso. Together these prevent the 'all parts stop simultaneously' rigidity that makes sprite characters feel hollow. For a 10-frame slash, the primary arm settles by frame 8; the cape or scarf adds 2–3 extra frames of trail (frames 9–11) before the idle loop starts. At 32×32 resolution, even 1–2 extra pixels of cloth shift per frame communicates the principle. In idle animations, subtle overlapping motion in hair or armor trim transforms a looping-position hold into a living character.",
+      "design_implication": "The studio's sprite authoring standard adds a 2-frame 'settle tail' to every attack strip beyond the nominal frame budget for any character with secondary geometry (cape, scarf, loose hair, tails). AI polish is explicitly told not to remove these trailing frames. Idle animations include at minimum one secondary element (hair, cloth edge, or armor piece) animated with a 1–2 frame phase offset from the breathing motion.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "n/a",
+      "commercial_use": "yes",
+      "commercial_notes": "Animation principle, no license.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "hparams": [
+        {"name": "settle_tail_frames", "value": 2, "unit": "frames", "note": "Add 2 settle frames past the recovery beat for characters with cloth/hair secondary geometry"},
+        {"name": "overlap_phase_offset_idle", "value": 2, "unit": "frames", "note": "Secondary element (hair, cloth) lags the primary breathing motion by 2 frames in the idle loop"}
+      ],
+      "failures": [
+        "All body parts stop on the same frame — character feels frozen, not settled",
+        "Cape or hair that teleports back to idle position — breaks the weight read entirely",
+        "Settle tail not looped correctly — idle loop shows a visible seam where the cape pops back to start"
+      ],
+      "sources": [
+        {
+          "kind": "book",
+          "title": "The Illusion of Life: Disney Animation",
+          "authors": "Frank Thomas, Ollie Johnston",
+          "year": "1981",
+          "identifier": "ISBN 9780786860708",
+          "url": "https://www.amazon.com/Illusion-Life-Disney-Animation/dp/0786860707",
+          "claim": "Principles 5 (follow-through and overlapping action): 'nothing stops all at once' — different parts of a body continue moving after the main action ends, driven by inertia; loose materials lead and lag the primary mass."
+        },
+        {
+          "kind": "article",
+          "title": "12 Principles for Game Animation",
+          "authors": "Christopher Totten",
+          "year": "2021",
+          "identifier": "Game Developer, December 2021",
+          "url": "https://www.gamedeveloper.com/game-platforms/12-principles-for-game-animation",
+          "claim": "Follow-through and overlapping action add visual appeal and weight to game sprites; even at low resolutions, secondary elements with a phase offset from the primary motion communicate organic weight."
+        }
+      ]
+    },
+    {
+      "slug": "idle-loop-clean",
+      "name": "Idle loop discipline: seamless loop, breathing breath, foot-contact discipline",
+      "kind": "technique",
+      "engine_family": "n/a",
+      "applicable_to": "idle",
+      "claim": "An idle loop must hold foot contact points locked (no sliding), have its first and last frames match within 1px, and breathe through the torso or shoulders — not a uniform bob — to read as alive rather than oscillating.",
+      "summary": "Foot-contact discipline is the most-violated idle rule: any lateral or vertical drift of the planted foot between frames appears as skating. Lock both foot positions as hard constraints when posing the idle — the torso and pelvis may move, the feet do not. Loop seam integrity requires that frame 1 and frame N are identical (or held for 2+ frames on each side) so the playback loop is invisible. Breathing motion is best carried through the chest/shoulder rise (2–4 pixels over 8–16 frames at rest) rather than through a whole-body bob, which looks like the character is on a spring. A subtle overlap in hair or cloth (offset by 2 frames from the breath) converts a mechanical oscillation into an organic loop.",
+      "design_implication": "The idle strip is the single most-played animation in any JRPG — it runs during every out-of-combat scene, every dialogue, and at the battle select screen. Idle quality is therefore a higher multiplier on perceived production tier than attack quality. The studio's idle QA checklist: (1) foot pixel drift < 1px frame-to-frame, (2) loop seam invisible at 1× scale, (3) at least one secondary element (cloth, hair) with a phase offset, (4) idle-end pose is compatible with attack-start anticipation pose.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "n/a",
+      "commercial_use": "yes",
+      "commercial_notes": "Animation technique, no license.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "hparams": [
+        {"name": "idle_frames_standard", "value": 12, "unit": "frames", "note": "12f is a common idle loop budget at 12fps playback; 8–16f range depending on character expressiveness"},
+        {"name": "breath_cycle_frames", "value": 16, "unit": "frames", "note": "A 16f breath at 12fps is ~1.3 seconds — naturalistic resting rate for a combat-ready character"},
+        {"name": "foot_drift_tolerance", "value": 1, "unit": "pixels", "note": "Max 1px lateral or vertical drift per frame at the planted foot position"}
+      ],
+      "failures": [
+        "Foot pixel drift — skating read at any playback speed; most common idle failure in sprite animation",
+        "Uniform whole-body bob — character appears to oscillate on a spring rather than breathe",
+        "Loop seam visible — first/last frame mismatch causes a pop that breaks immersion every few seconds",
+        "Idle pose incompatible with attack anticipation pose — transition into combat shows a hard snap"
+      ],
+      "sources": [
+        {
+          "kind": "book",
+          "title": "The Animator's Survival Kit",
+          "authors": "Richard Williams",
+          "year": "2001",
+          "identifier": "ISBN 9780571202287",
+          "url": "https://www.amazon.com/Animators-Survival-Kit-Richard-Williams/dp/0571202284",
+          "claim": "Foot contact must be held as a fixed constraint in walk and idle animations; any lateral foot movement during a grounded contact frame reads as sliding, undermining physical weight and credibility."
+        },
+        {
+          "kind": "GDC talk",
+          "title": "2D Animation at Klei Entertainment",
+          "authors": "Jeff Agala (Klei Entertainment)",
+          "year": "2014",
+          "identifier": "GDC 2014 Animation Bootcamp",
+          "url": "https://gdcvault.com/play/1020165/2D-Animation-at-Klei",
+          "claim": "Klei's production standard for 2D character animation prioritizes quality of the looping idle as the baseline read of the character's weight and personality — loop seam integrity and contact discipline are non-negotiable."
+        }
+      ]
+    },
+    {
+      "slug": "exaggeration-small-sprite",
+      "name": "Exaggeration for small sprites: push poses 30–50% beyond naturalistic to survive the pixel grid",
+      "kind": "principle",
+      "engine_family": "n/a",
+      "applicable_to": "attack",
+      "claim": "At sprite resolutions of 32–64px, naturalistic poses lose their read — anticipation looks like micro-motion, weight looks like stillness; exaggerating every extreme pose by 30–50% beyond what feels right restores the intended read.",
+      "summary": "Exaggeration (Thomas & Johnston principle 11) is not caricature for its own sake — it is the calibration required to preserve the intended read when images are scaled down to game resolution. A realistic pull-back of 15° in an attack anticipation becomes 2 pixels of shoulder shift at 32px; the player reads it as idle noise. Push the pull-back to 35–40° and the same pixel budget suddenly reads as an obvious wind-up. The rule of thumb from game animation practice: 'whatever feels about right, push it 30% further.' For attack poses this means weapon arm fully extended, torso leaned beyond comfort, weight planted on back foot. For hurt poses, the stagger is a full 45° lean, not a modest sway.",
+      "design_implication": "After posing the rig proxy, the animator runs a 50% scale check in the viewport — if the read is lost at 50%, the pose is not exaggerated enough. This test is cheaper than the full render pass. The AI polish step is explicitly warned not to 'normalize' or 'correct' extreme poses toward anatomical neutrality.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "n/a",
+      "commercial_use": "yes",
+      "commercial_notes": "Animation principle, no license.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "failures": [
+        "Naturalistic pose at small resolution — reads as idle or ambiguous; player cannot parse the beat",
+        "Exaggeration in only one direction (e.g. only the arm) — reads as distortion, not energy; push whole-body lean",
+        "AI polish normalizing extreme poses — if the diffusion pass 'corrects' anatomy, the exaggeration collapses and must be re-posed"
+      ],
+      "sources": [
+        {
+          "kind": "book",
+          "title": "The Illusion of Life: Disney Animation",
+          "authors": "Frank Thomas, Ollie Johnston",
+          "year": "1981",
+          "identifier": "ISBN 9780786860708",
+          "url": "https://www.amazon.com/Illusion-Life-Disney-Animation/dp/0786860707",
+          "claim": "Exaggeration (principle 11) does not mean distortion for its own sake, but rather finding the essence of an action and amplifying it so the intended read survives reproduction — the smaller or faster the output medium, the more exaggeration is required."
+        },
+        {
+          "kind": "book",
+          "title": "Game Anim: Video Game Animation Explained (2nd ed.)",
+          "authors": "Jonathan Cooper",
+          "year": "2021",
+          "identifier": "ISBN 9780367707651",
+          "url": "https://www.amazon.com/Game-Anim-Video-Animation-Explained/dp/0367707659",
+          "claim": "'Real life never looks real enough' — game animators must create a hyper-real version of actions with poses accentuated and held longer than reality to read unmistakably from all angles and at all display scales."
+        },
+        {
+          "kind": "GDC talk",
+          "title": "Animation Bootcamp: Fluid and Powerful Animation within Frame Restrictions",
+          "authors": "Mariel Cartwright (Lab Zero Games)",
+          "year": "2014",
+          "identifier": "GDC 2014 Animation Bootcamp",
+          "url": "https://gdcvault.com/play/1020575/Animation-Bootcamp-Fluid-and-Powerful",
+          "claim": "Demonstrates that exaggerated extreme poses — not frame count — are the primary carrier of animation readability in fighting game sprites; examples from Skullgirls and Darkstalkers show extreme body lean and limb angle as the mechanism of weight communication."
+        }
+      ]
+    }
+  ]
+}

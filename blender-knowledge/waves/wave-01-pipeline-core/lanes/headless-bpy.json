@@ -1,0 +1,218 @@
+{
+  "laneSlug": "headless-bpy",
+  "title": "Headless rendering & bpy scripting",
+  "recipes": [
+    {
+      "slug": "cli-background-python",
+      "name": "Run a Python script headlessly via CLI",
+      "what": "Launch Blender with no GUI, execute a Python script, and pass custom arguments after the -- separator.",
+      "how": "blender --background [optional.blend] --python script.py -- --my-arg value\nInside the script, extract custom args: import sys, argparse argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [] parser = argparse.ArgumentParser() parser.add_argument('--my-arg') args = parser.parse_known_args(argv)[0]\nArgument ORDER is critical: Blender executes flags left-to-right. Set -o (output path) BEFORE -f (render frame), not after. --python can be given multiple times to chain scripts.",
+      "blender_version": "4.x",
+      "gotchas": "Order matters: blender -b scene.blend -f 1 -o /tmp renders to the blend's baked output path, not /tmp. Correct: blender -b -o /tmp scene.blend -f 1. Arguments after -- are NOT processed by Blender — they land verbatim in sys.argv for the Python script. --python-expr accepts inline Python but is length-limited by shell; prefer --python for anything nontrivial.",
+      "studio_use": "Entry point for the turnaround pipeline: blender --background --python render_turnaround.py -- --glb model.glb --out sprites/ --angles 8",
+      "currency": "solid",
+      "verify_note": "Confirmed via renderday.com Blender 4.4 CLI guide (fetched) and b3d.interplanety.org argparse pattern (fetched). Argument-order rule verified in renderday source.",
+      "sources": [
+        {
+          "title": "Mastering the Blender CLI (renderday.com, Blender 4.4)",
+          "url": "https://renderday.com/blog/mastering-the-blender-cli",
+          "claim": "Exact --background, --python, -f, -o, -- separator syntax with Blender 4.4 examples; argument ordering is critical"
+        },
+        {
+          "title": "How to pass command line arguments to a Blender Python script (b3d.interplanety.org)",
+          "url": "https://b3d.interplanety.org/en/how-to-pass-command-line-arguments-to-a-blender-python-script-or-add-on/",
+          "claim": "sys.argv[sys.argv.index('--') + 1:] pattern with argparse.parse_known_args() for isolating script args from Blender args"
+        }
+      ]
+    },
+    {
+      "slug": "clean-scene-factory-settings",
+      "name": "Start from an empty scene with wm.read_factory_settings",
+      "what": "Reset the bpy context to a truly empty scene inside a headless script, discarding the default cube/camera/light and any user startup preferences.",
+      "how": "import bpy\nbpy.ops.wm.read_factory_settings(use_empty=True)\n# Scene is now empty — no objects, no world, no camera.\n# Proceed to build scene programmatically:\nbpy.ops.object.camera_add(location=(0, -5, 2))\ncam = bpy.context.object\nbpy.context.scene.camera = cam\nbpy.ops.object.light_add(type='SUN', location=(0, 0, 10))\nWhen loading a.blend file explicitly (blender --background myfile.blend --python script.py), the blend loading already provides a scene, so read_factory_settings is only needed when running blender --background --python script.py with no blend file (the default startup.blend would otherwise load).",
+      "blender_version": "4.x",
+      "gotchas": "Without use_empty=True, bpy loads the user's startup.blend (or factory startup), which always includes a default cube, camera, and light. When using the bpy Python module (import bpy in a standalone Python process), the module always initializes with the default startup scene — use_empty=True is mandatory there. Do NOT call bpy.ops.wm.read_homefile() in scripts — it reads the user's personal startup.blend and behavior is unpredictable across machines.",
+      "studio_use": "Guarantees a reproducible blank canvas for each turnaround render invocation regardless of the Blender install's personal settings on a render farm or CI node.",
+      "currency": "solid",
+      "verify_note": "Pattern confirmed in bpy module docs (info_advanced_blender_as_bpy, fetched via search result summary) and multiple pipeline examples. use_empty=True documented in Blender developer tracker T47418.",
+      "sources": [
+        {
+          "title": "Blender as a Python Module — bpy advanced docs",
+          "url": "https://docs.blender.org/api/current/info_advanced_blender_as_bpy.html",
+          "claim": "bpy module loads default startup scene on import; use_empty=True is the correct way to get a blank scene"
+        },
+        {
+          "title": "Blender Automation with Python (CodePal/community)",
+          "url": "https://codepal.ai/code-fixer/query/6lzZTHGY/blender-automation-python",
+          "claim": "wm.read_factory_settings(use_empty=True) as the canonical clean-slate call in headless scripting"
+        }
+      ]
+    },
+    {
+      "slug": "eevee-next-engine-id",
+      "name": "Set EEVEE Next as render engine in Blender 4.2+",
+      "what": "Select the correct render engine identifier string for EEVEE in Blender 4.2+; the legacy 'BLENDER_EEVEE' string was replaced.",
+      "how": "import bpy\n# Blender 4.2+ — EEVEE is now EEVEE Next; identifier is BLENDER_EEVEE_NEXT\nbpy.context.scene.render.engine = 'BLENDER_EEVEE_NEXT'\n# Verify at runtime:\nif bpy.app.version >= (4, 2, 0): bpy.context.scene.render.engine = 'BLENDER_EEVEE_NEXT'\nelse: bpy.context.scene.render.engine = 'BLENDER_EEVEE' # 3.x and below # Confirm available engines (useful for debugging):\nimport bpy\nprint([e.bl_idname for e in bpy.types.RenderEngine.__subclasses__()])\n# Or simply: blender --background --python-expr \"import bpy; print(bpy.context.scene.render.bl_rna.properties['engine'].enum_items.keys())\"",
+      "blender_version": "4.2+",
+      "gotchas": "CRITICAL: 'BLENDER_EEVEE' is no longer a valid enum in Blender 4.2+. Setting it raises 'enum BLENDER_EEVEE not found in (BLENDER_EEVEE_NEXT, CYCLES, BLENDER_WORKBENCH)'. Old scripts, tutorials, and addons that hardcode 'BLENDER_EEVEE' will fail silently or error. Also in 4.2: bpy.types.Material.blend_method renamed to surface_render_method; show_transparent_back renamed to use_transparency_overlap; use_screen_refraction renamed to use_raytrace_refraction. In 4.3 all EEVEE Legacy compat Python API calls were removed.",
+      "studio_use": "Turnaround renders use EEVEE Next for speed; the engine-id fix is required when scripts were ported from 3.x or from tutorials written before 4.2.",
+      "currency": "solid",
+      "verify_note": "Confirmed via Sketchfab blender-plugin issue #176 (fetched): error message explicitly states 'BLENDER_EEVEE not found in (BLENDER_EEVEE_NEXT, CYCLES, BLENDER_WORKBENCH)' in Blender 4.2. Issue #141 (fetched) shows same fix. Blender 4.2 Python API release notes list material property renames.",
+      "sources": [
+        {
+          "title": "Sketchfab blender-plugin issue #176 — BLENDER_EEVEE not found",
+          "url": "https://github.com/sketchfab/blender-plugin/issues/176",
+          "claim": "Error message in Blender 4.2 explicitly states enum 'BLENDER_EEVEE' not found in ('BLENDER_EEVEE_NEXT', 'WORKBENCH', 'CYCLES')"
+        },
+        {
+          "title": "Sketchfab blender-plugin issue #141 — FIX FOR BLENDER 4.2",
+          "url": "https://github.com/sketchfab/blender-plugin/issues/141",
+          "claim": "Changing BLENDER_EEVEE to BLENDER_EEVEE_NEXT fixes compatibility with Blender 4.2"
+        },
+        {
+          "title": "Blender 4.2 LTS: Python API release notes",
+          "url": "https://developer.blender.org/docs/release_notes/4.2/python_api/",
+          "claim": "Material blend_method → surface_render_method, show_transparent_back → use_transparency_overlap, use_screen_refraction → use_raytrace_refraction"
+        }
+      ]
+    },
+    {
+      "slug": "render-frame-save-script",
+      "name": "Render and save a frame from a Python script",
+      "what": "Trigger a single-frame render and write the output image to disk from inside a headless bpy script.",
+      "how": "import bpy\nscene = bpy.context.scene\n# Set output path and format\nscene.render.filepath = '/abs/path/to/output/frame_####'\nscene.render.image_settings.file_format = 'PNG'\nscene.render.image_settings.color_mode = 'RGBA' # for transparency\nscene.render.resolution_x = 128\nscene.render.resolution_y = 128\nscene.render.resolution_percentage = 100\n# Render current frame and write to disk:\nbpy.ops.render.render(write_still=True)\n# write_still=True writes the file; without it the render result is in memory only.\n# For animation, use animation=True instead:\n# bpy.ops.render.render(animation=True)",
+      "blender_version": "4.x",
+      "gotchas": "write_still=True is required to actually write the file; omitting it renders to the Blender internal render buffer only (no file written). filepath must be absolute or use // (relative to blend file location). The #### padding is replaced with the frame number. For the sprite pipeline, prefer absolute paths to avoid ambiguity in headless/no-blend-file mode. If running without a blend file loaded, set scene.frame_current explicitly before calling render.",
+      "studio_use": "Core output step: each of the 8 rotation angles renders one frame, write_still=True writes the PNG sprite sheet cell.",
+      "currency": "solid",
+      "verify_note": "Pattern confirmed across multiple headless render examples (HPC Arizona docs fetched, renderday.com guide fetched, MotionGPT scene.py fetched). bpy.ops.render.render(write_still=True) is the canonical call; consistent across 3.x and 4.x.",
+      "sources": [
+        {
+          "title": "Mastering the Blender CLI (renderday.com, Blender 4.4)",
+          "url": "https://renderday.com/blog/mastering-the-blender-cli",
+          "claim": "bpy.ops.render.render(write_still=True) confirmed as the standard in-script render-and-save call"
+        },
+        {
+          "title": "HPC Arizona — Scaling Up Blender Rendering",
+          "url": "https://hpcdocs.hpc.arizona.edu/running_jobs/visualization/blender/scaling_up_blender_rendering/",
+          "claim": "Headless single-frame render with -b and -f flags, output path with # padding"
+        }
+      ]
+    },
+    {
+      "slug": "import-glb-headless",
+      "name": "Import a GLB/glTF mesh in a headless script",
+      "what": "Load a TRELLIS-generated GLB file into Blender's scene from a Python script running headlessly.",
+      "how": "import bpy\n# Clear default scene first\nbpy.ops.wm.read_factory_settings(use_empty=True)\n# Import GLB\nbpy.ops.import_scene.gltf( filepath='/abs/path/to/model.glb', merge_vertices=False # optional; default False\n)\n# Imported objects are now selected; get them:\nimported_objects = [o for o in bpy.context.selected_objects]\n# Center geometry (optional)\nbpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')\n# The operator name is import_scene.gltf in Blender 4.x (unchanged from 3.x)",
+      "blender_version": "4.x",
+      "gotchas": "import_scene.gltf requires Blender's built-in glTF add-on, which is enabled by default in standard Blender installs. In Docker/minimal installs it may need enabling: bpy.ops.preferences.addon_enable(module='io_scene_gltf2'). After import, all imported objects are selected — iterate bpy.context.selected_objects to get the mesh roots. Filepath must be absolute in headless mode.",
+      "studio_use": "First step of the turnaround pipeline: import TRELLIS GLB output, orient and center the mesh, then set up camera orbit for 8-direction sprite renders.",
+      "currency": "solid",
+      "verify_note": "Operator name confirmed via docs.blender.org/api/current/bpy.ops.import_scene.html (attempted fetch; 403 blocked, but operator name consistent across search results citing 'bpy.ops.import_scene.gltf' in Blender 4.x context including --python-expr example in search result). Confirmed stable since 2.8 with no rename in 4.x notes.",
+      "sources": [
+        {
+          "title": "Import Scene Operators — Blender Python API (current)",
+          "url": "https://docs.blender.org/api/current/bpy.ops.import_scene.html",
+          "claim": "bpy.ops.import_scene.gltf is the operator name in current Blender API"
+        },
+        {
+          "title": "Blender CLI/Python-expr GLB import example",
+          "url": "https://renderday.com/blog/mastering-the-blender-cli",
+          "claim": "bpy.ops.import_scene.gltf(filepath='...') used in Blender 4.x headless context"
+        }
+      ]
+    },
+    {
+      "slug": "version-detection-bpy-app",
+      "name": "Detect Blender version in script with bpy.app.version",
+      "what": "Branch script behavior by Blender version to handle 3.x vs 4.x API differences safely.",
+      "how": "import bpy\n# bpy.app.version is a tuple of ints: (major, minor, patch)\nblender_ver = bpy.app.version # e.g. (4, 2, 0)\nif blender_ver >= (4, 2, 0): bpy.context.scene.render.engine = 'BLENDER_EEVEE_NEXT'\nelse: bpy.context.scene.render.engine = 'BLENDER_EEVEE' # bpy.app.version_string is a human-readable string: '4.2.0'\nprint(f'Running Blender {bpy.app.version_string}') # DEPRECATED and REMOVED in 4.3: bpy.app.version_char\n# Do NOT use bpy.app.version_char — it no longer exists in 4.3+",
+      "blender_version": "4.x",
+      "gotchas": "bpy.app.version_char was deprecated in Blender 4.0 and fully removed in 4.3.2. Any script using it will throw AttributeError on Blender 4.3+. bpy.data.version differs from bpy.app.version — it returns the version the currently open.blend file was saved with, not the running Blender version. Always use bpy.app.version for runtime version gating.",
+      "studio_use": "Guard BLENDER_EEVEE_NEXT vs BLENDER_EEVEE string, material API differences, and any other 3.x→4.x branches in shared pipeline scripts.",
+      "currency": "solid",
+      "verify_note": "bpy.app.version as int-tuple confirmed via blenderartists.org discussion on bpy.data.version confusion (fetched via search). version_char removal in 4.3 confirmed via Adobe community/Mixamo forum reports (search result).",
+      "sources": [
+        {
+          "title": "How to get current Blender version number through the Python API (b3d.interplanety.org)",
+          "url": "https://b3d.interplanety.org/en/how-to-get-current-blender-version-number-through-the-python-api/",
+          "claim": "bpy.app.version returns a tuple (major, minor, patch); bpy.app.version_string returns human-readable string"
+        },
+        {
+          "title": "Blender Plugin — version_char deprecated (Adobe/Mixamo community)",
+          "url": "https://community.adobe.com/t5/mixamo-discussions/blender-plugin-not-working-due-to-deprecated-bpy-app-version-char-attribute-in-blender-api/td-p/15196754",
+          "claim": "bpy.app.version_char is deprecated since 4.0 and removed in 4.3.2; scripts must migrate to bpy.app.version tuple"
+        }
+      ]
+    },
+    {
+      "slug": "cycles-gpu-headless",
+      "name": "Enable GPU rendering for Cycles in a headless script",
+      "what": "Configure Cycles to use NVIDIA OptiX (or CUDA) GPU from inside a background Python script — not from the UI.",
+      "how": "import bpy\nscene = bpy.context.scene\nscene.render.engine = 'CYCLES'\nscene.cycles.device = 'GPU' cycles_prefs = bpy.context.preferences.addons['cycles'].preferences\ncycles_prefs.get_devices() # must call first to populate device list\ncycles_prefs.compute_device_type = 'OPTIX' # or 'CUDA', 'HIP', 'METAL' for device in cycles_prefs.devices: device.use = (device.type == 'OPTIX') # enable only OptiX, disable CPU # Alternative: pass --cycles-device on the CLI instead of scripting prefs:\n# blender -b scene.blend -E CYCLES -P script.py -- --cycles-device OPTIX\n# The CLI flag sets the device without needing the prefs block above.",
+      "blender_version": "4.x",
+      "gotchas": "get_devices() MUST be called before accessing cycles_prefs.devices — the list is empty without it. In a fresh headless session the Cycles preferences may not persist from the user's prefs (use --factory-startup to ensure clean state). If running on a machine without an NVIDIA GPU, setting OPTIX will silently fall back to CPU — check device.type after get_devices(). The CLI --cycles-device flag (e.g. -- --cycles-device OPTIX) is cleaner for CI/render farm use as it avoids preferences state. For EEVEE Next GPU rendering no equivalent scripted GPU selection is needed — it uses the system GPU automatically.",
+      "studio_use": "If the turnaround pipeline switches to Cycles for PBR-accurate sprites, this enables the RTX 5090 via OptiX in headless mode. EEVEE Next (the default) doesn't need this block.",
+      "currency": "solid",
+      "verify_note": "Pattern confirmed via MotionGPT/HuggingFace scene.py (fetched): exact prefs path and get_devices() call. Devtalk.blender.org thread on single-GPU OPTIX confirmed the same API. CLI --cycles-device OPTIX confirmed in renderday.com guide (fetched).",
+      "sources": [
+        {
+          "title": "MotionGPT Blender scene.py — GPU Cycles setup",
+          "url": "https://huggingface.co/spaces/fjibj/MotionGPT/blob/b625c801edd539dec9915d7fb48d54565ea566dc/mGPT/render/blender/scene.py",
+          "claim": "bpy.context.preferences.addons['cycles'].preferences.get_devices() + compute_device_type + device.use pattern for headless GPU Cycles"
+        },
+        {
+          "title": "Mastering the Blender CLI (renderday.com, Blender 4.4)",
+          "url": "https://renderday.com/blog/mastering-the-blender-cli",
+          "claim": "blender -b scene.blend -E CYCLES -- --cycles-device OPTIX as a clean CLI-level GPU selector"
+        }
+      ]
+    },
+    {
+      "slug": "pip-into-blender-python",
+      "name": "Install Python packages into Blender's bundled Python",
+      "what": "Add third-party pip packages (e.g. numpy, trimesh) to Blender's internal Python environment so headless scripts can import them.",
+      "how": "# Method 1: From OUTSIDE Blender (recommended for CI/build setup)\n# Find Blender's Python executable, then:\n/path/to/blender/4.x/python/bin/python3.xx -m pip install numpy\n# On Windows: C:/Program Files/Blender Foundation/Blender 4.2/4.2/python/bin/python.exe # Method 2: From INSIDE a bpy script (Blender 4.2+, user-writable path)\nimport bpy, sys, subprocess, site\npython_exe = sys.executable # Blender's own python\nmodules_path = bpy.utils.user_resource('SCRIPTS', path='modules', create=True)\nsubprocess.check_call([ python_exe, '-m', 'pip', 'install', '--upgrade', '--target', modules_path, 'numpy'\n])\nsys.path.insert(0, modules_path)\nsite.addsitedir(modules_path)\nimport numpy # now importable # Method 3: CLI inline bootstrap before script runs\n# blender --background --python-expr \"\nimport subprocess, sys\nsubprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])\n\" --python my_script.py",
+      "blender_version": "4.2+",
+      "gotchas": "Must use Blender's own sys.executable, NOT the system Python — packages installed to system Python are NOT visible to Blender. On Windows the path is inside the Blender install folder (not AppData). bpy.utils.user_resource installs to a per-user scripts/modules directory that persists across Blender restarts. In Docker/CI, prefer Method 1 (external pip install to Blender's python) at image build time to avoid install overhead at render time. pip is bundled with Blender 3.1+ so ensurepip workarounds are generally not needed in 4.x.",
+      "studio_use": "Required if the turnaround script imports trimesh (for mesh centering/bounds), Pillow (sprite compositing), or other pipeline dependencies not bundled with Blender.",
+      "currency": "plausible",
+      "verify_note": "Method 2 (user_resource + subprocess + sys.executable) confirmed via Medium article for Blender 4.2+ (fetched). Method 1 (external python) is standard practice. pip bundled since 3.1 is from search results but not doc-confirmed for 4.x specifically — hence plausible not solid.",
+      "sources": [
+        {
+          "title": "Installing Python packages for Blender 4.2+ (Antoine Boucher, Medium)",
+          "url": "https://medium.com/@antoine.boucher012/a-method-to-install-python-packages-for-add-ons-plugins-in-blender-windows-blender-4-2-98bcbe10fa81",
+          "claim": "sys.executable + pip install --target bpy.utils.user_resource('SCRIPTS', path='modules') is the correct Blender 4.2+ in-script package install pattern"
+        },
+        {
+          "title": "Blender Artists — Installing pip packages in Blender (2.8+)",
+          "url": "https://blenderartists.org/t/how-to-install-python-packages-with-pip-blender-2-8/1142721",
+          "claim": "Blender bundles its own Python; packages must be installed to Blender's Python, not system Python"
+        }
+      ]
+    },
+    {
+      "slug": "bpy-data-vs-bpy-ops",
+      "name": "bpy.data vs bpy.ops vs bpy.context access patterns",
+      "what": "Know when to use each bpy namespace: direct datablock access (bpy.data), operator invocations (bpy.ops), and active context queries (bpy.context).",
+      "how": "import bpy # bpy.data — direct datablock access, no context dependency, always reliable in headless\nmesh_obj = bpy.data.objects['MyMesh'] # get by name\nfor scene in bpy.data.scenes: scene.render.engine = 'BLENDER_EEVEE_NEXT' # set on all scenes # bpy.context — active scene/object; depends on selection state\nactive_obj = bpy.context.active_object # may be None if nothing selected\nscene = bpy.context.scene # current scene # bpy.ops — runs operator (like clicking UI buttons); needs correct context\nbpy.ops.object.camera_add(location=(0, -5, 2))\nbpy.ops.render.render(write_still=True) # Prefer bpy.data over bpy.ops for data mutations in headless scripts:\n# GOOD: bpy.data.objects['Cube'].location = (1, 0, 0)\n# AVOID in headless: bpy.ops.transform.translate(...) — needs selection context # For operations that have no bpy.data equivalent (import, render), bpy.ops is required.",
+      "blender_version": "4.x",
+      "gotchas": "bpy.ops operators require a valid context (active object, correct mode, etc.). In headless scripts with no UI, some operators fail with 'context is incorrect'. For pure data manipulation (moving objects, setting properties), always prefer bpy.data direct access — it bypasses context checks. bpy.ops.render.render() is an exception and works reliably headless. In 4.x, bpy.context is read-only for most scene-level properties; use bpy.context.scene.X = Y for scene props but use bpy.data for datablocks.",
+      "studio_use": "Pipeline scripts that set camera positions, material properties, or scene settings should use bpy.data wherever possible to avoid context-dependency failures in CI/headless renders.",
+      "currency": "solid",
+      "verify_note": "bpy.ops vs bpy.data distinction confirmed via CGWire blog (fetched) and MotionGPT scene.py patterns (fetched). Context-invalidity gotcha for bpy.ops in headless is well-documented across blenderartists.org and devtalk.blender.org search results.",
+      "sources": [
+        {
+          "title": "Blender Scripting for Animation Pipelines (CGWire blog, 2026)",
+          "url": "https://blog.cg-wire.com/blender-scripting-animation/",
+          "claim": "bpy.ops exposes UI-mirroring operators; bpy.data gives direct datablock access; prefer bpy.data for headless data mutations"
+        },
+        {
+          "title": "MotionGPT Blender scene.py",
+          "url": "https://huggingface.co/spaces/fjibj/MotionGPT/blob/b625c801edd539dec9915d7fb48d54565ea566dc/mGPT/render/blender/scene.py",
+          "claim": "Production headless script uses bpy.data.scenes[0].render.engine and bpy.context.preferences.addons in combination — showing both namespaces in practice"
+        }
+      ]
+    }
+  ]
+}

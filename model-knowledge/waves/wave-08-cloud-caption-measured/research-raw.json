@@ -1,0 +1,104 @@
+{
+  "wave": 8,
+  "date": "2026-08-19",
+  "title": "Cloud caption measured — Comfy-Agent captioner thread receipts (+ the local native-transformers pin)",
+  "domain_scope": "caption + comfy — EMPIRICAL provenance class: measured on this account (billing feed re-pulled at ingest, graph pulled by workflow_id and archived both forms, caption artifact on disk) and on this rig (plain-sight v0.1.0 commit fdd49b3, HF license API re-pulled at ingest), plus agent-reported live-catalog facts marked as such",
+  "agent_count": 2,
+  "dispatch_path": "waves/wave-08-cloud-caption-measured/dispatch.md",
+  "verifier_note": "NOT a web-retrieval swarm: a 3-round dialog with the Comfy Cloud in-app agent (2026-08-19, thread closed both sides), every load-bearing claim re-verified from this rig — billing feed re-pulled LIVE at ingest (job 26a78ccd = 6.732932 gpu-sec, rtx_pro_6000), archived api-format graph matched widget-for-widget against the ordered spec, editor-format graph passed mechanical link-node cross-reference (7 nodes / 7 links), caption artifact on disk (454 bytes, 5 sentences), florence-community/Florence-2-large HF license tag re-pulled LIVE at ingest (mit, 441k downloads), plain-sight DEFAULT_MODEL_ID grepped from source at commit fdd49b3. TWO corrections to our own KB landed by this wave: (1) waves 1/3 'credit-FREE on the cloud GPU' is FALSE — cloud Florence-2 bills active GPU-sec like any OSS job; (2) the intake's derived '~1.3 credits/caption' did not survive verification — 6.73 gpu-sec at the wave-6 verified ~0.266 cr/GPU-sec rate is ~1.8 credits (arithmetic slip caught at ingest; gpu_seconds is the authoritative figure). Claims sourced only from the agent's catalog browsing (one-image-per-job, no-8B-VLM-packs absence claims) are labeled 'agent-reported 2026-08-19' and stay advisory until re-measured. Receipts: model-knowledge/dialogs/comfy-agent/ captioner rounds 01-03.",
+  "lanes": [
+    {
+      "slug": "caption",
+      "name": "Captioning — the measured cloud captioner and the local runtime pin",
+      "research": {
+        "extras": [
+          {
+            "kind": "workflow",
+            "name": "caption-florence2-v1 (headless, measured)",
+            "url": "workflows/caption/caption-florence2-v1.json",
+            "note": "The born-in-cloud metadata-rider captioner, MEASURED end-to-end: LoadImageWithFilename_EditUtils -> DownloadAndLoadFlorence2Model (microsoft/Florence-2-large, fp16, sdpa) -> Florence2Run (more_detailed_caption, max_new_tokens 1024, num_beams 3, do_sample=false, seed 1) -> PrimitiveString prefix/suffix -> WAS Text Concatenate (delimiter zeroed, clean_whitespace 'true') -> SaveText txt with filename_prefix LINKED to the loader's filename output (in-graph pairing: beach.jpg -> beach_00001.txt). 7 nodes; headless-clean (valid:true / ready_to_run:true, 0 errors). Cloud record workflow_id b26cb8b5-0153-4279-9c3a-593857fbff6b; confirmation run job 26a78ccd-06c3-4618-8822-08a547c7e8e9 = 6.73 GPU-sec rtx_pro_6000 (~1.8 credits derived at ~0.266 cr/GPU-sec). Both forms archived (.json +.api.json, server-emitted); confirmation artifact workflows/caption/beach_00001.txt (454 B, five sentences, tier as advertised). Knobs: task tier, max_new_tokens, prefix (reserved for trigger token), suffix, filename_prefix."
+          },
+          {
+            "kind": "resource",
+            "name": "Florence-2 local runtime pin — florence-community, not microsoft (MEASURED)",
+            "url": "https://huggingface.co/florence-community/Florence-2-large",
+            "note": "MEASURED 2026-08-19 on this rig (E:/AI/plain-sight v0.1.0, commit fdd49b3): native transformers (>=4.51, verified on 5.15.1) CANNOT load the original microsoft/Florence-2-* repos — they ship pre-native configs (no processor_config.json / added_tokens.json / full tokenizer.json) and die in Florence2Processor.__init__ with 'RobertaTokenizer has no attribute image_token'; the originals only work via trust_remote_code=True. The fix: pin florence-community/Florence-2-large (or -base) — the official native-transformers conversions, same weights, HF license tag mit (re-pulled live at wave ingest; 441k downloads/mo). Measured on the 5090: fp16 ~1.5 GB VRAM, ~1.0 s per more_detailed_caption, deterministic repeat confirmed (do_sample=False, num_beams=3). The cloud kijai loader is unaffected (it uses trust_remote_code) — this pin is for LOCAL bulk-captioning runtimes."
+          },
+          {
+            "kind": "resource",
+            "name": "OSS in-cloud captioning ceiling = Florence-2 family (agent-reported)",
+            "url": "model-knowledge/dialogs/comfy-agent/2026-08-19-captioner-02-brief.md",
+            "note": "Agent-reported 2026-08-19 from the live catalog: no JoyCaption / InternVL / MiniCPM-V / Qwen-VL packs on the cloud shelf — node search zero on all four, and the STRING-from-IMAGE producer browse surfaced only the Florence-2 family plus color/coordinate utilities. For OSS in-cloud captioning Florence-2 is effectively the ceiling; the 8B-class deep-caption lane (JoyCaption / CapRL / InternVL3.5 / MiniCPM-V, all KB-cataloged) stays LOCAL. Gemini captioning subgraph exists but is partner-ToS (unclear-until-read, not green — MIDI-round convention). Absence claim: advisory until re-measured."
+          },
+          {
+            "kind": "resource",
+            "name": "prompt_gen_* tasks = PromptGen fine-tune tasks, off the commercial menu",
+            "url": "model-knowledge/dialogs/comfy-agent/2026-08-19-captioner-01-reply.md",
+            "note": "License posture locked 2026-08-19: 'Florence-2 is MIT' holds for microsoft/Florence-2-base/-large (+-ft) ONLY. The prompt_gen_* task family (prompt_gen_analyze, prompt_gen_mixed_caption_plus,...) belongs to the MiaoshouAI/Florence-2-*-PromptGen-v1.5/v2.0 third-party fine-tunes, whose licenses are UNVERIFIED our side (same for CogFlorence, gokaygokay captioners, Castollux) — and the base checkpoints don't carry the PromptGen task tokens anyway, so the checkpoint pin and the task menu move together. Until MiaoshouAI terms are verified, prompt_gen_* stays out of the commercial pipeline; the v1 graph pins microsoft/Florence-2-large with the native task ladder only."
+          }
+        ]
+      }
+    },
+    {
+      "slug": "comfy",
+      "name": "ComfyUI — Comfy Cloud platform facts measured during the captioner dialog",
+      "research": {
+        "extras": [
+          {
+            "kind": "node",
+            "name": "Florence2Run + DownloadAndLoadFlorence2Model (cloud allowlist, schema verified live)",
+            "url": "https://comfy.org/cloud/supported-nodes/",
+            "note": "Schema pulled live our side 2026-08-19 (get_node): task is a 3-tier ladder (caption -> detailed_caption -> more_detailed_caption) plus prompt_gen_* tasks (PromptGen-checkpoint-only — see caption lane); max_new_tokens default 1024 / max 4096; num_beams; seed (INT) + do_sample (BOOLEAN, default TRUE) — cloud captions are STOCHASTIC out of the box, pin do_sample=false + seed for reproducible captions (pinned-seed convention). Loader takes model repo / precision (fp16) / attention (sdpa). Florence2Run outputs STRING at index 2 — needs SaveText to reach the headless manifest."
+          },
+          {
+            "kind": "node",
+            "name": "LoadImageWithFilename_EditUtils — in-graph filename pairing (MEASURED)",
+            "url": "https://comfy.org/cloud/supported-nodes/",
+            "note": "MEASURED 2026-08-19 in caption-florence2-v1: outputs IMAGE, MASK, STRING where the STRING is the source filename — wire it into SaveText.filename_prefix and img_0042.png -> img_0042.txt pairs in-graph (proven: beach.jpg -> beach_00001.txt end-to-end). Replaces plain LoadImage wherever sidecar naming matters. Caveat (agent-reported): its image input widget is a COMBO of server-side files, not a free-text upload slot — fine for API-driven jobs where the key is set by JSON."
+          },
+          {
+            "kind": "node",
+            "name": "WAS Text Concatenate — link-only inputs + delimiter trap (MEASURED the hard way)",
+            "url": "https://comfy.org/cloud/supported-nodes/",
+            "note": "Two ledger entries from the captioner build (2026-08-19): (1) text_a-d are STRING LINK inputs, not widgets — feed them with PrimitiveString nodes, never widget values (the agent's first batch was rejected clean on this). (2) delimiter defaults to ', ' — must be explicitly zeroed for bare prefix+caption+suffix concatenation. COMBO-typed strings still carry the exact enum string ('true', not true) per the standing ledger rule."
+          },
+          {
+            "kind": "resource",
+            "name": "Content-addressed output storage — an /api/view hash filename is NOT a pairing failure (MEASURED)",
+            "url": "model-knowledge/dialogs/comfy-agent/2026-08-19-captioner-02-closeout.md",
+            "note": "MEASURED 2026-08-19: cloud output storage is content-addressed — /api/view URLs carry a content-hash filename, and the LOGICAL filename rides the signed download's content-disposition header (read beach_00001.txt there). Standing rule for every future pull: judge filename pairing from content-disposition, never from the /api/view URL. One local nuance: SaveText appends its _00001 counter, so the strict training-sidecar convention (img_0042.txt exact) takes a counter-strip rename at download — no graph change wanted."
+          },
+          {
+            "kind": "resource",
+            "name": "Headless captioning unit is one image per job (agent-reported)",
+            "url": "model-knowledge/dialogs/comfy-agent/2026-08-19-captioner-02-brief.md",
+            "note": "Agent-reported 2026-08-19: no API-valid directory/folder batch loader in the catalog — the 'batch' nodes (ImageFromBatch, ImageGridtoBatch, FL_ImageAddToBatch) operate on an in-memory IMAGE batch, not a directory-of-files iterator with per-file filenames. The cloud headless unit is one-image-one-job; BULK dataset captioning stays on the local 5090 (plain-sight / kijai local), the cloud tool is the born-in-cloud per-image metadata rider. Absence claim: advisory until re-measured."
+          },
+          {
+            "kind": "resource",
+            "name": "No credit-free job class — OSS captioning bills active GPU-sec like audio (MEASURED)",
+            "url": "model-knowledge/dialogs/comfy-agent/2026-08-19-captioner-02-closeout.md",
+            "note": "MEASURED 2026-08-19 (billing feed, re-pulled live at wave ingest): the caption confirmation run — job 26a78ccd-06c3-4618-8822-08a547c7e8e9, 2026-08-20T02:00:33Z — billed 6.732932 gpu_seconds on rtx_pro_6000, ~1.8 credits derived at the wave-6 verified ~0.266 cr/GPU-sec Creator rate. This kills the waves-1/3 'credit-FREE on the cloud GPU' claim for Florence-2: every OSS-node job bills active GPU seconds; there is no free class of cloud jobs. (The intake's '~1.3 credits' derivation was an arithmetic slip — corrected to ~1.8 at ingest; gpu_seconds is the authoritative per-job figure, per-job dollar cost is not exposed.)"
+          }
+        ]
+      }
+    }
+  ],
+  "model_updates": [
+    {
+      "slug": "florence-2-large-2",
+      "cloud_feasible": "yes",
+      "cloud_note": "MEASURED 2026-08-19 (SUPERSEDES wave-3 'credit-FREE' — cloud Florence-2 bills like any OSS job): confirmation run on the archived caption graph = job 26a78ccd-06c3-4618-8822-08a547c7e8e9, 6.73 GPU-sec on rtx_pro_6000 ~= ~1.8 credits/caption derived at the verified ~0.266 cr/GPU-sec rate (gpu_seconds is the authoritative figure). Production graph: workflows/caption/caption-florence2-v1.json — LoadImageWithFilename_EditUtils -> Florence2Run (more_detailed_caption, fp16/sdpa, do_sample=false seed=1 num_beams=3) -> WAS Text Concatenate (PrimitiveString feeders, delimiter zeroed) -> SaveText txt with in-graph filename pairing (beach.jpg -> beach_00001.txt; strip SaveText's _00001 counter locally for strict sidecars). Cloud Florence2Run is STOCHASTIC by default (do_sample=true) — pin it false + seed. Headless unit is one image per job (no directory iterator on the allowlist) — bulk captioning stays local; Florence-2 family is the OSS in-cloud captioning ceiling (no JoyCaption/InternVL/MiniCPM-V packs, agent-reported). prompt_gen_* tasks belong to MiaoshouAI PromptGen fine-tunes — license UNVERIFIED, off the commercial menu (MIT covers microsoft/* originals only). LOCAL RUNTIME PIN: native transformers (>=4.51) cannot load microsoft/* ('RobertaTokenizer has no attribute image_token' without trust_remote_code) — pin florence-community/Florence-2-large (same weights, HF tag mit, re-verified live 2026-08-19); measured on the 5090 (plain-sight v0.1.0): fp16 ~1.5 GB VRAM, ~1.0 s per more_detailed_caption, deterministic."
+    },
+    {
+      "slug": "qwen3-vl",
+      "cloud_feasible": "partial",
+      "cloud_note": "Open-VLM packs (QwenVL) appear on the allowlist for VLM-in-the-loop QA — confirm the specific pack in-app before relying (wave-6 agent-era claim, unexercised). BILLING CORRECTION (wave 8, 2026-08-19): the old 'runs credit-free on the cloud GPU' phrasing is SUPERSEDED — OSS-node jobs bill active GPU-seconds (~0.266 cr/GPU-sec Creator rate; measured on the Florence-2 caption graph at 6.73 GPU-sec/caption). There is no free class of cloud jobs."
+    },
+    {
+      "slug": "florence-2-large",
+      "cloud_feasible": "yes",
+      "cloud_note": "MEASURED 2026-08-19 (SUPERSEDES wave-1 'credit-free'): cloud Florence-2 bills like any OSS job — 6.73 GPU-sec ~= ~1.8 credits per more_detailed_caption (job 26a78ccd…, rtx_pro_6000; measured graph workflows/caption/caption-florence2-v1.json — full receipts on the caption-domain row). One image per job headless; bulk captioning stays local. LOCAL RUNTIME PIN: native transformers (>=4.51) needs florence-community/Florence-2-large (same weights, HF tag mit, re-verified live 2026-08-19) — microsoft/* originals fail without trust_remote_code; 5090 fp16 ~1.5 GB VRAM, ~1.0 s/caption deterministic (do_sample=False, num_beams=3)."
+    }
+  ]
+}

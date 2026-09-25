@@ -1,0 +1,750 @@
+{
+  "wave": 12,
+  "date": "2026-09-10",
+  "title": "Wave 12 — expansion: conversion, expression, articulation, datasets, assessment",
+  "domain_scope": "singing-voice-conversion, expressive-control, breath-articulation, singing-datasets, singing-assessment",
+  "agent_count": 5,
+  "verifier_note": "Research lanes only — findings are web-grounded and primary-sourced by their authoring lane, but NOT independently verified. Default status directional until a retrieval sweep covers them.",
+  "lanes": [
+    {
+      "laneSlug": "breath-articulation",
+      "title": "Breath, consonants & articulation in sung voice",
+      "findings": [
+        {
+          "n": 1,
+          "authors": "Sundberg, Bauer-Huppmann",
+          "year": 2007,
+          "title": "When does a sung tone start?",
+          "id": "DOI:10.1016/j.jvoice.2006.01.003",
+          "url": "https://doi.org/10.1016/j.jvoice.2006.01.003",
+          "finding": "Measuring the interval between sung vowel onsets and piano-accompaniment onsets across 552 tones from commercial CD recordings by international vocal artists (two experimenters measuring the same piece independently agreed within ±10 ms), the accompanists most commonly synchronised their tones with the singers' VOWEL onsets, not with the consonant that orthographically starts the syllable; lead and lag examples occurred for expressive purposes and varied greatly between songs, being smallest in a fast-tempo song and longest in a slow-tempo song.",
+          "implication": "The MIDI note-on is a vowel timestamp, not a syllable timestamp: a score-locked pipeline must place the vowel at the note boundary and let the consonant run BEFORE it, and a tool judging a student's timing must detect the vowel onset (not the syllable onset) before it can say 'you were late'."
+        },
+        {
+          "n": 2,
+          "authors": "Chow, Belyk, Tran, Brown",
+          "year": 2015,
+          "title": "Syllable synchronization and the P-center in Cantonese",
+          "id": "DOI:10.1016/j.wocn.2014.10.006",
+          "url": "https://doi.org/10.1016/j.wocn.2014.10.006",
+          "finding": "23 Cantonese speakers (13 M, 10 F, mean age 19.1) repeated monosyllables in sync with a metronome at inter-pulse intervals of at least 600 ms; syllable-initial consonant onset preceded the beat by a mean 15.77 ms (SD 37.10; t(22)=-2.038, p=0.054, not significant) while vowel onset FOLLOWED the beat by 74.62 ms (SD 36.75; t(22)=9.738, p<0.05) — a mean C-to-V interval of roughly 90 ms. Manner of articulation dominated the placement (F(6,136)=11.439, p<0.05 for consonant onset): short consonants (stops, glottal stop) began just after the beat while long ones (fricatives, nasals, laterals, affricates) began before it, and the authors note this Cantonese pattern (P-center at syllable onset) contrasts with Germanic languages, Brazilian Portuguese, Spanish and Japanese where the P-center sits at the consonant-vowel transition.",
+          "implication": "The consonant lead a synthesiser must apply is not a constant — it is roughly the consonant's own duration and it is language-specific, so a fixed pre-note offset (~90 ms) is a starting default that must be scaled per phoneme class and re-derived per language rather than baked in."
+        },
+        {
+          "n": 3,
+          "authors": "Sharma, Gao, Vijayan, Tian, Li",
+          "year": 2021,
+          "title": "NHSS: A speech and singing parallel database",
+          "id": "DOI:10.1016/j.specom.2021.07.002",
+          "url": "https://doi.org/10.1016/j.specom.2021.07.002",
+          "finding": "Parallel sung and spoken recordings of the same English pop lyrics by the same 10 singers (5 M, 5 F; 100 songs, 7 h) give mean phoneme durations in singing vs speech (ms): vowels 830.5/148.0, glides 486.8/102.8, liquids 479.5/101.4, nasals 586.2/103.5, aspirates 168.0/117.7, fricatives 217.5/116.7, affricates 164.8/120.5, stops 172.4/81.5 — sonorants stretch ~4.7-5.7x when sung while obstruents stretch only ~1.4-2.1x. The same paper reports that Montreal Forced Aligner word-boundary deviation from manual annotation is 25.30 ms for speech but 103.90 ms for singing (inter-annotator deviation 5.70 ms speech / 8.70 ms singing), i.e. the alignment tool degrades ~4x on sung audio.",
+          "implication": "Duration stretching must be applied per phoneme class, not per phoneme: giving a long note to the whole syllable stretches the /s/ and /t/ along with the vowel and produces the 'robot slurring a consonant' failure — the obstruent should stay near its spoken length and the vowel absorbs the note. And any forced-aligner ground truth used to build a practice companion carries ~100 ms of word-boundary error on sung audio, which is larger than the entire consonant lead in finding 2."
+        },
+        {
+          "n": 4,
+          "authors": "OpenVPI (openvpi/MakeDiffSinger)",
+          "year": 2024,
+          "title": "MakeDiffSinger — variance-temp-solution: word division and ph_num",
+          "id": "github:openvpi/MakeDiffSinger",
+          "url": "https://github.com/openvpi/MakeDiffSinger/blob/main/variance-temp-solution/README.md",
+          "finding": "The DiffSinger dataset format encodes the vowel-on-the-beat rule directly in its word division: \"In singing, vowels, instead of consonants, are used to align with the beginnings of notes. For this reason, each word should start with a vowel/AP/SP, and end with leading consonant(s) of the next word (if there are any).\" Breath (AP, 'aspiration') and space (SP) are treated as word-initiating units alongside vowels, i.e. a breath is a first-class scored token with its own duration, not a gap. Repo licence BSD-3-Clause; the DiffSinger engine itself is Apache-2.0.",
+          "implication": "A permissively licensed, already-shipping local route exists for honouring an existing MIDI line: the score-to-phoneme contract is 'vowel at note start, trailing consonants borrowed from the next word, breath as an explicit token', and the practice companion should adopt the same representation so its analysis and its synthesis speak the same timing grammar."
+        },
+        {
+          "n": 5,
+          "authors": "Nakano, Ogata, Goto, Hiraga",
+          "year": 2008,
+          "title": "Analysis and Automatic Detection of Breath Sounds in Unaccompanied Singing Voice",
+          "id": "ICMPC10 proceedings, ISBN 978-4-9904208-0-2",
+          "url": "https://staff.aist.go.jp/m.goto/PAPER/ICMPC2008nakano.pdf",
+          "finding": "Hand-marking 1488 breath events across 29 entries (27 RWC-MDB songs by 16 professional singers plus 2 merged AIST-HDB amateur entries; 15 male, 14 female; 128 minutes total) gave a cumulative breath duration of 438.5 s = 5.7% of all audio. Individual breath events ranged 50 ms to 1225 ms; per-entry means ran from 174.0 ms to 487.4 ms with SDs of 47.7-222.2 ms. Long-term average spectra show a common peak at about 1.6 kHz (male) and 1.7 kHz (female) with secondary peaks at 850 Hz-1 kHz (more prominent in females), and the spectral envelope of a given singer's breaths stays essentially invariant across different songs. An HMM detector on MFCC + delta-MFCC + power reached recall 97.5% / precision 77.7% over 27 songs.",
+          "implication": "Breath is ~1/18th of a sung performance's duration and has a stable, singer-specific spectral signature — so a singing engine needs a breath model with a per-voice spectrum and a 50-1225 ms duration distribution, and a practice companion can detect breaths cheaply enough (MFCC + power) to score a student's breath placement without a neural model."
+        },
+        {
+          "n": 6,
+          "authors": "Whalen, Hoequist, Sheffert",
+          "year": 1995,
+          "title": "The effects of breath sounds on the perception of synthetic speech",
+          "id": "DOI:10.1121/1.411875",
+          "url": "https://doi.org/10.1121/1.411875",
+          "finding": "Across five experiments, listeners transcribed synthesized sentences MORE accurately when a naturally produced breath intake sound preceded them (experiment 1), and this was not a generic acoustic-warning effect: replacing the breath with the spectrally similar sound of rustling leaves produced no improvement (experiment 2), and experiment 5 replicated the benefit with leaf sounds rather than silence as the control. Matching the breath's size to sentence length had no effect (experiment 4), possibly because the sentence-duration range was too small.",
+          "implication": "The pre-phrase breath is doing perceptual work for the listener, not just filling time, and a spectrally-plausible-but-wrong noise burst will not substitute — so a synthesis pipeline should splice or model real inhalation spectra rather than gate in filtered noise, and stripping breaths from a synthesised line costs measurable intelligibility, not only 'naturalness'."
+        },
+        {
+          "n": 7,
+          "authors": "Salomoni, van den Hoorn, Hodges",
+          "year": 2016,
+          "title": "Breathing and Singing: Objective Characterization of Breathing Patterns in Classical Singers",
+          "id": "DOI:10.1371/journal.pone.0155084",
+          "url": "https://doi.org/10.1371/journal.pone.0155084",
+          "finding": "Optoelectronic/pneumotachograph measurement of 7 professional classical singers (2 M aged 39-41; 5 F aged 24-72) and 4 untrained males (21-41) during quiet breathing, a standard song and a free-choice piece found that BOTH groups shortened time of inspiration and raised peak airflow when singing versus quiet breathing. Classical singers additionally used a significantly greater abdominal contribution to lung volume (F(1,9)>28.87, p<0.001) and greater rib-cage/abdomen asynchrony with the abdominal peak occurring before the rib-cage peak (F(1,9)>28.92, p<0.001); principal components accounting for >98% of the variance revealed a consistent pre-phonatory INWARD movement of the abdominal wall in singers that untrained controls did not show.",
+          "implication": "A sung inhalation is a compressed, high-flow, rhythmically constrained motor event that ends with a posture change before phonation begins — so breath duration in a singing engine should shrink as tempo rises rather than stay a fixed constant, and a practice companion advising a student on breath should target inspiratory time and abdominal set, which are the two things that measurably separate trained from untrained."
+        },
+        {
+          "n": 8,
+          "authors": "Joliveau, Smith, Wolfe",
+          "year": 2004,
+          "title": "Vocal tract resonances in singing: the soprano voice",
+          "id": "DOI:10.1121/1.1791717",
+          "url": "https://doi.org/10.1121/1.1791717",
+          "finding": "Nine sopranos (5 professionals averaging 12 years of classical training, 4 students averaging 7 years) sang four vowels softly without vibrato while broadband acoustic current injected at the lower lip measured tract resonances directly to a precision of ~11 Hz (reproducibility SD 25 Hz for R1, 60 Hz for R2/R3, 90 Hz for R4). Below the speech value of R1 the resonances stay fixed (e.g. R1 ≈ 420 Hz for /u/ at C4 = 261 Hz); once f0 exceeds it, R1 tracks f0 — at C6 (1046 Hz) R1 and f0 coincided within 20 Hz — with the R1 = f0 line lying inside the data's standard deviations over roughly 600-1000 Hz. Lip-rounded vowels /ɔ/ and /u/ fall below the tuning line near 1 kHz. R3-R5 showed NO tuning (mean |Δf| = 0.24·f0, 0.23·f0, 0.20·f0, i.e. the f0/4 expected from random placement). Consequently, over G5-B5 the four vowels converge and overlap on the (R2,R1) plane to separations comparable with the confusion length.",
+          "implication": "Above roughly 600 Hz the vowel identity a score requests is physically not the vowel that will be produced: a score-locked engine must apply pitch-dependent vowel modification as a first-class transform (F1 -> f0, with an exception for lip-rounded vowels near 1 kHz), and a diction-scoring tool must stop penalising vowel drift above the singer's R1-crossing pitch because correct technique requires it."
+        },
+        {
+          "n": 9,
+          "authors": "Henrich, Smith, Wolfe",
+          "year": 2011,
+          "title": "Vocal tract resonances in singing: Strategies used by sopranos, altos, tenors, and baritones",
+          "id": "DOI:10.1121/1.3518766",
+          "url": "https://doi.org/10.1121/1.3518766",
+          "finding": "Measuring R1 and R2 in 22 classically trained sopranos, altos, tenors and baritones over four vowels across their normal ranges found voice-type-specific tuning: sopranos use R1:f0 over at least part of their upper range for ALL vowels studied, plus R2:2f0 over some of their range and often simultaneously with R1:f0; altos use R1:f0 for vowels with lower speech R1 but can switch to R1:2f0 in the lower part of their range; tenors and baritones generally use R1:2f0 and R1:3f0 over part of their range and various higher-harmonic tunings at low pitch. Singers repeated these tunings with precision, but strategies differed considerably between individuals, especially in the lower voices.",
+          "implication": "A single soprano-derived formant-tuning rule will be wrong for male voices, whose target is a harmonic of f0 rather than f0 itself — so a singing engine's vowel-modification table and a practice tool's 'is this resonance placed correctly' judgement both have to be keyed on voice type, and the per-individual spread means the tool should calibrate against the specific student rather than a population mean."
+        },
+        {
+          "n": 10,
+          "authors": "Deme",
+          "year": 2017,
+          "title": "The Identification of High-pitched Sung Vowels in Sense and Nonsense Words by Professional Singers and Untrained Listeners",
+          "id": "DOI:10.1016/j.jvoice.2016.07.008",
+          "url": "https://doi.org/10.1016/j.jvoice.2016.07.008",
+          "finding": "High-pitched sung vowels are phonetically underspecified for two independent reasons — F1 is tuned to f0 as pitch rises, and the wide harmonic spacing undersamples the vocal-tract transfer function. Testing the widespread claim that surrounding consonants rescue vowel identification, this study compared identification in sense and nonsense CVC sequences and found the positive context effect DISAPPEARS once the number of legal response choices is equated across conditions: the apparent benefit came from higher response probability, not from phonetic context. A second negative result: professional singers showed no perceptual advantage over untrained listeners in identifying high-pitched sung vowels.",
+          "implication": "Do not rely on consonant context to carry intelligibility at high pitch — it does not, and this kills the tempting shortcut of 'crisp consonants will make the high notes understandable'. A practice companion must not mark a student down for unintelligible high vowels, and a synthesis pipeline that wants a lyric understood at pitch has to lower the pitch, change the vowel, or accept that the words are gone."
+        },
+        {
+          "n": 11,
+          "authors": "Condit-Schultz, Huron",
+          "year": 2017,
+          "title": "Word Intelligibility in Multi-voice Singing: The Influence of Chorus Size",
+          "id": "DOI:10.1016/j.jvoice.2016.02.011",
+          "url": "https://doi.org/10.1016/j.jvoice.2016.02.011",
+          "finding": "149 participants identified English words spoken or sung in sync by 1, 4, 8, 16 or 27 members of a high-quality SATB choir. Single-voice recognition exceeded multi-voice recognition in the sung condition, but the difference between four concurrent singers and the full 27 was negligible — intelligibility loss saturates at about four voices. The principal effect of voice density falls specifically on CODA consonants, with plosives /b/, /d/, /g/ and /p/ easily confused and coda liquids /l/, /r/ also a source of confusion; increasing voice density actually FACILITATED the coda nasal /m/.",
+          "implication": "Word-end consonants, not word-start ones, are where sung intelligibility is lost — so a singing engine's release/coda model (and a practice tool's diction scoring) should weight coda plosives and liquids far above onsets, and any doubling/chorusing effect in the pipeline should be told to keep coda releases coherent because the damage is done by the fourth voice, not the twenty-seventh."
+        },
+        {
+          "n": 12,
+          "authors": "Wu, Hsiao, Yang, Friedman, Jackson, Bruzenak, Liu, Yang",
+          "year": 2022,
+          "title": "DDSP-based Singing Vocoders: A New Subtractive-based Synthesizer and A Comprehensive Evaluation",
+          "id": "arXiv:2208.04756",
+          "url": "https://arxiv.org/abs/2208.04756",
+          "finding": "Training six vocoders on MPop600 Mandarin singing (~3 h per singer, one female and one male, held-out test clips, MOS from 23 and 18 listeners) the authors report that with 3 h of data every vocoder including HiFi-GAN V1 reached MOS of only 2-3, and in a 3-minute-data / 3-hour-training scenario HiFi-GAN collapsed to MOS ≈ 1 ('barely audible', FAD 3.50 female / 10.5 male) while the DDSP vocoders stayed above MOS 2 (SawSing FAD < 1.0). Crucially, SawSing produced an audible buzzing artifact 'notably when singers emphasize the airflow with breathy sounds and for unvoiced consonants such as /s/ and /t/' — redundant harmonics bridging adjacent phonemes — and 'this artifact cannot be reflected in any training loss function (and objective metrics) we considered, so the network fails to take it into account'. Post-processing with Parselmouth voiced/unvoiced flags that zero the harmonic amplitudes on non-voiced portions removed much of it.",
+          "implication": "The breath-and-sibilant failure mode is INVISIBLE to the metrics a local pipeline would use to pick a vocoder, so consonant/breath quality has to be checked by listening or by an explicit unvoiced-segment measure; and the cheap fix — driving harmonic amplitude to zero on V/UV flags — is a deterministic DSP guard that belongs in the render path rather than being left to the model."
+        },
+        {
+          "n": 13,
+          "authors": "Kim, Cho, Lee",
+          "year": 2024,
+          "title": "Period Singer: Integrating Periodic and Aperiodic Variational Autoencoders for Natural-Sounding End-to-End Singing Voice Synthesis",
+          "id": "arXiv:2406.09894",
+          "url": "https://arxiv.org/abs/2406.09894",
+          "finding": "This end-to-end system states plainly that 'the alignment estimation in singing tasks is challenging because of the presence of breath sounds and diverse variations in pitch', which lets monotonic alignment search produce meaningless score-to-audio mappings; the fix is to constrain the search inside note boundaries. Removing that note-boundary constraint costs CMOS -1.13 in ablation (versus -0.21 for removing the normalizing flow) — by far the largest single term. Final MOS with 20 Mandarin and 19 Korean raters over 20 samples per system: 3.97 ± 0.07 on Opencpop against a 4.24 ± 0.07 recording, and 4.61 ± 0.05 on the internal Korean set against a 4.65 ± 0.05 recording, achieved WITHOUT ground-truth phoneme durations.",
+          "implication": "Breath is not a cosmetic layer — untagged breath actively corrupts score-to-audio alignment, and the single highest-value architectural decision for honouring an existing MIDI line is to hard-constrain phoneme alignment to note boundaries (worth more than a full point of CMOS) so a breath cannot steal frames from the phonemes on either side of it."
+        },
+        {
+          "n": 14,
+          "authors": "Violeta, Zhang, Shi, Yasuda, Huang, Wu, Toda",
+          "year": 2025,
+          "title": "An Extensive Analysis of the Singing Voice Conversion Challenge 2025 Evaluation Results",
+          "id": "arXiv:2509.15629",
+          "url": "https://arxiv.org/abs/2509.15629",
+          "finding": "Analysing 33 submitted systems, the organisers found top systems reached singer-identity scores comparable to ground-truth samples, but 'modeling the singing style and consequently achieving high naturalness still remains a challenge' — no system reached human-level naturalness, and the named residual difficulty is dynamic information in BREATHY, glissando and vibrato singing styles. They also report that chroma-alignment and speaker-embedding metrics correlate best with subjective scores but are 'still not at a level where it could be considered as a true replacement for subjective scores'.",
+          "implication": "As of the 2025 challenge, timbre is solved and breath-carried dynamics are not — so a product's differentiator is the non-pitch half of the voice, and its evaluation loop cannot be automated: the aspects that still fail are exactly the aspects the objective metrics cannot see (compare finding 12)."
+        }
+      ],
+      "licence_notes": "BLOCKED FOR COMMERCIAL USE. (1) NHSS / NUS-HLT Speak-Sing (finding 3) — End User License Agreement (04/2020), clause 9: 'Any commercial use of the Database is strictly prohibited', explicitly including 'Testing commercial systems' and 'Proving the efficiency of commercial systems'; the licence grants use 'for its own internal and non-commercial use and for the purpose of scientific research only'. The published duration numbers are citable; the audio cannot enter a product or even a commercial benchmark. (2) Opencpop (the corpus behind the AP/SP breath labelling in finding 4 and the Mandarin results in finding 13) — its licence page names the 'Creative Commons Attribution 4.0 International License' but on the same page states the data is 'available to download for non-commercial purposes' and that 'If want to use it commercially, you are welcome to contact us by email'. Those two statements contradict; treat Opencpop as NOT cleared until written permission is obtained. Its derived sets ACE-Opencpop and ACE-KiSing are CC-BY-NC-4.0 — commercial use blocked outright. (3) SawSing reference implementation, YatingMusic/ddsp-singing-vocoders (finding 12) — AGPL-3.0; the finding and the V/UV post-processing technique are free to reimplement, the code is not usable in a closed product. CLEAR FOR COMMERCIAL USE: openvpi/DiffSinger — Apache-2.0; openvpi/MakeDiffSinger — BSD-3-Clause; openvpi/SOME — MIT; stakira/OpenUtau — MIT ('The MIT License (MIT), Copyright (c) 2014 StAkira'). Note the split: the ENGINES are permissive, the DATA is not, so any local route has to be trained on a corpus the studio can actually license.",
+      "gaps": "Could not find any published measurement of sung-breath PLACEMENT — a distribution of where singers actually inhale relative to bar lines, phrase boundaries or notated rests, with ms offsets; Nakano et al. give breath duration and spectrum but not score-relative position, and Salomoni et al. give respiratory kinematics without score alignment. Could not find a sung equivalent of the Whalen breath-perception experiment: no controlled listening test surfaced measuring whether listeners notice the ABSENCE of breath in synthesised singing, so finding 6's evidence is imported from speech. Could not find a per-phoneme intelligibility or spectral-error breakdown for any modern neural singing vocoder — sibilant and plosive failure is described qualitatively (finding 12) but no paper reported /s/, /ʃ/, /t/, /k/ error rates against ground truth, and the SVCC 2025 analysis reports no consonant-level numbers at all. Finally, the measured consonant lead time in finding 2 comes from a SPOKEN syllable-synchronisation task; Sundberg & Bauer-Huppmann established the vowel-onset rule for singing but their published abstract does not release the ms lead/lag distribution and the full text is paywalled, so no sung-specific lead-time distribution could be retrieved."
+    },
+    {
+      "laneSlug": "expressive-control",
+      "title": "Expressive control surfaces — vibrato, dynamics, transitions",
+      "findings": [
+        {
+          "n": 1,
+          "authors": "Prame",
+          "year": 1994,
+          "title": "Measurements of the vibrato rate of ten singers",
+          "id": "DOI:10.1121/1.410141",
+          "url": "https://doi.org/10.1121/1.410141",
+          "finding": "Sonogram measurement of ten professional singers on commercial CDs, all performing Schubert's Ave Maria: mean vibrato rate across singers 6.0 Hz once the end-of-tone acceleration is excluded; the rate typically INCREASED at the end of each tone by +15% on average, with no typical structure at tone beginnings; within one artist the spread between maximum and minimum rate is about ±8% of that artist's own average. J. Acoust. Soc. Am. 96, 1979-1984.",
+          "implication": "A vibrato oscillator locked to a constant Hz value is measurably wrong at every note release — the engine needs a per-note rate ramp of roughly +15% into the offset, and a practice tool must score a student's rate against their OWN running average (±8% band), not against a fixed 5-7 Hz textbook window."
+        },
+        {
+          "n": 2,
+          "authors": "Prame",
+          "year": 1997,
+          "title": "Vibrato extent and intonation in professional Western lyric singing",
+          "id": "DOI:10.1121/1.419735",
+          "url": "https://doi.org/10.1121/1.419735",
+          "finding": "Twenty-five tones taken from ten commercial CD recordings of Schubert's Ave Maria, F0 read at every vibrato turning point via a high overtone: mean vibrato extent per tone ranged from ±34 to ±123 cents, with the grand mean across tones and singers at ±71 cents. Extent correlated NEGATIVELY with tone duration and positively with intonation (sharpness); informal measurement of Verdi opera arias gave much higher figures than the Schubert set. J. Acoust. Soc. Am. 102, 616-621.",
+          "implication": "±71 cents is the realistic default extent for lyric repertoire — nearly 1.5 semitones peak-to-peak — so a score-locked engine that clamps F0 to ±25 cents of the MIDI note is not conservatively 'in tune', it is structurally incapable of classical vibrato, and a practice tool must widen its pitch-accuracy tolerance in proportion to measured vibrato extent or it will fail every well-trained singer."
+        },
+        {
+          "n": 3,
+          "authors": "Ferrante",
+          "year": 2011,
+          "title": "Vibrato rate and extent in soprano voice: a survey on one century of singing",
+          "id": "DOI:10.1121/1.3621017",
+          "url": "https://doi.org/10.1121/1.3621017",
+          "finding": "More than one hundred recordings of the same tone sung by 75 soprano artists spanning the twentieth century: mean vibrato rate fell by -1.8 ± 0.3 Hz per century while extent rose by 56.4 ± 0.3 cents per century; rate and extent are significantly negatively correlated (r = -0.62); rate increase near the end of the tone was reproduced, along with a mean rise in tone pitch, and note duration correlates weakly positively with extent. J. Acoust. Soc. Am. 130, 1683-1688.",
+          "implication": "Vibrato rate and extent are not independent axes and are not era-neutral — a synthesis control surface that exposes them as two free sliders will let a user dial physically implausible combinations, and any 'correct vibrato' target in a practice tool is period-specific (a 1910 target and a 2010 target differ by roughly 1.8 Hz and half a semitone)."
+        },
+        {
+          "n": 4,
+          "authors": "Nestorova, Nestorov, Gilbert, Howell",
+          "year": 2025,
+          "title": "Does Vibrato Define Genre or Vice Versa? A Novel Parametric Approach to Vocal Vibrato Analysis",
+          "id": "DOI:10.1016/j.jvoice.2025.02.046",
+          "url": "https://doi.org/10.1016/j.jvoice.2025.02.046",
+          "finding": "Fifteen professional operatic, musical-theatre and jazz mezzo-sopranos and sopranos each recorded two cross-genre songs plus a vocal exercise; sixteen pitch segments per singer were analysed in Praat (sinusoidal extraction, F0 band-pass, LTAS FFT). The COEFFICIENT OF VARIATION of mean vibrato half-extent — not mean rate or mean extent — was what predictably separated genres, and it was higher for musical-theatre and jazz singers; seven pedagogue judges then classified genre from the samples most representative of each group's average CV, confirming the acoustic result perceptually. The authors state explicitly that averaged vibrato metrics are valid only when vibrato is uniform, consistent, persistent and omnipresent, which is a Western classical opera property.",
+          "implication": "A practice tool that judges vibrato by mean rate and mean extent is implementing an operatic aesthetic as if it were physiology — variability (CV over the note) has to be a first-class measured parameter with genre-dependent targets, otherwise musical-theatre and jazz students get marked down for correct style."
+        },
+        {
+          "n": 5,
+          "authors": "Bell, Dobrovolsky",
+          "year": 1999,
+          "title": "Acoustic characteristics of vibrato onset in singing",
+          "id": "ICPhS 1999 proceedings, San Francisco, p. 981",
+          "url": "https://www.internationalphoneticassociation.org/icphs-proceedings/ICPhS1999/papers/p14_0981.pdf",
+          "finding": "First five vibrato cycles analysed for five male singers ranging from a 40-year professional opera baritone to an untrained actor, on held D3 and A3 at mf: vibrato onset excursion RISES into the mean in 81% of productions (Seashore's claim that rising onset is a physiological necessity is only mostly true). First-five-cycle rate ran 4.41-4.86 Hz for the professional versus 7.12 Hz and 7.20 Hz on A3 for the two least-trained voices — the untrained voices had the FASTEST vibrato. The professional's onset excursion on A3 averaged 33.57 Hz of rise into the mean, versus 12.47-19.55 Hz for the trained-student and choral voices, and the time taken for vibrato to settle into a steady cycle was more variable in the less-trained singers.",
+          "implication": "Vibrato must be synthesised with a rising, settling onset rather than switched on at steady state; and a practice tool cannot treat 'faster vibrato' as 'better vibrato' — in this cohort rate ran inversely to training, so onset shape and settling regularity are the trainable signals, not speed."
+        },
+        {
+          "n": 6,
+          "authors": "Collyer, Davis, Thorpe, Callaghan",
+          "year": 2007,
+          "title": "Sound pressure level and spectral balance linearity and symmetry in the messa di voce of female classical singers",
+          "id": "DOI:10.1121/1.2436639",
+          "url": "https://doi.org/10.1121/1.2436639",
+          "finding": "Five trained female classical singers performed 318 messe di voce across their musical F0 range. Change in SPL through the exercise was PREDOMINANTLY NONLINEAR, and the shape of the SPL trace differed greatly between the crescendo and the decrescendo half; SPL range was generally greater during crescendo at higher F0 and during decrescendo at lower F0. Spectral balance (0-2 kHz vs 2-4 kHz) plotted against SPL showed markedly more symmetry than linearity, i.e. the phonation-mode change tracked SPL regardless of direction. The pedagogical assumptions of linearity and symmetry are therefore only half right: symmetric in timbre, not linear in level. J. Acoust. Soc. Am. 121, 1728-1736.",
+          "implication": "A messa di voce rendered as a linear dB ramp up and its mirror down is measurably not the gesture — the level trajectory is nonlinear and direction-asymmetric while the timbre trajectory is symmetric in SPL, so a dynamics control surface needs an independent level curve and a level-driven (not time-driven) timbre mapping."
+        },
+        {
+          "n": 7,
+          "authors": "Schubert, Wolfe",
+          "year": 2014,
+          "title": "The rise of fixed pitch systems and the slide of continuous pitch: A note for emotion in music research about portamento",
+          "id": "DOI:10.4407/jims.2014.06.001",
+          "url": "https://www.phys.unsw.edu.au/jw/reprints/portamento.pdf",
+          "finding": "The legato/portamento boundary is a quantified psychoacoustic threshold, not a stylistic label: the glissando threshold of Hart, Collier & Cohen (1990) is G_thr = 0.16/T^2 semitones per second, where T is slide duration. Citing d'Alessandro, Rosset & Rossi (1998) on a 220 Hz complex tone, a 1.5-semitone (150 cent) slide over 50 ms is NOT heard as portamento while a 6-semitone slide over the same 50 ms is, and the same 1.5-semitone slide becomes portamento once the traversal is stretched to 200 ms. Their own F0 analysis of Ella Fitzgerald's c.1958 'Blue Skies' scat measured slides of 25 ST/s over 80 ms, 17 ST/s over 250 ms, -21 ST/s over 200 ms, 12 ST/s over 84 ms and 2.2 ST/s over 490 ms, of which only three cross the threshold; the shortest legato transition measured 30 ms. They also quote Hart et al. that a 10-20 dB amplitude drop over tens of milliseconds — routine at vowel-to-consonant transitions — can entirely obscure F0 changes of up to half an octave.",
+          "implication": "A pipeline can decide legato versus portamento deterministically from slide duration and interval via G_thr = 0.16/T^2 instead of exposing a vague 'portamento amount' knob, and a practice tool must not flag a fast wide slide as a pitch error — above the threshold it is an intended gesture, and below it the listener cannot hear it at all."
+        },
+        {
+          "n": 8,
+          "authors": "Stasak, Holik, Nguyen, Arias-Vergara, Döllinger, Madill",
+          "year": 2026,
+          "title": "Investigating Automatic Vocal Rise Time Measurement Parameters and Multi-Corpus Vowel Onset Behavior with the Voice Onset Analysis Tool (VOAT)",
+          "id": "DOI:10.3390/bioengineering13080950",
+          "url": "https://doi.org/10.3390/bioengineering13080950",
+          "finding": "Four corpora, 146 adult Australian-English-speaking females, manual and automatic vocal rise time (VRT — vibration onset to first peak steady amplitude) per onset type: hard onsets 57.7 ± 48.0 ms and 73.2 ± 40.5 ms; modal onsets 97.6 ± 24.4 ms (n=100 speakers), 61.0 ms and 166.1 ± 59.4 ms across corpora; soft onsets 218.7 ± 120.0 ms and 261.8 ± 70.5 ms. Cross-corpus norms summarise as hard <60 ms, modal 60-160 ms, soft >160 ms. Automatic measurement (Hilbert envelope, 400 ms segment, low smoothing) reached 15.5 ms and 21.3 ms mean absolute error on modal and soft onsets but degraded to 71.0 ms MAE on hard onsets. These are speech onsets, not sung onsets.",
+          "implication": "Attack type is a time constant with an order of magnitude between hard and soft (roughly 60 ms vs 250 ms), so a singing engine can implement glottal/balanced/aspirated onsets as an explicit amplitude rise-time parameter — but a practice tool that auto-classifies a student's onset must expect ~70 ms of measurement error exactly on the hard onsets that matter clinically."
+        },
+        {
+          "n": 9,
+          "authors": "Faghih, Shoari Nejad, Timoney",
+          "year": 2024,
+          "title": "Modelling note's pitch and duration in trained professional singers",
+          "id": "DOI:10.1186/s13636-024-00380-4",
+          "url": "https://doi.org/10.1186/s13636-024-00380-4",
+          "finding": "Bayesian hierarchical model over the Annotated-VocalSet corpus — 2688 solo files from 20 professional singers (11 male, 9 female, ~7 h, scales, arpeggios, long tones, and 'Row Row Row Your Boat' / 'Dona Nobis Pacem' / 'Caro Mio Ben' sung to a metronome and reference pitch). The average 80% posterior prediction interval was 0.8977 semitones wide for pitch deviation (≈ ±45 cents about the modelled mean) and 0.5698 s wide for duration deviation (≈ ±0.285 s). Named effects: a note's second or later appearance in a piece is sung 11.58 cents FLATTER (95% CrI -16.79 to -6.32 cents); a rest BEFORE a note shifts its pitch 13.56 cents versus only 4.99 cents for a rest after; straight tone deviates -6.25 cents versus molto vibrato -14.82 cents, i.e. straight tone is 8.6 cents more accurate; pitch effect grows 0.61 cents per MIDI number, so ~24 cents at E2 and ~49 cents at G#5; a two-octave interval shifts duration by -12 ms (to next note) and +36 ms (from previous).",
+          "implication": "These are the tolerance bands a practice tool must ship with: professionals themselves occupy a ~90-cent-wide pitch window and a ~0.57-s-wide duration window against the score, the window is context-dependent (rest-before, repeat, register, technique), and a fixed ±20-cent / ±50-ms grader would fail the reference population it is supposed to model."
+        },
+        {
+          "n": 10,
+          "authors": "Dreamtonics",
+          "year": 2024,
+          "title": "Synthesizer V Studio User Manual — Note Properties Panel / Parameter Panel",
+          "id": "https://sv1.docs.dreamtonics.com/en/synthv/advanced-usage/note-properties",
+          "url": "https://sv1.docs.dreamtonics.com/en/synthv/advanced-usage/note-properties",
+          "finding": "The shipping commercial neural SVS exposes exactly the parametric surface this lane is about, but only in Manual pitch mode. Vibrato: Start 0-1 s (default 0.25 s onset delay), left/right fade 0.02-0.5 s (default 0.2 s), Depth 0-2 semitones peak-to-peak (default 1 semitone = ±50 cents), Freq 1-10 Hz (default 5.5 Hz), Phase -1..+1, Jitter 0-2. Pitch Transition (portamento): Offset ±0.5 s, Duration Left 0-0.5 s (default 0.1 s), Duration Right 0-0.5 s (default 0.07 s), Depth Left/Right ±6 semitones (default 0.15 st). Note Offset ±0.1 s for rubato against the grid. Parameter Panel adds Pitch Deviation ±1200 cents, Vibrato Envelope 0x-2x (default 1x), Loudness -inf to +24 dB, Tension -2..+2, Breathiness -2..+2, Voicing (max = normal, lower = whisper), Gender ±2, Tone Shift ±800 cents, Vocal Mode 0-150%. In the DEFAULT AI 'Sing' mode the entire vibrato surface collapses to one knob, Vibrato Modulation 0.00-2.00 (default 1.00), and switching Manual mode on moves the AI-generated pitch curve out into Pitch Deviation.",
+          "implication": "This is the reference control surface to copy — its defaults (5.5 Hz, ±50 cents, 0.25 s vibrato delay, 100/70 ms portamento) sit just inside Prame's measured 6.0 Hz and ±71 cents — but note the architecture: the neural pitch model and the parametric surface are mutually exclusive modes, so a score-locked pipeline gets either learned expression OR numeric control of it, never both at once."
+        },
+        {
+          "n": 11,
+          "authors": "OpenVPI / stakira (OpenUtau)",
+          "year": 2024,
+          "title": "DiffSinger v2.3.0 release notes (new voicing and tension parameters) + OpenUtau DiffSinger support wiki",
+          "id": "github:openvpi/DiffSinger",
+          "url": "https://github.com/openvpi/DiffSinger/releases/tag/v2.3.0",
+          "finding": "The open-source variance-model line names its control surface explicitly. v2.3.0 (11 March 2024) added VOICING, defined as the RMS curve of the harmonic part in dB (successor to the deprecated energy parameter, allowing harmonic power to be raised or lowered in vowels and voiced consonants), and TENSION, tied to the ratio of the base harmonic to full harmonics. Both must be switched on in the model config (`use_voicing_embed: true`, `use_tension_embed: true`) and require the variance model to have been TRAINED with them — they cannot be added to an existing voicebank. The OpenUtau host surfaces these as drawable curves: PITD (pitch), DYN (dynamics), GENC (gender/formant, ±12 semitones over a -100..+100 curve), VELC (vowel head/tail speed, +100 doubles it), ENE, BREC (breathiness), TENC (tension), VOIC (voicing), PEXP (pitch expressiveness, default 100 = maximum), SHFC (tone shift), plus Voice Color. Notably absent from the whole list: any vibrato rate or vibrato extent parameter — vibrato lives inside PITD/PEXP as pitch-curve content.",
+          "implication": "The open route gives real per-frame control of TIMBRE and DYNAMICS (voicing in dB, tension, breathiness) but hands you vibrato only as raw pitch-curve drawing or as a single 0-100 'expressiveness' dial, so honouring a MIDI line with specified vibrato means synthesising the F0 contour yourself and feeding it as PITD with PEXP turned down."
+        },
+        {
+          "n": 12,
+          "authors": "Ryu, Shin, Kim",
+          "year": 2025,
+          "title": "Controllable Singing Voice Synthesis using Phoneme-Level Energy Sequence",
+          "id": "arXiv:2509.07038",
+          "url": "https://arxiv.org/abs/2509.07038",
+          "finding": "The authors state that recent SVS systems reach high audio quality but 'most rely on probabilistic modeling, limiting precise control over attributes such as dynamics', and position their phoneme-level energy conditioning as 'the first attempt enabling user-driven dynamics control in SVS'. Conditioning on a phoneme-level energy sequence (rather than requiring frame-level annotation) cut mean absolute error on the realised energy sequence by over 50% against both the baseline and an energy-predictor model, with no degradation in synthesis quality.",
+          "implication": "As of late 2025 dynamics — the single most basic expressive axis after pitch — was still a research problem in neural SVS rather than a shipped input, which is the strongest available evidence that a score-locked pipeline needing crescendo/diminuendo control has to either use a system with an explicit energy/voicing input (DiffSinger variance, Synthesizer V Loudness) or post-process."
+        },
+        {
+          "n": 13,
+          "authors": "Zhang, Jiang, Li, Pan, He, Huang, Wang, Zhao",
+          "year": 2025,
+          "title": "TCSinger: Zero-Shot Singing Voice Synthesis with Style Transfer and Multi-Level Style Control",
+          "id": "arXiv:2409.15977",
+          "url": "https://arxiv.org/abs/2409.15977",
+          "finding": "State-of-the-art multi-level style control exposes exactly six singing techniques — mixed voice, falsetto, breathy, vibrato, glissando, pharyngeal — as CATEGORICAL phoneme-level labels; the system does NOT accept a numeric vibrato rate or extent. Trained on ~294 h (GTSinger 36 h / 5 singers, M4Singer 30 h, OpenSinger 85 h, AISHELL-3 85 h speech, PopBuTFy subset 18 h) with 40 unseen singers held out. Technique-control accuracy reached 76.1%, singing-method accuracy 76.1%, emotion 79.9%; MOS-Q 4.05 ± 0.10 and MOS-C (controllability) 4.18 ± 0.08. The underlying GTSinger corpus (Zhang et al., NeurIPS 2024 Spotlight, arXiv:2409.13832) supplies 80.59 h from 20 professional singers in nine languages with phoneme-level annotation of those same six techniques.",
+          "implication": "A negative result for a MIDI-honouring engine: the best open technique control is a boolean 'vibrato here' tag that lands correctly about three times in four, so a score that specifies 5.8 Hz at ±60 cents from bar 12 beat 3 cannot be expressed to these models at all — technique labels are a style hint, not a control surface."
+        },
+        {
+          "n": 14,
+          "authors": "Choi, Byun, Lee",
+          "year": 2026,
+          "title": "Vibrato Expression Control for Singing Voice Conversion with Improving Independent Control (VibE-SVC2)",
+          "id": "arXiv:2606.17126",
+          "url": "https://arxiv.org/abs/2606.17126",
+          "finding": "Accepted to IEEE Trans. Audio, Speech and Language Processing; submitted 15 June 2026. The system adds independent vibrato RATE control on top of the previous VibE-SVC, which the authors note was 'limited to vibrato extent scaling'. Both controls are dimensionless SCALERS, not acoustic units: extent alpha usable to about 0.0-3.0 (style accuracy degrades beyond ~3.0), rate beta usable 0.1-2.0 (beyond 2.0 the result is 'mechanical vibration rather than a musical expression'), against a stated typical singing vibrato range of 3-9 Hz. An Energy Style Converter is required because conventional conversion 'fails to explicitly decouple' pitch-energy entanglement, leaking residual style into the target speaker representation. Measured: average pitch-style accuracy 0.736 (vibrato-to-straight 0.725, straight-to-vibrato 0.747), zero-shot 0.614, nMOS 4.000 ± 0.077, sMOS 2.932 ± 0.069, SECS 0.785.",
+          "implication": "Even the 2026 state of the art in independent vibrato control multiplies an existing vibrato rather than specifying one — there is still no inference-time input of the form 'rate = 5.8 Hz, extent = ±60 cents', so any pipeline that must honour a notated vibrato has to generate the F0 contour parametrically (per finding 10/11) and use the neural model only as a timbre renderer."
+        }
+      ],
+      "licence_notes": "GTSinger — the corpus behind TCSinger/TCSinger 2 and the main open source of phoneme-level technique annotation — is released under CC BY-NC-SA 4.0 (verified in the repository's dataset_license.md: NonCommercial and ShareAlike). That is a hard commercial blocker: it forbids commercial use AND forces derivative works under the same terms, so any model whose weights were trained on GTSinger is unusable in a paid product regardless of the code licence. The code around it is permissive but does not cure the data: AaronZ345/TCSinger2 is MIT, openvpi/DiffSinger is Apache-2.0, nnsvs/nnsvs is MIT, stakira/OpenUtau is MIT (LICENSE.txt), MoonInTheRiver/DiffSinger is MIT. Individual DiffSinger/OpenUtau VOICEBANKS and checkpoints are distributed under their own separate voice-provider terms, which are frequently non-commercial and must be read per bank — the Apache-2.0 on the engine says nothing about them. Synthesizer V Studio (Dreamtonics) is proprietary paid commercial software and its voice databases are separately licensed products; its user manual is usable as a design reference but the product itself cannot be embedded. The M4Singer, OpenSinger and PopBuTFy corpora used in TCSinger's 294 h training mix were NOT licence-verified in this lane — treat as unknown, not as permissive.",
+      "gaps": "I could not find a measured DISTRIBUTION of vibrato onset delay (seconds from note onset to first vibrato cycle) over a sizeable cohort of trained singers — Bell & Dobrovolsky characterise onset shape on only five male voices, and Synthesizer V's 0.25 s default appears to be an engineering choice with no cited measurement behind it; genre comparisons (lieder vs opera) are described qualitatively in the literature but I found no resolvable source with the numbers. I could not find any singing-voice-synthesis system, open or commercial-neural, that accepts an ABSOLUTE vibrato specification (rate in Hz plus extent in cents) as an inference-time input — every system located either predicts those internally (Song et al. 2022, arXiv:2211.00996, which models likeliness/rate/depth/phase but exposes none), exposes a relative scaler (VibE-SVC2, Synthesizer V's Sing mode), or exposes only a categorical technique label (TCSinger, TechSinger); the only true numeric surface found is Synthesizer V's Manual mode, which bypasses the neural pitch model entirely. Finally, I could not obtain measured lead/lag values in milliseconds for vowel-onset-versus-beat alignment: Sundberg & Bauer-Huppmann, 'When Does a Sung Tone Start?', J. Voice 21(3):285-293, DOI 10.1016/j.jvoice.2006.01.003, establishes that accompanists synchronise to the singer's VOWEL onset rather than the consonant and that lead/lag scales with tempo, but the numbers are behind a paywall and no citing open-access source reproduced them — so the rubato-against-a-fixed-grid axis in this lane rests on Faghih et al.'s ±0.285 s duration band and Synthesizer V's ±0.1 s Note Offset rather than on a direct measurement of singer-versus-beat asynchrony."
+    },
+    {
+      "laneSlug": "singing-assessment",
+      "title": "Automatic singing assessment & practice feedback",
+      "findings": [
+        {
+          "n": 1,
+          "authors": "Molina, Barbancho, Tardon, Barbancho",
+          "year": 2014,
+          "title": "Evaluation Framework for Automatic Singing Transcription",
+          "id": "ISMIR 2014, pp. 567-572 (no DOI; ISMIR archive)",
+          "url": "https://archives.ismir.net/ismir2014/paper/000298.pdf",
+          "finding": "Defines the note-level tolerances the MIR field actually uses, taken from MIREX: a transcribed note has a CORRECT ONSET if it lands within +/-50 ms of the ground-truth onset; CORRECT PITCH if within +/-0.5 semitone (+/-50 cents); CORRECT OFFSET if within max(50 ms, 20% of the ground-truth note duration). Correctness is reported at three strictness levels (COnPOff = onset+pitch+offset, COnP = onset+pitch, COn = onset only) plus named error classes: Only-Bad-Onset, Only-Bad-Pitch, Only-Bad-Offset, Split (one sung note transcribed as several), Merge, spurious, missing. Crucially, the two expert annotators (10 and 7 years of music training, annotating to agreement) were instructed that ornaments -- pitch bending at note starts and VIBRATO -- are NOT separate notes, and that PORTAMENTO between two notes does not create a third note; onsets are placed at the start of the voiced vowel, not the consonant. Corpus: 38 melodies, 1154 s total, all UNTRAINED singers -- 14 children's songs (557 s) from 8 children aged 5-11, 13 pop melodies (315 s) from 8 adult male untrained singers, 11 pop melodies (281 s) from 5 adult female untrained singers (adults from MTG-QBH). Per-note ground-truth pitch is annotated at cents resolution with an explicit per-note tuning deviation.",
+          "implication": "Adopt these exact windows as the companion's default scoring contract (+/-50 ms onset, +/-50 cents pitch, offset max(50 ms, 20%)), and copy the annotation rule as a SEGMENTATION rule: vibrato and portamento must be absorbed into the note they decorate before any cents error is computed, or a good singer's ornament is scored as a split note plus a pitch error."
+        },
+        {
+          "n": 2,
+          "authors": "Larrouy-Maestri, Leveque, Schon, Giovanni, Morsomme",
+          "year": 2013,
+          "title": "The Evaluation of Singing Voice Accuracy: A Comparison Between Subjective and Objective Methods",
+          "id": "DOI:10.1016/j.jvoice.2012.11.003",
+          "url": "https://orbi.uliege.be/bitstream/2268/137770/1/Larrouy-Maestri,%20L%C3%A9v%C3%AAque,%20Sch%C3%B6n,%20Giovanni,%20Morsomme,%20JV.pdf",
+          "finding": "166 UNTRAINED adult singers (57 men, 109 women) each sang 'Happy Birthday' a cappella; 18 experts (speech therapists specialising in voice, and musicians) rated global pitch accuracy of all 166 takes. Inter-judge agreement: median Spearman r = 0.77 (SD 0.08, p<0.01); downsampling to random subgroups showed THREE judges already give a panel mean correlating above 0.85, so large juries buy little. Mean absolute pitch-interval deviation in cents correlated with the expert panel mean at Spearman r = -0.87 (p<0.01). A three-predictor regression (interval deviation, number of tonality modulations, number of melodic contour errors) explained 81% of the variance in judges' scores (F = 232.17, p<0.001), but only two predictors carried it: interval deviation (beta = .51, t = -6.61, p<0.001) and tonality modulations (beta = -.45, t = -6.33, p<0.001). Melodic contour errors did NOT contribute (beta = .08, t = 1.89, p = .06) -- a null result the authors attribute to their rarity. A 'tonality modulation' is operationally defined as an interval error larger than 100 cents that is NOT followed by a corrective interval of at least 100 cents in the reverse direction. The interval-deviation-to-rating relationship is LOGARITHMIC: judges discriminated finely among accurate singers but barely distinguished slightly inaccurate from very inaccurate performances.",
+          "implication": "Score a take as mean absolute interval deviation in cents PLUS a count of uncorrected key drifts, and compress the display logarithmically -- a linear cents-to-score mapping over-punishes the struggling singer in exactly the range where real listeners stop discriminating, and under-resolves the range where they do."
+        },
+        {
+          "n": 3,
+          "authors": "Larrouy-Maestri, Leveque, Schon, Giovanni, Morsomme",
+          "year": 2013,
+          "title": "The Evaluation of Singing Voice Accuracy (self-evaluation sub-analysis)",
+          "id": "DOI:10.1016/j.jvoice.2012.11.003",
+          "url": "https://orbi.uliege.be/bitstream/2268/137770/1/Larrouy-Maestri,%20L%C3%A9v%C3%AAque,%20Sch%C3%B6n,%20Giovanni,%20Morsomme,%20JV.pdf",
+          "finding": "In the same 166 untrained adult singers, each singer rated their own accuracy immediately after singing. Self-evaluation correlated only r = -0.35 (p<0.01) with the objective interval-deviation measure and r = 0.35 (p<0.01) with the 18-judge panel mean -- i.e. singers account for roughly 12% of the variance in how accurate they actually were. The miscalibration runs in BOTH directions and is asymmetric by skill: 41% of the inaccurate singers (panel score < 4, N = 39) OVERestimated themselves (self-rating > 4), while 63% of the very accurate singers (panel score > 6, N = 84) UNDERvalued themselves (self-rating < 6).",
+          "implication": "The companion's number will contradict the student's self-image most of the time, and in opposite directions for the two groups it serves: expect to have to justify a low score to a confident weak singer and a high score to a self-doubting strong one, so pair every score with located evidence (which note, how many cents) rather than shipping a bare number."
+        },
+        {
+          "n": 4,
+          "authors": "Larrouy-Maestri, Pfordresher",
+          "year": 2018,
+          "title": "Pitch Perception in Music: Do Scoops Matter?",
+          "id": "DOI:10.1037/xhp0000550",
+          "url": "http://www.acsu.buffalo.edu/~pqp/pdfs/Larrouy-Maestri&Pfordresher_2018_JEPHPP.pdf",
+          "finding": "Across three experiments, 110 participants judged which of two four-tone melodies was more in tune, in a pairwise-comparison paradigm. Stimulus design was calibrated to REAL singing (scoop statistics measured from the Pfordresher & Mantell 2014 corpus): scoops -- the brief pitch transition into or out of a target note -- were synthesised into the initial or final 220 ms of a tone, just under 25% of its total duration, with magnitudes taken from human singers, e.g. 74 cents for an upward starting scoop that preserves melodic continuity versus 58 cents for a downward one; the steady-state 'asymptote' was set in tune or mistuned by +/-50 cents (a quarter tone). Result: intonation judgements were significantly shifted by the scoops alone, F(3,49) = 39.694, p<.001, partial eta-squared = .71, revealing two coexisting mechanisms -- partial statistical averaging of pitch across the whole tone (so a scoop that compensates a mistuned asymptote is PREFERRED) and evaluation of the scoop relative to surrounding melodic context. The authors note scoops are deterministic and goal-directed, not motor noise.",
+          "implication": "Frame-level cents error is the wrong metric for the first and last ~220 ms of every sung note: real singers routinely deviate 58-74 cents there, listeners integrate rather than penalise it, so score the steady-state portion (or a duration-weighted mean) and treat the transition window separately, or the companion reports a large error where a teacher hears none."
+        },
+        {
+          "n": 5,
+          "authors": "Larrouy-Maestri, Harrison, Mullensiefen",
+          "year": 2019,
+          "title": "The mistuning perception test: A new measurement instrument",
+          "id": "DOI:10.3758/s13428-019-01225-1",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6478636/",
+          "finding": "Calibration sample N = 333 listeners (227 women, 106 men), aged 18-70 (M = 24.76, SD = 7.95), 185 tested in the lab and 148 online, Gold-MSI musical-training raw scores spanning 7 to 48 (M = 24.21, SD = 10.94). Task: 2-alternative forced choice on 6-12 s excerpts of REAL pop performances (MedleyDB) in which the vocal track was pitch-shifted 10-100 cents in 5-cent steps, sharp and flat, against the unaltered instrumental backing. Measured thresholds: 95% of participant abilities fell in a pitch-shift range of 36.3 to 82.6 cents, with a MEDIAN of 55.0 cents. Musical training moves the threshold but does not abolish it: a low Gold-MSI training raw score of 10 corresponds to a 65.2-cent mistuning-perception threshold, a high raw score of 40 to a 43.2-cent threshold. Test-retest reliability r = .698 (95% CI [.544, .806]) with 30 items, falling to r = .579 with 15. Validation sample N = 66.",
+          "implication": "The +/-50-cent convention is not arbitrary -- it sits at the median human detection threshold for mistuning in real, accompanied singing -- so flagging errors far below ~40 cents reports deviations the student's own audience cannot hear; the flag threshold should arguably widen for beginners (own threshold ~65 cents) and narrow for trained users."
+        },
+        {
+          "n": 6,
+          "authors": "Larrouy-Maestri, Magis, Morsomme",
+          "year": 2014,
+          "title": "The Evaluation of Vocal Pitch Accuracy: The Case of Operatic Singing Voices",
+          "id": "DOI:10.1525/mp.2014.32.1.1",
+          "url": "https://orbi.uliege.be/bitstream/2268/160709/1/MP_Manuscript_operatic_voices.pdf",
+          "finding": "22 professional musicians (8 women, 14 men, aged 26-73) ranked 14 operatic excerpts sung by 14 different professional or semi-professional singers, using pairwise comparison in a test and a retest. Two judges (numbers 2 and 12) exceeded the chi-squared intra-judge instability threshold (12.592 at 6 df) and were excluded; the remaining 20 showed strong inter-judge reliability (no singer's rank variance exceeded the 14.067 threshold). The method point that matters for scoring: because vibrato was present (mainly on final tones), mean F0 for each note was computed over COMPLETE VIBRATO CYCLES only, and interval size in cents derived from those means -- e.g. a nominal 200-cent interval produced as 150 or 250 cents counts as a 50-cent deviation. A multiple regression on six objective parameters (pitch interval deviation, average tempo, F0 of the starting note, energy distribution, vibrato rate, vibrato extent) explained 78.8% of the variance in judges' ratings (all-interactions model 82.7%), and several significant interaction terms were JUDGE-SPECIFIC: for some judges vibrato rate and extent materially shifted their pitch-accuracy verdict, for others they did not.",
+          "implication": "For any note carrying vibrato, average F0 over whole vibrato cycles before computing cents error -- and accept that a single scalar 'pitch accuracy' number cannot reproduce expert opinion on a trained voice, because the experts themselves differ in how much vibrato quality feeds their pitch verdict."
+        },
+        {
+          "n": 7,
+          "authors": "Nakano, Goto, Hiraga",
+          "year": 2006,
+          "title": "An automatic singing skill evaluation method for unknown melodies using pitch interval accuracy and vibrato features",
+          "id": "DOI:10.21437/Interspeech.2006-474",
+          "url": "https://staff.aist.go.jp/m.goto/PAPER/INTERSPEECH2006nakano.pdf",
+          "finding": "Reference-free (no score, no target melody) good/poor classification from two feature families. Pitch interval accuracy: the F0 trajectory is low-pass filtered at 5 Hz, silent sections removed, then matched against a Gaussian comb filter on the 100-cent semitone grid with standard deviation sigma = 16 cents; the sharpness of the resulting long-term offset distribution measures how well the singer sits on ANY semitone grid, independent of key. Vibrato: detected with rate constrained to 5-8 Hz and extent to 30-150 cents, with F0 transitions wider than a 300-cent threshold excluded as note changes rather than vibrato. Data: 600 samples from 12 singers drawn from the 100-subject AIST Humming Database, each singing 50 excerpts of 25 Japanese or English RWC songs after hearing each excerpt five times; the 12 singers were selected as consistently 'good' or consistently 'poor' in a prior human rank-ordering study (Nakano, Goto & Hiraga, ICMPC 2006). Leave-one-out on the combined male-female set: 83.5% average classification rate (precision_good 87.6%, recall_good 78.0%, precision_poor 70.3%, recall_poor 89.0%). Named failure modes: a good singer with NO vibrato is misclassified as poor, and a poor singer with unstable F0 is misread as producing vibrato.",
+          "implication": "Gives concrete detector bands for the vibrato gate a practice companion needs (5-8 Hz rate, 30-150 cents extent, >300 cents = a real note change, sigma 16 cents around the grid) -- and warns that presence-of-vibrato must never earn scoring credit, because absence of vibrato in a competent singer and instability in an incompetent one are the two errors this feature family makes."
+        },
+        {
+          "n": 8,
+          "authors": "Gupta, Li, Wang",
+          "year": 2018,
+          "title": "A technical framework for automatic perceptual evaluation of singing quality (PESnQ)",
+          "id": "DOI:10.1017/ATSIP.2018.10",
+          "url": "https://smcnus.comp.nus.edu.sg/archive/pdf/2017-2018/2018_pesnq-apsipa-transactions.pdf",
+          "finding": "20 recordings, each by a DIFFERENT singer -- 10 singing ABBA's 'I Have A Dream' (2 min), 10 singing 'Edelweiss' -- spanning amateur to professional, split into 120 short utterances. 5 professional-musician judges (Western classical, contemporary, and Chinese-orchestra backgrounds) rated overall quality plus 7 named perceptual parameters (intonation, rhythm consistency, appropriate vibrato, voice quality/timbre, articulation, relative volume, pitch dynamic range) on a 1-5 Likert scale. Human ceiling: average inter-judge Pearson correlation on the overall-quality question was 0.82, with all parameter questions above 0.60. A linear combination of the judges' OWN parameter scores predicted their own overall score at Pearson 0.966 in 10-fold CV -- humans really do compose an overall verdict from parameters -- and intonation correlated 0.910 with the vibrato rating. Machine performance depended sharply on granularity: the best acoustic feature set reached only Pearson 0.59 against human ratings at UTTERANCE level, but 0.904 at SONG level via late fusion (0.725 via early fusion), both p<0.001.",
+          "implication": "A whole-take score can approach the human inter-judge ceiling, but per-phrase scores from the same features land near 0.59 -- so present phrase-level output as located EVIDENCE (this note, this many cents, this late) and reserve graded quality judgements for the whole take."
+        },
+        {
+          "n": 9,
+          "authors": "Pati, Gururani, Lerch",
+          "year": 2018,
+          "title": "Assessment of Student Music Performances Using Deep Neural Networks",
+          "id": "DOI:10.3390/app8040507",
+          "url": "https://res.mdpi.com/d_attachment/applsci/applsci-08-00507/article_deploy/applsci-08-00507.pdf",
+          "finding": "Florida Bandmasters Association all-state audition recordings, 2013-2015, alto saxophone / Bb clarinet / flute (INSTRUMENTAL wind playing, not sung -- read the transfer to singing with that caveat): 1410 Middle School (grades 7-8) and 1550 Symphonic Band (grades 11-12) technical-exercise performances, expert-graded on Musicality, Note Accuracy, Rhythmic Accuracy and Tone Quality. Best model Pearson correlations with expert ratings: Symphonic Band M 0.744 / N 0.694 / R 0.743 / T 0.649; Middle School M 0.724 / N 0.666 / R 0.630 / T 0.634 (all significant at p<=0.05), beating a hand-crafted-feature SVR baseline (e.g. Symphonic Musicality 0.612). The decisive negative result is cross-proficiency transfer: a Musicality model trained on Middle School and tested on Symphonic Band reached only R2 = 0.193, and the reverse direction R2 = -0.106; for Note Accuracy and Rhythmic Accuracy the cross-category average was R2 = -0.765 -- far WORSE than simply predicting the mean. The paper also states plainly that for this dataset 'the number of judges and the grading rubrics are not available'.",
+          "implication": "Do not ship one assessment model across skill levels: an accuracy scorer fitted on beginners actively mispredicts advanced performers and vice versa, so the companion needs proficiency-conditioned scoring or per-user calibration -- and discount any published correlation whose ground-truth rater count and rubric are undocumented."
+        },
+        {
+          "n": 10,
+          "authors": "Friberg, Sundberg",
+          "year": 1992,
+          "title": "Perception of just noticeable time displacement of a tone presented in a metrical sequence at different tempos",
+          "id": "STL-QPSR (KTH Speech, Music and Hearing) 33(4):97-108; no DOI",
+          "url": "https://www.diva-portal.org/smash/get/diva2:1246573/FULLTEXT01.pdf",
+          "finding": "30 listeners of varied musical background (almost all amateurs; one professional musician) adjusted the timing of the FOURTH tone in a six-tone metrical sequence until they heard the sequence as perfectly regular, at constant inter-onset intervals varied from 100 ms to 1000 ms. The average just-noticeable time displacement was about 10 ms for tones shorter than about 240 ms, and about 5% of the duration for longer tones. Subjects' musical training did not appear to affect these values. (The companion study Friberg & Sundberg 1995, J. Acoust. Soc. Am. 98(5):2524-2531, DOI:10.1121/1.413218, is widely cited for a smaller 6 ms / 2.5% figure under a different discrimination paradigm; that paper was NOT read primary in this wave and its numbers are not asserted here.)",
+          "implication": "Sets the honest floor for rhythm feedback: at a 600 ms beat (100 bpm) a listener needs roughly 30 ms of displacement to hear lateness at all, so the standard +/-50 ms MIR onset window is already MORE forgiving than a human ear at moderate tempo and much more forgiving at fast tempo -- a fixed 50 ms window under-reports rushing in slow ballads and over-reports it in fast passages; scale as max(10 ms, 5% of the notated duration)."
+        },
+        {
+          "n": 11,
+          "authors": "Berglin, Pfordresher, Demorest",
+          "year": 2022,
+          "title": "The effect of visual and auditory feedback on adult poor-pitch remediation",
+          "id": "DOI:10.1177/03057356211026730",
+          "url": "https://ubwp.buffalo.edu/apal-pfordresher/wp-content/uploads/sites/79/2022/01/Berglin_Pfordresher_Demorest_PoM_inpress.pdf",
+          "finding": "Randomised pretest-posttest control-group design. N = 84 recruited (University at Buffalo n=56, Northwestern n=28), 75 retained after inclusion criteria (which required a pitch-discrimination threshold below 100 cents); adults, M age 21.75 (SD 8.02, range 18-70), 84% with no instrumental training and 94% with no singing training. Random assignment to 20 minutes of: visual feedback with auditory doubling (n=25; an iPad app drawing the singer's f0 line against the target), auditory-only feedback (n=23), or an active control imitating foreign-language speech (n=27). Outcome measure: the Seattle Singing Accuracy Protocol, with a sung note counted as an error when it deviated more than 50 CENTS from target. All three groups improved from pre to post. Only the visual group's percent improvement differed from zero, t(24) = 2.55, p = .009; visual vs control was significant, t(46) = 1.8, p = .039, d = 0.49; auditory vs control was NOT, p = .14, d = 0.29. Critically, the one-factor ANOVA across all three conditions was NOT significant and indicated a small effect size. Restricting to participants making at least 20% errors at pretest: visual vs control t(37) = 1.75, p = .044, d = 0.54; auditory improved from zero (p = .041) but still not above control (p = .170, d = 0.36).",
+          "implication": "Twenty minutes of a real-time pitch line buys about half a standard deviation for adults who start out inaccurate, and nothing detectable for those who do not -- so gate the visual display on measured pretest error rather than showing it to everyone, and do not over-claim: the omnibus test in the best-controlled study of this question was null."
+        },
+        {
+          "n": 12,
+          "authors": "Paney, Tharp",
+          "year": 2019,
+          "title": "The effect of concurrent visual feedback on adult singing accuracy",
+          "id": "DOI:10.1177/0305735619854534",
+          "url": "https://doi.org/10.1177/0305735619854534",
+          "finding": "NULL RESULT over a realistic training horizon. University students NOT majoring in music (adult non-musicians) were randomly assigned to two groups and played the computer game SingingCoach for 10 weeks; the treatment group received concurrent visual feedback on singing accuracy, the control group received none. Both groups improved their pitch-accuracy scores significantly over the 10 weeks, but the treatment group did NOT score significantly higher than the control group. Participants' ratings of their own singing rose significantly in both groups. The authors' own conclusion is that singing MORE OFTEN is what helped, with concurrent feedback adding no detectable increment. CAVEAT ON N: the group sizes are not stated in the publicly accessible abstract and the full text is paywalled, so the participant count could not be verified in this wave. Zhang 2026 (DOI:10.3389/fpsyg.2026.1920074) characterises this literature as showing that a group given 10 weeks of concurrent visual feedback performed better during training but converged with controls on a retention test after feedback removal -- classic guidance dependency.",
+          "implication": "Over 10 weeks the dose that mattered was time-on-task, not the pitch display -- so make sessions-completed the companion's primary success metric, and make any continuous on-screen pitch line fadeable or withdrawn on retention trials, because a feature that only improves performance while it is visible has not taught anything."
+        },
+        {
+          "n": 13,
+          "authors": "Zhang",
+          "year": 2026,
+          "title": "Acoustic spectral feedback in vocal learning: a systematic review of psychological mechanisms and skill outcomes",
+          "id": "DOI:10.3389/fpsyg.2026.1920074",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC13537971/",
+          "finding": "Systematic review (OSF-registered, osf.io/qgwxk; CC BY 4.0) of 36 peer-reviewed studies, approximately 2,850 participants in total, individual study N ranging from 1 to 334 with a MEDIAN of only 48; populations span singing learners, music-major vocal students, and beginner-to-professional singers, plus 14 instrumental studies included where the psychological mechanism transfers. The review reports NO pooled effect sizes -- heterogeneity forced narrative synthesis rather than meta-analysis, which is itself the honest state of this evidence base. Two findings a builder must carry: (a) an explicit cognitive-load versus guidance-dependency trade-off, in which real-time spectral displays impose extraneous cognitive load because learners must process both the phonatory action and the constantly changing visual information on screen, with beginners most at risk of overload; (b) a null transfer result -- although one included study's experimental group scored significantly higher on metacognition, F(1,78) = 5.10, p = 0.03, partial eta-squared = 0.06, that metacognitive improvement did NOT significantly predict improvement in singing performance, t = 0.23, p = 0.82. One instrumental study reported performance self-efficacy at d = 0.58.",
+          "implication": "Design the display for the load budget rather than for information density: show one thing at a time during phonation and move everything else to post-take review -- and do not treat a student who has become better at TALKING about their pitch as one who has become better at singing it, because that transfer measures at essentially zero."
+        },
+        {
+          "n": 14,
+          "authors": "Kluger, DeNisi",
+          "year": 1996,
+          "title": "The effects of feedback interventions on performance: A historical review, a meta-analysis, and a preliminary feedback intervention theory",
+          "id": "DOI:10.1037/0033-2909.119.2.254",
+          "url": "https://mrbartonmaths.com/resourcesnew/8.%20Research/Marking%20and%20Feedback/The%20effects%20of%20feedback%20interventions.pdf",
+          "finding": "Meta-analysis of 607 effect sizes over 23,663 observations (domain-general across task types, NOT music-specific -- treat as a design prior, not a singing result): feedback interventions improved performance on average by d = .41, BUT over one third of feedback interventions DECREASED performance, and this could not be explained by sampling error, by feedback sign (praise vs criticism), or by existing theories. The proposed Feedback Intervention Theory attributes it to locus of attention across three hierarchically ordered levels -- task learning, task motivation, and meta-task/self processes -- with the empirical moderator result that feedback effectiveness DECREASES as attention moves up the hierarchy toward the self and away from the task.",
+          "implication": "The single most load-bearing design rule for a practice companion: keep every message pointed at the task ('bar 12 beat 3 sat 40 cents flat and entered 90 ms late') and never at the person ('your intonation is weak', skill grades, leaderboards), because self-directed feedback is the mechanism by which more than a third of feedback interventions make performance worse."
+        }
+      ],
+      "licence_notes": "Verified this wave, named exactly. BLOCKED FOR COMMERCIAL USE: (1) MELODIA Melody Extraction Vamp plug-in (Salamon & Gomez, MTG/Universitat Pompeu Fabra) -- the MTG page states verbatim 'The MELODIA 1.0 Vamp plug-in is offered free of charge for non-commercial use only' and 'MELODIA is not free software, meaning you can not redistribute it nor modify it'; commercial use requires contacting MTG. This is the f0 tracker used by the MAST singing-assessment baseline, so that baseline is not liftable as-is. (2) Essentia (github.com/MTG/essentia), which reimplements the Melodia pitch-salience algorithm, is AGPL-3.0 -- copyleft that reaches network-delivered services; a commercial practice companion would need MTG's separate commercial licence. (3) MASTmelody dataset and its baseline assessment code (github.com/barisbozkurt/MASTmelody_dataset; audio version Zenodo 10.5281/zenodo.8007358; Bozkurt, Baysal & Yuret, CMMR 2017 -- 1018 singing and 2599 piano performances of 40 melodies from conservatory entrance exams, graded pass/fail by 3 conservatory jury members with only unanimously-graded items retained, baseline cross-validation accuracy 0.74) is CC BY-NC-SA 4.0: NonCommercial, plus ShareAlike. NO LICENCE AT ALL (= all rights reserved by default, not usable): (4) github.com/chitralekha18/PESnQ_APSIPA2017, the feature-extraction code and dataset for the Gupta et al. PESnQ framework in finding 8 -- the GitHub API returns no licence; (5) github.com/biboamy/FBA-Fall19, the score-informed music-performance-assessment code from the Georgia Tech group -- no licence. SAFE FOR COMMERCIAL USE: (6) the Mistuning Perception Test implementation behind finding 5 (github.com/pmcharrison/mpt, Zenodo 10.5281/zenodo.1415363) is MIT (package DESCRIPTION: 'License: MIT + file LICENSE'); (7) CREPE pitch tracker (github.com/marl/crepe) MIT; (8) mir_eval (github.com/craffel/mir_eval) MIT -- the reference implementation of the +/-50 ms / +/-50 cents transcription metrics in finding 1, so the scoring contract itself can be built on permissively licensed code; (9) the Gupta et al. APSIPA Transactions ARTICLE is CC BY 4.0 per Cambridge/CrossRef metadata (its preprint PDF carries a stale CC BY-NC-SA 3.0 header) and the Zhang 2026 review is CC BY 4.0 -- but article licences cover text, not the unlicensed code above. NOT VERIFIED THIS WAVE: Smule DAMP (Zenodo 10.5281/zenodo.2747436), source of 4 of the 5 songs in Gupta et al.'s no-reference study -- Zenodo returned 504s and timeouts on repeated attempts and the terms could not be read; assume research-only until checked.",
+      "gaps": "Could not find any automatic SINGING assessment system validated against expert human raters on a sample of TRAINED singers larger than a few dozen: the biggest expert-validated singing sets located were 166 untrained singers with 18 judges (Larrouy-Maestri 2013) and 20 singers with 5 judges (Gupta 2018), while everything at thousands of performances (FBA, 2960 recordings) is instrumental wind playing, and the one large singing set (MAST, 1018 performances) carries only unanimous binary pass/fail labels and a non-commercial licence. Found no study at all that isolates the effect of RHYTHM or timing feedback on singing -- every intervention study located manipulated pitch feedback only -- so the millisecond tolerances in finding 10 come from psychoacoustic discrimination experiments on tone sequences (N=30 listeners) and have never, as far as this search reached, been validated as a pedagogically useful threshold for a singer; nor could any source be found stating what timing tolerance an expert singing teacher actually applies in a lesson. No pooled effect size exists for visual feedback in vocal learning: the 2026 systematic review of 36 studies explicitly declined to meta-analyse because of heterogeneity (median study N = 48), and the retention / guidance-dependency picture rests on a handful of paywalled studies. Finally, no source was found giving a measured cents or millisecond threshold at which a practice tool's feedback becomes DISCOURAGING -- the strongest evidence on that question (Kluger & DeNisi) is domain-general and thirty years old -- and two secondary summaries encountered during this wave DISAGREED about whether Wilson, Lee, Callaghan & Thorpe (2008, Journal of Interdisciplinary Music Studies 2(1&2):157-172) found that real-time visual feedback HARMED skilled singers through added cognitive load; the primary could not be retrieved, so that claim is deliberately excluded from the findings above rather than repeated."
+    },
+    {
+      "laneSlug": "singing-datasets",
+      "title": "Singing-voice datasets, provenance & licences",
+      "findings": [
+        {
+          "n": 1,
+          "authors": "Wilkins, Seetharaman, Wahl, Pardo (Northwestern University)",
+          "year": 2018,
+          "title": "VocalSet: A Singing Voice Dataset",
+          "id": "doi:10.5281/zenodo.1193957",
+          "url": "https://doi.org/10.5281/zenodo.1193957",
+          "finding": "10.1 hours, 20 professional singers (11 male, 9 female per the ISMIR paper), English, a cappella, 17 vocal techniques demonstrated on 5 vowels across scales, arpeggios, long tones and excerpts; 44.1 kHz. NO score, MIDI, or phoneme annotation of any kind - technique and singer labels only, encoded in the file naming. Exact licence: CC BY 4.0. Verified through DataCite DOI metadata for 10.5281/zenodo.1193957, whose rightsList reads 'Creative Commons Attribution 4.0' with rightsUri https://creativecommons.org/licenses/by/4.0; independently mirrored by OpenAIRE as 'CC BY'. COMMERCIAL USE: YES, attribution only. CAVEAT worth recording: zenodo.org returned HTTP 504 to every request from this rig on 2026-09-09 (web UI and REST API alike), so the record page could not be read directly; and the CC BY 4.0 notice in the footer of the ISMIR 2018 paper is the standard ISMIR PAPER licence, not the dataset licence - citing it as the dataset licence is a common conflation and is not evidence.",
+          "implication": "This is the one substantial English singing corpus the studio can train on and ship commercially, but with no score or phoneme alignment it supports timbre, technique and singer-identity work only, not score-conditioned synthesis."
+        },
+        {
+          "n": 2,
+          "authors": "Koguchi, Takamichi (University of Tokyo)",
+          "year": 2020,
+          "title": "PJS: phoneme-balanced Japanese singing voice corpus",
+          "id": "arXiv:2006.02959",
+          "url": "https://sites.google.com/site/shinnosuketakamichi/research-topics/pjs_corpus",
+          "finding": "27.20 minutes of singing plus 12.09 minutes of parallel speech on the same texts; 1 singer; Japanese; 100 short songs. 48 kHz / 24-bit WAV. Ships MIDI, MusicXML, phoneme labels, and per-song composition notes (genre, scale) - full score-plus-phoneme annotation. Exact licence: CC BY-SA 4.0, applied to ALL data in the corpus (verified by fetching the project page HTML directly; the paper repeats it and states the corpus is available for both research and commercial use, explicitly contrasting itself with the NC corpora). COMMERCIAL USE: YES, with attribution and ShareAlike. The copyright cleanliness is structural, not incidental: the first author composed all 100 melodies himself over the phoneme-balanced Voice Actress Corpus sentences, so no third-party musical work is embedded. Two honest limits: the singer is the composer, a non-professional Japanese male in his twenties, and recording was in a simple quiet room at 15 cm mic distance, not a professional studio.",
+          "implication": "The only corpus found in this lane that is simultaneously commercially licensed AND score-plus-phoneme annotated - it is the correct legal template for building our own, but at 27 minutes of one amateur Japanese voice it is a pilot corpus, not a training set."
+        },
+        {
+          "n": 3,
+          "authors": "Tamaru, Takamichi, Saito, Saruwatari",
+          "year": 2020,
+          "title": "JVS-MuSiC: Japanese multispeaker singing-voice corpus",
+          "id": "arXiv:2001.07044",
+          "url": "https://sites.google.com/site/shinnosuketakamichi/research-topics/jvs_music",
+          "finding": "THE MOST DANGEROUS ENTRY IN THIS LANE - it is widely cited as CC BY-SA 4.0 and that is false for the audio. Raw page HTML retrieved and grepped directly: the CC BY-SA 4.0 grant covers the TAGS only (singer similarity, key, tempo). The audio data and Melodyne project files are separately restricted to academic research, non-commercial research including inside commercial organisations, and personal use; redistribution is not permitted, beyond posting roughly three sample files. A paid higher-quality 48 kHz / 24-bit version is offered by contacting the maintainers, which confirms the free tier is deliberately non-commercial. Contents: 100 singers (whose speech is in the JVS corpus), 2 songs each, ~2.3 hours, Japanese, 24 kHz studio recording; the common song is the children's song Katatsumuri. No phoneme or score annotation. COMMERCIAL USE: NO. Corroborating evidence that the field gets this wrong: the expert survey table in Shi et al. (Interspeech 2024, Table 1) lists JVS-MuSiC's licence as plain 'CC'.",
+          "implication": "Blocked - and it is the exact failure mode this studio's provenance rule exists to catch, because an SPDX-style tag scraped from a citation would have passed it as permissive when the audio itself is non-commercial and non-redistributable."
+        },
+        {
+          "n": 4,
+          "authors": "Zhang, Lichao; Li, Ruiqi; Wang, Shoutong; Deng, Liqun; Liu, Jinglin; Ren, Yi; He, Jinzheng; Huang, Rongjie; Zhu, Jieming; Chen, Xiao; Zhao, Zhou (Zhejiang University / Huawei Noah's Ark Lab)",
+          "year": 2022,
+          "title": "M4Singer: A Multi-Style, Multi-Singer and Musical Score Provided Mandarin Singing Corpus",
+          "id": "github:M4Singer/M4Singer",
+          "url": "https://github.com/M4Singer/M4Singer/blob/master/dataset_license.md",
+          "finding": "29.8 hours, 20 professional singers covering all four SATB types, Mandarin, 700 Chinese pop songs. Manually composed musical scores for every recorded song plus manual phoneme alignment (coarse batch script then manual fine annotation). Exact licence, read from dataset_license.md at source: CC BY-NC-SA 4.0, with the NonCommercial term called out explicitly in the file. The agreement adds non-CC terms on top: the user must defend and indemnify the M4Singer authors against claims arising from use, must warrant authority to bind their employer, and must cite the paper. Distribution is a Google Drive link, and downloading is deemed acceptance. COMMERCIAL USE: NO.",
+          "implication": "Blocked for anything we ship; the added indemnity clause makes it worse than a bare CC BY-NC-SA, since it imports contractual liability on top of the copyright restriction."
+        },
+        {
+          "n": 5,
+          "authors": "Wang, Y.; Wang, X.; Zhu, P.; Wu, J.; et al. (NPU / NetEase Tianyin)",
+          "year": 2022,
+          "title": "Opencpop: A High-Quality Open Source Chinese Popular Song Corpus for Singing Voice Synthesis",
+          "id": "arXiv:2201.07429",
+          "url": "https://wenet-e2e.github.io/opencpop/liscense/",
+          "finding": "5.2 hours, 1 professional female singer, Mandarin, 100 songs, 44.1 kHz, with phoneme boundary annotation and note/score annotation - it is the reference Mandarin SVS corpus. Exact licence, read from the project's own licence page: CC BY-NC-ND 4.0. The ND is the decisive term and is almost universally dropped when Opencpop is cited: NoDerivatives withholds permission to distribute adapted material at all, which reaches a segmented or re-annotated redistribution of the corpus and is at minimum unresolved for a model trained on it - and it bites even for non-commercial use, where the NC term alone would not. Independently corroborated by Shi et al. (Interspeech 2024) Table 1, which lists Opencpop as CC-NC-ND. Commercial licensing is available by email to the Opencpop team (address on their licence page), and copyright stays with them. COMMERCIAL USE: NO by default.",
+          "implication": "Blocked twice over; if we ever wanted Mandarin score-conditioned data the only lawful route is negotiating a direct licence with the Opencpop team, not relying on the public terms."
+        },
+        {
+          "n": 6,
+          "authors": "Zhang, Yu; Pan, Changhao; Guo, Wenxiang; et al. (Zhejiang University)",
+          "year": 2024,
+          "title": "GTSinger: A Global Multi-Technique Singing Corpus with Realistic Music Scores for All Singing Tasks",
+          "id": "arXiv:2409.13832",
+          "url": "https://github.com/AaronZ345/GTSinger/blob/master/dataset_license.md",
+          "finding": "The best-annotated open singing corpus: 80.59 hours, 20 professional singers, 9 languages (Chinese, English, Japanese, Korean, Russian, Spanish, French, German, Italian), 1,366 songs, 48 kHz / 24-bit, plus 16.16 hours of paired speech. Annotation is manual phoneme-to-audio alignment in Praat, six technique labels (mixed voice, falsetto, breathy, pharyngeal, vibrato, glissando), global style labels (method, emotion, range, pace), and realistic MusicXML scores. Exact licence: CC BY-NC-SA 4.0, stated in the paper and in dataset_license.md. COMMERCIAL USE: NO. TWO DEFECTS FOUND AT THE DISTRIBUTION SURFACE: (a) the Hugging Face repo GTSinger/GTSinger, which is the download route named in the paper and has 20,194 downloads, declares NO licence at all - the HF API returns cardData.license null and no license: tag, so the file people actually pull is unlabelled; (b) the text of GTSinger's own dataset_license.md indemnifies 'the authors of M4Singer', i.e. it is a copy-paste of the M4Singer agreement with the dataset name left unchanged.",
+          "implication": "Blocked commercially, and a caution for our own publishing: the licence a paper states and the licence its download surface declares are different artifacts, and only the latter travels with the files."
+        },
+        {
+          "n": 7,
+          "authors": "Choi, Soonbeom; Kim, Wonil; Park, Saebyul; Yong, Sangeon; Nam, Juhan (KAIST)",
+          "year": 2020,
+          "title": "CSD: Children's Song Dataset for Singing Voice Research",
+          "id": "doi:10.5281/zenodo.4785016",
+          "url": "https://doi.org/10.5281/zenodo.4785016",
+          "finding": "100 songs (50 Korean, 50 English) sung by 1 Korean female professional pop singer, each recorded in two keys for 200 recordings, roughly 4.6 hours. Every recording is paired with a monophonic MIDI transcription whose note onsets and offsets were manually fine-tuned against the syllable, plus grapheme-level and phoneme-level lyric annotation (IPA-based romanised symbols). Exact licence: cc-by-nc-sa-4.0, and this one is machine-verified to SPDX grade - the DataCite record for the DOI carries rightsIdentifier 'cc-by-nc-sa-4.0' with rightsIdentifierScheme 'SPDX' and rightsUri pointing at the CC BY-NC-SA 4.0 legalcode. The GitHub README repeats it and states the dataset is prohibited from commercial use. COMMERCIAL USE: NO.",
+          "implication": "Blocked - which is a real loss, because its manually fine-tuned note boundaries and bilingual KO/EN pairing make it the cleanest small score-aligned corpus in the set."
+        },
+        {
+          "n": 8,
+          "authors": "Huang, Rongjie; Chen, Feiyang; Ren, Yi; Liu, Jinglin; Cui, Chenye; Zhao, Zhou (Zhejiang University)",
+          "year": 2021,
+          "title": "OpenSinger (released with Multi-Singer: Fast Multi-Singer Singing Voice Vocoder With A Large-Scale Corpus)",
+          "id": "arXiv:2112.10358",
+          "url": "https://github.com/Multi-Singer/Multi-Singer.github.io",
+          "finding": "50 hours of professional-studio Chinese pop singing, 24 kHz / 16-bit; the released set is 66 singers (30 hours from 41 females, 20 hours from 25 males) over 1,146 songs, against 93 singers described as collected in the paper - a discrepancy the release does not explain. No score, MIDI, or phoneme annotation: the Shi et al. survey marks it usable for singing voice conversion but not score-based synthesis. Exact licence as stated on the release page: CC BY-NC-SA 2.0 - note the version, 2.0 and not 4.0, which is an unusual pin for a 2021 dataset and means the older, jurisdiction-flavoured CC generation applies. Access is by application, then a Google Drive share link; downloading is deemed acceptance. COMMERCIAL USE: NO.",
+          "implication": "Blocked; and if it ever mattered, the 2.0 pin would have to be read on its own terms rather than assumed equivalent to the 4.0 text everyone actually knows."
+        },
+        {
+          "n": 9,
+          "authors": "Sharma, Bidisha; Gao, Xiaoxue; Vijayan, Karthika; Tian, Xiaohai; Li, Haizhou (NUS HLT Lab)",
+          "year": 2021,
+          "title": "NHSS: A speech and singing parallel database",
+          "id": "arXiv:2012.00337",
+          "url": "https://hltnus.github.io/NHSSDatabase/uploads/NUSLicence.pdf",
+          "finding": "100 English pop songs sung and spoken by 10 singers (5 male, 5 female), 7 hours total of which roughly 4.8 hours is sung, with manual utterance-level and word-level annotation only - no phoneme alignment, no MIDI, no score. There is NO standard licence. The full EULA PDF was retrieved and its text extracted: it is a bespoke NUS End User License Agreement (04/2020) which self-describes as an Open Source License while being the opposite of one. Terms: use requires the End User to SIGN the agreement and email the PDF to haizhou.li@nus.edu.sg before any access; the grant is internal, non-commercial, scientific-research-only, non-exclusive and non-transferable. Section 9 bans commercial use and names testing commercial systems and proving the efficiency of commercial systems as prohibited examples. Section 6 imposes a copyleft duty: any derivative work, product, service or improvement must be left freely available to other End Users and a copy of any modification submitted back to NUS. Section 7 bans redistribution without prior authorisation. Section 10 states that small portions cannot be used in any publication. Section 8 defines the research scope as testing algorithms for audio-only, video-only and audio-visual speaker localization and tracking - which has nothing to do with a speech-and-singing corpus and is a copy-paste artifact from an unrelated audio-visual EULA. COMMERCIAL USE: NO, and section 6 would additionally force publication of any model derived from it.",
+          "implication": "Blocked, and the strongest single illustration in this lane that the phrase 'Open Source License' printed on a document is not a licence identifier - it is a signature-gated, non-commercial, copyleft-on-derivatives research contract under Singapore law."
+        },
+        {
+          "n": 10,
+          "authors": "Duan, Zhiyan; Fang, Haotian; Li, Bo; Sim, Khe Chai; Wang, Ye (NUS Sound and Music Computing Lab)",
+          "year": 2013,
+          "title": "The NUS Sung and Spoken Lyrics Corpus (NUS-48E): A Quantitative Comparison of Singing and Speech",
+          "id": "doi:10.1109/APSIPA.2013.6694316",
+          "url": "https://smcnus.comp.nus.edu.sg/",
+          "finding": "NEGATIVE RESULT - the field's default English singing benchmark has NO LOCATABLE LICENCE. Contents: 48 recordings of 20 unique English songs, 12 subjects of varying accent and musical background, 169 minutes of sung plus spoken material of which roughly 1.9 hours is sung, with complete transcription and phone-level duration annotation covering 25,474 phone instances - genuinely good annotation for its era. Distribution: the SMC-NUS lab page links a bare public Google Drive folder named nus-smc-corpus_48. Probed on 2026-09-09: the link resolves HTTP 200 and the folder title renders without authentication, so the corpus IS still downloadable. What does not exist anywhere - not on the lab page, not beside the Drive link, not in the paper - is any licence, terms of use, agreement, or contact procedure. Shi et al. (Interspeech 2024) Table 1 classifies it 'Research-only', but that classification is the survey authors' inference; it appears nowhere in the distribution itself. COMMERCIAL USE: unresolved, and therefore no.",
+          "implication": "Disqualified under this studio's rule: freely downloadable is not licensed, silence is not permission, and a decade of papers training on it does not create a grant we can rely on."
+        },
+        {
+          "n": 11,
+          "authors": "Ogawa, Itsuki; Morise, Masanori (Meiji University); singer Himika Akaneya",
+          "year": 2021,
+          "title": "Tohoku Kiritan singing database: A singing database for statistical parametric singing synthesis using Japanese pop songs",
+          "id": "doi:10.1250/ast.42.140",
+          "url": "https://github.com/mmorise/kiritan_singing",
+          "finding": "NEGATIVE RESULT of a different kind - there is no licence because there is no licensor grant; the corpus rides a statutory exception. 50 J-pop songs, roughly 1 hour, 1 professional singer (Himika Akaneya, the Tohoku Kiritan voice provider), studio recorded, with manually labelled phoneme boundaries and MusicXML/MIDI score data. The songs are third-party copyrighted J-pop. The paper states outright that release was made possible by the 2019 amendment to Article 30-4 of Japan's Copyright Act, the information-analysis carve-out, which permits exploiting a work where it is not a person's purpose to personally enjoy or cause another person to enjoy what the work expresses. Access is gated: users electronically sign a letter of intent on a website (zunko.jp/kiridev/login.php) certifying use within that purpose; the audio is behind that login and only the label data sits on GitHub, which repeats that use is limited to the scope of amended Article 30-4. Shi et al. classify it 'Research-only'. COMMERCIAL USE: NO.",
+          "implication": "Blocked, and structurally unfixable for us: a Japanese TDM exception is jurisdiction-bound and does not travel with a shipped artifact, and synthesising a voice for listeners to enjoy is precisely the purpose Article 30-4 carves out of its own permission."
+        },
+        {
+          "n": 12,
+          "authors": "Shi, Lin, Bai, Zhang, Wu, Tang, Yu, Jin, Watanabe (CMU / Duke Kunshan / RUC) — and separately Gu, Wang, Zhang, Zhang, Fang, He, Wu (CUHK-Shenzhen)",
+          "year": 2025,
+          "title": "The two routes past the 50-hour ceiling: ACE-Opencpop / ACE-KiSing (synthetic) and SingNet (scraped)",
+          "id": "doi:10.21437/Interspeech.2024-33 + arXiv:2505.09325",
+          "url": "https://www.isca-archive.org/interspeech_2024/shi24_interspeech.pdf",
+          "finding": "Both large-scale escapes from the ~50-hour ceiling fail provenance, in opposite ways. (A) ACE-Opencpop 128.9 hours / 30 vocalists (Mandarin) and ACE-KiSing 32.5 hours / 34 vocalists (CN+EN), with full score and phoneme alignment, on Hugging Face as espnet/ace-opencpop-segments and espnet/kising-v2-segments. Exact licence: CC-BY-NC-4.0. But the audio is WHOLLY SYNTHETIC - rendered in ACE Studio, a commercial singing synthesiser, with manual F0, vibrato, breath and duration tuning, over the song lists of Opencpop and KiSing. The authors append their own caution that using singing voices from commercial software as SVS training data raises legal and ethical issues. The chain compounds: the source Opencpop is CC BY-NC-ND (no derivatives), and ACE Studio's virtual singers are themselves built from separately-contracted real voice providers. (B) SingNet, arXiv:2505.09325, 14 May 2025, 3,000 hours - 2,629 hours source-separated with MDX23 from in-the-wild songs sourced from online music streaming platforms, plus 321 hours from commercial sample packs. The paper carries NO licence statement, NO copyright section and NO ethics statement; only the checkpoints (Wav2vec2, BigVGAN, NSF-HiFiGAN) are described as open-sourced, not the audio; and the advertised project page singnet-dataset.github.io returned HTTP 404 on 2026-09-09. COMMERCIAL USE: NO for ACE; unresolved-and-therefore-no for SingNet.",
+          "implication": "The largest corpora in the literature are the least usable: one is a licence chain through a commercial synthesiser we have not licensed, the other is separated vocals from commercial recordings with no provenance at all."
+        },
+        {
+          "n": 13,
+          "authors": "Zhang, Yu; Pan, Changhao; Guo, Wenxiang; et al. (Zhejiang University)",
+          "year": 2024,
+          "title": "GTSinger cost disclosure — what a from-scratch annotated singing corpus actually costs",
+          "id": "arXiv:2409.13832",
+          "url": "https://arxiv.org/html/2409.13832v5",
+          "finding": "GTSinger is the rare dataset paper that discloses its actual spend, giving a hard build-cost anchor. RECORDING: professional singers hired at USD 300 per hour of audio recorded, USD 30,000 total. Conditions: professional studio, singers monitoring the song's accompaniment on headphones so vocals come out clean but rhythmically locked, 48 kHz / 24-bit WAV. ANNOTATION: experts with music and language backgrounds hired at USD 15 per hour for phoneme-level alignment correction in Praat, six-way technique labelling, global style labelling and MusicXML score composition with expert review; USD 18,000 total. TOTALS: USD 48,000 for 80.59 finished hours, about USD 596 per annotated hour, split roughly USD 372/hour recording and USD 223/hour annotation. Reading the annotation figure against the USD 15 rate implies on the order of 15 expert-hours of labour per hour of audio, i.e. roughly a 15:1 annotation-to-audio ratio, or about 15 minutes of expert work per minute of singing. Note this excludes studio hire, engineering, and the singers' own rehearsal time, so it is a floor.",
+          "implication": "A 10-hour commercially-clean corpus of our own is a ~USD 6,000 / ~150 expert-hour project at these rates - genuinely affordable at studio scale, and the only route that clears every licence problem in this lane at once."
+        },
+        {
+          "n": 14,
+          "authors": "Cotton, Holzapfel, de Vries, Berglund, Tatar",
+          "year": 2026,
+          "title": "Revising research practices for singing data collection — and the 2024-2026 voice-replica statutes",
+          "id": "doi:10.1007/s00146-026-03205-4",
+          "url": "https://link.springer.com/article/10.1007/s00146-026-03205-4",
+          "finding": "Peer-reviewed and open access (CC BY 4.0) in AI & SOCIETY, 12 July 2026. Applying the Ethically Aligned Stakeholder Elicitation (EASE) framework to three singing datasets, the authors show that singers who contribute data hold consistently lower power than the researchers who collect it: the contribution is event-centric, a one-off recording session, which structurally excludes contributors from the licensing and access decisions made afterwards, while it is contributors and not collectors who bear the harm from non-consensual downstream use such as vocal deepfakes. The statutory picture behind that argument, as of 2026-09-09: Tennessee's ELVIS Act took effect 1 July 2024, was the first US law to make voice itself a protected property right covering both actual voice and simulations of it, and critically reaches the distribution of a technology whose primary purpose is producing a particular identifiable individual's voice - a knowledge standard applies, remedies are civil plus Class A misdemeanour, and labels holding exclusive rights can sue on an artist's behalf. California AB 1836 (deceased performers' digital replicas, effective 1 January 2026) and AB 2602 (contractual consent for living performers) were signed 17 September 2024. Federally, the NO FAKES Act of 2026 (S.4591) was introduced 20 May 2026, advanced unanimously out of Senate Judiciary on 18 June 2026 and was placed on the Senate calendar on 24 June 2026; it would create a licensable federal property right in voice and likeness with a DMCA-style notice-and-takedown regime, First Amendment carve-outs for news, parody and criticism, and a non-commercial research exemption limited to nonprofit libraries, archives and accredited nonprofit educational institutions - which a commercial studio is not.",
+          "implication": "Cloning a named singer requires that singer's written, use-scoped consent, not a dataset licence: the ELVIS Act already reaches the act of distributing a model built to produce one identifiable person's voice, and NO FAKES would make that a federal right whose research exemption we do not qualify for."
+        }
+      ],
+      "licence_notes": "COMMERCIALLY USABLE — 2 of the 13 corpora examined. VocalSet (CC BY 4.0, verified in DataCite rightsList; 10.1 h English, technique-rich, but zero score or phoneme annotation) and PJS (CC BY-SA 4.0 on all data, explicitly commercial-permitted; 27 minutes of one amateur Japanese voice, but with MIDI, MusicXML and phoneme labels, and copyright-clean by construction because the author composed the songs). Note PJS's ShareAlike: derivative DATASETS inherit CC BY-SA 4.0, so a corpus we build on top of it is encumbered even though a shipped model is arguably not. NON-COMMERCIAL BY EXPLICIT LICENCE — 6: M4Singer (CC BY-NC-SA 4.0, plus an indemnity clause), GTSinger (CC BY-NC-SA 4.0), CSD (cc-by-nc-sa-4.0, SPDX-confirmed via DataCite), OpenSinger (CC BY-NC-SA 2.0 — version 2.0, not 4.0), ACE-Opencpop and ACE-KiSing (CC-BY-NC-4.0). NON-COMMERCIAL PLUS NO-DERIVATIVES — 1: Opencpop is CC BY-NC-ND 4.0, and the ND term is routinely dropped when it is cited; it withholds distribution of adapted material even for non-commercial users, which reaches re-segmented or re-annotated redistributions and is unresolved for trained models. MISLABELLED IN THE WILD — 1, and it is the most important line here: JVS-MuSiC is cited everywhere as CC BY-SA 4.0, but reading the terms page shows that grant covers the TAGS only, while the audio is academic/non-commercial/personal use with redistribution prohibited. The expert survey table in Shi et al. (Interspeech 2024) records it as 'CC', so this error is present in the literature, not just in blog posts. NO LOCATABLE LICENCE AT ALL — 3, every one disqualifying: NUS-48E ships from a bare public Google Drive folder (confirmed live, HTTP 200, no auth) with no terms stated anywhere; SingNet's 3,000 hours have no licence, no copyright section and no ethics statement, and its project page 404s; and GTSinger's Hugging Face repo — the download route the paper names, with 20,194 downloads — declares no licence in its metadata at all, even though the paper and the GitHub file both say CC BY-NC-SA 4.0. SIGNED AGREEMENT REQUIRED — 2: NHSS demands a signed EULA emailed to a named NUS professor before access, and Kiritan requires an electronic letter of intent on a login-gated site. NEITHER A LICENCE NOR A STANDARD ONE — NHSS's document calls itself an 'Open Source License' while being a signature-gated, non-commercial, copyleft-on-derivatives, no-redistribution research contract under Singapore law (its scope clause even describes audio-visual speaker localization, a copy-paste from an unrelated EULA); Kiritan has no licence and instead rides Article 30-4 of Japan's Copyright Act, a jurisdiction-bound information-analysis exception that expressly does not cover use where the purpose is for someone to enjoy the work. Two further hygiene findings: GTSinger's dataset_license.md indemnifies 'the authors of M4Singer', i.e. it was copied without editing; and the CC BY 4.0 in the ISMIR paper footer covers the PAPER, so it is not evidence of any dataset's licence. BOTTOM LINE: no open singing corpus with score and phoneme annotation at usable scale is commercially licensed. The only clean path to a shippable model line is recording our own, and GTSinger's disclosed spend prices that at roughly USD 596 per finished annotated hour (USD 300/audio-hour for professional singers, ~USD 223/audio-hour for annotation at USD 15/hour, i.e. about a 15:1 expert-hour-to-audio-hour ratio).",
+      "gaps": "Could not read zenodo.org at all — every request from this rig on 2026-09-09 returned HTTP 504 from the web UI and the REST API alike, so VocalSet's and CSD's licences were established through DataCite DOI metadata and OpenAIRE rather than the record pages themselves; DataCite gave CSD an explicit SPDX identifier but gave VocalSet only the CC BY 4.0 name and URI without a version-pinned SPDX tag, so 'CC BY 4.0' rests on the rightsUri, not on an SPDX string. Could not resolve several things I looked for specifically: whether SingNet's audio was ever released and under what terms (the project page 404s and the paper is silent, so it remains unresolved rather than confirmed-withheld); the exact licence of SingStyle111, which Shi et al. mark only as 'Restricted' and whose own terms I did not reach; whether any of the NC corpora publish a commercial-licensing fee schedule rather than just a contact address (Opencpop and JVS-MuSiC both invite enquiries, neither states terms); and whether ACE Studio's own EULA permits redistributing its rendered output as a training corpus at all, which determines whether ACE-Opencpop's CC-BY-NC-4.0 was the releasers' to grant. Finally, I found no dataset-side evidence on the singer-consent question the AI & SOCIETY paper raises — none of the thirteen corpora publish the consent form or release their singers signed, so what those singers actually agreed to is unknown from the public record in every single case."
+    },
+    {
+      "laneSlug": "singing-voice-conversion",
+      "title": "Singing voice conversion & vocal identity",
+      "findings": [
+        {
+          "n": 1,
+          "authors": "RVC-Project",
+          "year": 2026,
+          "title": "Retrieval-based-Voice-Conversion-WebUI",
+          "id": "github:RVC-Project/Retrieval-based-Voice-Conversion-WebUI",
+          "url": "https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI",
+          "finding": "MIT-licensed, not archived, last push 2026-08-04 (created 2023-03-27, 38,174 stars) — the only large-community SVC trainer still alive. Repo tagline is 'Easily train a good VC model with voice data <= 10 mins!' and the English README qualifies it as 'Training with a small amounts of data (>=10min low noise speech recommended)'. For streaming it claims 'We have achieved an end-to-end latency of 170ms. With the use of ASIO input and output devices, we have managed to achieve an end-to-end latency of 90ms.' F0 extraction defaults to RMVPE, which the README says 'Provides the best results (significantly) and is faster with lower resource consumption than Crepe_full'.",
+          "implication": "RVC is the default identity layer for a commercial product on one 5090: MIT on code and weights, ~10 min of a target singer, and sub-200 ms streaming that a practice companion can run live over a score-locked render."
+        },
+        {
+          "n": 2,
+          "authors": "RVC-Project",
+          "year": 2026,
+          "title": "Retrieval-based-Voice-Conversion (library) — documented inference parameters",
+          "id": "github:RVC-Project/Retrieval-based-Voice-Conversion",
+          "url": "https://github.com/RVC-Project/Retrieval-based-Voice-Conversion",
+          "finding": "The documented parameter contract states exactly what survives conversion and what does not: `f0_up_key` (default 0) is 'Transpose (integer, number of semitones, raise by an octave: 12, lower by an octave: -12)' — the source F0 contour is copied and shifted only by whole semitones, never re-predicted; `protect` (default 0.33) exists to 'Protect voiceless consonants and breath sounds to prevent artifacts such as tearing in electronic music'; `index_rate` (default 0.75) is 'Search feature ratio (controls accent strength, too high has artifacting)'; `rms_mix_rate` (default 0.25) 'Adjust the volume envelope scaling. Closer to 0, the more it mimicks the volume of the original vocals.'",
+          "implication": "RVC composes with a score-locked pipeline rather than replacing it — pitch and timing are passed through untouched — but the defaults ship at 25% source loudness envelope and a named consonant/breath protection knob, so breath and dynamics are the two things a singing product must explicitly dial back in."
+        },
+        {
+          "n": 3,
+          "authors": "svc-develop-team",
+          "year": 2023,
+          "title": "so-vits-svc — SoftVC VITS Singing Voice Conversion (4.1-Stable)",
+          "id": "github:svc-develop-team/so-vits-svc",
+          "url": "https://github.com/svc-develop-team/so-vits-svc",
+          "finding": "ARCHIVED by the owner on 2023-11-11 and read-only; licence is AGPL-3.0. The README states the model preserves 'the pitch and intonations of the original audio', that the vocoder was replaced with NSF HiFiGAN 'to solve the problem of sound interruption', that training clips should be '5s - 15s', and — decisively for score work — that the `-a` / `--auto_predict_f0` flag should 'not enable this when converting singing voices as it can cause serious pitch issues'. Optional clustering/feature retrieval reduces timbre leakage but 'may slightly reduce clarity'.",
+          "implication": "The archetypal SVC repo is dead and AGPL-3.0, so it is not a commercial base — but its two documented rules generalise: an F0 predictor must be switched off for singing, and a source-filter (NSF) vocoder is what stops the pitch line from breaking up."
+        },
+        {
+          "n": 4,
+          "authors": "Liu (Plachtaa)",
+          "year": 2025,
+          "title": "seed-vc: zero-shot voice conversion & singing voice conversion, with real-time support",
+          "id": "github:Plachtaa/seed-vc",
+          "url": "https://github.com/Plachtaa/seed-vc",
+          "finding": "ARCHIVED (GitHub API: archived=true, last push 2025-04-20, 3,889 stars), licence GPL-3.0. While live it was the strongest zero-shot route: clone from 1–30 s of reference with no training; the SVC checkpoint `seed-uvit-whisper-base` runs at 44,100 Hz with explicit F0 conditioning and 30–50 recommended diffusion steps; measured real-time on an RTX 3060 Laptop GPU at ~300 ms algorithm delay + ~100 ms device delay = 430 ms total with 150 ms inference per chunk; optional fine-tune needs a minimum of 1 utterance and 100 steps (~2 min on a T4). Backing paper: 'Zero-shot Voice Conversion with Diffusion Transformers', arXiv:2411.09943.",
+          "implication": "The best-documented zero-shot singing route on consumer hardware is now abandoned AND GPL-3.0 — treat its numbers as the benchmark to beat, not as a dependency, and note that even it needed explicit F0 conditioning to do singing at all."
+        },
+        {
+          "n": 5,
+          "authors": "Baas, van Niekerk & Kamper",
+          "year": 2023,
+          "title": "Voice Conversion With Just Nearest Neighbors (kNN-VC)",
+          "id": "DOI:10.21437/Interspeech.2023-419",
+          "url": "https://www.isca-archive.org/interspeech_2023/baas23_interspeech.html",
+          "finding": "Interspeech 2023, pp. 2053–2057; reference implementation github:bshall/knn-vc is MIT. The method replaces each source frame's WavLM layer-6 feature with the mean of its k nearest neighbours in the reference set, then vocodes with HiFi-GAN — a strictly frame-for-frame substitution, so source duration and phrasing are preserved exactly. The repo states the operative data law: 'The longer the cumulative duration of all reference waveforms, the better the quality will be (but the slower it will take to run). The improvement in quality diminishes beyond 5 minutes of reference speech.' Training the vocoder on pre-matched features gives the paper's best model at 6.29% WER vs 6.39% for standard HiFi-GAN.",
+          "implication": "Sets the honest floor for 'how much target audio': ~5 minutes, after which more data buys almost nothing — and because the substitution is frame-synchronous, a kNN-family converter cannot drift off a MIDI-locked timing grid."
+        },
+        {
+          "n": 6,
+          "authors": "yxlllc",
+          "year": 2026,
+          "title": "DDSP-SVC — real-time end-to-end singing voice conversion based on DDSP",
+          "id": "github:yxlllc/DDSP-SVC",
+          "url": "https://github.com/yxlllc/DDSP-SVC",
+          "finding": "MIT, not archived, last push 2026-08-12 (2,668 stars, v6.x). Data recipe is stated as clip count rather than minutes: 'The total number of the audio clips for training dataset is recommended to be about 1000' with each clip at least 2 seconds. Claims 'training time can be shortened by orders of magnitude' versus SO-VITS-SVC with hardware requirements 'significantly lower', and the real-time GUI uses 'sliding window, cross-fading, SOLA-based splicing and contextual semantic reference'. Explicitly concedes the trade: the 'original synthesis quality of DDSP is not ideal' and needs a vocoder/diffusion/rectified-flow enhancement stage to be competitive.",
+          "implication": "The one live SVC family whose core is an explicit harmonic-plus-noise source-filter model — so F0 is a first-class control input rather than something inferred — at the documented cost of needing a second enhancement stage before it sounds finished."
+        },
+        {
+          "n": 7,
+          "authors": "Huang, Violeta, Liu, Shi & Toda",
+          "year": 2023,
+          "title": "The Singing Voice Conversion Challenge 2023",
+          "id": "arXiv:2306.14422",
+          "url": "https://arxiv.org/abs/2306.14422",
+          "finding": "26 submissions (24 systems + 2 baselines). Target-singer data supplied was 11.84–12.72 minutes of singing (150–159 phrases) per target for the in-domain task, and only 4.31–6.75 minutes of SPEECH (150–161 phrases, no singing at all) for the cross-domain task. The top system reached roughly 4.0 naturalness MOS against ground truth ~4.1 — human-level — but the best similarity score was ~2.6 on the 4-point speaker-likeness scale against ground truth ~3.0, a gap no team closed. Cross-domain was harder than in-domain specifically in similarity.",
+          "implication": "Naturalness is a solved problem in SVC and identity is not: budget ~12 minutes of clean target singing as the real requirement (not 10 minutes of speech), and expect the converted voice to be judged as 'not quite that singer' even when it sounds entirely human."
+        },
+        {
+          "n": 8,
+          "authors": "Violeta, Zhang, Shi, Yasuda, Huang, Wu & Toda",
+          "year": 2025,
+          "title": "An Extensive Analysis of the Singing Voice Conversion Challenge 2025 Evaluation Results",
+          "id": "arXiv:2509.15629",
+          "url": "https://arxiv.org/abs/2509.15629",
+          "finding": "SVCC 2025 (training data released 2025-04-28, submissions due 2025-06-30) moved the target from singer identity to singing STYLE conversion: 7 teams, 26 systems evaluated (18 submissions, 6 baselines, 2 ground truth). XAB style-accuracy results name the hard cases exactly: 'difficult singing styles to model were breathy, glissando, and vibrato, achieving only 37.3%, 42.6%, and 43.9% style accuracy scores, respectively', versus the easiest — pharyngeal 44.8%, mixed voice 48.3%, falsetto 48.8%. Best-system naturalness fell back to ~3.7 MOS against ground truth ~3.9, i.e. below the human parity SVCC 2023 had reached.",
+          "implication": "Everything time-varying in a sung voice — breath noise, portamento between notes, vibrato modulation — is where SVC measurably fails, which is precisely the material a practice companion has to render correctly for the feedback to mean anything."
+        },
+        {
+          "n": 9,
+          "authors": "Chen, Gu, Cui, Zhang, Chen & Dai",
+          "year": 2024,
+          "title": "LCM-SVC: Latent Diffusion Model Based Singing Voice Conversion with Inference Acceleration via Latent Consistency Distillation",
+          "id": "arXiv:2408.12354",
+          "url": "https://arxiv.org/abs/2408.12354",
+          "finding": "Measured real-time factors on an NVIDIA A100: DiffSVC 0.166, the teacher LDM (LCM-SVC-T) 0.369, and the distilled students 0.010 at 4 steps, 0.007 at 2 steps and 0.004 at 1 step — roughly a 92x speedup over the teacher. Quality barely moves across the step counts: seen-singer NMOS 3.880±0.073 (4 steps), 3.877±0.075 (2 steps), 3.827±0.078 (1 step), with SMOS 4.119 / 4.136 / 4.125.",
+          "implication": "Diffusion SVC is not inherently too slow for interactive use — consistency distillation buys two orders of magnitude of RTF for ~0.05 MOS, so a single 5090 can plausibly run a diffusion-quality identity layer inside a practice loop rather than only offline."
+        },
+        {
+          "n": 10,
+          "authors": "Bai, Geng, Wang, Wang, Guo, Gao & Li",
+          "year": 2025,
+          "title": "HQ-SVC: Towards High-Quality Zero-Shot Singing Voice Conversion in Low-Resource Scenarios",
+          "id": "arXiv:2511.08496",
+          "url": "https://arxiv.org/abs/2511.08496",
+          "finding": "Accepted to AAAI 2026 (submitted 2025-11-11). The stated headline in the official repo (github:ShawnPi233/HQ-SVC) is 'Low-resource training (single consumer-grade GPU, <80h data)'. The abstract's diagnosis is architectural rather than about data volume: 'Existing methods model speaker timbre and vocal content separately, losing essential acoustic information that degrades output quality while requiring significant computational resources.' HQ-SVC instead extracts content and speaker features jointly through a decoupled codec, then models pitch and volume explicitly to preserve 'critical acoustic information typically lost in separate modeling approaches'.",
+          "implication": "The most current peer-reviewed result says the standard disentangle-then-recombine design is itself the quality ceiling, and that a whole zero-shot SVC system is now trainable on one consumer GPU with under 80 hours — a 5090 is inside the training envelope, not just the inference one."
+        },
+        {
+          "n": 11,
+          "authors": "Project Beatrice / fierce-cats",
+          "year": 2025,
+          "title": "beatrice-trainer (Beatrice 2, v2.0.0-rc.0)",
+          "id": "hf:fierce-cats/beatrice-trainer",
+          "url": "https://huggingface.co/fierce-cats/beatrice-trainer",
+          "finding": "Released 2025-08-31. The card states in Japanese that 'the source code and trained models in this repository are released under the MIT License' — MIT covers the pretrained weights, not just the code. Training completes in about 40 minutes on a GeForce RTX 4090 and consumes about 9 GB of VRAM at default settings. Inference is CPU-viable: RTF < 0.2 single-threaded on an Intel Core i7-1165G7, with about 50 ms of latency measured through external recording equipment. It is one of only two model families still supported in w-okada/voice-changer v2 (the other being RVC); so-vits-svc, DDSP-SVC and MMVC were v1-only.",
+          "implication": "The cheapest commercially clean identity layer measured anywhere in this lane: 40 GPU-minutes and 9 GB to train a voice, then real-time on CPU alone — which frees the entire 5090 for the score-locked synthesis stage upstream."
+        },
+        {
+          "n": 12,
+          "authors": "Zhang, Zhang, Wang, Wang, Chen, Jia, Chen & Wu",
+          "year": 2025,
+          "title": "Vevo2: A Unified and Controllable Framework for Speech and Singing Voice Generation",
+          "id": "arXiv:2508.16332",
+          "url": "https://arxiv.org/abs/2508.16332",
+          "finding": "Submitted 2025-08-22, revised 2026-03-05, accepted to IEEE/ACM TASLP 2026; shipped inside the Amphion toolkit (github:open-mmlab/Amphion, MIT, last push 2026-03-25). It separates a prosody/melody tokenizer (VQ-VAE, 512 vocabulary, 6.25 Hz) from a content-style tokenizer (16,384 vocabulary, 12.5 Hz) with timbre disentanglement, and a flow-matching acoustic stage 'that allows for timbre control'. Crucially it names 'style-preserved voice conversion' and 'style-converted voice conversion' as two distinct supported tasks, plus humming-to-singing and instrument-to-singing. Trained on Emilia-101k (~101,000 h speech) + SingNet-7k (~7,000 h singing). LICENCE TRAP: the Amphion code is MIT, but the Vevo2 checkpoints at hf:RMSnow/Vevo2 are CC-BY-NC-ND-4.0 — non-commercial AND no-derivatives, so even fine-tuning them is out.",
+          "implication": "The state of the art now treats 'keep the performance, change the voice' and 'change the performance too' as separate switches — exactly the distinction a score-locked product needs — but the only released weights that do it cannot be used or adapted commercially."
+        },
+        {
+          "n": 13,
+          "authors": "Liu & Akama",
+          "year": 2026,
+          "title": "Self-supervised restoration of singing voice degraded by pitch shifting using shallow diffusion",
+          "id": "arXiv:2601.10345",
+          "url": "https://arxiv.org/abs/2601.10345",
+          "finding": "Submitted 2026-01-15 (CC-BY-SA 4.0). Frames conventional pitch shifting as a degradation to be repaired rather than a transform, on the grounds that it carries 'well known trade offs such as formant shifts and robotic coloration that becomes more severe at larger transposition jumps'. The fix is a lightweight mel-domain diffusion model conditioned on F0, volume and content features, with training pairs made self-supervised by applying a pitch shift and reversing it so the untouched original is the reference; it 'substantially reduces pitch shift artifacts compared to representative classical baselines' on both statistical and pairwise acoustic measures (no numeric values given in the abstract).",
+          "implication": "Confirms that transposing a performance to fit a target singer's range is a per-semitone quality tax, not a free operation — so a practice companion should re-render the line at the target pitch from the score wherever it can, and reserve transposition for small intervals."
+        },
+        {
+          "n": 14,
+          "authors": "Choi, Byun & Lee",
+          "year": 2026,
+          "title": "Vibrato Expression Control for Singing Voice Conversion with Improving Independent Control (VibE-SVC2)",
+          "id": "arXiv:2606.17126",
+          "url": "https://arxiv.org/abs/2606.17126",
+          "finding": "Submitted 2026-06-15, accepted to IEEE TASLP. Names two concrete breakages in singing style conversion and fixes each: pitch–energy entanglement (addressed with an 'Energy Style Converter'), and F0 extraction collapse on non-modal phonation — 'Addressing specific styles such as vocal fry poses a challenge, as conventional F0 extraction often fails due to their inherent subharmonic characteristics', handled by a Subharmonic Correction algorithm on the F0 contour. It also adds vibrato rate scaling for independent control of vibrato extent, a capability absent from its own predecessor.",
+          "implication": "The F0 tracker, not the converter, is the first thing that fails on real singing — any score-locked pipeline that trusts an extracted F0 contour must detect subharmonic/fry regions or it will silently mis-transcribe the very passages a singer most needs feedback on."
+        }
+      ],
+      "licence_notes": "BLOCKED OR ENCUMBERED FOR COMMERCIAL USE: (1) hf:RMSnow/Vevo2 — the Vevo2 pretrained checkpoints are CC-BY-NC-ND-4.0, i.e. NonCommercial AND NoDerivatives, so they cannot be shipped commercially and cannot legally be fine-tuned, even though the surrounding Amphion toolkit (github:open-mmlab/Amphion) is MIT. (2) github:svc-develop-team/so-vits-svc — AGPL-3.0, network-copyleft, and archived read-only since 2023-11-11. (3) github:Plachtaa/seed-vc — GPL-3.0 (copyleft, not a permissive base) and archived, last push 2025-04-20. (4) github:thuhcsi/NeuCoSVC — NO LICENCE FILE AT ALL (GitHub API returns license: null; last code push 2024-05-22), which under default copyright means all rights reserved: unusable commercially despite being public. (5) Beatrice needs care because the name covers two different artefacts — hf:fierce-cats/beatrice-trainer (Beatrice 2) states MIT for source code AND trained models, but the earlier 'Beatrice JVS Corpus Edition' distributed via w-okada/voice-changer is flagged in that repo's README as 'NOT MIT License'; verify which artefact is in hand before shipping. CLEAN PERMISSIVE (verified MIT, code and weights, actively maintained): github:RVC-Project/Retrieval-based-Voice-Conversion-WebUI, github:yxlllc/DDSP-SVC, github:bshall/knn-vc, github:open-mmlab/Amphion (code only). Separately, licences say nothing about the vocal-identity consent question: RVC, so-vits-svc and Beatrice all attach terms-of-use text making the user responsible for the rights to any voice they train on.",
+      "gaps": "I could not find any published real-time-factor or VRAM measurement for singing voice conversion on an RTX 5090, or on any RTX 40/50-series card — every hard RTF number in this lane is measured on an A100 (LCM-SVC), an RTX 3060 Laptop (Seed-VC), or a CPU (Beatrice, RT-VC), so 5090 throughput for a score-locked pipeline has to be measured locally rather than cited. I also could not find a controlled study that sweeps target-singer training minutes against conversion quality for SINGING specifically: the three numbers available are a repo recommendation (RVC, >=10 min speech), a repo observation on speech references (kNN-VC, plateau beyond 5 min), and a challenge's fixed allocation (SVCC 2023, ~12 min singing / ~5 min speech) — none of them is a measured curve, and none isolates how much of that budget must be singing rather than speech. Finally, two recent systems publish claims I could not verify with numbers: R2-SVC (arXiv:2510.20677, Zheng et al., 2025-10-23) claims state-of-the-art results under clean and noisy conditions via F0 perturbation and music-separation-artifact simulation but reports no figures in its abstract and names no code release or licence; and HQ-SVC's '<80h data, single consumer-grade GPU' claim appears only as a repo bullet, with no GPU model, VRAM figure, wall-clock training time, or baseline comparison table retrievable from the repo or abstract."
+    }
+  ]
+}

@@ -1,0 +1,279 @@
+{
+  "laneSlug": "lighting-camera",
+  "title": "Lighting & camera rigs",
+  "recipes": [
+    {
+      "slug": "light-types-eevee-next-energy",
+      "name": "Light object types and energy units in EEVEE Next (4.2+)",
+      "what": "The four light types (POINT, SUN, SPOT, AREA) and their energy units changed subtly between old EEVEE and EEVEE Next. Understanding units is critical for consistent brightness across orbit angles.",
+      "how": "Create lights via bpy: ```python\nimport bpy, math # Point / Spot / Area: energy in Watts\nlight_data = bpy.data.lights.new(name='Key', type='AREA')\nlight_data.energy = 800 # Watts; visible change circa 400-1200 for sprite scale\nlight_data.size = 2.0 # metres, controls softness\nlight_data.shape = 'RECTANGLE' # 'SQUARE' | 'RECTANGLE' | 'DISK' | 'ELLIPSE'\nlight_data.size_y = 1.0 # only used when shape='RECTANGLE' # Sun: energy in W/m² (irradiance); 2-6 W/m² looks like outdoor sun\nsun_data = bpy.data.lights.new(name='Ambient', type='SUN')\nsun_data.energy = 3.0 # W/m²\nsun_data.angle = math.radians(5) # angular diameter; larger = softer shadow # Spot: energy Watts + cone angles\nspot_data = bpy.data.lights.new(name='Rim', type='SPOT')\nspot_data.energy = 500\nspot_data.spot_size = math.radians(45) # outer cone\nspot_data.spot_blend = 0.15 # softness of cone edge # Attach to scene\nlight_obj = bpy.data.objects.new('Key', light_data)\nbpy.context.scene.collection.objects.link(light_obj)\n``` In EEVEE Next (Blender 4.2+), light visibility is computed via Shadow Map Ray Tracing; the old per-light `use_shadow` boolean is gone — shadows are always computed for all lights unless you set the object's `hide_render = True` or use Light Linking.",
+      "blender_version": "4.2+",
+      "gotchas": [
+        "In Blender 4.1 and earlier the engine string is 'BLENDER_EEVEE'; in 4.2+ it must be 'BLENDER_EEVEE_NEXT' — using the wrong string silently falls back to Cycles or errors.",
+        "Sun energy unit is W/m², not Watts. A Sun at 800 W is massively overexposed; use 2–6 for daylight.",
+        "Area light 'size' only sets X dimension when shape='RECTANGLE'; also set size_y.",
+        "Contact shadows were removed in EEVEE Next; the property scene.eevee.use_soft_shadows and scene.eevee.shadow_cube_size / shadow_cascade_size are deprecated and ignored in 4.2+."
+      ],
+      "studio_use": "For the turnaround pipeline use an AREA key (key light), a SUN fill (low energy ~1.0 W/m²), and a SPOT rim. Parent all three to the camera orbit pivot (see camera-orbit-pivot recipe) so they co-rotate with each compass direction.",
+      "currency": "solid",
+      "verify_note": "Confirmed from irendering.net/blender-4-2-explore-whats-new-in-eevee-next/ (shadow map ray tracing, contact shadows removed) and PSHuman bpy_render.py real-world script showing energy values and light type usage.",
+      "sources": [
+        {
+          "title": "Blender 4.2: Explore what's new in Eevee Next",
+          "url": "https://irendering.net/blender-4-2-explore-whats-new-in-eevee-next/",
+          "claim": "Contact shadows removed, shadow map ray tracing replaces manual shadow jitter, light limit raised to 4096."
+        },
+        {
+          "title": "PSHuman blender_render_human_ortho.py (HuggingFace)",
+          "url": "https://huggingface.co/spaces/gradiopro/PSHuman/blob/main/blender/blender_render_human_ortho.py",
+          "claim": "Real production headless bpy script using SUN lights at energy 3.0 / 5.0 with disable-shadow fallback, BLENDER_EEVEE render engine."
+        },
+        {
+          "title": "Mastering the Blender CLI",
+          "url": "https://renderday.com/blog/mastering-the-blender-cli",
+          "claim": "Engine identifier -E BLENDER_EEVEE_NEXT confirmed; headless -b -P script pattern."
+        }
+      ]
+    },
+    {
+      "slug": "eevee-next-shadow-settings",
+      "name": "EEVEE Next shadow configuration for clean sprite shadows (4.2+)",
+      "what": "EEVEE Next replaced the old per-resolution shadow cube/cascade maps with Virtual Shadow Maps and automatic bias. Knowing what still exists vs what was removed prevents script breakage and washed-out or jagged shadows.",
+      "how": "```python\nimport bpy scene = bpy.context.scene\nscene.render.engine = 'BLENDER_EEVEE_NEXT' eevee = scene.eevee\n# Sampling — still valid in 4.2\neevee.taa_render_samples = 64 # increase for still renders; 16 is fast # These OLD properties are DEPRECATED in 4.2 — do NOT set them:\n# eevee.shadow_cube_size <- ignored / removed\n# eevee.shadow_cascade_size <- ignored / removed\n# eevee.use_soft_shadows <- removed (VSM handles this automatically) # Per-light shadow quality: Data > Light > Shadow > Resolution Limit\n# Lower value = higher quality (minimum shadow texel size in world units)\nfor light_obj in bpy.data.objects: if light_obj.type == 'LIGHT': light_obj.data.shadow_softness_factor = 0.1 # 0..1; lower = sharper # Resolution limit (metres per shadow texel) — keep < 0.01 for sprite scale # Exposed as light_obj.data.shadow_resolution_limit in 4.2 # (verify in bpy console: dir(light_obj.data) filter 'shadow') # For transparent film (sprite sheet backgrounds)\nscene.render.film_transparent = True\nscene.render.image_settings.color_mode = 'RGBA'\nscene.render.image_settings.file_format = 'PNG' # Anti-aliasing via render samples; no separate AA pass needed\neevee.taa_render_samples = 64\n``` Virtual Shadow Maps are always on in EEVEE Next — no toggle needed. They allocate resolution only where the camera sees, so sprites at small scene scale may get coarse shadow texels: counter this by keeping the character bounding box near 1–2 m in Blender world units.",
+      "blender_version": "4.2+",
+      "gotchas": [
+        "shadow_cube_size and shadow_cascade_size are silently ignored in 4.2 — scripts that set them won't error but have no effect.",
+        "shadow_softness_factor and shadow_resolution_limit are per-light properties on the Light data-block, not on scene.eevee.",
+        "Jagged shadow bug reported on 4.2.2 LTS (Blender Projects #128833); workaround is increasing taa_render_samples to 64+.",
+        "Back-views (west/south-west) will look dark if only a front key light is used — add a low-energy SUN fill parented to pivot to prevent pitch-black backs."
+      ],
+      "studio_use": "For the 8-direction sprite turnaround, set taa_render_samples = 64, film_transparent = True, RGBA PNG output. Keep all lights co-rotating with the pivot so illumination is identical across all 8 frames.",
+      "currency": "solid",
+      "verify_note": "Shadow deprecations confirmed by Blender Projects issue #128833 and multiple Blender Artists threads on 4.2 shadow behaviour. VSM-always-on confirmed by irendering.net Blender 4.2 article.",
+      "sources": [
+        {
+          "title": "EEVEE Next 4.2 shadow flickering issue #128833",
+          "url": "https://projects.blender.org/blender/blender/issues/128833",
+          "claim": "Confirms EEVEE Next Virtual Shadow Map behaviour and taa_render_samples as the anti-alias lever for still renders."
+        },
+        {
+          "title": "EEVEE migration from older versions to Blender 4.2 LTS",
+          "url": "https://developer.blender.org/docs/release_notes/4.2/eevee_migration/",
+          "claim": "shadow_cube_size / shadow_cascade_size deprecated; new per-light Resolution Limit setting replaces them."
+        },
+        {
+          "title": "SegviGen bpy_render.py (HuggingFace)",
+          "url": "https://huggingface.co/spaces/fenghora/SegviGen/blob/main/data_toolkit/bpy_render.py",
+          "claim": "Real bpy script confirming scene.eevee.taa_render_samples and film_transparent usage in BLENDER_EEVEE_NEXT context."
+        }
+      ]
+    },
+    {
+      "slug": "orthographic-camera-setup",
+      "name": "Orthographic vs perspective camera — bpy setup for sprite rendering",
+      "what": "Sprite turnarounds should use orthographic projection to avoid perspective distortion across the 8 compass angles. Orthographic scale maps directly to world-unit width of the frame.",
+      "how": "```python\nimport bpy # --- Create or grab camera ---\ncam_data = bpy.data.cameras.new('SpriteCamera')\ncam_obj = bpy.data.objects.new('SpriteCamera', cam_data)\nbpy.context.scene.collection.objects.link(cam_obj)\nbpy.context.scene.camera = cam_obj # --- Orthographic mode ---\ncam_data.type = 'ORTHO' # 'ORTHO' | 'PERSP' | 'PANO'\ncam_data.ortho_scale = 2.5 # world-unit width of rendered frame # for a ~1.8 m character, 2.5 m fits with margin # --- Clip planes ---\ncam_data.clip_start = 0.01\ncam_data.clip_end = 100.0 # --- For perspective fallback (not recommended for sprites) ---\n# cam_data.type = 'PERSP'\n# cam_data.lens = 85 # focal length mm (longer = less distortion)\n# cam_data.sensor_width = 36 # full-frame equivalent # --- Render resolution ---\nscene = bpy.context.scene\nscene.render.resolution_x = 512\nscene.render.resolution_y = 512\nscene.render.resolution_percentage = 100\n``` Ortho_scale is the world-unit height when resolution_x == resolution_y. For a non-square render, the scale maps to the narrower dimension. Adjust per-character or per-sprite-sheet layout.",
+      "blender_version": "4.x (API unchanged since 2.8)",
+      "gotchas": [
+        "ortho_scale is in world units (metres by default). If your GLB mesh was exported at cm scale (common from TRELLIS), 1 Blender unit = 1 cm, so set ortho_scale = 250 for a 1.8 m character.",
+        "camera.data.type must be set AFTER creating the camera object and before render — setting it on a linked camera that's been type='PERSP' may need a depsgraph update.",
+        "Perspective cameras with long lens (85-135mm) can approximate ortho but will still have slight parallax across the 8 angles — use true ORTHO for game sprites.",
+        "clip_start too large (e.g. 0.1 on a small mesh) clips foreground geometry; keep it at 0.01 or less."
+      ],
+      "studio_use": "Set cam_data.type = 'ORTHO' and cam_data.ortho_scale to match the character bounding box + ~30% margin. For the fixed 3/4-down 35° turnaround, position the camera at (0, -dist, dist*tan(35°)) looking at origin, then use Track-To (see recipe camera-track-to-target).",
+      "currency": "solid",
+      "verify_note": "API confirmed from PSHuman blender_render_human_ortho.py which sets cam.data.type = 'ORTHO' and cam.data.ortho_scale = 1.0 in a real production turnaround script.",
+      "sources": [
+        {
+          "title": "PSHuman blender_render_human_ortho.py (HuggingFace)",
+          "url": "https://huggingface.co/spaces/gradiopro/PSHuman/blob/main/blender/blender_render_human_ortho.py",
+          "claim": "Sets cam.data.type = 'ORTHO', cam.data.ortho_scale, and cam.data.lens in a real 360-turnaround headless render script."
+        },
+        {
+          "title": "bpy.ops.import_scene — Blender Python API (current)",
+          "url": "https://docs.blender.org/api/current/bpy.ops.import_scene.html",
+          "claim": "Confirms bpy.ops.import_scene.gltf(filepath=...) operator for GLB import, consistent with camera/scene setup patterns."
+        }
+      ]
+    },
+    {
+      "slug": "camera-track-to-target",
+      "name": "Camera at fixed 35° pitch looking at target via Track-To constraint",
+      "what": "Place the camera at a fixed 3/4-down ~35° elevation pitch and any azimuth, always looking at the character origin, using a Track-To constraint. This is cleaner than manually computing rotation matrices.",
+      "how": "```python\nimport bpy, math\nfrom mathutils import Vector # --- Create an empty at scene origin as look-at target ---\ntarget = bpy.data.objects.new('LookTarget', None)\nbpy.context.scene.collection.objects.link(target)\ntarget.location = (0, 0, 0.9) # aim at character centre-of-mass, not feet # --- Position camera at fixed pitch + distance ---\nelevation_deg = 35.0 # 3/4-down pitch below horizontal\ndistance = 4.0 # world units from origin el_rad = math.radians(elevation_deg)\naz_rad = 0.0 # south-facing start; rotate pivot for other directions x = distance * math.cos(az_rad) * math.cos(el_rad)\ny = distance * math.sin(az_rad) * math.cos(el_rad)\nz = distance * math.sin(el_rad) cam_obj = bpy.data.objects['SpriteCamera']\ncam_obj.location = Vector((x, y, z)) # --- Add Track-To constraint ---\ntrack = cam_obj.constraints.new(type='TRACK_TO')\ntrack.target = target\ntrack.track_axis = 'TRACK_NEGATIVE_Z' # camera -Z faces target (Blender camera convention)\ntrack.up_axis = 'UP_Y' # Y stays upright bpy.context.view_layer.update() # force constraint evaluation before render\n``` For headless scripts, after `cam_obj.location` and constraint assignment, call `bpy.context.view_layer.update()` to force the depsgraph to evaluate the constraint before `bpy.ops.render.render()`. Without this, the first frame may render with stale camera transform.",
+      "blender_version": "4.x (constraint API unchanged since 2.8)",
+      "gotchas": [
+        "track_axis and up_axis must differ — both 'TRACK_NEGATIVE_Z' and up_axis='UP_Y' is fine; but track_axis='TRACK_NEGATIVE_Z' + up_axis='UP_Z' is invalid and the constraint will turn red/ignore.",
+        "Blender camera local axes: -Z points forward (into the scene), +Y is up. So track_axis='TRACK_NEGATIVE_Z' + up_axis='UP_Y' is the canonical camera Track-To combo.",
+        "Placing target.location.z at 0.9 (half character height) avoids angled framing where head is cut off from above.",
+        "view_layer.update() is required in headless scripts before render; in interactive mode Blender auto-updates."
+      ],
+      "studio_use": "This is the primary camera positioning recipe for the turnaround. Set elevation_deg=35, distance=4, target at (0,0,0.9). Then rotate the orbit pivot (see camera-orbit-pivot recipe) for each of the 8 compass directions — the Track-To constraint keeps the camera locked to the character regardless of pivot angle.",
+      "currency": "solid",
+      "verify_note": "Track-To constraint API confirmed from Blender Python API docs (TrackToConstraint) showing track_axis and up_axis valid values. Position formula confirmed from PSHuman blender_render_human_ortho.py set_camera_mvdream() function.",
+      "sources": [
+        {
+          "title": "TrackToConstraint — Blender Python API (current)",
+          "url": "https://docs.blender.org/api/current/bpy.types.TrackToConstraint.html",
+          "claim": "Defines track_axis valid values (TRACK_NEGATIVE_Z, etc.) and up_axis valid values (UP_Y, etc.)."
+        },
+        {
+          "title": "PSHuman blender_render_human_ortho.py (HuggingFace)",
+          "url": "https://huggingface.co/spaces/gradiopro/PSHuman/blob/main/blender/blender_render_human_ortho.py",
+          "claim": "Shows spherical coordinate camera placement (azimuth/elevation/distance) + cam_constraint TRACK_NEGATIVE_Z / UP_Y + depsgraph update before render."
+        }
+      ]
+    },
+    {
+      "slug": "camera-orbit-pivot",
+      "name": "Orbit pivot empty — parent camera & lights for 8-direction compass sweep",
+      "what": "Parent the camera (and optionally the lights) to an Empty object at the scene origin. Rotating the Empty's Z-axis in 45° steps gives the 8 compass directions without recalculating any camera or light positions — they all follow.",
+      "how": "```python\nimport bpy, math # --- Create pivot empty at origin ---\npivot = bpy.data.objects.new('OrbitPivot', None)\nbpy.context.scene.collection.objects.link(pivot)\npivot.location = (0, 0, 0) # --- Parent camera to pivot ---\ncam_obj = bpy.data.objects['SpriteCamera']\ncam_obj.parent = pivot\ncam_obj.matrix_parent_inverse = pivot.matrix_world.inverted() # --- 8 compass directions (S=0, SW=45, W=90, NW=135, N=180, NE=225, E=270, SE=315) ---\ncompass_angles = [0, 45, 90, 135, 180, 225, 270, 315] # degrees for i, angle_deg in enumerate(compass_angles): pivot.rotation_euler.z = math.radians(angle_deg) bpy.context.view_layer.update() output_path = f'/tmp/sprite_{angle_deg:03d}.png' bpy.context.scene.render.filepath = output_path bpy.ops.render.render(write_still=True) print(f'Rendered: {output_path}') # --- Optional: parent lights to pivot too (so they co-rotate) ---\nfor obj_name in ['LightKey', 'LightFill', 'LightRim']: if obj_name in bpy.data.objects: light_obj = bpy.data.objects[obj_name] light_obj.parent = pivot light_obj.matrix_parent_inverse = pivot.matrix_world.inverted()\n``` Alternatively, keep lights world-fixed (unparented) if you want the character to always be lit from the same world direction regardless of viewing angle — this produces more realistic cross-angle lighting but less consistent silhouette-edge illumination.",
+      "blender_version": "4.x (object parenting API unchanged)",
+      "gotchas": [
+        "matrix_parent_inverse must be set after parenting otherwise the child's current world position is baked into the offset — child appears to jump when pivot rotates.",
+        "If camera has a Track-To constraint targeting a world-space empty, and the camera is also parented to the pivot, the Track-To will fight the parent. Solution: either track-to a pivot-parented child empty, or compute camera rotation manually instead of using Track-To.",
+        "rotation_euler.z is radians — forgetting math.radians() gives 1-radian steps (≈57°) instead of 45°.",
+        "view_layer.update() must precede each render call to propagate pivot rotation to child camera/lights."
+      ],
+      "studio_use": "This is the master turnaround loop for the sprite pipeline. Create pivot, parent camera + 3-point rig to it, loop over 8 angles, render each. Output filenames include the angle for sprite-sheet assembly downstream.",
+      "currency": "solid",
+      "verify_note": "Pattern confirmed from multiple real turnaround bpy scripts (PSHuman, blender_script_mvs.py on HuggingFace) and Blender documentation on parent relationships.",
+      "sources": [
+        {
+          "title": "PSHuman blender_render_human_ortho.py (HuggingFace)",
+          "url": "https://huggingface.co/spaces/gradiopro/PSHuman/blob/main/blender/blender_render_human_ortho.py",
+          "claim": "Production orbit render loop: iterates azimuth angles, calls set_camera_mvdream(azimuth, 0, distance), renders each frame."
+        },
+        {
+          "title": "EscherNet blender_script_mvs.py (HuggingFace)",
+          "url": "https://huggingface.co/spaces/kxic/EscherNet/raw/4937fdb2a6c792bab23ef477e85b9ed45179dae3/scripts/blender_script_mvs.py",
+          "claim": "Multi-view orbit render script using bpy, iterating angles and rendering to numbered output paths."
+        }
+      ]
+    },
+    {
+      "slug": "three-point-light-rig-bpy",
+      "name": "3-point light rig (key / fill / rim) in bpy for sprite turnaround",
+      "what": "A classic 3-point rig gives consistent, readable sprite illumination. Parenting all three lights to the orbit pivot means every compass direction is identically lit relative to the camera.",
+      "how": "```python\nimport bpy, math\nfrom mathutils import Euler def make_light(name, ltype, energy, location, rotation_euler=None): data = bpy.data.lights.new(name=name, type=ltype) data.energy = energy obj = bpy.data.objects.new(name, data) bpy.context.scene.collection.objects.link(obj) obj.location = location if rotation_euler: obj.rotation_euler = rotation_euler return obj # Key light: AREA, front-left of camera, high angle\n# In pivot-local coords: camera faces -Y, so key is at (-1.5, -2, 3)\nkey = make_light('LightKey', 'AREA', energy=800, location=(-1.5, -2.0, 3.0))\nkey.data.size = 2.0 # metres\nkey.data.shape = 'RECTANGLE'\nkey.data.size_y = 1.2 # Fill light: SUN, soft, front-right opposite key\nfill = make_light('LightFill', 'SUN', energy=1.5, location=(2.0, -1.5, 2.0))\nfill.data.angle = math.radians(8) # slightly soft sun # Rim light: SPOT, behind the character, low-high angle\nrim = make_light('LightRim', 'SPOT', energy=400, location=(0.0, 3.5, 2.5))\nrim.data.spot_size = math.radians(60)\nrim.data.spot_blend = 0.2 # Point all lights at origin (character)\nfor light_obj in [key, fill, rim]: track = light_obj.constraints.new(type='TRACK_TO') track.target = bpy.data.objects['LookTarget'] track.track_axis = 'TRACK_NEGATIVE_Z' track.up_axis = 'UP_Y' # Parent lights to orbit pivot so they co-rotate\npivot = bpy.data.objects['OrbitPivot']\nfor light_obj in [key, fill, rim]: light_obj.parent = pivot light_obj.matrix_parent_inverse = pivot.matrix_world.inverted() bpy.context.view_layer.update()\n``` Energy values above assume Blender world scale 1 unit = 1 metre and EEVEE Next rendering. Scale energy up proportionally if scene scale differs (e.g. 1 unit = 1 cm → multiply by 10000).",
+      "blender_version": "4.2+",
+      "gotchas": [
+        "If lights are parented to pivot AND have Track-To constraints targeting a world-space object, EEVEE evaluates Track-To after parent, so the final orientation is Track-To result in the parent's space — this gives correct look-at behaviour.",
+        "SUN light energy is W/m² not Watts — a fill SUN at 1.5 W/m² is dim but appropriate as a secondary source; going above 5 W/m² will wash out the key.",
+        "SPOT rim from behind works as a hair/rim light but may disappear in back-view compass angles. For back views (N, NW, NE), consider increasing rim energy or adding a back-key.",
+        "AREA shape='RECTANGLE' requires both size (X) and size_y (Y) to be set; leaving size_y at default 0.0 collapses the lamp to a line."
+      ],
+      "studio_use": "This is the canonical 3-point rig for the painterly stylized sprite turnaround. Key left-front, fill sun right-front, spot rim from behind. All parented to OrbitPivot. Tune key energy to 600-1000 W depending on material reflectivity of the TRELLIS GLB.",
+      "currency": "solid",
+      "verify_note": "Energy units confirmed by search results (Point/Spot/Area = Watts, Sun = W/m²). Track-To + parent interaction is standard Blender constraint evaluation order (constraints applied after parent matrix). Pattern validated by SegviGen bpy_render.py 3-light setup.",
+      "sources": [
+        {
+          "title": "SegviGen bpy_render.py EEVEE lighting setup (HuggingFace)",
+          "url": "https://huggingface.co/spaces/fenghora/SegviGen/blob/main/data_toolkit/bpy_render.py",
+          "claim": "Shows Point + Area top + Area bottom 3-light rig in BLENDER_EEVEE_NEXT with energy 1000/10000/1000 W."
+        },
+        {
+          "title": "EEVEE Next Generation in Blender 4.2 LTS — Blender Developers Blog",
+          "url": "https://code.blender.org/2024/07/eevee-next-generation-in-blender-4-2-lts/",
+          "claim": "Confirms 4096 simultaneous light limit, Shadow Map Ray Tracing for automatic soft shadows, no manual shadow jitter needed."
+        }
+      ]
+    },
+    {
+      "slug": "hdri-world-environment",
+      "name": "HDRI world environment setup via bpy node tree",
+      "what": "Wire an HDR image as the world background (Environment Texture → Mapping → Texture Coordinate → Background → World Output) so the scene gets ambient IBL. A Mapping node controls HDRI rotation without reloading the image. A flat-colour fallback avoids the HDRI dependency for quick tests.",
+      "how": "```python\nimport bpy world = bpy.data.worlds['World']\nworld.use_nodes = True\nnodes = world.node_tree.nodes\nlinks = world.node_tree.links # Clear default nodes\nnodes.clear() # Create node chain: TexCoord → Mapping → EnvTexture → Background → Output\ntex_coord = nodes.new('ShaderNodeTexCoord')\nmapping = nodes.new('ShaderNodeMapping')\nenv_tex = nodes.new('ShaderNodeTexEnvironment')\nbackground = nodes.new('ShaderNodeBackground')\nwld_out = nodes.new('ShaderNodeOutputWorld') # Load HDR (must be an absolute path accessible from the render machine)\nhdr_path = '/path/to/environment.hdr' # or.exr\nenv_tex.image = bpy.data.images.load(hdr_path)\nenv_tex.image.colorspace_settings.name = 'Linear Rec.709' # Set background strength (multiplier on IBL)\nbackground.inputs['Strength'].default_value = 0.8 # Rotate HDRI on Z axis (radians) to align key-light direction\nimport math\nmapping.inputs['Rotation'].default_value = (0.0, 0.0, math.radians(45)) # Wire nodes\nlinks.new(tex_coord.outputs['Generated'], mapping.inputs['Vector'])\nlinks.new(mapping.outputs['Vector'], env_tex.inputs['Vector'])\nlinks.new(env_tex.outputs['Color'], background.inputs['Color'])\nlinks.new(background.outputs['Background'], wld_out.inputs['Surface']) # --- Flat-colour fallback (no HDRI file) ---\n# background.inputs['Color'].default_value = (0.05, 0.05, 0.08, 1.0) # dark blue-grey\n# background.inputs['Strength'].default_value = 0.3\n# (skip env_tex + mapping + tex_coord nodes entirely)\n``` For the sprite pipeline, keep HDRI Strength low (0.5–1.0) so the explicit 3-point rig remains the primary source. The HDRI fills in ambient bounce and prevents pitch-black concavities.",
+      "blender_version": "4.x (node types unchanged; EEVEE Next IBL improved vs old EEVEE)",
+      "gotchas": [
+        "bpy.data.images.load() is file-path dependent and will fail in headless mode if the path doesn't exist — always check os.path.exists() before loading or fall back to flat colour.",
+        "colorspace_settings.name must be 'Linear Rec.709' (not 'sRGB') for HDR/EXR images — sRGB will double-gamma the IBL and produce washed-out ambient.",
+        "Mapping node 'Rotation' input [0]=X, [1]=Y, [2]=Z — for azimuth rotation of the HDRI, set index [2].",
+        "In EEVEE Next, world volumes no longer clip at a distance limit — IBL occlusion is more physically accurate than old EEVEE, meaning strong HDRIs can noticeably darken interiors."
+      ],
+      "studio_use": "Optional but recommended for the turnaround rig. Use a neutral overcast HDRI (low-contrast cloudy sky, strength 0.5) to fill shadow concavities on the GLB mesh. Rotate via mapping node to align the HDRI sun with your key light direction. For fast test renders, use the flat-colour fallback.",
+      "currency": "solid",
+      "verify_note": "Node type names and connection pattern confirmed from meshlogic.github.io HDRI article (real bpy code retrieved). World node socket names ('Strength', 'Color', 'Surface') are stable across Blender 2.8–4.x.",
+      "sources": [
+        {
+          "title": "Correct Exposure of HDRI Environment Map in Blender — MeshLogic",
+          "url": "https://meshlogic.github.io/posts/blender/rendering/nodes-correct-hdri/",
+          "claim": "Full bpy node setup: ShaderNodeTexCoord → ShaderNodeMapping → ShaderNodeTexEnvironment → ShaderNodeBackground → ShaderNodeOutputWorld with exact socket names."
+        },
+        {
+          "title": "Create Simple World Nodes with the Blender Python API — Harle Pengren",
+          "url": "https://harlepengren.com/create-simple-world-nodes-with-the-blender-python-api/",
+          "claim": "Confirms world.use_nodes = True, nodes.new('ShaderNodeTexEnvironment'), links.new() pattern and Background 'Strength' input socket name."
+        },
+        {
+          "title": "Blender 4.2: Explore what's new in Eevee Next",
+          "url": "https://irendering.net/blender-4-2-explore-whats-new-in-eevee-next/",
+          "claim": "World volumes no longer have clipping distance restrictions in EEVEE Next; world IBL occlusion is more accurate."
+        }
+      ]
+    },
+    {
+      "slug": "headless-bpy-bootstrap",
+      "name": "Headless bpy script bootstrap for TRELLIS GLB turnaround rendering",
+      "what": "The minimum bpy script scaffold to import a TRELLIS-exported GLB, configure EEVEE Next render settings, and hand off to the camera/light setup recipes — all runnable from command line with no GUI.",
+      "how": "```python\n#!/usr/bin/env python3\n\"\"\"Headless Blender 4.2+ turnaround renderer.\nCall: blender -b --python this_script.py -- --glb /path/to/mesh.glb --out /path/to/frames/\n\"\"\"\nimport bpy, sys, os, argparse, math # --- Parse arguments passed after '--' separator ---\nargv = sys.argv\nif '--' in argv: argv = argv[argv.index('--') + 1:]\nparser = argparse.ArgumentParser()\nparser.add_argument('--glb', required=True)\nparser.add_argument('--out', required=True)\nparser.add_argument('--res', type=int, default=512)\nparser.add_argument('--samples', type=int, default=64)\nargs = parser.parse_args(argv) # --- Clean scene ---\nbpy.ops.wm.read_homefile(use_empty=True) # --- Engine ---\nscene = bpy.context.scene\nscene.render.engine = 'BLENDER_EEVEE_NEXT' # 4.2+; was 'BLENDER_EEVEE' in 4.1-\nscene.eevee.taa_render_samples = args.samples\nscene.render.film_transparent = True\nscene.render.image_settings.file_format = 'PNG'\nscene.render.image_settings.color_mode = 'RGBA'\nscene.render.resolution_x = args.res\nscene.render.resolution_y = args.res\nscene.render.resolution_percentage = 100 # --- Import GLB ---\nbpy.ops.import_scene.gltf(filepath=args.glb) # --- Centre and normalise mesh to unit bounding box ---\nimported = [o for o in bpy.context.selected_objects if o.type == 'MESH']\nif imported: # Join into single mesh for easy bounding box query bpy.context.view_layer.objects.active = imported[0] bpy.ops.object.join() mesh_obj = bpy.context.active_object mesh_obj.select_set(True) bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS') mesh_obj.location = (0, 0, 0) bpy.context.view_layer.update() bbox_z = mesh_obj.dimensions.z\nelse: bbox_z = 2.0 # fallback # --- Camera ---\ncam_data = bpy.data.cameras.new('SpriteCamera')\ncam_data.type = 'ORTHO'\ncam_data.ortho_scale = max(mesh_obj.dimensions) * 1.3 # 30% margin\ncam_data.clip_start = 0.01\ncam_data.clip_end = 200.0\ncam_obj = bpy.data.objects.new('SpriteCamera', cam_data)\nscene.collection.objects.link(cam_obj)\nscene.camera = cam_obj #... then apply camera-track-to-target, camera-orbit-pivot,\n# and three-point-light-rig-bpy recipes here... bpy.context.view_layer.update()\nprint('Bootstrap complete — ready for orbit render loop.')\n``` Run from shell:\n```bash\nblender -b --python render_turnaround.py -- --glb mesh.glb --out /frames/ --res 512 --samples 64\n```",
+      "blender_version": "4.2+",
+      "gotchas": [
+        "bpy.ops.wm.read_homefile(use_empty=True) clears the default cube/camera/light — required before import so the scene starts clean.",
+        "sys.argv parsing must use the '--' separator: Blender consumes its own args up to '--', then the remainder goes to sys.argv.",
+        "bpy.ops.import_scene.gltf requires the 'Import-Export' addon to be enabled. In 4.x it ships built-in and is auto-enabled; in some stripped-down headless builds it may not be — check bpy.ops.import_scene.gltf.poll() before calling.",
+        "After bpy.ops.object.join(), bpy.context.active_object gives the joined mesh; bpy.context.selected_objects may be stale — always re-query after ops.",
+        "BLENDER_EEVEE_NEXT does not support GPU acceleration via --cycles-device; it uses the system GPU automatically via the display driver. For true headless (no GPU), EEVEE Next may fall back to CPU rasterization."
+      ],
+      "studio_use": "Entry point for the automated sprite-turnaround pipeline. Takes any TRELLIS GLB, auto-centres it, sets EEVEE Next, then calls into the orbit-pivot loop. Wire --out to the sprite-sheet assembler downstream.",
+      "currency": "solid",
+      "verify_note": "Engine string 'BLENDER_EEVEE_NEXT' confirmed by Sketchfab blender-plugin issue #141 and SegviGen bpy_render.py. bpy.ops.import_scene.gltf confirmed by Blender API docs (current). Headless -b -P -- arg pattern confirmed by renderday.com CLI guide.",
+      "sources": [
+        {
+          "title": "FIX FOR BLENDER 4.2 — Sketchfab blender-plugin Issue #141",
+          "url": "https://github.com/sketchfab/blender-plugin/issues/161",
+          "claim": "Confirms engine string must be 'BLENDER_EEVEE_NEXT' in Blender 4.2; 'BLENDER_EEVEE' is no longer valid."
+        },
+        {
+          "title": "Import Scene Operators — Blender Python API (current)",
+          "url": "https://docs.blender.org/api/current/bpy.ops.import_scene.html",
+          "claim": "bpy.ops.import_scene.gltf(filepath=...) is the correct operator for.glb and.gltf in Blender 4.x."
+        },
+        {
+          "title": "Mastering the Blender CLI",
+          "url": "https://renderday.com/blog/mastering-the-blender-cli",
+          "claim": "blender -b --python script.py -- custom_args is the correct headless execution pattern; -- separator passes args to the script."
+        }
+      ]
+    },
+    {
+      "slug": "avoiding-dark-back-views",
+      "name": "Preventing pitch-black back views in 8-direction turnaround",
+      "what": "When all lights are co-parented to the orbit pivot, the character's back faces the key and rim lights' target directions only from the front view. Back-facing views (N, NW, NE compass) can go very dark or silhouetted. This recipe shows how to keep back views readable.",
+      "how": "Strategy A — World-fixed ambient SUN (not parented to pivot):\n```python\n# Add a low-energy world-fixed sun that does NOT rotate with the pivot\nambient_data = bpy.data.lights.new('WorldAmbient', 'SUN')\nambient_data.energy = 1.0 # W/m²; low fill\nambient_data.angle = math.radians(180) # full hemisphere = almost no directionality\nambient_obj = bpy.data.objects.new('WorldAmbient', ambient_data)\nbpy.context.scene.collection.objects.link(ambient_obj)\n# Do NOT parent to pivot; stays world-fixed\nambient_obj.rotation_euler = (math.radians(45), 0, 0) # aim from above\n``` Strategy B — Increase HDRI world strength for ambient fill:\n```python\nworld = bpy.data.worlds['World']\nworld.node_tree.nodes['Background'].inputs['Strength'].default_value = 1.2\n``` Strategy C — Increase rim light energy for back views dynamically:\n```python\nback_angles = {180, 225, 135} # N, NW, NE\nfor i, angle_deg in enumerate(compass_angles): pivot.rotation_euler.z = math.radians(angle_deg) # Boost rim for back-facing compass directions rim_light = bpy.data.objects['LightRim'].data rim_light.energy = 800 if angle_deg in back_angles else 400 bpy.context.view_layer.update() bpy.ops.render.render(write_still=True)\n``` Strategy D (preferred for consistency) — Add a persistent back-fill AREA at low energy, world-fixed behind the character:\n```python\nback_data = bpy.data.lights.new('BackFill', 'AREA')\nback_data.energy = 200 # Watts, gentle back-fill\nback_data.size = 3.0\nback_obj = bpy.data.objects.new('BackFill', back_data)\nbpy.context.scene.collection.objects.link(back_obj)\nback_obj.location = (0, 3.0, 1.5) # behind character in world space\n# Track-To the character but DO NOT parent to pivot\ntrack = back_obj.constraints.new('TRACK_TO')\ntrack.target = bpy.data.objects['LookTarget']\ntrack.track_axis = 'TRACK_NEGATIVE_Z'\ntrack.up_axis = 'UP_Y'\n```",
+      "blender_version": "4.2+",
+      "gotchas": [
+        "A world-fixed back-fill creates inconsistent lighting across angles — back views will appear brighter relative to front views. This is often acceptable for 2.5D sprites where the player mostly sees front/side angles.",
+        "EEVEE Next does not have a 'light falloff' node for stylized flat-shading control; use node materials with an Emission mix for cartoon-style fills.",
+        "In EEVEE Next, sun lights at angle = math.radians(180) act as near-uniform hemisphere fills — this is a useful hack for ambient fill without IBL.",
+        "Strategy C (dynamic energy change per angle) requires re-evaluating the depsgraph each time: always call view_layer.update() after changing light energy in a loop."
+      ],
+      "studio_use": "Use Strategy D (world-fixed back-fill AREA at 150-250 W) as the base, combined with HDRI strength 0.5-0.8 for ambient. This prevents pitch-black backs without blowing out front-view contrast. Fine-tune per character material darkness.",
+      "currency": "plausible",
+      "verify_note": "The specific strategy is reasoned from EEVEE Next lighting behaviour (confirmed VSM, ambient IBL) and standard CG turnaround practice. The sun hemisphere trick (angle=180°) is inferred from Blender light angle docs. No direct source verified this exact combination — test in-engine.",
+      "sources": [
+        {
+          "title": "EEVEE Next Generation in Blender 4.2 LTS — Blender Developers Blog",
+          "url": "https://code.blender.org/2024/07/eevee-next-generation-in-blender-4-2-lts/",
+          "claim": "Confirms EEVEE Next IBL and shadow behaviour that motivates the ambient fill strategies."
+        },
+        {
+          "title": "Blender 4.2 EEVEE-Next Feedback thread",
+          "url": "https://devtalk.blender.org/t/blender-4-2-eevee-next-feedback/31813",
+          "claim": "Community reports on back-view darkness and lighting consistency issues in EEVEE Next, confirming this is a real production concern."
+        }
+      ]
+    }
+  ]
+}

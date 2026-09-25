@@ -1,0 +1,1105 @@
+{
+  "laneSlug": "host-embedding",
+  "title": "Embedding the Rust law in hosts (JS, Godot, Unreal)",
+  "tier": "si-rpg-engine",
+  "recipes": [
+    {
+      "name": "Host the law as the one pinned .wasm in an embedded runtime; it imports nothing, so no WASI is linked",
+      "what": "Option A ships the Linux-built si_solver.wasm itself to every host and runs it in an embedded runtime: one artifact and one digest, and because the module imports nothing the host supplies no WASI and no host functions, only an executor for core wasm.",
+      "how": "Verify the loaded bytes against fixtures/solver.sha256 (FLAGS.md: the pin is the Linux build, Windows bytes differ, and the golden hash is the cross-host invariant) and refuse any other digest. Instantiate with an empty import list; in wasmtime 49: `Instance::new(&mut store, &module, &[])`, `instance.get_memory(&mut store, \"memory\")` and `instance.get_typed_func::<(u32, u32, u32, u32, u32, f64, u32), u32>(&mut store, \"solver_step\")` (WasmTy is implemented for u32 and f64). Move the f64 buffers with `Memory::write` / `Memory::read` at the byte offsets bodies_ptr(), colliders_ptr() and heights_ptr() return, and never hold a slice or raw pointer into linear memory across a call: wasmtime's Memory docs say growth may change the base address anywhere inside a wasm call, the same reason build.mjs re-creates its Float64Array views on every call. In a browser, or a Godot Web export, the page's own engine runs the same bytes.",
+      "rust_version": "rustc 1.98.1 -> wasm32-unknown-unknown; host side wasmtime 49.0.1 (builds with Rust 1.96+)",
+      "gotchas": "The .wasm is only the physics step: the fixed 1/64 s tick, admission and the two-lane FNV-1a frame hash are JavaScript (packages/tick, packages/frame), so a host that embeds just the module reproduces body states but not the golden hash unless it also runs that JavaScript (an embedded JS engine, or a node process streaming committed frames) or the tick is ported to Rust and passes the same trace diff. Keep the import list empty: the JS API throws a TypeError when a module has imports and no import object is given, so build.mjs's bare `new WebAssembly.Instance(module)` succeeding under three engines is the running proof, and a single import (a clock, a random source) would oblige every host to supply and pin it. The digest pins the law, not the runtime: a runtime is accepted by the trace it prints, not by loading the module.",
+      "engine_note": "solver/build.mjs instantiate() passes no import object and re-creates its views per call; that is the reference every host copies. The host surface is the ten exports of solver/src/lib.rs and rapier_law.rs (bodies_ptr, colliders_ptr, heights_ptr, step, solver_load, solver_step, snapshot_ptr, snapshot_len, solver_clear_warmstart, canon_zero), and fixtures/solver.sha256 is the one pin every host verifies. This meets the README's aspiration (a browser, Godot or Unreal draws the picture and sends intents; presentation has no path back into the hash) without a second law artifact.",
+      "checks": [
+        {
+          "label": "A law-shaped cdylib (static f64 buffers, Vec snapshot, release flags) imports nothing, exports memory",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [
+            "-C",
+            "opt-level=3",
+            "-C",
+            "panic=abort",
+            "-C",
+            "target-feature=-relaxed-simd"
+          ],
+          "expect": "runs",
+          "no_warnings": true,
+          "wasm_exports": [
+            "memory",
+            "bodies_ptr",
+            "solver_step",
+            "snapshot_ptr",
+            "snapshot_len"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "solver_step",
+            "args": [
+              3
+            ]
+          },
+          "stdout": "1",
+          "source": "// The law's shape: static f64 buffers, a heap-allocated snapshot, raw extern \"C\" exports.\nconst MAX_BODIES: usize = 64;\nconst BODY_STRIDE: usize = 17;\nconst DT: f64 = 1.0 / 64.0;\n\nstatic mut BODIES: [f64; MAX_BODIES * BODY_STRIDE] = [0.0; MAX_BODIES * BODY_STRIDE];\nstatic mut SNAPSHOT: Vec<u8> = Vec::new();\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn bodies_ptr() -> *mut f64 {\n    (&raw mut BODIES).cast::<f64>()\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn solver_step(n_bodies: u32) -> u32 {\n    let n = n_bodies as usize;\n    if n > MAX_BODIES {\n        return 0;\n    }\n    let bodies = unsafe { &mut *(&raw mut BODIES) };\n    let snap = unsafe { &mut *(&raw mut SNAPSHOT) };\n    snap.clear();\n    for i in 0..n {\n        let at = i * BODY_STRIDE;\n        bodies[at + 4] = bodies[at + 4] + -8.0 * DT;\n        bodies[at + 1] = bodies[at + 1] + bodies[at + 4] * DT;\n        snap.extend_from_slice(&bodies[at + 1].to_bits().to_le_bytes());\n    }\n    1\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn snapshot_ptr() -> *const u8 {\n    unsafe { (*(&raw const SNAPSHOT)).as_ptr() }\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn snapshot_len() -> u32 {\n    unsafe { (*(&raw const SNAPSHOT)).len() as u32 }\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "WebAssembly JavaScript Interface (Editor's Draft, 21 September 2026): read the imports",
+          "url": "https://webassembly.github.io/spec/js-api/",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "The 'read the imports' algorithm throws a TypeError when module.imports is not empty and importObject is undefined.",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine solver/build.mjs at f84c98b",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/solver/build.mjs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "instantiate() constructs new WebAssembly.Instance(module) with no import object, and each binding builds a fresh Float64Array over memory.buffer, indexing bodies at bodies_ptr() / 8 + i * 17.",
+          "retrieved": true
+        },
+        {
+          "title": "wasmtime 49.0.1 API: struct Memory",
+          "url": "https://docs.rs/wasmtime/49.0.1/wasmtime/struct.Memory.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Memory::read and Memory::write copy between a host buffer and linear memory at an offset; memories can grow and growth may change the base pointer, so holding a raw pointer over a wasm function call is incorrect.",
+          "retrieved": true
+        },
+        {
+          "title": "wasmtime 49.0.1 API: struct Instance",
+          "url": "https://docs.rs/wasmtime/49.0.1/wasmtime/struct.Instance.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Instance::new(store, &Module, imports: &[Extern]) instantiates a module from a list of imports; get_typed_func and get_memory look up exports by name.",
+          "retrieved": true
+        },
+        {
+          "title": "wasmtime 49.0.1 API: trait WasmTy",
+          "url": "https://docs.rs/wasmtime/49.0.1/wasmtime/trait.WasmTy.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "WasmTy, the parameter and result trait for Func::typed, is implemented for f32, f64, i32, i64, u32 and u64.",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine solver/FLAGS.md at f84c98b",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/solver/FLAGS.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "fixtures/solver.sha256 is the digest of the Linux build only, because Windows writes backslashes into remapped paths; the golden hash, not the digest, is the cross-host invariant.",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine README at f84c98b",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/README.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "The engine aspires to be the simulation core inside a host (a browser, Godot or Unreal draws the picture and sends intents); the tick and FNV-1a hash live in packages/tick and packages/frame; presentation has no path back into the hash.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Build wasmtime's Config for the law by hand and pin an LTS line; defaults and fuel costs move between releases",
+      "what": "Wasmtime 49.0.1's defaults are not a determinism profile (NaN canonicalization off, relaxed SIMD on with the fastest per-CPU lowering, the threads proposal on through a default crate feature), and releases move them: 49.0.0 turned wide-arithmetic on and changed fuel charges, and the 49.0.1 / 48.0.3 security patches changed fuel spend again.",
+      "how": "Set every knob in code: `config.cranelift_nan_canonicalization(true)` (replaces NaNs with one canonical value; not enabled by default because the spec does not require it), `config.wasm_relaxed_simd(false)` (or `relaxed_simd_deterministic(true)`), `config.wasm_threads(false)`. For a watchdog use `config.consume_fuel(true)` plus `store.set_fuel(n)`: fuel is the deterministic interruption, and `epoch_interruption` is documented as not deterministic. Make memory growth deterministic the ways the determinism page lists (a store limiter, a memory creator that reserves the maximum up front, or a wasmparser check that refuses growable memories). C API equivalents: `wasmtime_config_cranelift_nan_canonicalization_set`, `wasmtime_config_wasm_relaxed_simd_set`, `wasmtime_config_wasm_relaxed_simd_deterministic_set`, `wasmtime_config_wasm_threads_set`, `wasmtime_config_consume_fuel_set`. Pin the runtime beside the solver pins: a new major ships on the 20th of each month and may break behaviour; majors divisible by 12 are LTS for 24 months (48.0.3, 2026-09-24), the rest are supported for 2 months.",
+      "rust_version": "wasmtime 49.0.1 (2026-09-24) or LTS 48.0.3; building wasmtime 49 needs Rust 1.96+",
+      "gotchas": "Fuel counts are not portable across Wasmtime versions: 49.0.0 began charging Config::operator_cost inside constant expressions and the start call (previously 1 fuel each), and 49.0.1 / 48.0.3 fixed dropped fuel-spend for call_ref callees and exception returns. Running out of fuel is therefore a host failure to report, never an outcome written to the admitted log or folded into a hash. NaN canonicalization adds checks after f32/f64/v128 operations; the law already aborts a step on NaN, so the knob protects only a NaN's bits between its creation and that abort (the spec leaves the sign of an arithmetic NaN nondeterministic). Patch releases promise unchanged behaviour, yet these fuel fixes shipped as patches: pin the exact version, not a range.",
+      "engine_note": "solver/.cargo/config.toml and solver/build.mjs already pass -C target-feature=-relaxed-simd, and T3's lint will refuse relaxed-SIMD opcodes and growable memory; the host Config is the second gate for the same properties. lib.rs step() and rapier_law.rs solver_step() return 0 on NaN, so canonicalization is belt and braces there. Any fuel budget belongs to the host harness (T5's replay bundles), never to the frame hash in packages/frame.",
+      "checks": [],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "wasmtime 49.0.1 API: struct Config",
+          "url": "https://docs.rs/wasmtime/49.0.1/wasmtime/struct.Config.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "cranelift_nan_canonicalization defaults to false because the spec does not require it; relaxed_simd_deterministic defaults to false; wasm_relaxed_simd defaults to true with the fastest per-platform lowering; wasm_threads defaults to the enabled-by-default threads crate feature; consume_fuel is off by default; epoch interruptions are not deterministic.",
+          "retrieved": true
+        },
+        {
+          "title": "Wasmtime docs: Deterministic Wasm Execution",
+          "url": "https://docs.wasmtime.dev/examples-deterministic-wasm-execution.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Recommends NaN canonicalization, deterministic or disabled relaxed SIMD, deterministic memory and table growth (a limiter, an up-front memory creator, or a wasmparser validator) and fuel rather than epoch interruption.",
+          "retrieved": true
+        },
+        {
+          "title": "Wasmtime C API: config.h",
+          "url": "https://docs.wasmtime.dev/c-api/config_8h.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The C API exposes wasmtime_config_cranelift_nan_canonicalization_set, wasmtime_config_wasm_relaxed_simd_set, wasmtime_config_wasm_relaxed_simd_deterministic_set, wasmtime_config_wasm_threads_set and wasmtime_config_consume_fuel_set.",
+          "retrieved": true
+        },
+        {
+          "title": "Wasmtime v49.0.0 release notes",
+          "url": "https://github.com/bytecodealliance/wasmtime/releases/tag/v49.0.0",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Released 2026-09-21: wide-arithmetic enabled by default; Config::operator_cost now applies inside constant expressions and the start call, previously 1 fuel unit each; Wasmtime requires Rust 1.96.0.",
+          "retrieved": true
+        },
+        {
+          "title": "Wasmtime v49.0.1 release notes",
+          "url": "https://github.com/bytecodealliance/wasmtime/releases/tag/v49.0.1",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Released 2026-09-24 with security fixes for dropped fuel-spend by call_ref callees and exception returns and for fuel spend in dynamic record lifting.",
+          "retrieved": true
+        },
+        {
+          "title": "Wasmtime v48.0.3 release notes",
+          "url": "https://github.com/bytecodealliance/wasmtime/releases/tag/v48.0.3",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "The same fuel-spend fixes shipped for the 48 line as 48.0.3 on 2026-09-24.",
+          "retrieved": true
+        },
+        {
+          "title": "Wasmtime docs: Release Process",
+          "url": "https://docs.wasmtime.dev/stability-release.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A new major ships on the 20th of each month and may break behaviour; releases divisible by 12 are LTS and supported for 24 months, others for 2 months; patch releases are for security and critical correctness.",
+          "retrieved": true
+        },
+        {
+          "title": "WebAssembly Specification 3.0: Numerics (NaN propagation)",
+          "url": "https://webassembly.github.io/spec/core/exec/numerics.html",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "An operator that returns NaN gives it a nondeterministic sign and, unless all NaN inputs are canonical, a nondeterministically chosen arithmetic payload; the deterministic profile produces a positive canonical NaN.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Choose the runtime per platform by tier: Cranelift needs executable pages at run time, interpreters do not",
+      "what": "Four runtimes can execute the law's core module natively, at different maturity: Wasmtime 49.0.1 (Cranelift or Winch compilers, Pulley interpreter), Wasmer 7.4.2, WAMR 2.4.5 and wasm3 0.9.0. Because the law uses no SIMD, even the SIMD-less wasm3 can load it.",
+      "how": "Wasmtime tiers: Tier 1 = x86_64-pc-windows-msvc, x86_64-unknown-linux-gnu, x86_64-apple-darwin, the Cranelift and Winch compilers, the Rust and C embedding APIs; Tier 2 = aarch64 Linux and macOS, the Pulley interpreter, #![no_std] support, the C++ API; Tier 3 = aarch64-pc-windows-msvc, iOS, Android, i686. Cranelift and Winch need an OS that can create executable pages on the fly and cannot statically link a precompiled module; a no_std build runs AOT-precompiled modules; where Cranelift has no backend Wasmtime uses Pulley, which runs wherever Wasmtime compiles, with a performance penalty. Wasmer 7.4.2 (2026-09-16): Singlepass, Cranelift (the default) and LLVM compilers; NaN canonicalization is `Cranelift::canonicalize_nans(true)`, default false. WAMR-2.4.5 (2026-06-29, three CVE fixes; the project now lives at github.com/wasm-micro-runtime): interpreter, AOT through wamrc, Fast JIT and LLVM JIT; x86-64, x86-32, ARM, AArch64, RISC-V, Xtensa, MIPS, ARC. wasm3 0.9.0 (2026-08-24, its first release after v0.5.0): an interpreter that now fully validates modules; its README lists the deterministic profile as ready and fixed-width SIMD and threads as not available.",
+      "rust_version": "wasm32-unknown-unknown on rustc 1.98.1 (default target features exclude simd128 and relaxed-simd)",
+      "gotchas": "In option A the runtime's maturity is inherited: wasm3's README says it has entered 'a minimal maintenance phase' and relies on outside pull requests, WAMR's latest release was security fixes only, and Wasmtime's aarch64 Windows, iOS and Android targets are Tier 3. No retrieved page shows any of these runtimes shipping on a game console (console SDKs are under NDA), so console support is unestablished; on platforms without run-time code generation the documented Wasmtime path is Pulley. Turning on simd128 for speed would lock out wasm3 and change the pinned bytes; the probe below turns that into a build error.",
+      "engine_note": "solver/rust-toolchain.toml pins 1.98.1 and wasm32-unknown-unknown, whose default target features exclude simd128 and relaxed-simd, and solver/.cargo/config.toml removes relaxed-simd explicitly, so si_solver.wasm fits every runtime above. T3's ARM64 lane is where aarch64 hosts (Wasmtime Tier 2) should prove the trace before a Godot or Unreal build ships on them.",
+      "checks": [
+        {
+          "label": "Under the 1.98.1 wasm32 defaults a no-SIMD guard compiles, runs and the module imports nothing",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "scale",
+            "args": [
+              1.5,
+              2.0
+            ]
+          },
+          "stdout": "3",
+          "source": "// Fails the build if the target would let the compiler emit v128 or relaxed-SIMD instructions,\n// which a SIMD-less runtime (wasm3 lists fixed-width SIMD as N/A) cannot load.\n#[cfg(target_feature = \"simd128\")]\ncompile_error!(\"simd128 is enabled: the module may contain v128 instructions\");\n#[cfg(target_feature = \"relaxed-simd\")]\ncompile_error!(\"relaxed-simd is enabled\");\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn scale(x: f64, k: f64) -> f64 {\n    x * k\n}\n"
+        },
+        {
+          "label": "The same guard refuses a build with simd128 switched on",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [
+            "-C",
+            "target-feature=+simd128"
+          ],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "simd128 is enabled"
+          ],
+          "source": "// Fails the build if the target would let the compiler emit v128 or relaxed-SIMD instructions,\n// which a SIMD-less runtime (wasm3 lists fixed-width SIMD as N/A) cannot load.\n#[cfg(target_feature = \"simd128\")]\ncompile_error!(\"simd128 is enabled: the module may contain v128 instructions\");\n#[cfg(target_feature = \"relaxed-simd\")]\ncompile_error!(\"relaxed-simd is enabled\");\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn scale(x: f64, k: f64) -> f64 {\n    x * k\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Wasmtime docs: Tiers of Support",
+          "url": "https://docs.wasmtime.dev/stability-tiers.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Tier 1 lists x86_64 darwin, windows-msvc and linux-gnu, the Cranelift and Winch compilers and the Rust and C APIs; Tier 2 lists aarch64 linux and darwin, #![no_std], the threads proposal, Pulley and the C++ API; Tier 3 lists aarch64 iOS, Android and Windows and i686.",
+          "retrieved": true
+        },
+        {
+          "title": "Wasmtime docs: Platform Support",
+          "url": "https://docs.wasmtime.dev/stability-platform-support.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Cranelift and Winch require an OS that can create executable memory at run time and statically linking a precompiled module is unsupported; Pulley runs on any platform Wasmtime compiles for with a performance penalty; no_std builds must use AOT-precompiled modules.",
+          "retrieved": true
+        },
+        {
+          "title": "Wasmer v7.4.2: lib/compiler-cranelift/src/config.rs",
+          "url": "https://github.com/wasmerio/wasmer/blob/v7.4.2/lib/compiler-cranelift/src/config.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Cranelift::canonicalize_nans(enable) turns on NaN canonicalization, 'useful when trying to run WebAssembly deterministically across different architectures', and Cranelift::new() sets it to false.",
+          "retrieved": true
+        },
+        {
+          "title": "Wasmer v7.4.2 release",
+          "url": "https://github.com/wasmerio/wasmer/releases/tag/v7.4.2",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Wasmer v7.4.2 was released on September 16 (2026).",
+          "retrieved": true
+        },
+        {
+          "title": "WebAssembly Micro Runtime README",
+          "url": "https://github.com/wasm-micro-runtime/wasm-micro-runtime",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "WAMR supports interpreter, AOT and JIT running modes on X86-64, X86-32, ARM, THUMB, AArch64, RISCV64/32, XTENSA, MIPS and ARC, and has moved to the wasm-micro-runtime organization.",
+          "retrieved": true
+        },
+        {
+          "title": "WAMR-2.4.5 release",
+          "url": "https://github.com/wasm-micro-runtime/wasm-micro-runtime/releases/tag/WAMR-2.4.5",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "WAMR-2.4.5 (June 29, 2026) fixed CVE-2026-54912, CVE-2026-54913 and CVE-2026-54914.",
+          "retrieved": true
+        },
+        {
+          "title": "wasm3 README",
+          "url": "https://github.com/wasm3/wasm3",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Wasm3 will enter a minimal maintenance phase; it is an interpreter; the proposals table lists the deterministic profile as ready and fixed-width SIMD and threads as N/A.",
+          "retrieved": true
+        },
+        {
+          "title": "wasm3 v0.9.0 release",
+          "url": "https://github.com/wasm3/wasm3/releases/tag/v0.9.0",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "v0.9.0 (August 24, 2026) fully validates WebAssembly modules and mostly conforms to Wasm 2.0 plus parts of Wasm 3.0.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "In Godot 4, embed the .wasm through a GDExtension you configure; godot-wasm runs wasmtime on its defaults",
+      "what": "No retrieved Godot 4.7 page documents a built-in WebAssembly runtime, and the requests to add one (#147 opened 2019, #10488 opened 2024) are still open, so option A in Godot is an extension that embeds a runtime or, in a Web export, the browser's own engine reached through JavaScriptBridge.",
+      "how": "Three routes, in order of control. (1) A gdext cdylib that depends on the wasmtime crate, builds the Config of the knob recipe, verifies the digest and exposes a class GDScript calls once per quantum: one native library per platform, law bytes unchanged (a design inference; no retrieved page shows this exact combination). (2) The godot-wasm addon, a GDExtension or module whose SConstruct defaults to wasmtime (wasmer optional): release v0.5.0-godot-4 (2025-10-10, Godot 4.5) defaults to Wasmtime v37.0.2 / Wasmer v6.1.0, master since 2026-02-06 to Wasmtime v41.0.3 / Wasmer v7.0.1; it creates its engine with `wasm_engine_new()` and one store shared by every module. (3) In a Web export, `JavaScriptBridge`, implemented only in the Web export, reaches the page's JavaScript context, where the same module runs in the browser engine that already prints the goldens.",
+      "rust_version": "Godot 4.7 (stable docs); godot-wasm v0.5.0-godot-4; wasmtime 49.0.1",
+      "gotchas": "godot-wasm's `wasm_engine_new()` takes no config, so the law would run on Wasmtime's defaults (NaN canonicalization off, relaxed SIMD on); that is tolerable only because the law aborts on NaN and carries no relaxed SIMD, which leaves T3's lint and the NaN abort as the only guards. Its README also says it is 'still in its infancy', that Web/HTML5 export is not supported and that only int and float return values are supported, and neither default Wasmtime version (37, 41) is an LTS line. Route (3) exists only in the Web export, not on desktop. Godot's docs name Steam Deck as the only officially supported console; the others go through third-party ports and W4 Games' middleware, and no retrieved page says whether an extension embedding a wasm runtime ships there.",
+      "engine_note": "The product-alignment dispatch (docs/study-swarm/product-alignment.dispatch.md) puts Godot first, 'by GDExtension or the browser build': route (3) is the browser build and needs no new binary, route (1) is the GDExtension. Either way GDScript reproduces solver/build.mjs's call sequence (write stride-17 bodies and stride-10 colliders, call solver_step, read 13 fields back), with one module instance per world because rapier_law.rs keeps one world in static mut SOLVER.",
+      "checks": [],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "godot-proposals #10488: Add a small, baseline WebAssembly interpreter to Godot",
+          "url": "https://github.com/godotengine/godot-proposals/issues/10488",
+          "year": 2024,
+          "kind": "issue",
+          "identifier": "godot-proposals#10488",
+          "claim": "Opened 2024-08-18 and still open: proposes adding a small interpreter such as Wasm3 to Godot, noting that some platforms enforce W^X and won't work well with a JIT.",
+          "retrieved": true
+        },
+        {
+          "title": "godot-wasm README",
+          "url": "https://github.com/ashtonmeuser/godot-wasm",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "A Godot extension that loads WebAssembly modules from GDScript via the Wasmer and Wasmtime runtimes, installable as a GDExtension addon or a module; still in its infancy; Web/HTML5 export is not supported; only int and float return values are supported.",
+          "retrieved": true
+        },
+        {
+          "title": "godot-wasm src/store.h",
+          "url": "https://github.com/ashtonmeuser/godot-wasm/blob/master/src/store.h",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "The engine is created with wasm_engine_new() and no configuration, and the same store is used between all compiled modules.",
+          "retrieved": true
+        },
+        {
+          "title": "godot-wasm SConstruct",
+          "url": "https://github.com/ashtonmeuser/godot-wasm/blob/master/SConstruct",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "The wasm_runtime build option defaults to \"wasmtime\" with \"wasmer\" as the alternative.",
+          "retrieved": true
+        },
+        {
+          "title": "godot-wasm utils.py at v0.5.0-godot-4",
+          "url": "https://github.com/ashtonmeuser/godot-wasm/blob/v0.5.0-godot-4/utils.py",
+          "year": 2025,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "The v0.5.0-godot-4 release defaults to Wasmer v6.1.0 and Wasmtime v37.0.2.",
+          "retrieved": true
+        },
+        {
+          "title": "godot-wasm utils.py on master",
+          "url": "https://github.com/ashtonmeuser/godot-wasm/blob/master/utils.py",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Master defaults to Wasmer v7.0.1 and Wasmtime v41.0.3, set by the 'Bump default runtime versions' commit of February 6, 2026.",
+          "retrieved": true
+        },
+        {
+          "title": "Godot Engine 4.7 docs: JavaScriptBridge",
+          "url": "https://docs.godotengine.org/en/stable/classes/class_javascriptbridge.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The JavaScriptBridge singleton is implemented only in the Web export and gives access to the browser's JavaScript context (eval, get_interface, create_callback, create_object).",
+          "retrieved": true
+        },
+        {
+          "title": "Godot Engine 4.5 docs: Console support in Godot",
+          "url": "https://docs.godotengine.org/en/4.5/tutorials/platform/consoles.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The only console Godot officially supports is Steam Deck; other consoles are reached through third-party ports and W4 Games' official middleware.",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine product-alignment dispatch at f84c98b",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/docs/study-swarm/product-alignment.dispatch.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Step 5: the first host is Godot, by GDExtension or the browser build; the second is Unreal.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [
+        {
+          "title": "godot-proposals #147: Add WASM (WASI) host support",
+          "url": "https://github.com/godotengine/godot-proposals/issues/147",
+          "year": 2019,
+          "kind": "issue",
+          "identifier": "godot-proposals#147",
+          "claim": "Opened 2019-10-11 and still open: asks for WASM host support so one .wasm replaces per-platform libraries.",
+          "retrieved": true
+        }
+      ]
+    },
+    {
+      "name": "Bind the law natively in Godot with gdext 0.5.5: a cdylib entry point, api-4-N no newer than the running Godot",
+      "what": "Option B in Godot compiles the law into a GDExtension with godot-rust (crate godot 0.5.5, 2026-08-09, Rust 1.94+, MPL-2.0): a cdylib per platform that any Godot at or above the API version it was built against (4.2 or later) can load.",
+      "how": "Cargo.toml `[lib] crate-type = [\"cdylib\"]`; the entry point `struct LawExtension; #[gdextension] unsafe impl ExtensionLibrary for LawExtension {}`; a class `#[derive(GodotClass)] #[class(base=Node)] struct Law { base: Base<Node> }` whose `#[godot_api]` methods call the law; a .gdextension file with `entry_symbol = \"gdext_rust_init\"`, `compatibility_minimum`, and one `[libraries]` path per platform and architecture. Enable at most one of `api-4-2` ... `api-4-7` (with none, the current Godot minor at patch 0 is used) and keep runtime version >= API version. Hand Godot copies of the f64 state: its `real` is f32 unless gdext's `double-precision` feature is on and Godot itself is built with `precision=double`.",
+      "rust_version": "godot 0.5.5 (Rust 1.94+), Godot 4.2-4.7",
+      "gotchas": "gdext is pre-1.0 and says to expect occasional breaking changes; `experimental-threads` carries 'a high risk of unsoundness', and `experimental-wasm` (Web export) is 'not yet well tested' and must match the export's threading setting. The extension is a second compiled law per platform, so fixtures/solver.sha256 no longer covers what runs (see the native-artifact recipe). A pose narrowed to f32 cannot be widened back to the committed f64 (the check shows 0.1 + 0.2 losing its low bits), so nothing read from a Node3D or Vector3 may be written into the law's buffers: only intents cross back, and the admitted log records the f64 the law received.",
+      "engine_note": "README: 'Presentation has no path back into the hash'; with gdext that rule has a numeric edge, because Godot positions are f32 by default while BODIES in solver/src/lib.rs is f64. The product-alignment dispatch orders Godot first; rapier_law.rs would compile into the extension unchanged, but packages/tick and packages/frame (JavaScript) would not come with it.",
+      "checks": [
+        {
+          "label": "An f64 pose narrowed to an f32 real and widened back is not the committed value",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "committed 3fd3333333333334\nwidened   3fd3333340000000\nround trip exact: false",
+          "source": "// A pose the law committed, and what an f32 `real` (Godot's default) keeps of it.\nfn main() {\n    let committed: f64 = std::hint::black_box(0.1) + std::hint::black_box(0.2);\n    let shown: f32 = committed as f32;\n    let widened: f64 = shown as f64;\n    println!(\"committed {:016x}\", committed.to_bits());\n    println!(\"widened   {:016x}\", widened.to_bits());\n    println!(\"round trip exact: {}\", committed == widened);\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The godot-rust book: Compatibility and stability",
+          "url": "https://godot-rust.github.io/book/toolchain/compatibility.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Latest godot-rust (0.4+) requires at least Godot 4.2 and loads in any Godot whose runtime version is >= its API version; the Rust API is not yet stable and has occasional breaking changes.",
+          "retrieved": true
+        },
+        {
+          "title": "The godot-rust book: Hello World",
+          "url": "https://godot-rust.github.io/book/intro/hello-world.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "An extension is a crate-type cdylib with `#[gdextension] unsafe impl ExtensionLibrary`, classes declared with #[derive(GodotClass)] and #[class(base=...)], and a .gdextension file with entry_symbol \"gdext_rust_init\" and per-platform library paths.",
+          "retrieved": true
+        },
+        {
+          "title": "docs.rs: godot 0.5.5 crate documentation (Cargo features)",
+          "url": "https://docs.rs/godot/0.5.5/godot/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "At most one api-* feature (default: current Godot minor, patch 0); double-precision makes real an f64 and needs Godot built with precision=double; experimental-threads has a high risk of unsoundness; experimental-wasm is not yet well tested.",
+          "retrieved": true
+        },
+        {
+          "title": "docs.rs: godot 0.5.5 feature flags",
+          "url": "https://docs.rs/crate/godot/0.5.5/features",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "godot 0.5.5 offers api-4-2 through api-4-7 plus api-custom and api-custom-json, alongside experimental-threads, experimental-wasm and double-precision.",
+          "retrieved": true
+        },
+        {
+          "title": "crates.io API: godot 0.5.5",
+          "url": "https://crates.io/api/v1/crates/godot/0.5.5",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "godot 0.5.5 was published 2026-08-09T08:21:52Z with rust_version 1.94 and licence MPL-2.0.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Treat a native law build as a second artifact: basic ops match the wasm, std math inside dependencies may not",
+      "what": "Option B recompiles the law for each host target. A step built only from add/sub/mul/div/sqrt, like lib.rs's, gives the wasm build's bits natively, but enhanced-determinism does not reroute inherent std calls inside dependencies: with std on, parry 0.30.2 diagonalizes summed, convex-hull and trimesh inertia through glamx 0.3.1, whose non-diagonal branch calls acos and cos.",
+      "how": "Keep the law's own float code to +, -, *, / and sqrt (std: sqrt is the correctly rounded result and 'guaranteed not to change'; lib.rs and rapier_law.rs use only sqrt, min and max) and route any new transcendental through `libm::` or nalgebra's `ComplexField`, as Rapier's determinism guide asks. Keep `enhanced-determinism` (at 0.35.3 it enables `simba/libm_force` and parry3d-f64 0.30.2's `simba/libm_force`, `glamx/libm`, `glamx/scalar-math`), but do not read it as covering inherent calls: method lookup takes an inherent method before any trait method, and glamx imports `ComplexField` only when std is off. Treat each native library (target triple + toolchain + Cargo.lock) as its own pinned artifact and accept it only when its T1 trace equals node's for every fixture.",
+      "rust_version": "rustc 1.98.1; rapier3d-f64 0.35.3 + enhanced-determinism; parry3d-f64 0.30.2; glamx 0.3.1",
+      "gotchas": "Today's scenes miss the trig branch: a single box's mass properties come from from_cuboid, and MassProperties' Add returns early when one side is zero, so no eigen solve runs; the check shows a single box has a zero off-diagonal inertia while two boxes combined (one turned 0.5 rad and offset) do not, which is the case compound bodies and convex hulls (from_convex_polyhedron -> from_trimesh -> with_inertia_matrix) bring. Target features are not the lever for basic ops (the step below gives the same bits at opt-level 3 natively and in wasm); library call paths are. std documents the precision of sin, cos and the like as varying 'by platform, Rust version', and min/max may return either zero for +0.0 and -0.0.",
+      "engine_note": "solver/Cargo.toml's enhanced-determinism pins Rapier's trait-routed math to libm, but a native host build of rapier_law.rs would still reach std acos and cos inside glamx once collision from meshes (the slice after Phase 2) gives dynamic bodies convex or compound colliders. fixtures/solver.sha256 covers only the wasm, so option B needs a per-target T1 trace gate and, for mesh bodies, a test that inertia bits match the wasm build.",
+      "checks": [
+        {
+          "label": "An add/mul/div/sqrt box step natively at opt-level 3: the FNV of its bits over 640 quanta",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [
+            "-C",
+            "opt-level=3"
+          ],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "4769065195358558711",
+          "source": "const DT: f64 = 1.0 / 64.0;\nconst G: f64 = -8.0;\nconst MAX_SPEED: f64 = 2.0;\n\n// One quantum of a box over a floor: add, sub, mul, div and sqrt only.\nfn quantum(s: &mut [f64; 6], hy: f64, floor_top: f64) {\n    s[4] = s[4] + G * DT;\n    s[0] = s[0] + s[3] * DT;\n    s[1] = s[1] + s[4] * DT;\n    s[2] = s[2] + s[5] * DT;\n    let pen = floor_top - (s[1] - hy);\n    if pen > 0.0 {\n        s[1] = s[1] + pen;\n        s[4] = 0.0 - s[4] * 0.5;\n    }\n    let speed2 = s[3] * s[3] + s[4] * s[4] + s[5] * s[5];\n    if speed2 > MAX_SPEED * MAX_SPEED {\n        let scale = MAX_SPEED / speed2.sqrt();\n        s[3] = s[3] * scale;\n        s[4] = s[4] * scale;\n        s[5] = s[5] * scale;\n    }\n}\n\n// FNV-1a over the IEEE bits of every field after every quantum.\nfn law_bits(n: u32) -> i64 {\n    let mut s = [0.1, 3.0, -0.2, 0.7, 0.0, 0.3];\n    let mut acc: u64 = 0xcbf29ce484222325;\n    let mut q = 0;\n    while q < n {\n        quantum(&mut s, 0.5, 0.0);\n        for v in s {\n            acc = (acc ^ v.to_bits()).wrapping_mul(0x100000001b3);\n        }\n        q += 1;\n    }\n    acc as i64\n}\n\nfn main() {\n    println!(\"{}\", law_bits(std::hint::black_box(640)));\n}\n"
+        },
+        {
+          "label": "The same step as a wasm export (release flags) returns the same FNV of bits through wasm_call",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [
+            "-C",
+            "opt-level=3",
+            "-C",
+            "panic=abort",
+            "-C",
+            "target-feature=-relaxed-simd"
+          ],
+          "expect": "runs",
+          "no_warnings": true,
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "law_trace",
+            "args": [
+              640
+            ]
+          },
+          "stdout": "4769065195358558711",
+          "source": "const DT: f64 = 1.0 / 64.0;\nconst G: f64 = -8.0;\nconst MAX_SPEED: f64 = 2.0;\n\n// One quantum of a box over a floor: add, sub, mul, div and sqrt only.\nfn quantum(s: &mut [f64; 6], hy: f64, floor_top: f64) {\n    s[4] = s[4] + G * DT;\n    s[0] = s[0] + s[3] * DT;\n    s[1] = s[1] + s[4] * DT;\n    s[2] = s[2] + s[5] * DT;\n    let pen = floor_top - (s[1] - hy);\n    if pen > 0.0 {\n        s[1] = s[1] + pen;\n        s[4] = 0.0 - s[4] * 0.5;\n    }\n    let speed2 = s[3] * s[3] + s[4] * s[4] + s[5] * s[5];\n    if speed2 > MAX_SPEED * MAX_SPEED {\n        let scale = MAX_SPEED / speed2.sqrt();\n        s[3] = s[3] * scale;\n        s[4] = s[4] * scale;\n        s[5] = s[5] * scale;\n    }\n}\n\n// FNV-1a over the IEEE bits of every field after every quantum.\nfn law_bits(n: u32) -> i64 {\n    let mut s = [0.1, 3.0, -0.2, 0.7, 0.0, 0.3];\n    let mut acc: u64 = 0xcbf29ce484222325;\n    let mut q = 0;\n    while q < n {\n        quantum(&mut s, 0.5, 0.0);\n        for v in s {\n            acc = (acc ^ v.to_bits()).wrapping_mul(0x100000001b3);\n        }\n        q += 1;\n    }\n    acc as i64\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn law_trace(n: u32) -> i64 {\n    law_bits(n)\n}\n"
+        },
+        {
+          "label": "parry 0.30.2: one box's inertia is diagonal (no eigen trig); two boxes, one turned, are not",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "single box off-diagonal is zero: true\ntwo boxes off-diagonal is zero: false",
+          "source": "use parry3d_f64::mass_properties::MassProperties;\nuse parry3d_f64::math::{Pose, Rotation, Vector};\n\n// p1 of glamx's symmetric 3x3 eigen solver: zero means the diagonal branch (no acos/cos).\nfn off_diagonal(mp: &MassProperties) -> f64 {\n    let m = mp.reconstruct_inertia_matrix();\n    m.y_axis.x * m.y_axis.x + m.z_axis.x * m.z_axis.x + m.z_axis.y * m.z_axis.y\n}\n\nfn main() {\n    let half = Vector::new(0.5, 0.25, 0.1);\n    let one_box = MassProperties::from_cuboid(1.0, half);\n    let turned = Pose::from_parts(Vector::new(0.3, 0.0, 0.0), Rotation::from_rotation_z(0.5));\n    let two_boxes = one_box + one_box.transform_by(&turned);\n    println!(\"single box off-diagonal is zero: {}\", off_diagonal(&one_box) == 0.0);\n    println!(\"two boxes off-diagonal is zero: {}\", off_diagonal(&two_boxes) == 0.0);\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Rust std: primitive f64",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f64.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "sin's precision is non-deterministic and varies by platform and Rust version; sqrt is the correctly rounded result and guaranteed not to change; min may return either input when +0.0 and -0.0 compare equal.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust std: primitive f32 (floating-point semantics)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f32.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Addition, subtraction, multiplication and division are rounded with roundTiesToEven as IEEE 754-2008 defines.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 Cargo.toml",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "enhanced-determinism = [\"simba/libm_force\", \"parry3d-f64/enhanced-determinism\"].",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2 Cargo.toml",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "enhanced-determinism = [\"simba/libm_force\", \"indexmap\", \"glamx/libm\", \"glamx/scalar-math\"].",
+          "retrieved": true
+        },
+        {
+          "title": "glamx 0.3.1 src/eigen3.rs",
+          "url": "https://docs.rs/crate/glamx/0.3.1/source/src/eigen3.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "ComplexField is imported only under #[cfg(not(feature = \"std\"))]; a diagonal matrix returns its diagonal, otherwise eigenvalues use r.acos() / 3.0 and phi.cos().",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2 src/mass_properties/mass_properties.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/mass_properties/mass_properties.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "with_inertia_matrix calls inertia.symmetric_eigen(); Add returns early when either side is zero and otherwise calls Self::with_inertia_matrix.",
+          "retrieved": true
+        },
+        {
+          "title": "Rapier user guide: Determinism (current guide, written for Rapier 0.36)",
+          "url": "https://rapier.rs/docs/user_guides/rust/determinism",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Cross-platform determinism needs enhanced-determinism, IEEE 754-2008 platforms including WASM, identical insertion order, and sin/cos/tan taken from nalgebra's ComplexField or RealField rather than the f64 methods.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Method-call expressions",
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/method-call-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "For each candidate receiver type, T's inherent methods are searched before methods of visible traits implemented by T.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Link the law into Unreal 5 as one Rust staticlib or cdylib behind a cbindgen header in an External module",
+      "what": "Unreal Engine 5.8 documents third-party code as a module with Type = ModuleType.External that adds include paths and a static or dynamic library; a Rust crate meets it with crate-type staticlib (one .lib/.a carrying the crate, its dependencies and std) or cdylib, extern \"C\" functions over #[repr(C)] records, and a header generated by cbindgen 0.29.4.",
+      "how": "Binding crate: `crate-type = [\"staticlib\"]` or `[\"cdylib\"]`; a `#[repr(C)] struct BodyIn` whose 17 f64 fields follow the law's slot order (136 bytes, align 8, `mode` at offset 128, the same on x86_64 and wasm32 as the checks show); functions such as `#[unsafe(no_mangle)] pub unsafe extern \"C\" fn law_write_bodies(src: *const BodyIn, n: u32) -> u32`, taking pointer plus count and returning a status, never a slice. Generate the header with cbindgen (CLI or build.rs): it emits `#[no_mangle] pub extern` functions, full definitions only for types with a guaranteed repr (others become forward declarations), and has parsed unsafe attributes since 0.28.0. Unreal: `Type = ModuleType.External;` `PublicIncludePaths.Add(Path.Combine(ModuleDirectory, \"inc\"));` `PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, \"lib\", ...));` for a DLL `PublicDelayLoadDLLs.Add(\"law.dll\")` and `RuntimeDependencies.Add(...)` to stage it. `--print=native-static-libs` lists the system libraries a staticlib needs.",
+      "rust_version": "edition 2024 binding crate on rustc 1.98.1; cbindgen 0.29.4 (2026-06-09); Unreal Engine 5.8 docs",
+      "gotchas": "The Reference warns that multiple Rust staticlib files are likely to conflict (each carries std and exports its dependencies' public symbols), and wasmtime's C API static library is Rust too: for option A in Unreal build one Rust staticlib that depends on the wasmtime crate and exports the law's C ABI, or use DLLs, rather than linking a law staticlib beside wasmtime's. Delay-loading is a Windows mechanism (UE: not fully supported on macOS; Linux search paths come from each module's RPATH) and is impossible when code accesses variables in the DLL, so export accessor functions such as bodies_ptr(), never the static buffers. Wasmtime's Windows static C API also needs -DWASM_API_EXTERN= -DWASI_API_EXTERN= and ws2_32, advapi32, userenv, ntdll, shell32, ole32 and bcrypt. UE documents console development (Switch, Switch 2, PS4, PS5, Xbox) for registered developers; no retrieved page establishes a Rust or wasm-runtime library on those SDKs.",
+      "engine_note": "The record to mirror is solver/src/lib.rs's stride: BODY_STRIDE 17 (0-5 position and velocity, 6-9 quaternion, 10-12 angular velocity, 13-15 half-extents, 16 driven or solverMode), COLLIDER_STRIDE 10, MAX_BODIES = MAX_COLLIDERS = 64, and solver_step(world_id, n_bodies, n_colliders, rows, cols, cell, shape) -> u32 with 1 for success. The engine crate is edition 2021 with bare #[no_mangle]; a new edition-2024 binding crate must write #[unsafe(no_mangle)] (Edition Guide). Unreal is the second host in the product-alignment ordering.",
+      "checks": [
+        {
+          "label": "A pointer-plus-count C API over a #[repr(C)] record builds as a staticlib with no warnings",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "staticlib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "// A C ABI for a native host (Unreal's External module links the .lib/.a or loads the .dll).\nuse core::ptr::{addr_of, addr_of_mut, copy_nonoverlapping};\n\npub const MAX_BODIES: u32 = 64;\n\n/// One body record, laid out exactly like the law's stride-17 f64 buffer.\n#[repr(C)]\n#[derive(Clone, Copy)]\npub struct BodyIn {\n    pub pos: [f64; 3],\n    pub vel: [f64; 3],\n    pub quat: [f64; 4],\n    pub ang: [f64; 3],\n    pub half: [f64; 3],\n    pub mode: f64,\n}\n\nconst ZERO: BodyIn = BodyIn { pos: [0.0; 3], vel: [0.0; 3], quat: [0.0; 4], ang: [0.0; 3], half: [0.0; 3], mode: 0.0 };\nstatic mut BODIES: [BodyIn; MAX_BODIES as usize] = [ZERO; MAX_BODIES as usize];\n\n/// Copies `n` records in; returns 0 when `n` is out of range or `src` is null.\n///\n/// # Safety\n/// `src` must point to `n` readable, initialized `BodyIn` records.\n#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn law_write_bodies(src: *const BodyIn, n: u32) -> u32 {\n    if n > MAX_BODIES || src.is_null() {\n        return 0;\n    }\n    // SAFETY: the caller guarantees `n` records at `src`; BODIES holds MAX_BODIES.\n    unsafe { copy_nonoverlapping(src, addr_of_mut!(BODIES).cast::<BodyIn>(), n as usize) };\n    1\n}\n\n/// Copies `n` records out; returns 0 when `n` is out of range or `dst` is null.\n///\n/// # Safety\n/// `dst` must point to room for `n` `BodyIn` records.\n#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn law_read_bodies(dst: *mut BodyIn, n: u32) -> u32 {\n    if n > MAX_BODIES || dst.is_null() {\n        return 0;\n    }\n    // SAFETY: as above, in the other direction.\n    unsafe { copy_nonoverlapping(addr_of!(BODIES).cast::<BodyIn>(), dst, n as usize) };\n    1\n}\n"
+        },
+        {
+          "label": "The same source builds as a cdylib with no warnings",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "// A C ABI for a native host (Unreal's External module links the .lib/.a or loads the .dll).\nuse core::ptr::{addr_of, addr_of_mut, copy_nonoverlapping};\n\npub const MAX_BODIES: u32 = 64;\n\n/// One body record, laid out exactly like the law's stride-17 f64 buffer.\n#[repr(C)]\n#[derive(Clone, Copy)]\npub struct BodyIn {\n    pub pos: [f64; 3],\n    pub vel: [f64; 3],\n    pub quat: [f64; 4],\n    pub ang: [f64; 3],\n    pub half: [f64; 3],\n    pub mode: f64,\n}\n\nconst ZERO: BodyIn = BodyIn { pos: [0.0; 3], vel: [0.0; 3], quat: [0.0; 4], ang: [0.0; 3], half: [0.0; 3], mode: 0.0 };\nstatic mut BODIES: [BodyIn; MAX_BODIES as usize] = [ZERO; MAX_BODIES as usize];\n\n/// Copies `n` records in; returns 0 when `n` is out of range or `src` is null.\n///\n/// # Safety\n/// `src` must point to `n` readable, initialized `BodyIn` records.\n#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn law_write_bodies(src: *const BodyIn, n: u32) -> u32 {\n    if n > MAX_BODIES || src.is_null() {\n        return 0;\n    }\n    // SAFETY: the caller guarantees `n` records at `src`; BODIES holds MAX_BODIES.\n    unsafe { copy_nonoverlapping(src, addr_of_mut!(BODIES).cast::<BodyIn>(), n as usize) };\n    1\n}\n\n/// Copies `n` records out; returns 0 when `n` is out of range or `dst` is null.\n///\n/// # Safety\n/// `dst` must point to room for `n` `BodyIn` records.\n#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn law_read_bodies(dst: *mut BodyIn, n: u32) -> u32 {\n    if n > MAX_BODIES || dst.is_null() {\n        return 0;\n    }\n    // SAFETY: as above, in the other direction.\n    unsafe { copy_nonoverlapping(addr_of!(BODIES).cast::<BodyIn>(), dst, n as usize) };\n    1\n}\n"
+        },
+        {
+          "label": "On the host the 17-f64 BodyIn is 136 bytes, align 8, mode at 128 (encoded 136008128)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "136008128",
+          "source": "use std::mem::{align_of, offset_of, size_of};\n\n#[repr(C)]\npub struct BodyIn {\n    pub pos: [f64; 3],\n    pub vel: [f64; 3],\n    pub quat: [f64; 4],\n    pub ang: [f64; 3],\n    pub half: [f64; 3],\n    pub mode: f64,\n}\n\n// size * 1_000_000 + align * 1_000 + offset of `mode`, the same number the wasm build returns.\nfn layout_code() -> i64 {\n    (size_of::<BodyIn>() * 1_000_000 + align_of::<BodyIn>() * 1_000 + offset_of!(BodyIn, mode)) as i64\n}\n\nfn main() {\n    println!(\"{}\", layout_code());\n}\n"
+        },
+        {
+          "label": "In wasm32 the same BodyIn reports the same size, align and offset (136008128)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "wasm_call": {
+            "export": "layout_code",
+            "args": []
+          },
+          "stdout": "136008128",
+          "source": "use core::mem::{align_of, offset_of, size_of};\n\n#[repr(C)]\npub struct BodyIn {\n    pub pos: [f64; 3],\n    pub vel: [f64; 3],\n    pub quat: [f64; 4],\n    pub ang: [f64; 3],\n    pub half: [f64; 3],\n    pub mode: f64,\n}\n\n// size * 1_000_000 + align * 1_000 + offset of `mode`, the same number the host build prints.\n#[unsafe(no_mangle)]\npub extern \"C\" fn layout_code() -> i64 {\n    (size_of::<BodyIn>() * 1_000_000 + align_of::<BodyIn>() * 1_000 + offset_of!(BodyIn, mode)) as i64\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Reference: Linkage",
+          "url": "https://doc.rust-lang.org/stable/reference/linkage.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "staticlib produces a .lib/.a containing the crate, all upstream dependencies and the standard library and exports their public symbols; --print=native-static-libs helps with the system libraries; multiple Rust staticlib files are likely to conflict; cdylib produces a .so/.dylib/.dll for loading from another language.",
+          "retrieved": true
+        },
+        {
+          "title": "Unreal Engine 5.8 docs: Integrating Third-Party Libraries into Unreal Engine",
+          "url": "https://dev.epicgames.com/documentation/en-us/unreal-engine/integrating-third-party-libraries-into-unreal-engine",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A module with Type = ModuleType.External adds PublicIncludePaths and PublicAdditionalLibraries; DLLs use PublicDelayLoadDLLs and RuntimeDependencies; delay-loading cannot be used when accessing variables in the DLL and is not fully supported on macOS.",
+          "retrieved": true
+        },
+        {
+          "title": "cbindgen README",
+          "url": "https://github.com/mozilla/cbindgen",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "cbindgen creates C/C++11 headers for Rust libraries that expose a public C API, run as a CLI or from build.rs.",
+          "retrieved": true
+        },
+        {
+          "title": "cbindgen user guide (docs.md)",
+          "url": "https://github.com/mozilla/cbindgen/blob/master/docs.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "cbindgen emits bindings for #[no_mangle] pub extern functions, and a type without a guaranteed repr gets only a forward declaration.",
+          "retrieved": true
+        },
+        {
+          "title": "cbindgen CHANGES",
+          "url": "https://github.com/mozilla/cbindgen/blob/master/CHANGES",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Unsafe attributes are parsed (PR #1020) and a test for #[unsafe(no_mangle)] was added; 0.29.4 is the latest release entry.",
+          "retrieved": true
+        },
+        {
+          "title": "crates.io API: cbindgen 0.29.4",
+          "url": "https://crates.io/api/v1/crates/cbindgen/0.29.4",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "cbindgen 0.29.4 was published 2026-06-09 (rust_version 1.74, MPL-2.0).",
+          "retrieved": true
+        },
+        {
+          "title": "Wasmtime C/C++ API documentation",
+          "url": "https://docs.wasmtime.dev/c-api/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "C API release artifacts end in -c-api and hold include/ plus static and dynamic libraries; static linking on Windows needs -DWASM_API_EXTERN= -DWASI_API_EXTERN= and ws2_32, advapi32, userenv, ntdll, shell32, ole32 and bcrypt.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Edition Guide: Unsafe attributes (Rust 2024)",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-attributes.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "In Rust 2024 export_name, link_section and no_mangle must be written #[unsafe(...)]; older editions allow the bare form.",
+          "retrieved": true
+        },
+        {
+          "title": "Unreal Engine 5.8 docs: Consoles Development in Unreal Engine",
+          "url": "https://dev.epicgames.com/documentation/en-us/unreal-engine/consoles-development-in-unreal-engine",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Unreal Engine supports development for Nintendo Switch, Switch 2, PlayStation 4, PlayStation 5 and Xbox, with per-console registration for developers.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Treat the component model as a new target and ABI: WIT values are copied across and memory is never shared",
+      "what": "Option C replaces raw pointers with a typed WIT interface, but it is a different artifact and contract: wasm32-wasip2 emits a component, a component may not export a memory, values cross by a lift/lower copy, and floats loaded across the boundary lose their NaN sign and payload.",
+      "how": "Write the law's interface in WIT (a world exporting a step function over list<f64> bodies), generate guest bindings with `wit_bindgen::generate!({ path: \"wit/world.wit\" })` (wit-bindgen 0.62.0, 2026-09-10), build with `cargo build --target wasm32-wasip2` (Tier 2, outputs a component; the component-model book says cargo-component is being deprecated), host it natively with wasmtime's `component::bindgen!` (the component model is Tier 1), and in JavaScript with jco 1.35.0 (2026-09-24), which transpiles a component into ES modules for Node and browsers. What the raw ABI keeps by convention, strides 17 and 10 and pointer/offset pairs, becomes a checked type.",
+      "rust_version": "wasm32-wasip2 (Tier 2) on rustc 1.98.1; wit-bindgen 0.62.0; wasmtime 49.0.1; jco 1.35.0",
+      "gotchas": "The engine's zero-copy contract cannot carry over: a component may not export a memory, and the Canonical ABI explainer says an implementation can at best fuse lifting and lowering into one direct copy, so up to 8,704 bytes of bodies cross by copy on every call. A wasm32-wasip2 runtime 'should support the wasi preview 2 API set', so the component can import WASI interfaces the current module never needed, and Wasmtime's determinism page says to virtualize nondeterministic WASI APIs. Browsers run it only through jco's output. Dropping NaN sign and payload is harmless for a law that aborts on NaN, but any design that hashes NaN bits breaks at the boundary.",
+      "engine_note": "solver/build.mjs hard-codes strides 17 and 10 against lib.rs BODY_STRIDE and COLLIDER_STRIDE with nothing checking the pair; a WIT record would. But fixtures/solver.sha256, solver/rust-toolchain.toml (target wasm32-unknown-unknown) and the three-engine goldens describe the core module, so option C is a new artifact and a new T1 baseline, not a re-wrap of the pinned binary.",
+      "checks": [],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The WebAssembly Component Model: Why the Component Model?",
+          "url": "https://component-model.bytecodealliance.org/design/why-component-model.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Core module functions are restricted to integer and float types, so rich data passes as offsets and lengths into a linear memory; components use WIT types, may not export a memory, and cross boundaries through the Canonical ABI.",
+          "retrieved": true
+        },
+        {
+          "title": "The WebAssembly Component Model: Rust",
+          "url": "https://component-model.bytecodealliance.org/language-support/building-a-simple-component/rust.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Rust components are built for wasm32-wasip2 with wit_bindgen::generate! and run in wasmtime; cargo-component is in the process of being deprecated.",
+          "retrieved": true
+        },
+        {
+          "title": "Canonical ABI explainer",
+          "url": "https://raw.githubusercontent.com/WebAssembly/component-model/main/design/mvp/CanonicalABI.md",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "A real implementation should be able to fuse lifting and lowering into a single direct copy between linear memories, and floats are loaded with the sign and payload of NaN values discarded.",
+          "retrieved": true
+        },
+        {
+          "title": "The rustc book: wasm32-wasip2",
+          "url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-wasip2.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "wasm32-wasip2 is a Tier 2 target that outputs a component, and its runtime should support the WASI preview 2 API set.",
+          "retrieved": true
+        },
+        {
+          "title": "jco README",
+          "url": "https://github.com/bytecodealliance/jco",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "jco transpiles WebAssembly components into ES modules that run in Node.js and the browser.",
+          "retrieved": true
+        },
+        {
+          "title": "jco v1.35.0 release",
+          "url": "https://github.com/bytecodealliance/jco/releases/tag/jco-v1.35.0",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "jco v1.35.0 was released on September 24, 2026.",
+          "retrieved": true
+        },
+        {
+          "title": "wit-bindgen v0.62.0 release",
+          "url": "https://github.com/bytecodealliance/wit-bindgen/releases/tag/v0.62.0",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "wit-bindgen v0.62.0 was released on September 10 (2026).",
+          "retrieved": true
+        },
+        {
+          "title": "wasmtime 49.0.1 API: macro component::bindgen",
+          "url": "https://docs.rs/wasmtime/49.0.1/wasmtime/component/macro.bindgen.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "bindgen! ingests a WIT world and generates the bindings for instantiating components of that world; it needs the component-model and runtime features.",
+          "retrieved": true
+        },
+        {
+          "title": "Wasmtime docs: Deterministic Wasm Execution",
+          "url": "https://docs.wasmtime.dev/examples-deterministic-wasm-execution.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Do not give Wasm programs access to non-deterministic host functions; when using WASI, virtualize nondeterministic APIs such as clocks and file systems with wasi-virt.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Drive one law instance per world from one thread; collect Rapier events in a Sync buffer the host drains",
+      "what": "The law holds one Rapier world in static mut SOLVER and silently rebuilds it when the call signature changes, so a host needs one module instance per world, called from one thread; host callbacks cannot go into Rapier (its EventHandler must be Sync), so events belong in a law-owned Sync buffer drained after each step; and the buffer traffic is small, 22,528 bytes per quantum at the engine's maxima.",
+      "how": "Per world, one wasmtime Store and Instance called from the simulation thread: `TypedFunc::call` takes `impl AsContextMut`, so a Store serves one call at a time, whereas a native build's `static mut` has no such guard (serialize it or never share it). In Godot keep scene-tree access on the main thread (the docs: interacting with the active scene tree is not thread-safe; from another thread publish with call_deferred / set_deferred) and do not lean on gdext's experimental-threads. For events, hand Rapier a law-owned handler (`EventHandler: MaybeSync`, which is Sync unless rapier's unsync-callbacks feature is on), e.g. a `Mutex<Vec<_>>` or Rapier's ChannelEventCollector, drain it after each step, and expose the drained list through a buffer the host reads like the bodies. Copies: bodies 8,704 B, colliders 5,120 B and heights 2,048 B in, 6,656 B out (13 fields x 64 bodies) = 22,528 B per quantum, 1,441,792 B/s at 64 Hz, plus the snapshot; a `#[repr(C)] #[derive(Pod, Zeroable)]` record array becomes the byte slice `Memory::write` takes through `bytemuck::cast_slice`.",
+      "rust_version": "rapier3d-f64 0.35.3; wasmtime 49.0.1; bytemuck 1.25.2; Godot 4.7",
+      "gotchas": "Interleaving two worlds through one instance never errors: ensure() rebuilds the world on each switch and reports success, so warm-start and sleep state are dropped and the run can diverge from a dedicated instance without a signal. A host object handle captured in a handler is refused at compile time (an Rc<RefCell<...>> sink: E0277, 'required for HostSink to implement MaybeSync'); switching on unsync-callbacks to allow it changes the solver's feature set, and with it the artifact. derive(Pod) refuses a record with padding (16 f64 plus a u32 flag: E0080, 'derive(Pod) was applied to a type with padding'), which keeps uninitialized bytes out of the law's buffers.",
+      "engine_note": "rapier_law.rs: `static mut SOLVER` holds one world; ensure() rebuilds when the signature (world id, counts, geometry, shape) changes; solver_clear_warmstart relies on 'the world is ours alone on this thread'; integrate() calls world.step() with no handler, so a collision-event export (T3 plans to hash event order) is where the Sync buffer lands. Sizes follow lib.rs MAX_BODIES 64 x BODY_STRIDE 17 and MAX_COLLIDERS 64 x COLLIDER_STRIDE 10, rapier_law.rs MAX_HEIGHTS 256, and build.mjs readBodies' 13 fields.",
+      "checks": [
+        {
+          "label": "A host sink holding Rc<RefCell<..>> cannot be Rapier's EventHandler: E0277 via MaybeSync",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "cannot be shared between threads safely",
+            "MaybeSync"
+          ],
+          "source": "use rapier3d_f64::prelude::*;\nuse std::cell::RefCell;\nuse std::rc::Rc;\n\n// A host-side sink shaped like a single-threaded engine object handle.\npub struct HostSink {\n    pub started: Rc<RefCell<Vec<bool>>>,\n}\n\nimpl EventHandler for HostSink {\n    fn handle_collision_event(&self, _b: &RigidBodySet, _c: &ColliderSet, e: CollisionEvent, _p: Option<&ContactPair>) {\n        self.started.borrow_mut().push(e.started());\n    }\n    fn handle_contact_force_event(&self, _dt: f64, _b: &RigidBodySet, _c: &ColliderSet, _p: &ContactPair, _m: f64) {}\n}\n"
+        },
+        {
+          "label": "A law-owned Mutex<Vec> handler, drained after each step, yields the Started event at quantum 20",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "drained (quantum, started): [(20, true)]",
+          "source": "use rapier3d_f64::prelude::*;\nuse std::sync::Mutex;\n\n// The law owns a Sync buffer; Rapier writes into it during the step, the host drains it after.\nstruct LawEvents {\n    started: Mutex<Vec<bool>>,\n}\n\nimpl EventHandler for LawEvents {\n    fn handle_collision_event(&self, _b: &RigidBodySet, _c: &ColliderSet, e: CollisionEvent, _p: Option<&ContactPair>) {\n        self.started.lock().unwrap().push(e.started());\n    }\n    fn handle_contact_force_event(&self, _dt: f64, _b: &RigidBodySet, _c: &ColliderSet, _p: &ContactPair, _m: f64) {}\n}\n\nfn main() {\n    let mut world = PhysicsWorld::new();\n    world.integration_parameters.dt = 1.0 / 64.0;\n    world.insert(RigidBodyBuilder::fixed(), ColliderBuilder::cuboid(5.0, 0.5, 5.0));\n    world.insert(\n        RigidBodyBuilder::dynamic().translation(Vector::new(0.0, 1.5, 0.0)),\n        ColliderBuilder::ball(0.5).active_events(ActiveEvents::COLLISION_EVENTS),\n    );\n    let events = LawEvents { started: Mutex::new(Vec::new()) };\n    let mut drained: Vec<(u32, bool)> = Vec::new();\n    for q in 0..64u32 {\n        world.step_with_events(&(), &events);\n        // Host side, between quanta: take what the step produced.\n        for s in events.started.lock().unwrap().drain(..) {\n            drained.push((q, s));\n        }\n    }\n    println!(\"drained (quantum, started): {:?}\", drained);\n}\n"
+        },
+        {
+          "label": "Buffer traffic at the engine's maxima: 22,528 bytes per quantum, 1,441,792 bytes/s at 64 Hz",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "in: bodies 8704 colliders 5120 heights 2048; out: 6656\nper quantum 22528 B; at 64 quanta/s 1441792 B/s",
+          "source": "use std::mem::size_of;\n\nconst MAX_BODIES: usize = 64;\nconst BODY_STRIDE: usize = 17;\nconst MAX_COLLIDERS: usize = 64;\nconst COLLIDER_STRIDE: usize = 10;\nconst MAX_HEIGHTS: usize = 256;\nconst READ_BACK_FIELDS: usize = 13; // x y z vx vy vz qx qy qz qw wx wy wz\n\nfn main() {\n    let bodies = size_of::<[f64; MAX_BODIES * BODY_STRIDE]>();\n    let colliders = size_of::<[f64; MAX_COLLIDERS * COLLIDER_STRIDE]>();\n    let heights = size_of::<[f64; MAX_HEIGHTS]>();\n    let read_back = size_of::<[f64; MAX_BODIES * READ_BACK_FIELDS]>();\n    let per_quantum = bodies + colliders + heights + read_back;\n    println!(\"in: bodies {bodies} colliders {colliders} heights {heights}; out: {read_back}\");\n    println!(\"per quantum {per_quantum} B; at 64 quanta/s {} B/s\", per_quantum * 64);\n}\n"
+        },
+        {
+          "label": "A #[repr(C)] Pod record of 17 f64 casts to 136 bytes per body with slots in stride order",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "bytemuck"
+          ],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "size 136 align 8 half@104 mode@128\nbytes for 2 bodies 272\nbody 1 slot 0 = 1, slot 16 = 1",
+          "source": "use bytemuck::{Pod, Zeroable};\nuse std::mem::{align_of, offset_of, size_of};\n\n// One body record exactly as the law's buffer holds it: 17 f64, stride 17.\n#[repr(C)]\n#[derive(Clone, Copy, Pod, Zeroable)]\nstruct BodyIn {\n    pos: [f64; 3],\n    vel: [f64; 3],\n    quat: [f64; 4],\n    ang: [f64; 3],\n    half: [f64; 3],\n    mode: f64,\n}\n\nconst _: () = assert!(size_of::<BodyIn>() == 17 * 8);\n\nfn main() {\n    let mut bodies = [BodyIn::zeroed(); 2];\n    bodies[1].pos = [1.0, 2.0, 3.0];\n    bodies[1].mode = 1.0;\n    // The byte slice a wasmtime Memory::write takes.\n    let bytes: &[u8] = bytemuck::cast_slice(&bodies);\n    println!(\"size {} align {} half@{} mode@{}\", size_of::<BodyIn>(), align_of::<BodyIn>(), offset_of!(BodyIn, half), offset_of!(BodyIn, mode));\n    println!(\"bytes for 2 bodies {}\", bytes.len());\n    let back: &[f64] = bytemuck::cast_slice(bytes);\n    println!(\"body 1 slot 0 = {}, slot 16 = {}\", back[17], back[17 + 16]);\n}\n"
+        },
+        {
+          "label": "derive(Pod) refuses a record with tail padding (E0080)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "bytemuck"
+          ],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "derive(Pod) was applied to a type with padding"
+          ],
+          "source": "use bytemuck::{Pod, Zeroable};\n\n// A u32 flag after the 16 floats leaves 4 bytes of tail padding.\n#[repr(C)]\n#[derive(Clone, Copy, Pod, Zeroable)]\npub struct BodyIn {\n    pub fields: [f64; 16],\n    pub mode: u32,\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "rapier3d-f64 0.35.3: trait EventHandler",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/trait.EventHandler.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "pub trait EventHandler: MaybeSync, with handle_collision_event and handle_contact_force_event taking &self; ChannelEventCollector implements it under the std feature.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: trait MaybeSync",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/utils/trait.MaybeSync.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "MaybeSync is Sync unless the unsync-callbacks feature says otherwise.",
+          "retrieved": true
+        },
+        {
+          "title": "wasmtime 49.0.1 API: struct TypedFunc",
+          "url": "https://docs.rs/wasmtime/49.0.1/wasmtime/struct.TypedFunc.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "TypedFunc::call(&self, store: impl AsContextMut, params) invokes the function with a mutable store context.",
+          "retrieved": true
+        },
+        {
+          "title": "Godot Engine 4.7 docs: Thread-safe APIs",
+          "url": "https://docs.godotengine.org/en/stable/tutorials/performance/thread_safe_apis.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Interacting with the active scene tree is not thread-safe; use call_deferred or set_deferred to call functions or set properties from a thread.",
+          "retrieved": true
+        },
+        {
+          "title": "docs.rs: godot 0.5.5 crate documentation (Cargo features)",
+          "url": "https://docs.rs/godot/0.5.5/godot/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "experimental-threads adds synchronization and disables single-thread checks, with a high risk of unsoundness at the moment.",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine solver/src/rapier_law.rs at f84c98b",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/solver/src/rapier_law.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "static mut SOLVER holds the loaded world; ensure() rebuilds it when the signature differs; solver_clear_warmstart notes the world is ours alone on this thread.",
+          "retrieved": true
+        },
+        {
+          "title": "bytemuck 1.25.2: trait Pod",
+          "url": "https://docs.rs/bytemuck/1.25.2/bytemuck/trait.Pod.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A Pod type must be repr(C) or repr(transparent), allow any bit pattern and contain no uninit or padding bytes.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Accept a new host only when its T1 trace equals node's in 16-hex-digit IEEE bits, never in decimals",
+      "what": "solver/build.mjs under node is the reference binding: a Godot or Unreal host proves it runs the same law by printing the T1 trace for the same seed and log and passing harness/first-difference.js against node's trace, which writes every body field as its IEEE bit pattern.",
+      "how": "Print each float as `format!(\"{:016x}\", x.to_bits())`: sixteen lowercase hex digits, zero-padded, high word first, the same string trace-line.mjs's bits() builds from two DataView words; parse node's tokens with `f64::from_bits(u64::from_str_radix(tok, 16)?)`. Keep PHASE-2's line grammar (tick, hash, body id and 13 fields, zone, links, snap length and digest, minds, `end <lines>`), drive the host with the same seed and admitted log, and require an empty diff for the product scene and every fixture on each platform the host ships on (T3's ARM64 lane is the pattern).",
+      "rust_version": "any: to_bits / from_bits are stable since 1.20; trace format fixed by T1",
+      "gotchas": "Decimal renderings hide what matters: at six decimals 0.1 + 0.2 and 0.3 print alike while their bits differ in the last place (the check), and JavaScript prints negative zero as \"0\" (measured on this rig with node v22.22.3: String(-0), (-0).toFixed(3) and JSON.stringify(-0)). PHASE-2 rules out error thresholds in place of bit-exact agreement. to_bits is a raw transmutation and std says floats and integers share endianness on all supported platforms, so the token is portable. The hash column comes from the JavaScript frame hash, so a host that runs only the .wasm can match the body fields while its hash column must come from the same packages/frame code or from a port that passes this diff first.",
+      "engine_note": "harness/trace-line.mjs bits() and the format in docs/PHASE-2.md (T1) are the conformance contract; harness/first-difference.js names the first differing quantum, body and field; solver/build.mjs is the reference binding and packages/frame computes the frame hash in JavaScript, so each host plan must say where its hash column comes from.",
+      "checks": [
+        {
+          "label": "Six-decimal output hides a 1-ulp and a signed-zero difference that the 16-hex-digit tokens keep",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "0.300000 0.300000\n3fd3333333333334 3fd3333333333333\n0000000000000000 8000000000000000\nparsed token equals a: true",
+          "source": "// The T1 trace token: sixteen lowercase hex digits of the IEEE bits, high word first.\nfn token(x: f64) -> String {\n    format!(\"{:016x}\", x.to_bits())\n}\n\nfn main() {\n    let a = std::hint::black_box(0.1) + std::hint::black_box(0.2);\n    let b = 0.3;\n    println!(\"{:.6} {:.6}\", a, b);\n    println!(\"{} {}\", token(a), token(b));\n    println!(\"{} {}\", token(0.0), token(-0.0));\n    let back = f64::from_bits(u64::from_str_radix(\"3fd3333333333334\", 16).unwrap());\n    println!(\"parsed token equals a: {}\", back.to_bits() == a.to_bits());\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "si-rpg-engine harness/trace-line.mjs at f84c98b",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/harness/trace-line.mjs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Each body prints x y z vx vy vz qx qy qz qw wx wy wz as sixteen-hex-digit IEEE bit patterns, high word first; bits(x) concatenates hex(view.getUint32(4, true)) and hex(view.getUint32(0, true)).",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine docs/PHASE-2.md at f84c98b",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/docs/PHASE-2.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "T1 prints per-quantum hashes and every body field as exact bit patterns under all four runtimes and names the first differing quantum, body and field; T3 adds an ARM64 lane; the phase uses no error thresholds in place of bit-exact agreement.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust std: primitive f64 (to_bits, from_bits)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f64.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "to_bits is currently identical to transmute::<f64, u64> on all platforms, and floats and ints have the same endianness on all supported platforms.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust std: module fmt",
+          "url": "https://doc.rust-lang.org/stable/std/fmt/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The 0 flag pads to the width with zeros, x formats with LowerHex, and .N sets the digits after the decimal point for floats.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

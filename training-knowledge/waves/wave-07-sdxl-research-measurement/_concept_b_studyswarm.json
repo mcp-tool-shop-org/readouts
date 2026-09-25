@@ -1,0 +1,576 @@
+{
+  "summary": "Study-swarm: ground a 2nd-concept multi-concept SDXL-LoRA repeat-balancing measurement and produce a commercial-clean, source-attested concept-B dataset spec",
+  "agentCount": 5,
+  "logs": [
+    "research returned 4/4 lanes, 32 findings total"
+  ],
+  "result": {
+    "research": [
+      {
+        "question": "When 2+ visual concepts are co-trained in ONE LoRA/diffusion fine-tune, how do they interfere (concept bleeding, token entanglement, one concept dominating, catastrophic forgetting), and what mechanisms mitigate it (distinct trigger tokens, regularization images, per-concept weighting, orthogonality/low-rank tricks)? Applied to a kohya/sd-scripts SDXL style-LoRA jointly trained on two distinct visual concepts with per-folder num_repeats balancing.",
+        "findings": [
+          {
+            "claim": "PAPER — Custom Diffusion (CVPR 2023). The foundational multi-concept fine-tune: introduces per-concept modifier tokens (V*_i, each initialized from a distinct rarely-used token), restricts updates to cross-attention K/V projections only (~5% of weights, the layers text actually conditions), and uses ~200 retrieved regularization images per concept to prevent 'language drift' (e.g. training 'moongate' makes the model forget 'moon' and 'gate' separately). Also gives a closed-form constrained-least-squares merge for combining separately-trained concepts in ~2s.",
+            "authors": "Kumari, Zhang, Zhang, Shechtman, Zhu",
+            "year": "2023",
+            "identifier": "arXiv:2212.04488",
+            "url": "https://arxiv.org/abs/2212.04488",
+            "key_finding": "Distinct modifier tokens + regularization images + restricting training to cross-attention K/V are the three levers that let two concepts co-train without one bleeding into or overwriting the other."
+          },
+          {
+            "claim": "PAPER — Mix-of-Show (NeurIPS 2023). Names two failure modes directly: 'concept conflict' from naively tuning/averaging single-concept LoRAs, and 'identity loss' during fusion. Fix is an embedding-decomposed LoRA (ED-LoRA) per concept plus 'gradient fusion' (not weight averaging) at the center node, with regionally-controllable sampling to fix attribute-binding/missing-object errors at inference.",
+            "authors": "Gu, Wang, Wu, Shi, Chen, et al.",
+            "year": "2023",
+            "identifier": "arXiv:2305.18292",
+            "url": "https://arxiv.org/abs/2305.18292",
+            "key_finding": "Averaging two concept LoRAs causes conflict and identity loss; gradient fusion preserves each concept's identity far better than additive weight merging."
+          },
+          {
+            "claim": "PAPER — ZipLoRA (ECCV 2024). Quantifies WHY direct LoRA addition interferes: for most style/content LoRA pairs the columns of the two update matrices have non-zero cosine similarity, so summing them superimposes signals and degrades both concepts. ZipLoRA learns per-column merge coefficients that push the merged columns toward orthogonality (cosine ~0), exploiting LoRA sparsity to zero out conflicting columns.",
+            "authors": "Shah, Ruiz, Cole, Lu, Lazebnik, Li, Jampani",
+            "year": "2023",
+            "identifier": "arXiv:2311.13600",
+            "url": "https://arxiv.org/abs/2311.13600",
+            "key_finding": "Interference is literally non-orthogonality between the two concepts' weight-update columns; enforcing column orthogonality is what prevents one concept from corrupting the other when combined."
+          },
+          {
+            "claim": "PAPER — Cones 2 (NeurIPS 2023). Instead of tuning weights (which entangles concepts), learns a residual on top of each subject's frozen base text embedding, so concepts compose by simple embedding combination with no model tuning. Adds layout guidance that rectifies cross-attention activations — strengthening the target subject and weakening irrelevant subjects per region — to stop attribute confusion between subjects.",
+            "authors": "Liu, Zhang, Shen, Zheng, Zhou, et al.",
+            "year": "2023",
+            "identifier": "arXiv:2305.19327",
+            "url": "https://arxiv.org/abs/2305.19327",
+            "key_finding": "Keeping concept changes in the text-embedding residual (weights frozen) plus spatially separating subjects in cross-attention largely removes cross-concept attribute leakage."
+          },
+          {
+            "claim": "PAPER — Controlling T2I Diffusion by Orthogonal Finetuning / OFT + COFT (NeurIPS 2023). Fine-tunes weights via an orthogonal transform that provably preserves 'hyperspherical energy' (pairwise neuron angles), keeping the base model's semantics intact during adaptation; COFT adds a radius constraint for stability. This is the principled alternative to LoRA when you want adaptation that does not disturb prior knowledge (anti-forgetting).",
+            "authors": "Qiu, Liu, Feng, Xiu, Wei, et al.",
+            "year": "2023",
+            "identifier": "arXiv:2306.07280",
+            "url": "https://arxiv.org/abs/2306.07280",
+            "key_finding": "Constraining the fine-tune to orthogonal transforms preserves the pretrained model's pairwise neuron structure, reducing the catastrophic-forgetting/drift that plain joint fine-tuning causes."
+          },
+          {
+            "claim": "PAPER — B-LoRA (ECCV 2024). On SDXL specifically, finds that two transformer blocks (4 and 5) separately encode content vs. style, and that jointly training LoRA on exactly those two blocks achieves clean style/content separation that training each block alone cannot. The two B-LoRAs then recombine independently without interference.",
+            "authors": "Frenkel, Vinker, Shamir, Cohen-Or",
+            "year": "2024",
+            "identifier": "arXiv:2403.14572",
+            "url": "https://arxiv.org/abs/2403.14572",
+            "key_finding": "In SDXL, style and content concepts live in architecturally distinct blocks, so targeting those blocks gives near-orthogonal, recombinable concept LoRAs — directly relevant to a style-vs-style SDXL measurement."
+          },
+          {
+            "claim": "PAPER — Isolated Diffusion (2024) and the concept-bleeding literature (e.g. 'Easing Concept Bleeding', ICML 2024). Identifies the mechanism of concept bleeding: an entity/attribute's cross-attention map spills beyond its intended region into background or other objects. Mitigations are training-free at inference: split prompts so each attribute binds to its subject separately, plus a revision/anchoring step.",
+            "authors": "Zhang, Wang, et al. (Isolated Diffusion); Dahary et al. (Easing Concept Bleeding)",
+            "year": "2024",
+            "identifier": "arXiv:2403.16954",
+            "url": "https://arxiv.org/abs/2403.16954",
+            "key_finding": "Concept bleeding originates in cross-attention maps over-extending past their target region — a measurable, attention-level signature of interference that complements distributional metrics like CLIP-sim/CMMD."
+          },
+          {
+            "claim": "PRACTITIONER/OFFICIAL — kohya-ss sd-scripts num_repeats + a Civitai balancing-repeats tutorial. In sd-scripts each [[datasets.subsets]] folder has its own num_repeats; the effective per-concept exposure per epoch is (image_count x num_repeats). The standard rule is to equalize that product across concept folders so neither concept dominates: e.g. a 100-image concept at repeat=1 vs a 20-image concept at repeat=5 both yield ~100 effective samples. Imbalance under-trains the minority concept (weak binding/likeness) and over-trains the majority (artifacts/caricature).",
+            "authors": "kohya-ss (sd-scripts docs); Civitai community tutorial",
+            "year": "2024",
+            "identifier": "github.com/kohya-ss/sd-scripts (LoRA training docs) + civitai.com/articles/14327",
+            "url": "https://civitai.com/articles/14327/training-tip-balancing-repeats",
+            "key_finding": "num_repeats is exactly the per-concept weighting knob the measurement targets: balancing (images x repeats) across the two concept folders is the documented mechanism that stops one concept from dominating the joint LoRA."
+          }
+        ],
+        "design_note": "For our two-style SDXL LoRA measurement, the literature converges on four independent levers, and num_repeats is the one we are actually sweeping. (1) Distinct trigger tokens are non-negotiable — Concept A already uses 'stdstyl'; give Concept B its own rare token (e.g. 'cncptb') so cross-attention K/V can bind them separately (Custom Diffusion). Never share a trigger. (2) num_repeats is the dominance dial: hold images roughly equal and sweep the repeat ratio so (imagesA x repeatsA) vs (imagesB x repeatsB) moves across, e.g. 1:1, 1:2, 2:1, 3:1 — the per-concept effective-sample product is the true independent variable, not raw repeat count. With A=16 images, match B near 16 and vary repeats. (3) Expect interference to show up two ways our harness can catch: distributionally (CLIP-sim to each style centroid + CMMD diverging as one concept dominates) and, if we want a second axis, as cross-attention bleed (Isolated Diffusion / concept-bleeding work) — worth logging attention maps even if CMMD is the headline. (4) Regularization/class images (Custom Diffusion's anti-language-drift result) are the confound to control: decide up front whether to include them, because they independently shift binding strength and would contaminate the repeat-ratio signal — recommend running the core sweep WITHOUT reg images first to isolate the num_repeats effect, then optionally one reg-image arm. B-LoRA is the key currency note: in SDXL, style lives in specific blocks, so two STYLES (vs A's style + a B subject) may interfere less than expected — pick Concept B as a clearly distinct visual style (not a near-neighbor of cyanotype) so the centroids are well separated and any dominance effect is attributable to repeat balancing, not centroid overlap. ZipLoRA/OFT/Cones2 are out-of-scope for this measurement (they are merge-time or inference-time fixes) but are the natural follow-up if the single-LoRA joint train shows unrecoverable bleed."
+      },
+      {
+        "question": "How do per-folder num_repeats (kohya/sd-scripts) and dataset sampling weights control RELATIVE concept exposure across an epoch? What is the relationship between (image_count × num_repeats) and effective gradient exposure per concept, and what ratios produce BALANCED vs DOMINATED binding when one concept has few images?",
+        "findings": [
+          {
+            "claim": "OFFICIAL DOC (kohya-ss/sd-scripts config_README-en.md). num_repeats is a per-subset option (settable at [general], [[datasets]], or [[datasets.subsets]]) that 'specifies the number of repeats for images in a subset... equivalent to --dataset_repeats in fine-tuning but can be specified for any training method.' Per-subset values let different folders carry distinct repeat counts within one dataset.",
+            "authors": "kohya-ss (Kohya S.) and sd-scripts contributors",
+            "year": "2024",
+            "identifier": "Official doc: sd-scripts/docs/config_README-en.md",
+            "url": "https://github.com/kohya-ss/sd-scripts/blob/main/docs/config_README-en.md",
+            "key_finding": "num_repeats is the canonical, officially-sanctioned per-folder knob for how many times a subset's images are injected into an epoch, and it is independent per subset so each concept can be weighted separately."
+          },
+          {
+            "claim": "OFFICIAL (maintainer kohya-ss, Discussion #182). The per-bucket step count for an epoch is ceil((# images in bucket) × (# repeats) / batch_size), summed over buckets. The maintainer states repeats serve two functions: (1) balancing training vs regularization images, and (2) weighting folder exposure — 'higher repeats on quality images increases their influence versus lower-quality folders.'",
+            "authors": "kohya-ss (maintainer) et al.",
+            "year": "2023",
+            "identifier": "GitHub Discussion #182",
+            "url": "https://github.com/kohya-ss/sd-scripts/discussions/182",
+            "key_finding": "Steps-per-epoch for a folder scale linearly with image_count × num_repeats, so num_repeats is the maintainer-endorsed lever for relative concept emphasis."
+          },
+          {
+            "claim": "OFFICIAL/PRACTITIONER (bmaltais/kohya_ss Wiki, the dominant GUI front-end). Worked example: 'train 50 images 10 times with a batch size of 1 and do this for 2 epochs, the total number of steps is 50×10×2=1000', i.e. total_steps = images × repeats × epochs ÷ batch_size.",
+            "authors": "bmaltais and kohya_ss wiki contributors",
+            "year": "2024",
+            "identifier": "Official wiki: kohya_ss/wiki/LoRA-training-parameters",
+            "url": "https://github.com/bmaltais/kohya_ss/wiki/LoRA-training-parameters",
+            "key_finding": "Effective gradient exposure (optimizer updates) for a concept is exactly proportional to its image_count × num_repeats, so two folders bind equally only when those products match."
+          },
+          {
+            "claim": "PRACTITIONER (Dreams Are Real, Medium — 'Understanding LoRA Training Part 2'). The relationship is training_images × repeats = effective images seen per epoch; repeats both balance against regularization images and 'control folder weight,' but the author warns it 'doesn't make sense to repeat training images more times than needed for balance or weight within one epoch.'",
+            "authors": "Dreams Are Real",
+            "year": "2023",
+            "identifier": "Medium article c68b86c69da8",
+            "url": "https://medium.com/@dreamsarereal/understanding-lora-training-part-2-offset-noise-epochs-and-repeats-c68b86c69da8",
+            "key_finding": "Practitioner consensus treats image_count × num_repeats as the per-folder exposure budget; to balance two concepts you equalize that product, not the raw image counts."
+          },
+          {
+            "claim": "PAPER (Ye et al., 'Data Mixing Laws'). Per-domain validation loss is a fitted exponential of the mixture proportions: L_i(r_1..M) = c_i + k_i·exp(Σ_j t_ij r_j), with r_j the proportion of domain j. Raising a domain's proportion predictably lowers its own loss while the interaction terms t_ij raise others'.",
+            "authors": "Jiasheng Ye, Peiju Liu, Tianxiang Sun, Yunhua Zhou, Jun Zhan, Xipeng Qiu",
+            "year": "2024",
+            "identifier": "arXiv:2403.16952",
+            "url": "https://arxiv.org/abs/2403.16952",
+            "key_finding": "Concept binding strength (inverse loss) is a smooth, predictable function of that concept's exposure proportion, and gains for one concept come at a quantifiable cost to the other — the formal basis for an exposure-ratio sweep."
+          },
+          {
+            "claim": "PAPER (Xie et al., 'DoReMi', NeurIPS 2023). Reweighting domain proportions alone — without changing the data — improved average few-shot accuracy by 6.5 points over The Pile's default weights and reached baseline accuracy with 2.6× fewer steps; DoReMi sharply upweighted broad web text (Pile-CC 0.11→0.61) and downweighted narrow domains.",
+            "authors": "Sang Michael Xie, Hieu Pham, Xuanyi Dong, Nan Du, Hanxiao Liu, Yifeng Lu, Percy Liang, Quoc V. Le, Tengyu Ma, Adams Wei Yu",
+            "year": "2023",
+            "identifier": "arXiv:2305.10429",
+            "url": "https://arxiv.org/abs/2305.10429",
+            "key_finding": "Relative proportion — not absolute data quantity — is what governs what a model preferentially learns, validating num_repeats ratio as the right experimental axis."
+          },
+          {
+            "claim": "PAPER (Ge et al., 'BiMix'). A bivariate law models the JOINT scaling of domain proportion and data volume on per-domain loss, predicting loss across unseen mixtures with R²>0.97, establishing that proportion and quantity together govern each domain's learning curve.",
+            "authors": "Ce Ge, Zhijian Ma, Daoyuan Chen, Yaliang Li, Bolin Ding",
+            "year": "2024",
+            "identifier": "arXiv:2405.14908",
+            "url": "https://arxiv.org/abs/2405.14908",
+            "key_finding": "Proportion (the num_repeats ratio) and volume (total steps/epochs) are separable but interacting factors, so the design should hold total exposure roughly fixed while sweeping the ratio to isolate the binding effect."
+          },
+          {
+            "claim": "PAPER (Gu et al., 'Mix-of-Show', NeurIPS 2023). Tuning multiple concepts jointly into shared LoRA parameters causes 'concept conflicts' and 'identity loss' — adaptations for separate concepts compete in shared weights and lose each concept's in-domain essence without an explicit mechanism to keep them distinct.",
+            "authors": "Yuchao Gu, Xintao Wang, Jay Zhangjie Wu, Yujun Shi, Yunpeng Chen, Zihan Fan, Wuyou Xiao, Rui Zhao, Shuning Chang, Weijia Wu, Yixiao Ge, Ying Shan, Mike Zheng Shou",
+            "year": "2023",
+            "identifier": "arXiv:2305.18292",
+            "url": "https://arxiv.org/abs/2305.18292",
+            "key_finding": "Joint multi-concept tuning is inherently prone to one concept dominating / feature leakage when exposure is imbalanced, which is exactly the failure mode the num_repeats balancing study is built to measure."
+          }
+        ],
+        "design_note": "The mechanic is unambiguous and officially documented: a folder's per-epoch optimizer updates equal image_count × num_repeats ÷ batch_size, so EFFECTIVE GRADIENT EXPOSURE per concept is the product image_count × num_repeats. Concept A (cyanotype) has 16 images. To make concept B's exposure equal A's, set B's repeats so that B_images × B_repeats ≈ 16 × A_repeats; the BALANCED 1:1 config is the one where those products match, and DOMINATED configs are deliberate offsets from it. Concrete design: fix A at e.g. 10 repeats (160 exposures). Generate ~16 commercial-safe concept-B images and run an exposure-RATIO sweep holding total exposure ~constant — recommend at least 1:4, 1:2, 1:1, 2:1, 4:1 (B:A products), which maps to setting B's repeats to 2/5/10/20/40 against A's 160. Because image counts here are equal (16 vs 16), the ratio reduces cleanly to the repeats ratio — a clean single-variable axis. If B ends up with FEWER images than A, do NOT compensate by inflating repeats to a 1:1 product blindly: the data-mixing-laws / BiMix evidence shows proportion and volume interact, and the practitioner literature warns over-repeating a tiny folder overfits its specific images (memorization, not style binding) even as the aggregate exposure looks balanced — so report image_count and num_repeats separately, never just the product. The 1:1-product point is the predicted balance point and the asymmetric points are the predicted dominance points; Mix-of-Show/CAT-style leakage is the expected dominated-side failure. CLIP-centroid + CMMD per config (n≥15) should show A-fidelity rising and B-fidelity falling monotonically as the A:B exposure ratio increases, tracing the predicted exposure→binding curve. Keep batch_size, epochs, LR, and seed pinned across configs so num_repeats ratio is the only moving lever (per PIN_PER_STEP)."
+      },
+      {
+        "question": "For a clean SDXL style-LoRA repeat-balancing measurement, which axes of separation make concept B maximally orthogonal to the cyanotype (cool monochrome linework) so CLIP can detect bleeding — and which 2-3 concept-B styles does SDXL base render well while maximizing that separation?",
+        "findings": [
+          {
+            "claim": "PAPER — StyleDrop (style-LoRA learnability): a style can be learned by fine-tuning <1% of model params from very few — even ONE — style images, and iterative feedback raises style fidelity.",
+            "authors": "Kihyuk Sohn, Nataniel Ruiz, Kimin Lee, et al.",
+            "year": "2023",
+            "identifier": "arXiv:2306.00983 (NeurIPS 2023)",
+            "url": "https://arxiv.org/abs/2306.00983",
+            "key_finding": "A coherent visual style binds with <1M trainable params (<1% of a 3B model) in ~1000 steps from a handful of images, so 16 cyanotype images is ample budget — meaning learnability differences between concept A and B will come from style coherence, not image count, which is exactly the variable repeat-balancing should isolate."
+          },
+          {
+            "claim": "PAPER — B-LoRA (style/content separation in SDXL): style and content live in DIFFERENT SDXL transformer blocks — block 4 (W^4) carries content/structure, block 5 (W^5) carries style/appearance & texture.",
+            "authors": "Yarden Frenkel, Yael Vinker, Ariel Shamir, Daniel Cohen-Or",
+            "year": "2024",
+            "identifier": "arXiv:2403.14572 (ECCV 2024)",
+            "url": "https://arxiv.org/abs/2403.14572",
+            "key_finding": "Because SDXL encodes style (appearance/texture, block 5) separately from content (structure, block 4), two concepts that differ on the STYLE axis (rendering technique + texture + palette) are the cleanest to disentangle in a single LoRA — favoring a concept B that contrasts cyanotype's flat monochrome linework with a textured, full-color, painterly render rather than just a different subject."
+          },
+          {
+            "claim": "PAPER — CLIP texture/shape bias: CLIP's image embedding is biased toward shape but shifts toward TEXTURE as resolution/fine-tuning increases, and is a mix of low-level (color/texture) and semantic features.",
+            "authors": "Mingqi Jiang, et al. (CLIP texture–shape bias dynamics study)",
+            "year": "2025",
+            "identifier": "arXiv:2508.09814",
+            "url": "https://arxiv.org/html/2508.09814v2",
+            "key_finding": "At 1024px the CLIP-ViT image vector is strongly texture- and (per CBIR/IP-Adapter consensus) color-driven, so a per-style centroid in CLIP space separates two styles best when they differ on palette AND texture — making color (mono-blue vs full chroma) plus surface (clean vector lines vs visible brush/grain) the two highest-leverage separation axes for the centroid metric to read bleeding."
+          },
+          {
+            "claim": "PAPER — SCAdapter / IP-Adapter lineage confirms CLIP entangles style+content in one vector, and style is recoverable by subtracting shared content — i.e. style is a real, separable direction in CLIP space.",
+            "authors": "SCAdapter authors (building on IP-Adapter, Ye et al.)",
+            "year": "2025",
+            "identifier": "arXiv:2512.12963",
+            "url": "https://arxiv.org/html/2512.12963v1",
+            "key_finding": "CLIP image embeddings carry both style and content in one compact vector, so a centroid built from same-style/varied-content samples cancels content and converges to a style prototype — validating the per-style-centroid harness, provided concept B's content domain is DIFFERENT from cyanotype's so shared-subject leakage doesn't inflate apparent similarity."
+          },
+          {
+            "claim": "PAPER — CMMD (eval harness validity): CLIP-MMD is unbiased, distribution-free, and sample-efficient; reliable FID needs >20,000 images whereas CMMD is stable at a few hundred.",
+            "authors": "Sadeep Jayasumana, Srikumar Ramalingam, Andreas Veit, et al.",
+            "year": "2024",
+            "identifier": "arXiv:2401.09603 (CVPR 2024)",
+            "url": "https://arxiv.org/abs/2401.09603",
+            "key_finding": "CMMD gives consistent distances at small n (hundreds, vs >20k for FID), so the n>=15-per-config plan is viable for CMMD trend-reading at the per-config level — but n=15 is thin for a stable MMD estimate, so pool across configs and report CLIP-centroid cosine as the primary per-config signal with CMMD as the corroborating distribution distance."
+          },
+          {
+            "claim": "OFFICIAL/PRACTITIONER — kohya sd-scripts num_repeats is the per-folder weighting lever: effective exposure = images x num_repeats, and you set repeats to equalize (or intentionally weight) concept folders so one does not dominate.",
+            "authors": "kohya-ss/sd-scripts (community docs + maintainer discussion #182)",
+            "year": "2024",
+            "identifier": "github.com/kohya-ss/sd-scripts Discussion #182 + dataset TOML [[datasets.subsets]] num_repeats",
+            "url": "https://github.com/kohya-ss/sd-scripts/discussions/182",
+            "key_finding": "Binding strength per concept scales with images x num_repeats, so with cyanotype fixed at 16 imgs, concept B's image count and repeats must be tuned to a matched effective-exposure baseline (e.g. both folders to ~16x repeats = equal steps/epoch) before sweeping the imbalance — this is the exact knob the measurement quantifies."
+          },
+          {
+            "claim": "PRACTITIONER — repeat-balancing rule of thumb: pick a target per-folder effective count, then num_repeats = target / folder_image_count, to equalize concepts of unequal size.",
+            "authors": "Civitai community training guides (Balancing Repeats)",
+            "year": "2024",
+            "identifier": "Civitai article 14327 'Training Tip: Balancing Repeats'",
+            "url": "https://civitai.com/articles/14327/training-tip-balancing-repeats",
+            "key_finding": "The standard practice is to compute repeats so each concept folder reaches the same effective image count (or a deliberate ratio), which gives the measurement a principled neutral midpoint and a calibrated set of imbalance ratios (e.g. 1:1, 2:1, 4:1) to test where one concept starts dominating / bleeding."
+          },
+          {
+            "claim": "OFFICIAL/PRACTITIONER — SDXL base renders generalist styles well but is a master of none; it cleanly handles full-color painterly, anime/cel, 3D-render, and pixel-art looks out of the box.",
+            "authors": "Stability AI / SDXL practitioner documentation",
+            "year": "2023",
+            "identifier": "Stable Diffusion Art 'SDXL Styles' + Stability SDXL 1.0 style presets",
+            "url": "https://stable-diffusion-art.com/sdxl-styles/",
+            "key_finding": "SDXL base reliably produces warm full-color painterly, glossy 3D/clay render, and clean cel/anime styles without a checkpoint, so concept B should be chosen from styles SDXL already renders strongly (so the LoRA refines rather than fights the base) AND that sit far from cyanotype on palette+technique — e.g. a warm impasto oil painting, a glossy 3D clay render, or saturated cel-shaded anime."
+          }
+        ],
+        "design_note": "Pick concept B to maximize CLIP-readable distance from cyanotype on the two axes the harness actually measures — PALETTE and TEXTURE/technique — not just subject. Cyanotype is cool monochrome (single blue hue), flat, clean vector linework, no surface texture, and a representational subject. The strongest orthogonal contrast flips all four: warm/saturated full chroma, heavy surface texture, painterly/non-linework rendering, and a different content domain. Per B-LoRA, style lives in SDXL block 5 (appearance/texture) distinct from block 4 (structure), so contrasting on rendering technique + texture gives the cleanest single-LoRA separation and makes any cross-concept bleeding visible as palette/texture contamination. Per the CLIP texture/color bias finding, the per-style centroid separates best on exactly these low-level axes at 1024px. Three recommended concept-B candidates, all rendered well by SDXL base (so the LoRA refines rather than fights it): (1) WARM IMPASTO OIL PAINTING — maximal palette + texture inversion (thick visible brushstrokes, full warm chroma), the top pick; (2) GLOSSY 3D CLAY/RENDER — inverts flat-linework with volumetric shading + specular highlights, full color, very different CLIP signature; (3) SATURATED CEL-SHADED ANIME — full color, hard flat fills, but note its clean outlines share a faint edge-cue with cyanotype linework, so it is the weakest separator of the three and best used only as a deliberate near-neighbor stress test. Generate concept B synthetically from a commercial-safe base so license inherits, give it its own trigger token (e.g. 'imptst'), match it to 16 images at 1024px, and set kohya num_repeats so both folders reach equal effective exposure as the neutral midpoint before sweeping imbalance ratios (1:1, 2:1, 4:1). Track per-config CLIP-centroid cosine as the primary bleeding signal (n=15 is fine for cosine), and treat CMMD as a corroborating distribution distance pooled across configs since n=15 is thin for a stable MMD estimate."
+      },
+      {
+        "question": "For a commercial-clean synthetic concept-B style-LoRA (generated from SDXL base 1.0) used in a two-concept repeat-balancing measurement: how many images suffice, what caption strategy fits a single-style multi-subject set, how to keep subjects varied so style generalizes, what synthetic-data pitfalls to avoid, and what does SDXL base 1.0's license permit commercially?",
+        "findings": [
+          {
+            "claim": "Practitioner/official (kohya-on-ThinkDiffusion training guide): 20-30 high-quality 1024px images is the recommended starting point for an SDXL LoRA; quality dominates quantity (one bad image in 20 visibly degrades output). For a STYLE concept this brackets concept A's 16 and supports n>=15 eval generation comfortably.",
+            "authors": "ThinkDiffusion (practitioner docs)",
+            "year": "2024",
+            "identifier": "learn.thinkdiffusion.com — Creating SDXL LoRA Models on Kohya",
+            "url": "https://learn.thinkdiffusion.com/creating-sdxl-lora-models-on-kohya/",
+            "key_finding": "20-30 curated 1024px images is the practical SDXL-LoRA sweet spot, and a single low-quality image in a small set measurably harms the result."
+          },
+          {
+            "claim": "Practitioner/official (Hugging Face 'LoRA training scripts of the world, unite!' advanced SDXL blog) + corroborating practitioner guidance: for a single-style multi-subject set use ONE instance/trigger token (e.g. 'stdstyl' analog) plus a minimal class token per subject (man/woman/building/tree), placed at caption start; do NOT caption the style attributes you want the LoRA to learn (color, linework) so those bind to the trigger rather than to describable words.",
+            "authors": "Hugging Face (Patil, Beaumont, et al.) — official HF blog",
+            "year": "2024",
+            "identifier": "huggingface.co/blog/sdxl_lora_advanced_script",
+            "url": "https://huggingface.co/blog/sdxl_lora_advanced_script",
+            "key_finding": "Caption what varies (subject class) and omit what should bind to the trigger (the shared style), keeping the instance token minimal and front-loaded."
+          },
+          {
+            "claim": "Paper (Carlini et al. 2023, 'Extracting Training Data from Diffusion Models', USENIX Security): diffusion models memorize and can regurgitate individual training images, and duplicated/low-diversity examples are extracted orders of magnitude more often than non-duplicated ones — the empirical basis for maximizing SUBJECT diversity (varied subjects, poses, crops, backgrounds) so the LoRA learns the style, not specific images.",
+            "authors": "Carlini, Hayes, Nasr, Jagielski, Sehwag, Tramèr, Balle, Ippolito, Wallace",
+            "year": "2023",
+            "identifier": "arXiv:2301.13188",
+            "url": "https://arxiv.org/abs/2301.13188",
+            "key_finding": "Memorization is driven by data duplication/low diversity, so a multi-subject set with varied composition is the structural defense against memorizing instead of generalizing the style."
+          },
+          {
+            "claim": "Paper (Shumailov et al. 2023, 'The Curse of Recursion'): training generative models RECURSIVELY on their own generated output causes model collapse — the tails of the original distribution disappear and variance shrinks. Key design implication: concept B is a SINGLE-generation set from frozen SDXL base 1.0 (not recursive self-training), so it sits outside the collapse regime — but oversampling near-duplicate seeds would reintroduce the same tail-loss locally.",
+            "authors": "Shumailov, Shumaylov, Zhao, Gal, Papernot, Anderson",
+            "year": "2023",
+            "identifier": "arXiv:2305.17493",
+            "url": "https://arxiv.org/abs/2305.17493",
+            "key_finding": "Collapse comes from RECURSIVE training on generated data; a one-shot synthetic set from a frozen base avoids the recursion but still demands deliberate diversity to preserve distribution tails."
+          },
+          {
+            "claim": "Paper (Shumailov et al. 2024, Nature, peer-reviewed version of the above): indiscriminate recursive use of model-generated content causes irreversible defects with disappearing distribution tails; this is the citable peer-reviewed anchor for the collapse risk in a synthetic-data pipeline.",
+            "authors": "Shumailov, Shumaylov, Zhao, Papernot, Anderson, Gal",
+            "year": "2024",
+            "identifier": "Nature 631(8022):755-759, DOI:10.1038/s41586-024-07566-y",
+            "url": "https://www.nature.com/articles/s41586-024-07566-y",
+            "key_finding": "Peer-reviewed confirmation that recursive synthetic-on-synthetic training irreversibly erases distribution tails and diversity."
+          },
+          {
+            "claim": "Paper (Gerstgrasser et al. 2024): model collapse is NOT inevitable — ACCUMULATING data (mixing real + synthetic rather than replacing real with synthetic) prevents collapse, validated across diffusion models, transformers, and VAEs. Implication: keep the synthetic concept-B set anchored to deliberate prompt diversity and, if iterated, retain originals rather than overwriting — never train successive LoRAs purely on prior LoRA output.",
+            "authors": "Gerstgrasser, Schaeffer, Dey, Rafailov, Sleight, Hughes, Korbak, Agrawal, Pai, Gromov, Roberts, Yang, Donoho, Koyejo",
+            "year": "2024",
+            "identifier": "arXiv:2404.01413",
+            "url": "https://arxiv.org/abs/2404.01413",
+            "key_finding": "Accumulating/mixing real and synthetic data (vs. replacement) provably prevents collapse — the safe operating mode for any synthetic-data pipeline."
+          },
+          {
+            "claim": "Practitioner/official (kohya-ss/sd-scripts config_README): num_repeats sets per-subset (per-folder) repeat count; balancing two concept folders so each contributes equal effective steps (images x repeats) is exactly the lever the measurement manipulates, and class_tokens supplies the minimal class label when no caption file exists.",
+            "authors": "kohya-ss (official sd-scripts docs)",
+            "year": "2024",
+            "identifier": "github.com/kohya-ss/sd-scripts docs/config_README-en.md",
+            "url": "https://github.com/kohya-ss/sd-scripts/blob/main/docs/config_README-en.md",
+            "key_finding": "Per-folder num_repeats is the canonical mechanism for equalizing each concept's effective training steps (images x repeats), which is the independent variable under test."
+          },
+          {
+            "claim": "Official license (Stability AI, SDXL base 1.0 LICENSE.md): the model is under CreativeML Open RAIL++-M; it grants a royalty-free commercial license, permits derivatives (LoRAs must retain the use-based restrictions), and states 'Licensor claims no rights in the Output you generate' — so generated concept-B training images and the resulting LoRA art are commercially usable, license inherits via the use-restriction carry-over.",
+            "authors": "Stability AI",
+            "year": "2023",
+            "identifier": "CreativeML Open RAIL++-M License (2023-07-26)",
+            "url": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md",
+            "key_finding": "SDXL base 1.0 (OpenRAIL++-M) permits commercial use and LoRA derivatives and claims no rights over generated outputs, with the only carry-over being the Attachment-A use-based restrictions."
+          }
+        ],
+        "design_note": "Target concept B at ~20-25 synthetic 1024px images from frozen SDXL base 1.0 (brackets A's 16; comfortably feeds n>=15 eval generation). Pick a base-easy, visually distinct style unlike cyanotype (e.g. warm flat gouache / papercut) so CLIP-centroid and CMMD cleanly separate the two concepts. Caption with one minimal trigger token plus a single subject class word, front-loaded, and deliberately omit the style attributes so they bind to the trigger (HF advanced-LoRA + Carlini-driven diversity). Enforce subject variation across the set (distinct subjects, poses, crops, backgrounds, unique seeds) — Carlini shows duplication/low-diversity drives memorization, the failure mode that would confound a binding-strength measurement. Collapse risk is structurally low because this is single-generation from a frozen base, not recursive self-training (Shumailov 2023/2024); preserve that by never training a later LoRA on a prior LoRA's outputs, and if iterating, accumulate rather than replace (Gerstgrasser 2024). The two-folder repeat balance is set with kohya per-folder num_repeats so images x repeats is equalized as the controlled variable; class_tokens supplies the minimal class fallback. License: SDXL base 1.0's OpenRAIL++-M permits commercial use, allows the LoRA derivative, and claims no rights over outputs — the concept-B set and resulting art are commercial-clean, subject only to Attachment-A use restrictions."
+      }
+    ],
+    "spec": {
+      "concept_b": {
+        "style_name": "Warm Impasto Oil Painting (thick-brush, full-chroma, painterly)",
+        "trigger_token": "oilpst",
+        "why_separable": "Maximizes CLIP-readable distance from cyanotype on the exact axes the per-style-centroid harness measures. Cyanotype is cool single-hue monochrome, flat, clean vector linework, no surface texture; this concept B inverts ALL four: warm/saturated full chroma, heavy visible-brushstroke surface texture, painterly (no linework) rendering, and a different content domain. Per B-LoRA (Frenkel/Vinker/Shamir/Cohen-Or 2024, arXiv:2403.14572), style/appearance/texture lives in SDXL transformer block 5, architecturally distinct from content/structure in block 4 — so two STYLES that differ on rendering technique + texture are the cleanest pair to disentangle inside one LoRA, and any cross-concept bleed shows up as palette/texture contamination the centroid can read. Per the CLIP texture/color-bias finding (Jiang et al. 2025, arXiv:2508.09814) the CLIP-ViT-B/32 image vector at 1024px is strongly texture- and color-driven, so a centroid built on same-style/varied-content samples separates two styles best when they differ on palette AND surface — impasto oil flips both. Cel-shaded anime (Q3's third candidate) was rejected: its clean hard outlines share a faint edge-cue with cyanotype linework, contaminating the separation; impasto oil has no linework at all and is the top separator in Q3's design_note.",
+        "palette": "Warm, saturated, full-spectrum oil palette — cadmium yellow/orange, vermilion and alizarin reds, burnt sienna and raw umber earths, sap and viridian greens, ultramarine and cerulean accents, lead-white impasto highlights. Deliberately the chromatic opposite of cyanotype's single Prussian-blue-on-white monochrome: many hues, warm-dominant, high local color contrast.",
+        "technique": "Thick alla-prima impasto oil painting: heavily loaded brush and palette-knife strokes with visible directional texture and ridged paint relief, soft painterly edges (NO clean outlines or linework), broken color and visible canvas tooth, chiaroscuro modeling rather than flat fills. The full inverse of cyanotype's flat, textureless, hard-edged vector look.",
+        "subjects": [
+          "a copper teapot on a windowsill",
+          "a bowl of lemons and figs",
+          "a fishing boat hauled onto a beach",
+          "a vase of sunflowers",
+          "a rustic farmhouse kitchen interior",
+          "an old man reading by lamplight",
+          "a pair of worn leather work boots",
+          "a market stall of ripe tomatoes",
+          "a stormy harbor at dusk",
+          "a wooden rowboat on a still lake",
+          "a basket of fresh-baked bread",
+          "a tabby cat asleep on a quilt",
+          "a country lane lined with poppies",
+          "a glass of red wine beside a corked bottle",
+          "a brass trumpet on a velvet cloth",
+          "a windmill in a wheat field"
+        ],
+        "caption_template": "oilpst, <subject>",
+        "generation_base": "SDXL base 1.0",
+        "n_images": 16,
+        "generation_prompt_template": "oil painting, <subject>, thick impasto brushstrokes, palette knife texture, visible directional brushwork, alla prima, warm saturated full-color palette, chiaroscuro lighting, broken color, painterly soft edges, visible canvas tooth, masterwork still life / landscape oil on canvas, rich pigment relief",
+        "notes": "Negative prompt: 'monochrome, blue tint, cyanotype, line art, clean vector lines, flat colors, hard outlines, ink drawing, lineart, anime, cel shading, digital art, smooth gradients, photograph, 3d render, text, watermark'. Sampler: DPM++ 2M Karras, steps 30-35, CFG 6.5-7.5, 1024x1024, frozen SDXL base 1.0 (no extra checkpoint/LoRA) so OpenRAIL++-M license inherits cleanly (Stability AI 2023). Use a UNIQUE seed per image and vary subject/composition/crop deliberately — Carlini et al. 2023 (arXiv:2301.13188) shows duplication/low-diversity drives memorization, the exact confound that would corrupt a binding-strength readout. This is SINGLE-generation from a frozen base (not recursive self-training), so it sits outside the model-collapse regime (Shumailov 2023/2024); never train a later LoRA on a prior LoRA's output, and if iterating, accumulate rather than replace (Gerstgrasser et al. 2024). Caption omits all style attributes (color, brush, texture) so they bind to the 'oilpst' trigger rather than to describable words (HF advanced-LoRA blog 2024); only the minimal subject class word varies. Curate hard — one off-style image in 16 visibly degrades an SDXL LoRA (ThinkDiffusion 2024). Training subjects above are DISJOINT from the held-out eval subjects (sailing ship, locomotive, portrait of a woman, lighthouse, castle, owl, motorcycle, piano, cathedral, mountain) so eval stays held-out and measures STYLE generalization, not memorized content."
+      },
+      "experimental_design": {
+        "repeat_ratios": [
+          "16:16",
+          "48:16",
+          "16:48"
+        ],
+        "eval_plan": "Two-concept binding measured with the existing CLIP-ViT-B/32 per-style-centroid + CMMD harness, n>=15 generations per config per concept. STEP 0 (centroids): build two reference style centroids in CLIP space BEFORE any joint training — a cyanotype centroid from concept A's 16 source images and an oilpst centroid from concept B's 16 source images; each is the mean L2-normalized CLIP-ViT-B/32 image embedding over same-style/varied-content samples, which cancels content and converges to a style prototype (SCAdapter 2025, arXiv:2512.12963; this is valid only because A and B occupy DIFFERENT content domains, so no shared-subject leakage inflates similarity). STEP 1 (generate): for each of the 3 repeat-ratio configs, after training the joint LoRA render n>=15 images with 'stdstyl, <held-out subject>' and n>=15 with 'oilpst, <held-out subject>', using ONLY the 10 held-out eval subjects (sailing ship, locomotive, portrait of a woman, lighthouse, castle, owl, motorcycle, piano, cathedral, mountain) at a pinned seed schedule shared across configs. STEP 2 (primary signal): A-fidelity = mean cosine(generated-A-images, cyanotype centroid); B-fidelity = mean cosine(generated-B-images, oilpst centroid). CLIP-centroid cosine is the PRIMARY per-config signal because it is stable at n=15 (CMMD 2024, arXiv:2401.09603, notes n=15 is thin for a stable MMD estimate). STEP 3 (cross-bleed check): also compute CROSS cosines — cosine(generated-A-images, oilpst centroid) and cosine(generated-B-images, cyanotype centroid). Bleeding is the diagnostic: if upweighting B drags the A-generations' cross-cosine toward the oilpst centroid (warm color/brush texture leaking into cyanotype output) that is measurable concept-bleed / dominance (Mix-of-Show 2023; concept-bleeding literature, Isolated Diffusion 2024, arXiv:2403.16954). STEP 4 (corroborating distribution distance): compute per-concept CMMD between each config's generated set and that concept's source-image set, but POOL across configs and treat CMMD as corroboration, not the headline, since n=15 is thin for MMD (CMMD 2024). STEP 5 (controls / PIN_PER_STEP): batch_size, epochs, learning rate, optimizer, network rank/alpha, resolution (1024), and the eval seed schedule are pinned BYTE-FOR-BYTE across all 3 configs so num_repeats ratio is the ONLY moving lever; total exposure is held roughly comparable so the ratio (proportion), not raw volume, is isolated (BiMix 2024, arXiv:2405.14908; DoReMi 2023, arXiv:2305.10429). Run the core sweep WITHOUT regularization/class images first — reg images independently shift binding strength and would contaminate the repeat-ratio signal (Custom Diffusion 2023); an optional reg-image arm is a follow-up, not part of the core 3-config sweep.",
+        "hypotheses": [
+          "H1 (monotone exposure->binding): As the A:B effective-exposure ratio (images x num_repeats) increases, A-fidelity (cosine to cyanotype centroid) rises monotonically and B-fidelity (cosine to oilpst centroid) falls monotonically. With A and B both at 16 images the ratio reduces cleanly to the repeats ratio, so 48:16 is A-dominant, 16:48 is B-dominant, 16:16 is the predicted balance point (kohya-ss Discussion #182; bmaltais wiki 2024; Data Mixing Laws / Ye et al. 2024, arXiv:2403.16952: per-concept binding is a smooth predictable function of exposure proportion).",
+          "H2 (balanced midpoint): The 16:16 config (equal images x repeats products = equal optimizer updates per concept per epoch) is the point where A-fidelity and B-fidelity are closest / both acceptably high — the predicted neutral binding point against which dominance is measured (effective gradient exposure proportional to images x num_repeats; bmaltais wiki 2024; Civitai 14327 2024).",
+          "H3 (dominated-side bleed): At the asymmetric configs the dominated concept shows BOTH lower own-centroid cosine AND elevated cross-centroid cosine (palette/texture of the dominant style leaking in) — the concept-conflict / feature-leakage failure mode of imbalanced joint multi-concept tuning (Mix-of-Show / Gu et al. 2023, arXiv:2305.18292; concept-bleeding, Isolated Diffusion 2024, arXiv:2403.16954).",
+          "H4 (distinct triggers hold): Because 'stdstyl' and 'oilpst' are distinct rare non-word tokens, each binds its style in cross-attention K/V independently, so dominance manifests as graded fidelity shift along the exposure axis rather than total token collapse — confirming the effect is attributable to repeat balancing, not trigger entanglement (Custom Diffusion / Kumari et al. 2023, arXiv:2212.04488).",
+          "H5 (well-separated centroids): Because concept B (warm impasto oil) is orthogonal to cyanotype on palette + texture, the two CLIP centroids are well separated at baseline, so any measured fidelity shift is attributable to repeat balancing rather than centroid overlap; if instead a near-neighbor style had been chosen, fidelity changes could not be cleanly attributed (B-LoRA / Frenkel et al. 2024, arXiv:2403.14572; CLIP texture/color bias, Jiang et al. 2025, arXiv:2508.09814)."
+        ],
+        "steps": 1600
+      },
+      "grounded_choices": [
+        {
+          "choice": "Concept B = warm impasto oil painting (warm/saturated full chroma + heavy visible-brushstroke texture + painterly no-linework rendering + different subject domain) to maximize CLIP-readable separation from cyanotype.",
+          "finding_refs": "Q3 B-LoRA (Frenkel/Vinker/Shamir/Cohen-Or 2024, arXiv:2403.14572) — style/appearance/texture lives in SDXL block 5 distinct from content block 4, so contrasting on rendering technique + texture is the cleanest single-LoRA separation; Q3 CLIP texture/color bias (Jiang et al. 2025, arXiv:2508.09814) — CLIP-ViT image vector at 1024px is texture- and color-driven, so palette + surface are the highest-leverage centroid-separation axes; Q3 design_note ranks warm impasto oil the TOP separator."
+        },
+        {
+          "choice": "Concept B generated from frozen SDXL base 1.0 (no extra checkpoint), warm painterly oil being a style SDXL renders well out of the box, so the LoRA refines rather than fights the base.",
+          "finding_refs": "Q3 Stability/SDXL-styles (Stable Diffusion Art / Stability SDXL 1.0 presets 2023) — SDXL base reliably produces warm full-color painterly out of the box; Q4 SDXL license (Stability AI 2023, OpenRAIL++-M) — frozen base 1.0 permits commercial use, allows LoRA derivatives, claims no rights over outputs, so concept-B images and resulting art are commercial-clean."
+        },
+        {
+          "choice": "n_images = 16 for concept B (brackets concept A's 16, comfortably feeds n>=15 eval generation).",
+          "finding_refs": "Q3/Q4 StyleDrop (Sohn et al. 2023, arXiv:2306.00983) — a coherent style binds with <1% params from a handful of images, so 16 is ample budget and learnability differences come from style coherence not count; Q4 ThinkDiffusion 2024 — 20-30 1024px images is the SDXL-LoRA sweet spot and 16 sits just under it with quality dominating quantity."
+        },
+        {
+          "choice": "Trigger token = 'oilpst' — a short non-word distinct from concept A's 'stdstyl'; never shared.",
+          "finding_refs": "Q1 Custom Diffusion (Kumari et al. 2023, arXiv:2212.04488) — distinct per-concept modifier tokens (each a rarely-used token) let cross-attention K/V bind two concepts separately without bleed; Q1 design_note calls distinct triggers non-negotiable. A non-word token means style appearing in output proves the LoRA trained (it isn't a describable English word the base already knows)."
+        },
+        {
+          "choice": "Caption = 'oilpst, <subject>' — minimal front-loaded trigger + one subject class word, deliberately OMITTING all style attributes (color, brush, texture).",
+          "finding_refs": "Q4 HF advanced-LoRA blog (Patil/Beaumont et al. 2024, huggingface.co/blog/sdxl_lora_advanced_script) — caption what varies (subject class) and omit what should bind to the trigger (the shared style), keeping the instance token minimal and front-loaded so style binds to the trigger not to words."
+        },
+        {
+          "choice": "16 VARIED training subjects (teapot, lemons, fishing boat, sunflowers, kitchen, old man, boots, tomatoes, harbor, rowboat, bread, cat, lane, wine, trumpet, windmill), DISJOINT from the 10 held-out eval subjects.",
+          "finding_refs": "Q4 Carlini et al. 2023 (arXiv:2301.13188) — duplication/low-diversity drives image memorization; a multi-subject varied-composition set is the structural defense so the LoRA learns STYLE not specific images; Q4 Shumailov 2023/2024 — single-generation from a frozen base avoids recursive collapse but still demands deliberate diversity to preserve distribution tails. Disjoint eval subjects keep the eval held-out (Q3 SCAdapter 2025 — centroid validity requires concept B's content domain differ from cyanotype so shared-subject leakage doesn't inflate similarity)."
+        },
+        {
+          "choice": "Repeat ratios 16:16 (balanced), 48:16 (A-dominant), 16:48 (B-dominant) — both concepts fixed at 16 images so the effective-exposure ratio reduces cleanly to the num_repeats ratio (3x spread each side of balance).",
+          "finding_refs": "Q2 kohya-ss Discussion #182 (2023) + bmaltais wiki (2024) — per-epoch optimizer updates = images x num_repeats / batch_size, so effective gradient exposure is exactly images x num_repeats; with equal image counts the ratio IS the repeats ratio, a clean single-variable axis; Q2 design_note recommends spanning balanced + asymmetric points; Q1/Q3 Civitai 14327 (2024) — equalize images x repeats for the neutral midpoint then sweep deliberate imbalance ratios."
+        },
+        {
+          "choice": "Hold total exposure roughly comparable and pin batch_size/epochs/LR/rank/seed across all 3 configs so num_repeats RATIO (proportion) is the only moving lever.",
+          "finding_refs": "Q2 BiMix (Ge et al. 2024, arXiv:2405.14908) — proportion and volume are separable but interacting, so hold volume fixed while sweeping the ratio to isolate binding; Q2 DoReMi (Xie et al. 2023, arXiv:2305.10429) — relative proportion not absolute quantity governs what a model preferentially learns, validating the ratio as the right axis; workflow-standards PIN_PER_STEP."
+        },
+        {
+          "choice": "Primary metric = per-config CLIP-centroid cosine (n>=15); CMMD pooled across configs as corroboration only.",
+          "finding_refs": "Q3 CMMD (Jayasumana et al. 2024, arXiv:2401.09603) — CMMD is stable at hundreds vs >20k for FID, but n=15 is thin for a stable MMD estimate, so report CLIP-centroid cosine as the primary per-config signal and CMMD as corroborating distribution distance; Q3 SCAdapter (2025, arXiv:2512.12963) — a centroid over same-style/varied-content cancels content and converges to a style prototype, validating the per-style-centroid harness."
+        },
+        {
+          "choice": "Run the core 3-config sweep WITHOUT regularization/class images; reg-image arm is an optional follow-up.",
+          "finding_refs": "Q1 Custom Diffusion (Kumari et al. 2023, arXiv:2212.04488) — regularization images independently shift binding strength (anti-language-drift), so including them would contaminate the repeat-ratio signal; Q1 design_note recommends isolating the num_repeats effect first, optional reg arm second."
+        },
+        {
+          "choice": "Add a cross-centroid bleed check (A-generations vs oilpst centroid, B-generations vs cyanotype centroid) as a second diagnostic axis beyond own-centroid fidelity.",
+          "finding_refs": "Q1 Mix-of-Show (Gu et al. 2023, arXiv:2305.18292) — imbalanced joint multi-concept tuning causes concept conflict / feature leakage; Q1 concept-bleeding literature (Isolated Diffusion 2024, arXiv:2403.16954) — bleeding is cross-attention maps over-extending past their target, a measurable attention-level signature that complements distributional CLIP-sim/CMMD."
+        }
+      ],
+      "all_citations": [
+        {
+          "authors": "Kumari, Zhang, Zhang, Shechtman, Zhu",
+          "year": "2023",
+          "identifier": "arXiv:2212.04488 (Custom Diffusion, CVPR 2023)",
+          "url": "https://arxiv.org/abs/2212.04488",
+          "finding": "Distinct per-concept modifier tokens + regularization images + restricting training to cross-attention K/V are the three levers that let two concepts co-train without one bleeding into or overwriting the other."
+        },
+        {
+          "authors": "Gu, Wang, Wu, Shi, Chen, Fan, Xiao, Zhao, Chang, Wu, Ge, Shan, Shou",
+          "year": "2023",
+          "identifier": "arXiv:2305.18292 (Mix-of-Show, NeurIPS 2023)",
+          "url": "https://arxiv.org/abs/2305.18292",
+          "finding": "Jointly tuning multiple concepts into shared LoRA parameters causes concept conflict and identity loss when exposure is imbalanced — the dominated-side failure mode the repeat-balancing study measures."
+        },
+        {
+          "authors": "Shah, Ruiz, Cole, Lu, Lazebnik, Li, Jampani",
+          "year": "2023",
+          "identifier": "arXiv:2311.13600 (ZipLoRA, ECCV 2024)",
+          "url": "https://arxiv.org/abs/2311.13600",
+          "finding": "Interference between two concept LoRAs is literally non-orthogonality between their weight-update columns; enforcing column orthogonality prevents one concept from corrupting the other when combined."
+        },
+        {
+          "authors": "Liu, Zhang, Shen, Zheng, Zhou, et al.",
+          "year": "2023",
+          "identifier": "arXiv:2305.19327 (Cones 2, NeurIPS 2023)",
+          "url": "https://arxiv.org/abs/2305.19327",
+          "finding": "Keeping concept changes in a text-embedding residual (weights frozen) plus spatially separating subjects in cross-attention largely removes cross-concept attribute leakage."
+        },
+        {
+          "authors": "Qiu, Liu, Feng, Xiu, Wei, et al.",
+          "year": "2023",
+          "identifier": "arXiv:2306.07280 (OFT/COFT, NeurIPS 2023)",
+          "url": "https://arxiv.org/abs/2306.07280",
+          "finding": "Constraining fine-tuning to orthogonal transforms preserves the pretrained model's pairwise neuron structure, reducing the catastrophic-forgetting/drift that plain joint fine-tuning causes."
+        },
+        {
+          "authors": "Frenkel, Vinker, Shamir, Cohen-Or",
+          "year": "2024",
+          "identifier": "arXiv:2403.14572 (B-LoRA, ECCV 2024)",
+          "url": "https://arxiv.org/abs/2403.14572",
+          "finding": "In SDXL, content/structure lives in transformer block 4 and style/appearance/texture in block 5, so concepts differing on the STYLE axis (technique + texture + palette) are the cleanest to disentangle in a single LoRA."
+        },
+        {
+          "authors": "Zhang, Wang, et al. (Isolated Diffusion); Dahary et al. (Easing Concept Bleeding)",
+          "year": "2024",
+          "identifier": "arXiv:2403.16954 (Isolated Diffusion; concept-bleeding literature, ICML 2024)",
+          "url": "https://arxiv.org/abs/2403.16954",
+          "finding": "Concept bleeding originates in cross-attention maps over-extending past their target region — a measurable attention-level signature of interference that complements distributional metrics like CLIP-sim/CMMD."
+        },
+        {
+          "authors": "kohya-ss (Kohya S.) and sd-scripts contributors",
+          "year": "2024",
+          "identifier": "sd-scripts docs/config_README-en.md",
+          "url": "https://github.com/kohya-ss/sd-scripts/blob/main/docs/config_README-en.md",
+          "finding": "num_repeats is the canonical per-folder (per-subset) knob for how many times a subset's images are injected into an epoch, settable independently per concept so each can be weighted separately."
+        },
+        {
+          "authors": "kohya-ss (maintainer) et al.",
+          "year": "2023",
+          "identifier": "kohya-ss/sd-scripts GitHub Discussion #182",
+          "url": "https://github.com/kohya-ss/sd-scripts/discussions/182",
+          "finding": "Per-bucket steps per epoch = ceil(images x repeats / batch_size); repeats both balance training-vs-regularization images and weight folder exposure, so steps-per-epoch scale linearly with image_count x num_repeats."
+        },
+        {
+          "authors": "bmaltais and kohya_ss wiki contributors",
+          "year": "2024",
+          "identifier": "kohya_ss/wiki/LoRA-training-parameters",
+          "url": "https://github.com/bmaltais/kohya_ss/wiki/LoRA-training-parameters",
+          "finding": "Total optimizer steps = images x repeats x epochs / batch_size, so a concept's effective gradient exposure is exactly proportional to image_count x num_repeats and two folders bind equally only when those products match."
+        },
+        {
+          "authors": "Dreams Are Real",
+          "year": "2023",
+          "identifier": "Medium 'Understanding LoRA Training Part 2' (c68b86c69da8)",
+          "url": "https://medium.com/@dreamsarereal/understanding-lora-training-part-2-offset-noise-epochs-and-repeats-c68b86c69da8",
+          "finding": "Practitioner consensus treats image_count x repeats as the per-folder exposure budget; to balance two concepts you equalize that product, not the raw image counts."
+        },
+        {
+          "authors": "Ye, Liu, Sun, Zhou, Zhan, Qiu",
+          "year": "2024",
+          "identifier": "arXiv:2403.16952 (Data Mixing Laws)",
+          "url": "https://arxiv.org/abs/2403.16952",
+          "finding": "Per-domain loss is a smooth fitted function of mixture proportions, so concept binding strength (inverse loss) is a predictable function of exposure proportion and gains for one concept come at a quantifiable cost to the other — the formal basis for an exposure-ratio sweep."
+        },
+        {
+          "authors": "Xie, Pham, Dong, Du, Liu, Lu, Liang, Le, Ma, Yu",
+          "year": "2023",
+          "identifier": "arXiv:2305.10429 (DoReMi, NeurIPS 2023)",
+          "url": "https://arxiv.org/abs/2305.10429",
+          "finding": "Reweighting domain proportions alone (without changing data) improved few-shot accuracy and reached baseline with 2.6x fewer steps — relative proportion, not absolute quantity, governs what a model preferentially learns, validating the num_repeats ratio as the right axis."
+        },
+        {
+          "authors": "Ge, Ma, Chen, Li, Ding",
+          "year": "2024",
+          "identifier": "arXiv:2405.14908 (BiMix)",
+          "url": "https://arxiv.org/abs/2405.14908",
+          "finding": "A bivariate law jointly models domain proportion and data volume on per-domain loss (R^2>0.97), establishing that proportion and quantity are separable but interacting — so hold total exposure fixed while sweeping the ratio to isolate the binding effect."
+        },
+        {
+          "authors": "Sohn, Ruiz, Lee, et al.",
+          "year": "2023",
+          "identifier": "arXiv:2306.00983 (StyleDrop, NeurIPS 2023)",
+          "url": "https://arxiv.org/abs/2306.00983",
+          "finding": "A coherent visual style binds by fine-tuning <1% of params from very few — even one — style images in ~1000 steps, so 16 images is ample budget and learnability differences come from style coherence, not image count."
+        },
+        {
+          "authors": "Jiang, et al.",
+          "year": "2025",
+          "identifier": "arXiv:2508.09814 (CLIP texture/shape bias dynamics)",
+          "url": "https://arxiv.org/html/2508.09814v2",
+          "finding": "At higher resolution the CLIP-ViT image embedding is strongly texture- and color-driven, so a per-style centroid in CLIP space separates two styles best when they differ on palette AND surface texture."
+        },
+        {
+          "authors": "SCAdapter authors (building on IP-Adapter, Ye et al.)",
+          "year": "2025",
+          "identifier": "arXiv:2512.12963 (SCAdapter)",
+          "url": "https://arxiv.org/html/2512.12963v1",
+          "finding": "CLIP image embeddings carry both style and content in one vector and style is a separable direction, so a centroid over same-style/varied-content samples cancels content and converges to a style prototype — valid provided concept B's content domain differs from cyanotype's."
+        },
+        {
+          "authors": "Jayasumana, Ramalingam, Veit, et al.",
+          "year": "2024",
+          "identifier": "arXiv:2401.09603 (CMMD, CVPR 2024)",
+          "url": "https://arxiv.org/abs/2401.09603",
+          "finding": "CLIP-MMD is unbiased, distribution-free, and stable at a few hundred samples (vs >20k for reliable FID), but n=15 is thin for a stable MMD estimate, so use CLIP-centroid cosine as the primary per-config signal and pool CMMD across configs as corroboration."
+        },
+        {
+          "authors": "kohya-ss / Civitai community (Balancing Repeats)",
+          "year": "2024",
+          "identifier": "Civitai article 14327 'Training Tip: Balancing Repeats'",
+          "url": "https://civitai.com/articles/14327/training-tip-balancing-repeats",
+          "finding": "Compute repeats so each concept folder reaches the same effective image count (num_repeats = target / folder_image_count), giving a principled neutral midpoint and calibrated imbalance ratios (1:1, 2:1, 4:1) to test where one concept starts dominating."
+        },
+        {
+          "authors": "Stability AI / SDXL practitioner documentation",
+          "year": "2023",
+          "identifier": "Stable Diffusion Art 'SDXL Styles' + Stability SDXL 1.0 style presets",
+          "url": "https://stable-diffusion-art.com/sdxl-styles/",
+          "finding": "SDXL base reliably renders warm full-color painterly, glossy 3D/clay, and clean cel/anime out of the box, so concept B should be a base-easy style far from cyanotype on palette + technique — warm impasto oil is the top such candidate."
+        },
+        {
+          "authors": "ThinkDiffusion (practitioner docs)",
+          "year": "2024",
+          "identifier": "learn.thinkdiffusion.com — Creating SDXL LoRA Models on Kohya",
+          "url": "https://learn.thinkdiffusion.com/creating-sdxl-lora-models-on-kohya/",
+          "finding": "20-30 curated 1024px images is the practical SDXL-LoRA sweet spot and a single low-quality image in a small set measurably harms the result — so curate the 16 concept-B images hard."
+        },
+        {
+          "authors": "Hugging Face (Patil, Beaumont, et al.)",
+          "year": "2024",
+          "identifier": "huggingface.co/blog/sdxl_lora_advanced_script",
+          "url": "https://huggingface.co/blog/sdxl_lora_advanced_script",
+          "finding": "For a single-style multi-subject set, caption what varies (subject class) and omit what should bind to the trigger (the shared style), keeping the instance token minimal and front-loaded."
+        },
+        {
+          "authors": "Carlini, Hayes, Nasr, Jagielski, Sehwag, Tramer, Balle, Ippolito, Wallace",
+          "year": "2023",
+          "identifier": "arXiv:2301.13188 (Extracting Training Data from Diffusion Models, USENIX Security 2023)",
+          "url": "https://arxiv.org/abs/2301.13188",
+          "finding": "Diffusion models memorize and regurgitate training images, and duplicated/low-diversity examples are extracted far more often — so a varied multi-subject set is the structural defense against memorizing instead of generalizing the style."
+        },
+        {
+          "authors": "Shumailov, Shumaylov, Zhao, Gal, Papernot, Anderson",
+          "year": "2023",
+          "identifier": "arXiv:2305.17493 (The Curse of Recursion)",
+          "url": "https://arxiv.org/abs/2305.17493",
+          "finding": "Model collapse comes from training recursively on generated output (tails vanish, variance shrinks); a one-shot synthetic set from a frozen base avoids the recursion but still demands deliberate diversity to preserve distribution tails."
+        },
+        {
+          "authors": "Shumailov, Shumaylov, Zhao, Papernot, Anderson, Gal",
+          "year": "2024",
+          "identifier": "Nature 631(8022):755-759, DOI:10.1038/s41586-024-07566-y",
+          "url": "https://www.nature.com/articles/s41586-024-07566-y",
+          "finding": "Peer-reviewed confirmation that indiscriminate recursive synthetic-on-synthetic training irreversibly erases distribution tails and diversity."
+        },
+        {
+          "authors": "Gerstgrasser, Schaeffer, Dey, Rafailov, Sleight, Hughes, Korbak, Agrawal, Pai, Gromov, Roberts, Yang, Donoho, Koyejo",
+          "year": "2024",
+          "identifier": "arXiv:2404.01413 (Is Model Collapse Inevitable?)",
+          "url": "https://arxiv.org/abs/2404.01413",
+          "finding": "Accumulating/mixing real and synthetic data (rather than replacing real with synthetic) provably prevents collapse across diffusion models, transformers, and VAEs — the safe operating mode for a synthetic-data pipeline."
+        },
+        {
+          "authors": "Stability AI",
+          "year": "2023",
+          "identifier": "CreativeML Open RAIL++-M License (SDXL base 1.0 LICENSE.md, 2023-07-26)",
+          "url": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md",
+          "finding": "SDXL base 1.0 (OpenRAIL++-M) grants royalty-free commercial use, permits LoRA derivatives, and claims no rights over generated outputs, so concept-B training images and resulting art are commercial-clean (only Attachment-A use restrictions carry over)."
+        }
+      ]
+    }
+  }
+}

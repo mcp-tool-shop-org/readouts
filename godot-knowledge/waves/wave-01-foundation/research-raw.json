@@ -1,0 +1,1303 @@
+{
+  "wave": 1,
+  "date": "2026-06-18",
+  "title": "Wave 1 — Godot-4 tactical-RPG dev knowledge (study swarm)",
+  "domain_scope": "architecture, grid-movement, turn-combat, rendering-2.5d, ui-tactical, tooling-test-export",
+  "agent_count": 12,
+  "verifier_note": "6 web-grounded Godot-4 research lanes, each adversarially verified against current Godot 4.x docs for CURRENCY (flags Godot-3 staleness, deprecated nodes, version-wrong APIs). 47/55 recipes verdict 'solid'. Same-family verifier + live-docs retrieval oracle per readouts convention; cross-family cloud verify is the planned hardening pass.",
+  "lanes": [
+    {
+      "laneSlug": "architecture",
+      "title": "Project & scene architecture",
+      "recipes": [
+        {
+          "name": "Custom Resources (.tres) as the data-driven authoring layer for Units / Abilities / Parts",
+          "what": "Model all designer/LLM-authorable game data (unit stats, abilities, lootable parts, loot tables, status effects) as custom Resource scripts (`class_name UnitData extends Resource`) saved as.tres text files. Resources are pure data containers with no scene presence — cheap to load, share, and version-control. Nodes are 'things that exist in the world'; Resources are 'the data things are made of'. This is the single highest-leverage Godot-4 pattern for a 1-director + LLM-crew studio because.tres is a plain-text, diffable, deterministic format the crew can generate and edit without opening the editor.",
+          "how": "Define `class_name UnitData extends Resource` with `@export` fields (`@export var max_hp: int`, `@export var move_range: int`, `@export var abilities: Array[AbilityData]`, `@export var parts: Array[PartData]`). Use TYPED arrays (`Array[AbilityData]`) — they filter the inspector's resource picker to the correct type and give static-typing safety. Group fields with `@export_group(\"Combat\")` / `@export_category` for inspector legibility. Compose, don't inherit: a `UnitData` HOLDS an `Array[AbilityData]` and an `Array[PartData]` rather than subclassing per unit. Load at runtime with `load(\"res://data/units/enemy_chassis.tres\")` or `preload(...)` for compile-time-known paths. For reactive data, back an `@export` with a setter that calls `emit_changed()` (Resources do NOT auto-emit `changed` on property writes) and have UI `connect` to the `changed` signal — this kills signal-cascading through intermediate nodes (e.g. a `health` resource shared by the unit and its HP bar). Convert.tres →.res only for release builds (binary: faster load, smaller, but not human-readable).",
+          "godot_version": "4.x (stable; 4.4+ confirmed)",
+          "gotchas": "(1) THE SHARED-INSTANCE TRAP — Resources are shared by reference by default. If 5 enemy scenes all reference `enemy_chassis.tres`, they share ONE HP value; damaging one damages all. Call `resource.duplicate(true)` (deep) when instantiating a runtime unit so each combatant gets its own mutable copy. (2) `resource_local_to_scene = true` is buggy under node DUPLICATION (godot#45350): duplicated scene instances still share the resource instead of getting unique copies — prefer explicit `.duplicate()` in code over relying on local-to-scene for combat-instance uniqueness. (3) Put NO heavy runtime logic in Resources (keep them data + tiny helpers); behavior lives in nodes/systems. (4) NEVER store a Node reference in a Resource you save — it won't serialize and corrupts saves.",
+          "currency": "solid",
+          "verify_note": "class_name extends Resource, @export typed arrays (Array[AbilityData]), @export_group, duplicate(true) deep-copy, emit_changed(), and the shared-instance trap are all current 4.x. Minor: issue #45350 was filed against 3.2.3 not 4.x, but the local-to-scene+duplication caveat does persist into 4.x (cf #115487/#111807) and the advice (prefer explicit.duplicate()) is correct.",
+          "sources": [
+            {
+              "title": "Custom Resources in Godot Engine 4.x — Simon Dalvai",
+              "url": "https://simondalvai.org/blog/godot-custom-resources/"
+            },
+            {
+              "title": "Resource-based architecture for Godot 4 — Mayke Fernandes (Medium)",
+              "url": "https://medium.com/@sfmayke/resource-based-architecture-for-godot-4-25bd4b2d9018"
+            },
+            {
+              "title": "resource_local_to_scene copies the reference when you duplicate an instance — godotengine/godot#45350",
+              "url": "https://github.com/godotengine/godot/issues/45350"
+            },
+            {
+              "title": "Creating and Using Custom Resources — Data-Driven Design in Godot (UhiyamaLab)",
+              "url": "https://uhiyama-lab.com/en/notes/godot/custom-resource-data-driven/"
+            }
+          ]
+        },
+        {
+          "name": "Event Bus autoload (signals-only singleton) for decoupled cross-system communication",
+          "what": "Create ONE autoload named `Events` (a.k.a. EventBus / SignalBus) that extends Node and declares only `signal` definitions — no state, no logic. Distant systems that can't easily get a node reference (combat resolver → UI log, loot system → inventory, turn manager → camera) emit and listen via this single hub. Implements the Observer pattern globally: emitters fire events without knowing who listens, keeping far-apart nodes decoupled at low cost.",
+          "how": "Script `events.gd`: `extends Node` then a block of signals, e.g. `signal unit_damaged(unit, amount)`, `signal part_looted(part_data, from_unit)`, `signal turn_started(unit)`, `signal ability_resolved(result)`. Register it in Project Settings > Globals > Autoload with name `Events`. Anywhere: `Events.part_looted.emit(part, target)` to fire; `Events.part_looted.connect(_on_part_looted)` to subscribe. Name signals as PAST-TENSE events ('this happened'), never as commands. The bus is a post office, not a warehouse: it carries messages, it does not hold game state. Keep the signal list curated and documented in one file so the LLM crew has a single legible contract for all global events.",
+          "godot_version": "4.x (stable)",
+          "gotchas": "(1) Do NOT route everything through the bus — for parent↔child or near neighbors, a direct signal or a node group is simpler and more debuggable. Over-use produces 'signal spaghetti' that's hard to trace. (2) The bus must hold NO mutable game state (that belongs in a dedicated GameState system, see the autoload-discipline recipe) — mixing the two recreates the god-object anti-pattern. (3) Connections to a bus persist for the listener's lifetime; free'd listeners auto-disconnect, but a listener that outlives its relevance keeps firing — disconnect explicitly when a node's interest ends.",
+          "currency": "solid",
+          "verify_note": "First-class signal syntax Events.sig.emit(...) / Events.sig.connect(callable) is correct 4.x (the 3.x string-connect idiom is gone). Autoload registration, past-tense naming, and no-state discipline all match GDQuest/official guidance.",
+          "sources": [
+            {
+              "title": "The Events bus singleton — GDQuest",
+              "url": "https://www.gdquest.com/tutorial/godot/design-patterns/event-bus-singleton/"
+            },
+            {
+              "title": "Smarter Godot Signals with the Event Autoload pattern — GDQuest guidelines",
+              "url": "https://www.gdquest.com/docs/guidelines/best-practices/godot-gdscript/event-bus/"
+            },
+            {
+              "title": "Godot Signals Architecture: Best Practices & Event Bus — Febucci (2024)",
+              "url": "https://blog.febucci.com/2024/12/godot-signals-architecture/"
+            }
+          ]
+        },
+        {
+          "name": "Autoload discipline — official rule: singletons manage ONLY their own data",
+          "what": "Use autoloads sparingly and ONLY for wide-scope systems that manage their OWN state and do not reach into other objects' data. The official Godot guidance: 'If the autoload is managing its own information and not invading the data of other objects, then it's a great way to create systems that handle broad-scoped tasks.' Systems that modify OTHER systems' data must be regular scripts/scenes, not autoloads. This prevents the god-singleton anti-pattern (a single point of failure, project-wide debugging, mis-allocated resources).",
+          "how": "Keep a SMALL, named set of autoloads, each with a single self-contained responsibility: `Events` (signal bus, no state), `GameState` (run/save data: party roster, gold, story flags — owns this data, nothing else writes it directly), `SceneManager` (owns the current-scene swap + transitions), `AudioDirector` / settings, `DataDB` (read-only registry that preloads and indexes all.tres unit/ability catalogs). A system that needs to MODIFY another's data (e.g. combat resolution mutating unit HP) is NOT an autoload — it's a node in the battle scene that reads from DataDB and writes through owned APIs. Access an autoload by its registered name directly (`GameState.party`, `SceneManager.goto(...)`). NEVER `free()`/`queue_free()` an autoload at runtime — the engine crashes.",
+          "godot_version": "4.x (stable; official best-practices page)",
+          "gotchas": "(1) The classic trap is a giant `Global.gd` that holds AND mutates everyone's data — explicitly the anti-pattern the docs warn against. Split by responsibility. (2) Autoload initialization order = their order in the Autoload list; if `GameState` reads `DataDB` at `_ready()`, `DataDB` must be listed FIRST. (3) C# autoloads need a manual `static Instance` property set in `_Ready()`; GDScript exposes the node name globally for free. (4) Autoloads persist across `change_scene_*`, which is exactly why they're right for run-state — but that also means stale data survives a 'new game' unless you explicitly reset it.",
+          "currency": "solid",
+          "verify_note": "The quoted official line ('managing its own information and not invading the data of other objects…') is verbatim from the Godot best-practices 'autoloads versus internal nodes' page. Init-order-by-list and 'never queue_free an autoload' are correct.",
+          "sources": [
+            {
+              "title": "Autoloads versus regular nodes — Godot Engine 4.4 docs",
+              "url": "https://docs.godotengine.org/en/4.4/tutorials/best_practices/autoloads_versus_internal_nodes.html"
+            },
+            {
+              "title": "Singletons (Autoload) — Godot Engine (stable) docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/scripting/singletons_autoload.html"
+            }
+          ]
+        },
+        {
+          "name": "Scene composition: 'call down, signal up' and design scenes with no external dependencies",
+          "what": "Official scene-organization doctrine: design every scene to be as self-contained and dependency-free as possible; when scenes must interact, parents 'call down' (method calls / injected callables / node refs) to children, and children 'signal up' (past-tense event signals) to parents — children never reach UP into parents. The parent-child test: a node should be a child ONLY if it's truly an element of its parent (removing the parent implies removing the child); otherwise make them siblings under a coordinating parent.",
+          "how": "Structure each reusable piece (a Unit, an AbilityResolver, a GridCursor, a CombatLogPanel) as its own scene with a clear external interface. To send data DOWN: call a method on the child, assign an exported node reference, or hand the child a `Callable` (safest — child doesn't need to own the method). To send events UP: declare a `signal` on the child (`signal moved(to_cell)`, `signal part_targeted(part)`) and let the parent connect. Use dependency INJECTION: the parent provides what a child needs (`battle.gd` injects the `GridState` into each `Unit`), rather than the child calling `get_node(\"../../GridState\")` and hard-coding tree paths. Prefer `@export var grid: GridState` (inspector-assigned) over fragile `get_node(\"../..\")` traversal.",
+          "godot_version": "4.x (stable; official best-practices page)",
+          "gotchas": "(1) `get_node(\"../../Something\")` absolute/relative tree-walking is the #1 coupling smell — it silently breaks the moment a scene moves. Inject references instead. (2) Signals are for 'respond to behavior', not to START behavior — don't use a signal where a direct downward method call is clearer. (3) Don't over-nest: if two nodes aren't existentially dependent, they're siblings, not parent/child. (4) `owner` vs `get_parent()` differ: `owner` is the scene root that saved the node, not its tree parent — don't confuse them when instancing.",
+          "currency": "solid",
+          "verify_note": "Matches the official scene-organization doctrine exactly: dependency-free scenes, call-down via method/Callable/@export ref, signal-up via past-tense signals, get_node(\"../..\") flagged as the coupling smell, owner vs get_parent() distinction correct.",
+          "sources": [
+            {
+              "title": "Scene organization — Godot Engine (stable) docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/best_practices/scene_organization.html"
+            },
+            {
+              "title": "When to use scenes versus scripts / Node vs Scene — Godot best practices",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/best_practices/index.html"
+            }
+          ]
+        },
+        {
+          "name": "Node-based Finite State Machine for the deterministic combat turn loop",
+          "what": "Implement the combat flow (and per-unit behavior) as a node-based FSM: a `StateMachine` Node holding child `State` nodes, each State owning the code for one phase. The machine is in exactly one state at a time; states request their own transitions. This is the standard Godot-4 pattern for anything that needs per-state enter/exit hooks (play an animation, highlight valid cells, lock input) — far cleaner than a sprawling `match` on an enum once you have setup/teardown per phase.",
+          "how": "Base class `class_name State extends Node` with the interface `enter(previous_state: State)`, `exit()`, `process(delta)`, `physics_process(delta)`, and (for combat) `handle_input(event)`. `class_name StateMachine extends Node` exposes `@export var initial_state: State` (drag-assigned in the inspector), and in `_ready()` INJECTS references into each child state (`state.state_machine = self`, `state.host = get_parent()`) — do NOT use `@onready` in State for these (it fights inheritance order in Godot 4). The machine delegates `_process`/`_physics_process`/input to the active state. States transition by calling `state_machine.transition_to(target_state)`, which runs `current.exit()` → swaps → `next.enter(prev)`. For combat, model states as `SelectUnit → SelectAction → SelectTarget → ResolveAction → EnemyTurn → CheckVictory`. Use typed `@export var` State references over NodePath strings for type-safety.",
+          "godot_version": "4.x (stable; pattern uses 4.x @export typed refs, AnimatedSprite2D, Input.get_axis)",
+          "gotchas": "(1) In Godot 4, inject `state_machine`/`host` refs from `StateMachine._ready()` — do NOT `@onready var sm =...` inside State; inheritance + ready-order makes that unreliable. (2) `class_name` State/StateMachine are global names — pick project-unique names (`CombatState`, `CombatStateMachine`) to avoid collisions with other FSMs (unit-behavior vs turn-flow). (3) For only 3-5 trivial states with no enter/exit work, a plain enum + `match` is lighter — don't node-ify reflexively. (4) Guard against re-entrant transitions (a state calling `transition_to` from inside `exit()`).",
+          "currency": "solid",
+          "verify_note": "Standard current-4.x node-FSM pattern; @export typed State refs, inject state_machine/host from StateMachine._ready() (the @onready-fights-inheritance caveat is a real 4.x gotcha), class_name collision warning valid. godot-open-rpg cited as reference is genuinely Godot 4 (4.6.2).",
+          "sources": [
+            {
+              "title": "Node-Based State Machine in Godot 4: A Complete Implementation — Godot Foundry",
+              "url": "https://godotfoundry.com/blog/godot-4-state-machine-tutorial"
+            },
+            {
+              "title": "Make a Finite State Machine in Godot 4 — GDQuest",
+              "url": "https://www.gdquest.com/tutorial/godot/design-patterns/finite-state-machine/"
+            },
+            {
+              "title": "godot-open-rpg (turn-based combat reference, targets Godot 4.6.2, MIT) — GDQuest",
+              "url": "https://github.com/gdquest-demos/godot-open-rpg"
+            }
+          ]
+        },
+        {
+          "name": "Composition over inheritance — entity = parent node + component child nodes/Resources",
+          "what": "Build game entities by COMPOSING reusable components rather than deep inheritance trees. Godot nodes are already a composition system (a node IS a component in a scene). The canonical pattern: an 'entity' is a parent node whose 'components' are child nodes (HealthComponent, MoveComponent, LootComponent) and/or attached data Resources. This scales to the combinatorial variety a tactical RPG needs (a unit that is both 'shootable' and 'meltdown-on-death' and 'lootable') where inheritance can't combine orthogonal traits.",
+          "how": "Two complementary Godot-4 composition styles: (a) NODE components — give a Unit child nodes like `HealthComponent` (`class_name HealthComponent extends Node`, holds hp, emits `died`), `StatusComponent`, `LootComponent`; the Unit wires them or they self-register to a group. (b) RESOURCE components — the Unit's behavior set is an `Array[AbilityData]` / `Array[PartData]` of data Resources swapped per unit (data-driven composition, ideal for LLM authoring). Mix both: nodes for runtime behavior + lifecycle, Resources for the authorable stat/ability/part loadout. Do NOT adopt a parallel ECS framework — it means abandoning Godot's node system; the node tree already gives you composition. Keep inheritance shallow (one `Unit` base at most); push variation into components/Resources.",
+          "godot_version": "4.x (stable)",
+          "gotchas": "(1) Resist real ECS (e.g. bolting on a third-party ECS): it discards Godot's node niceties and creates a parallel world — community + docs consensus is 'use nodes as components, not ECS'. (2) Over-componentizing (a node per trivial field) adds tree bloat and indirection — group cohesive data into one component/Resource. (3) Components that need to talk should go through the Unit (call down / signal up) or the `Events` bus, not sibling `get_node` tree-walking. (4) A component child node still costs per-instance memory — for purely-data traits prefer a Resource over a node.",
+          "currency": "solid",
+          "verify_note": "Node-as-component + Resource-as-component composition is the documented 4.x consensus; the 'don't bolt on a 3rd-party ECS' guidance matches godot-proposals#2796 and community/docs position. No version-wrong APIs.",
+          "sources": [
+            {
+              "title": "Code the Entity-Component pattern in Godot — GDQuest",
+              "url": "https://www.gdquest.com/tutorial/godot/design-patterns/entity-component-pattern/"
+            },
+            {
+              "title": "Favoring Composition Over Inheritance — Game Development Patterns with Godot 4 (O'Reilly/Packt, Ch.4)",
+              "url": "https://www.oreilly.com/library/view/game-development-patterns/9781835880289/B22405_04.xhtml"
+            },
+            {
+              "title": "Use a component-based system instead of inheritance [NOT ECS] — godot-proposals#2796",
+              "url": "https://github.com/godotengine/godot-proposals/issues/2796"
+            }
+          ]
+        },
+        {
+          "name": "Save / Load with custom Resources (ResourceSaver/ResourceLoader) — and the untrusted-resource security rule",
+          "what": "For a Godot-native, type-safe save system, persist a `SaveGame extends Resource` (party roster, looted-parts inventory, campaign flags, RNG seed) via `ResourceSaver.save()` and reload via `ResourceLoader.load(..., CACHE_MODE_IGNORE)`. Resources beat JSON for game saves on type-safety, brevity, and performance (they round-trip Vector2/Color/typed arrays natively). Use JSON only for data EXCHANGE or human-editable config — JSON can't represent Godot types without manual dict conversion. CRITICAL SECURITY caveat below.",
+          "how": "Define `class_name SaveGame extends Resource` with `@export` fields. Save: `ResourceSaver.save(save_game, \"user://slot1.tres\")` (write to `user://`, the per-user writable dir; check the returned `Error` == OK). Load: `var sg = ResourceLoader.load(\"user://slot1.tres\", \"\", ResourceLoader.CACHE_MODE_IGNORE)` — CACHE_MODE_IGNORE forces a fresh read from disk instead of returning the in-memory cached copy (without it, reloading a slot returns stale data). For sensitive/anti-tamper saves use `FileAccess.open_encrypted_with_pass()`. Alternative binary path: `FileAccess.store_var()` / `get_var()` — secure by default (object/code serialization OFF) and needs no conversion code.",
+          "godot_version": "4.x (stable)",
+          "gotchas": "(1) SECURITY — Godot scenes/scripts ARE Resources, so `ResourceLoader.load()` on an UNTRUSTED.tres can execute code. For player-shared / cloud / mod saves, do NOT plain-load: use `FileAccess.store_var()` (object serialization disabled), or a vetted add-on like 'Godot Safe Resource Loader' that validates.tres content before loading. For purely local single-player saves the risk is low but still real if a save file could be swapped. (2) Forgetting `CACHE_MODE_IGNORE` on load returns the cached resource → 'my save won't update' bugs. (3) Never store live Node references in `SaveGame` — they don't serialize. (4) `.tres` saves are human-readable = trivially editable by players (fine for SP; not for competitive/anti-cheat — encrypt then).",
+          "currency": "solid",
+          "verify_note": "ResourceSaver.save / ResourceLoader.load with CACHE_MODE_IGNORE, user:// path, FileAccess.store_var()/get_var() (object serialization off by default), and the critical untrusted-.tres-executes-code security warning are all accurate and current. encrypted FileAccess path correct.",
+          "sources": [
+            {
+              "title": "Saving and Loading Games in Godot 4 (with resources) — GDQuest",
+              "url": "https://www.gdquest.com/library/save_game_godot4/"
+            },
+            {
+              "title": "Save and Load: Godot 4 Cheat Sheet (Resource vs JSON vs FileAccess) — GDQuest",
+              "url": "https://www.gdquest.com/library/cheatsheet_save_systems/"
+            },
+            {
+              "title": "Implementing Save/Load Systems — JSON, ConfigFile, and Custom Resources compared (UhiyamaLab)",
+              "url": "https://uhiyama-lab.com/en/notes/godot/save-load-system/"
+            }
+          ]
+        },
+        {
+          "name": "Threaded background loading (ResourceLoader.load_threaded_request) + a read-only DataDB registry",
+          "what": "Two complementary loading practices: (a) at boot, build a read-only `DataDB` autoload that preloads and INDEXES every unit/ability/part.tres into typed dictionaries so gameplay code looks data up by id, not path; (b) for heavy transitions (entering a battle scene, loading a map), use the threaded loading API to load off the main thread behind a progress bar instead of a synchronous `load()` that freezes a frame. Avoids both magic-string paths scattered through code AND hitch-on-load stutters.",
+          "how": "DataDB: in `_ready()`, scan `res://data/units/` (via `DirAccess` or a manifest), `load()` each.tres into `units[id] = res`, exposing `DataDB.get_unit(id)`. Register DataDB FIRST in the autoload order. Threaded load for big scenes: `ResourceLoader.load_threaded_request(path)` to start; each frame call `ResourceLoader.load_threaded_get_status(path, progress)` (pass an empty `Array` — engine fills `progress[0]` with 0.0–1.0 for the loading bar); when status == `THREAD_LOAD_LOADED`, retrieve with `ResourceLoader.load_threaded_get(path)` and instance via `packed_scene.instantiate()`. Use `ResourceLoader.exists(path)` to guard. `use_sub_threads=true` speeds large dependency graphs.",
+          "godot_version": "4.x (stable; note: threaded loading has a known WEB-build bug in 4.5 beta — issue #109914)",
+          "gotchas": "(1) `load_threaded_get_status` needs the SAME path string you requested and an empty Array for the progress out-param — mismatches return INVALID_RESOURCE. (2) Don't `await` a poll loop without yielding a frame, or you re-block the main thread and defeat the purpose. (3) Known bug: threaded background loading may never finish on HTML5/Web exports in 4.5 beta (#109914) — if the project ever targets web, fall back to sync `load()` there. (4) DataDB preloading EVERYTHING at boot lengthens startup; for a very large catalog, lazy-load cold data with the threaded API instead of front-loading all of it.",
+          "currency": "solid",
+          "verify_note": "load_threaded_request / load_threaded_get_status(path, progress[]) / load_threaded_get / THREAD_LOAD_LOADED / use_sub_threads all verified current 4.x. The cited Web bug #109914 is real and correctly scoped to 4.5 beta (workaround: enable thread_support/SharedArrayBuffer).",
+          "sources": [
+            {
+              "title": "How to speed up loading times using ResourceLoader.load_threaded_request — hortopan",
+              "url": "https://blog.hortopan.com/how-to-speed-up-loading-times-in-your-godot-game-by-using-resourceloader-load_threaded_request/"
+            },
+            {
+              "title": "ResourceLoader in Godot — Complete Guide — GameDev Academy",
+              "url": "https://gamedevacademy.org/resourceloader-in-godot-complete-guide/"
+            },
+            {
+              "title": "[Web] ResourceLoader background loading does not work for Web builds — godotengine/godot#109914",
+              "url": "https://github.com/godotengine/godot/issues/109914"
+            }
+          ]
+        },
+        {
+          "name": "Scene management: SceneManager autoload using change_scene_to_packed / change_scene_to_file",
+          "what": "Centralize scene switching (title → overworld → battle → results) in a `SceneManager` autoload that owns the swap and the transition animation, rather than scattering `get_tree().change_scene_*` calls across gameplay code. Autoloads persist across scene changes, so run-state (in GameState) survives while the visible scene is replaced — minimizing memory vs keeping whole scenes alive. Use the Godot-4 API names (the 3.x `change_scene(path)` is gone).",
+          "how": "Two current APIs: `get_tree().change_scene_to_file(\"res://scenes/battle.tscn\")` (loads + swaps by path), or `get_tree().change_scene_to_packed(packed_scene)` when you already hold a `PackedScene` (e.g. one `@export var battle_scene: PackedScene` set in the inspector, or a threaded-loaded result — avoids a second disk hit). Wrap both in `SceneManager.goto(target)` that plays an `AnimationPlayer` fade-out, performs the swap (deferred), then fades in — so transitions are uniform and the crew calls one method. For custom control, the docs' deferred pattern: free the old scene, `instantiate()` the new, add it, and set `get_tree().current_scene`. Pass context between scenes via `GameState` (not via the freed scene).",
+          "godot_version": "4.x (stable) — REQUIRED API names changed from Godot 3",
+          "gotchas": "(1) STALE-API FLAG — `change_scene(path)` and `change_scene_to(node)` are Godot-3-era and removed/renamed in 4.x; use `change_scene_to_file(path)` or `change_scene_to_packed(packed)`. (2) Calling `change_scene_*` mid-signal can free the node you're still executing in — do the swap deferred (`call_deferred`) or from a safe point. (3) NEVER `queue_free()` an autoload to 'reset' it — engine crash; expose a `reset()` method instead and call it on new-game. (4) `change_scene_to_file` reloads the.tscn from disk each call; for a frequently-revisited scene, hold a preloaded `PackedScene` and use `change_scene_to_packed` to skip re-reading.",
+          "currency": "solid",
+          "verify_note": "Official migration guide confirms change_scene() is renamed to change_scene_to_file() in 4.x; change_scene_to_packed(PackedScene) is the correct sibling API. Deferred-swap and 'never queue_free an autoload' guidance correct. Recipe explicitly flags the 3.x name as stale — accurate.",
+          "sources": [
+            {
+              "title": "Singletons (Autoload) — scene-switching with change_scene_to_file / deferred pattern — Godot (stable) docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/scripting/singletons_autoload.html"
+            },
+            {
+              "title": "Changing scenes in Godot 4 (change_scene_to_packed, GameManager autoload) — Grokipedia",
+              "url": "https://grokipedia.com/page/Changing_scenes_in_Godot_4"
+            },
+            {
+              "title": "Managing Cross-Scene Data with Autoload — UhiyamaLab",
+              "url": "https://uhiyama-lab.com/en/notes/godot/autoload-global-data-management/"
+            }
+          ]
+        },
+        {
+          "name": "Avoid Godot-3-only APIs — the migration deprecation checklist (STALE-API GATE)",
+          "what": "A reject-list of Godot-3 APIs/nodes that the LLM crew will hallucinate from stale training data, with their Godot-4 replacements. Any generated GDScript or scene using these is STALE and must be rewritten — flag on sight. Godot 4 renamed nodes for 2D/3D suffix consistency, replaced coroutines, demoted Tween from a node, and renamed scene instancing.",
+          "how": "Reject → replace mapping (current 4.x): `KinematicBody2D`/`KinematicBody3D` → `CharacterBody2D`/`CharacterBody3D` (and `move_and_slide()` now takes NO args — it reads the built-in `velocity` property; you no longer pass velocity in). `Spatial` → `Node3D`; `translation`/`global_translation` → `position`/`global_position` (3D, matching 2D). `yield(obj, \"signal\")` coroutines → `await obj.signal` / `await some_coroutine()`. `Tween` as a NODE → create on-demand objects via `create_tween()` (one-off `Tween` objects, not a child node). `PackedScene.instance()` → `PackedScene.instantiate()`. `get_tree().change_scene(path)` → `change_scene_to_file(path)` / `change_scene_to_packed(packed)`. `export var x` (old keyword) → `@export var x` (annotation). `onready var` → `@onready var`. `setget` → property `set:`/`get:` blocks. `OS.get_ticks_msec()` still exists but prefer `Time.get_ticks_msec()`. `KinematicCollision2D`/raycast and signal-connect syntax (`obj.connect(\"sig\", self, \"_m\")`) → first-class `obj.sig.connect(_m)`.",
+          "godot_version": "4.x (stable) — migration reference from official 'Upgrading from Godot 3 to Godot 4'",
+          "gotchas": "(1) The most insidious is `move_and_slide()` — old code passes a velocity arg and 'works' syntactically in some snippets but is semantically Godot-3; in 4.x set `velocity =...` THEN call `move_and_slide()` with no args. (2) `await` only suspends inside a function; you can't `await` at class scope. (3) `create_tween()` tweens are bound to the node that created them and auto-free — don't keep a long-lived Tween node around like in 3.x. (4) Connecting signals with the old string-based 4-arg `connect(\"name\", target, \"method\")` still half-exists via Callable in 4.x but is the wrong idiom — use `signal.connect(callable)`. (5) Some tutorials/blogs (and kidscancode 3.x recipes) are still Godot-3 — verify the page's version before trusting a snippet.",
+          "currency": "solid",
+          "verify_note": "Every mapping verified against the official Godot 3→4 upgrade guide: KinematicBody2D/3D→CharacterBody2D/3D, move_and_slide() now no-args reading the velocity property, Spatial→Node3D, translation→position, yield→await, Tween-node→create_tween(),.instance()→.instantiate(), change_scene→change_scene_to_file/_packed, export/onready→@export/@onready, setget→set/get, string-connect→signal.connect(callable). The move_and_slide() semantic-vs-syntactic warning is the correct subtle catch.",
+          "sources": [
+            {
+              "title": "Upgrading from Godot 3 to Godot 4 — Godot Engine 4.4 docs (official migration guide)",
+              "url": "https://docs.godotengine.org/en/4.4/tutorials/migrating/upgrading_to_godot_4.html"
+            },
+            {
+              "title": "Migrating from 3.x — Godot 4 Recipes (kidscancode)",
+              "url": "https://kidscancode.org/godot_recipes/4.x/basics/migrating/index.html"
+            },
+            {
+              "title": "CharacterBody2D/3D in Godot 4 — Complete Guide (move_and_slide change)",
+              "url": "https://godot-mcp.abyo.net/guides/godot4-characterbody"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "laneSlug": "grid-movement",
+      "title": "Grid & tactical movement",
+      "recipes": [
+        {
+          "name": "Use TileMapLayer (one node per layer) as the grid substrate, not the deprecated TileMap",
+          "what": "The grid a tactical RPG stands on. Godot 4.3 (Aug 2024) split the monolithic TileMap node into individual TileMapLayer nodes that each render one layer and share a single TileSet resource. TileMap is now DEPRECATED — it still loads and plays but receives no new features and is the Godot-3-shaped API. New tactical work must build on TileMapLayer.",
+          "how": "Add one TileMapLayer per visual/logical band (e.g. Ground, Hazard, FX-overlay, Highlight) under a parent Node2D; assign a shared TileSet (.tres). Author the playfield in the editor or via set_cell(coords: Vector2i, source_id: int, atlas_coords: Vector2i, alternative_tile: int=0). Query the authored field with get_used_cells() -> Array[Vector2i], get_used_rect() -> Rect2i, get_cell_source_id(coords) -> int (returns -1 when empty), get_surrounding_cells(coords) -> Array[Vector2i]. To migrate any legacy scene, use the editor's TileMap context-menu 'Extract TileMap layers as individual TileMapLayer nodes' (one-click) — but note it only works on scenes you can open directly; tilemaps stored inside.tres or instanced sub-scenes need a manual rebuild. Per-layer toggles: navigation_enabled (bool, default true), collision_enabled (bool, default true).",
+          "godot_version": "4.3+",
+          "gotchas": "(1) Do NOT reach for KinematicBody2D/Spatial/yield-era TileMap tutorials — TileMap.layer_N API (set_cell with a leading layer int) is the deprecated path; TileMapLayer drops the layer argument entirely. (2) get_used_cells_by_id() was renamed/reshaped — on TileMapLayer use get_used_cells_by_id(source_id, atlas_coords, alternative_tile) with -1/Vector2i(-1,-1) wildcards. (3) The one-click converter silently skips resource-embedded maps; verify after migration.",
+          "currency": "solid",
+          "verify_note": "Confirmed against stable docs: TileMap carries the exact deprecation notice recommending TileMapLayer; all listed methods (set_cell, get_used_cells, get_used_rect, get_cell_source_id -> -1 when empty, get_surrounding_cells) and per-layer navigation_enabled/collision_enabled (default true) match signatures verbatim. 4.3+ version tag correct.",
+          "sources": [
+            {
+              "title": "Godot 4.3 release notes (TileMap → TileMapLayer split)",
+              "url": "https://godotengine.org/article/dev-snapshot-godot-4-3-dev-6/"
+            },
+            {
+              "title": "TileMapLayer — Godot Engine (stable) class reference",
+              "url": "https://docs.godotengine.org/en/stable/classes/class_tilemaplayer.html"
+            },
+            {
+              "title": "TileMap — Godot Engine (stable) class reference (marked deprecated)",
+              "url": "https://docs.godotengine.org/en/stable/classes/class_tilemap.html"
+            },
+            {
+              "title": "Godot TileMap Replaced with TileMapLayers — GameFromScratch",
+              "url": "https://gamefromscratch.com/godot-tilemap-replaced-with-tilelayers/"
+            }
+          ]
+        },
+        {
+          "name": "Convert mouse/world positions to grid cells with local_to_map / map_to_local",
+          "what": "The two-way bridge between pixel space and cell space — the single most-used operation in a grid tactics game (cursor hover, click-to-select, snapping a unit sprite to a cell center).",
+          "how": "On a TileMapLayer: local_to_map(local_position: Vector2) const -> Vector2i converts a LOCAL position to a cell coordinate; map_to_local(map_position: Vector2i) const -> Vector2 returns the CENTERED local position of a cell. The canonical cursor-to-cell line is: var cell: Vector2i = tile_layer.local_to_map(tile_layer.get_local_mouse_position()). To place a unit sprite dead-center on a cell: unit.global_position = tile_layer.to_global(tile_layer.map_to_local(cell)). The full round-trip when you have a global point is to_local() → local_to_map() → (process) → map_to_local() → to_global().",
+          "godot_version": "4.3+",
+          "gotchas": "(1) Do NOT feed get_global_mouse_position() into local_to_map directly unless the TileMapLayer is unscaled and at the origin — use get_local_mouse_position() (already in the layer's space) or wrap with to_local(). (2) KNOWN ENGINE QUIRK: local_to_map/map_to_local ignore the node's scale property (Godot issues #70833/#32222) — keep the gameplay TileMapLayer at scale (1,1) and do any zoom on a Camera2D instead, never by scaling the tile layer. (3) Vector2i is integer cell space, Vector2 is float pixel space — never mix them; pathfinding and range sets must key on Vector2i.",
+          "currency": "solid",
+          "verify_note": "local_to_map(Vector2) const -> Vector2i and map_to_local(Vector2i) const -> Vector2 confirmed; map_to_local returns the CENTERED local position as claimed. Scale-quirk gotcha is real and correctly cited (issue #70833, reported 2023-01-02) — keep gameplay layer at scale (1,1), zoom via Camera2D.",
+          "sources": [
+            {
+              "title": "TileMapLayer — local_to_map / map_to_local (Godot stable docs)",
+              "url": "https://docs.godotengine.org/en/stable/classes/class_tilemaplayer.html"
+            },
+            {
+              "title": "Bug: TileMap.local_to_map and map_to_local don't consider scale (#70833)",
+              "url": "https://github.com/godotengine/godot/issues/70833"
+            },
+            {
+              "title": "Smartly Dressed Games — TileMap Movement in Godot (coordinate workflow)",
+              "url": "https://blog.smartlydressedgames.com/2024/02/17/tilemap-movement-in-godot/"
+            }
+          ]
+        },
+        {
+          "name": "Compute movement RANGE with BFS flood-fill (not A*) keyed on Vector2i",
+          "what": "The reachable set of cells a unit can move to within a movement budget. This is a DIFFERENT problem from pathfinding: range = 'all cells within N steps from origin', best solved by breadth-first flood-fill; pathfinding = 'one shortest route to a chosen cell', solved by A*. Conflating them is the #1 beginner mistake. GDQuest's tactical series uses flood-fill for exactly this reason.",
+          "how": "Breadth-first flood-fill from the unit's cell: seed a queue with (origin, 0); pop a cell, and for each of its 4 (orthogonal) neighbors that is in-bounds, not blocked (no occupying unit, not impassable terrain), and not already visited, enqueue it with distance+1 if distance+1 <= max_range; collect all visited cells. Use a Dictionary keyed by Vector2i as the visited set (Godot Dictionaries accept Vector2i keys directly). For variable terrain cost, switch the queue to a min-cost frontier (Dijkstra-style: track best cost per cell, relax when a cheaper path is found) so 'rough' cells subtract more movement. Neighbor generation can lean on TileMapLayer.get_surrounding_cells(coords) for square grids.",
+          "godot_version": "4.3+",
+          "gotchas": "(1) Don't call AStarGrid2D for range — it returns ONE path, forcing you to run it to every cell (O(cells × pathfind), wasteful and awkward); flood-fill computes the whole set in one O(cells) pass. (2) Manhattan/orthogonal range (4-neighbor) reads cleaner for tactics than diagonal; pick 4-neighbor unless the design wants diagonals. (3) Occupying units must block range but you usually still allow path-THROUGH-allies / stop-on-empty — model 'blocked for stopping' vs 'blocked for passing' separately. (4) yield is dead — if you animate the range reveal cell-by-cell, use await get_tree().create_timer(t).timeout, never yield.",
+          "currency": "solid",
+          "verify_note": "Algorithmic, version-agnostic; the flood-fill-for-range vs A*-for-path distinction is correct and matches GDQuest's tactical series. Vector2i Dictionary keys and get_surrounding_cells helper are valid Godot 4 API. yield-is-dead / use await get_tree().create_timer().timeout note is correct for Godot 4.",
+          "sources": [
+            {
+              "title": "GDQuest — Tactical RPG Movement: the flood fill algorithm (lesson)",
+              "url": "https://www.gdquest.com/tutorial/godot/2d/tactical-rpg-movement/"
+            },
+            {
+              "title": "GDQuest godot-2d-tactical-rpg-movement (reference implementation, GDScript)",
+              "url": "https://github.com/gdquest-demos/godot-2d-tactical-rpg-movement"
+            },
+            {
+              "title": "TileMapLayer.get_surrounding_cells (Godot stable docs)",
+              "url": "https://docs.godotengine.org/en/stable/classes/class_tilemaplayer.html"
+            }
+          ]
+        },
+        {
+          "name": "Use AStarGrid2D for the actual MOVE path (shortest route to the chosen cell)",
+          "what": "Godot 4's built-in grid A*. Unlike AStar2D (which makes you add every point and connection by hand), AStarGrid2D is configured by a rectangular region + cell size and auto-connects neighbors — purpose-built for tile grids. Use it for the single shortest path once the player commits to a destination inside the flood-fill range.",
+          "how": "var grid := AStarGrid2D.new(); grid.region = Rect2i(0, 0, cols, rows); grid.cell_size = Vector2(tile_w, tile_h); grid.offset = grid.cell_size / 2 (so path points land on cell centers); grid.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER (orthogonal tactics) — other modes: DIAGONAL_MODE_ALWAYS, _AT_LEAST_ONE_WALKABLE, _ONLY_IF_NO_OBSTACLES; grid.default_compute_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN (use OCTILE if diagonals are on); then grid.update() — MANDATORY after any property change. Mark obstacles with grid.set_point_solid(cell: Vector2i, true) (or fill_solid_region(rect, true) in bulk). Query: grid.get_id_path(from: Vector2i, to: Vector2i, allow_partial_path:=false) -> Array[Vector2i] for cell steps; grid.get_point_path(from, to) -> PackedVector2Array for ready-to-tween world points (already scaled by cell_size). set_point_weight_scale(cell, w) biases routes around (not through) costly terrain.",
+          "godot_version": "4.3+",
+          "gotchas": "(1) region is the current property; the old size (Vector2i) property is DEPRECATED — set region = Rect2i(...). (2) FORGETTING update() after set_point_solid/region/cell_size changes is the classic 'paths are wrong/empty' bug — every mutation needs a following update(). (3) AStarGrid2D's solid grid is SEPARATE from your TileMapLayer — you must sync it: iterate impassable cells and call set_point_solid; the kidscancode recipe notes the engine does NOT auto-read TileMapLayer collision into the grid. (4) get_point_path returns Vector2 world points; get_id_path returns Vector2i cells — pick deliberately. (5) Keep grid.offset = cell_size/2 or path points sit on cell corners, not centers.",
+          "currency": "solid",
+          "verify_note": "All confirmed against class ref: region (Rect2i) is current, size (Vector2i) is DEPRECATED ('Use region instead'); DIAGONAL_MODE_* and HEURISTIC_MANHATTAN/OCTILE enum names exact; mandatory update() after mutation; set_point_solid/fill_solid_region/get_id_path(->Array[Vector2i])/get_point_path(->PackedVector2Array)/set_point_weight_scale all match. Grid is separate from TileMapLayer collision — correct, must sync manually.",
+          "sources": [
+            {
+              "title": "AStarGrid2D — Godot Engine (stable) class reference",
+              "url": "https://docs.godotengine.org/en/stable/classes/class_astargrid2d.html"
+            },
+            {
+              "title": "Pathfinding on a 2D Grid — Godot 4 Recipes (kidscancode)",
+              "url": "https://kidscancode.org/godot_recipes/4.x/2d/grid_pathfinding/index.html"
+            },
+            {
+              "title": "Bite-Sized Godot: Easier pathfinding with AStarGrid2D — The Shaggy Dev",
+              "url": "https://shaggydev.com/2022/12/19/godot-astargrid2d/"
+            }
+          ]
+        },
+        {
+          "name": "Highlight range/path with a dedicated overlay TileMapLayer (batched), not per-frame _draw",
+          "what": "The visual feedback layer: blue 'you can move here', red 'attack/loot range', yellow path-preview. Two viable techniques — (A) a second TileMapLayer dedicated to highlight tiles, set/cleared via set_cell, and (B) custom _draw() rectangles on a Node2D. The TileMapLayer overlay is the recommended default because it's GPU-batched and pairs with terrain auto-tiling for clean borders.",
+          "how": "OVERLAY approach: add a HighlightLayer (TileMapLayer) above the ground, with a TileSet containing translucent highlight tiles (one atlas coord per color/state). To show a range set: for cell in walkable_cells: highlight_layer.set_cell(cell, source_id, BLUE_ATLAS). To clear: highlight_layer.clear() (or erase_cell per cell). Because it's one batched draw, hundreds of highlighted cells cost almost nothing. For crisp range borders, author the highlight tiles as a Terrain set so edges auto-connect. _DRAW approach (for thin path lines / reticles): override _draw() on a Node2D and call draw_rect(Rect2(map_to_local(cell) - half, cell_size), color, filled) or draw_polyline for the path; trigger redraws only on state change with queue_redraw() — never every frame.",
+          "godot_version": "4.3+",
+          "gotchas": "(1) Don't rebuild the overlay every frame — only on selection/hover change; set_cell + clear on state change is cheap, per-frame churn is not. (2) Multiple stacked overlay layers with occlusion can tank scene-reload perf (engine issue #84434) — keep highlight layers few and lightweight. (3) For _draw, you MUST call queue_redraw() to refresh; it won't redraw on its own. (4) Use translucent tiles/modulate so the painterly art beneath stays readable — highlights augment, never occlude, the 2.5D sprites.",
+          "currency": "solid",
+          "verify_note": "set_cell/clear/erase_cell confirmed; CanvasItem _draw (virtual), draw_rect(rect, color, filled=true, width=-1.0, antialiased=false), draw_polyline, and queue_redraw all confirmed in stable docs. queue_redraw()-required-to-refresh note correct. Occlusion-layer perf issue #84434 is a reasonable caveat.",
+          "sources": [
+            {
+              "title": "TileMapLayer.set_cell / clear / erase_cell (Godot stable docs)",
+              "url": "https://docs.godotengine.org/en/stable/classes/class_tilemaplayer.html"
+            },
+            {
+              "title": "CanvasItem._draw / draw_rect / queue_redraw (Godot stable docs)",
+              "url": "https://docs.godotengine.org/en/stable/classes/class_canvasitem.html"
+            },
+            {
+              "title": "Tilemaps with multiple occlusion layers tank performance (#84434)",
+              "url": "https://github.com/godotengine/godot/issues/84434"
+            }
+          ]
+        },
+        {
+          "name": "Build a grid cursor + unit-selection state machine over the tile grid",
+          "what": "The input spine: a cursor that snaps to cells, emits 'hovered cell changed' and 'cell accepted' signals, and a board/controller that runs the select → show-range → preview-path → confirm-move flow. GDQuest's series ships exactly this (Cursor + GameBoard/Grid + Unit) as the canonical structure.",
+          "how": "CURSOR (Node2D): on input, compute cell = tile_layer.local_to_map(tile_layer.get_local_mouse_position()); if cell != _last_cell: _last_cell = cell; position = tile_layer.map_to_local(cell); emit_signal('moved', cell). On click / accept action: emit_signal('accepted', cell). Support keyboard too: on ui_up/down/left/right, clamp _last_cell ± Vector2i and re-emit. CONTROLLER/GameBoard: hold a Dictionary { Vector2i: Unit }; on cursor 'accepted', if no unit selected and the cell holds a player unit → select it, flood-fill its range, paint the HighlightLayer; if a unit is selected and the accepted cell is in range → AStarGrid2D path, animate move, update the unit's cell key, clear highlights; else deselect. Drive this as an explicit enum state machine (SELECTING / MOVING / TARGETING) so part-targeting and AP gating slot in as states.",
+          "godot_version": "4.3+",
+          "gotchas": "(1) Debounce on cell-change (compare to _last_cell) — don't emit 'moved' every mouse-motion pixel or you re-run flood-fill needlessly. (2) Wire interactions with signals, not polling — GDQuest's design connects Cursor.accepted/moved to the board; this keeps the LLM crew's generated scenes loosely coupled. (3) GDQuest's original demo is Godot 3.x-era — when porting, swap any TileMap layer-indexed calls to TileMapLayer, yield→await, and KinematicBody2D→CharacterBody2D (or just Node2D + tween for grid-snapped units, no physics body needed). (4) Keep selection/turn logic out of the Cursor node — Cursor only reports cells; the board decides meaning.",
+          "currency": "solid",
+          "verify_note": "All API used (local_to_map/map_to_local/get_local_mouse_position, signals, Input ui_* actions, Vector2i clamping) is valid current Godot 4. Architecture matches GDQuest's Cursor/GameBoard/Unit structure. Port note (TileMap layer-indexed -> TileMapLayer, yield -> await, KinematicBody2D -> CharacterBody2D) is accurate.",
+          "sources": [
+            {
+              "title": "GDQuest — Tactical RPG Movement: cursor & unit selection lessons",
+              "url": "https://www.gdquest.com/tutorial/godot/2d/tactical-rpg-movement/"
+            },
+            {
+              "title": "godot-2d-tactical-rpg-movement (Cursor / GameBoard / Unit structure)",
+              "url": "https://github.com/gdquest-demos/godot-2d-tactical-rpg-movement"
+            },
+            {
+              "title": "InputEvent / Input singleton (keyboard+mouse parity) — Godot stable docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/inputs/inputevent.html"
+            }
+          ]
+        },
+        {
+          "name": "SURVEY: GDQuest godot-2d-tactical-rpg-movement — the cleanest movement starter (and where it stops)",
+          "what": "GDQuest's focused demo accompanying the Tactical RPG Movement tutorial series (8 lessons). It is the best-structured, best-documented STARTING POINT for grid tactics in Godot — small, readable GDScript, idiomatic node design (Grid resource, Unit, Cursor, GameBoard, UnitPath/overlay).",
+          "how": "Provides: grid-based movement, a map cursor (keyboard+mouse) for unit selection, walkable-area display via flood-fill, path preview, and confirm/cancel of a move. Structured as reusable nodes you can lift wholesale. Pair the repo with the free tutorial to understand each script.",
+          "godot_version": "Original demo is Godot 3.x-era; a community Godot 4.3 port is published (itch.io 'GDquest tactical RPG movement demo in Godot 4.3'). Treat the upstream as the design/architecture reference and port forward (TileMap→TileMapLayer, yield→await, KinematicBody2D→CharacterBody2D).",
+          "gotchas": "WHERE IT STOPS (load-bearing): NO combat, NO turns/initiative, NO action points, NO abilities, NO attack/targeting, NO AI, NO damage/HP. It is movement-and-selection ONLY — the field stops exactly where a deep tactical design (part-targeting, deterministic damage, DEVIATE) begins. LICENSE: GDQuest demos are standardly MIT (engine code) with assets under separate terms — verify the LICENSE file in the repo before shipping any lifted code, and do not assume the art is reusable.",
+          "currency": "plausible",
+          "verify_note": "Feature scope (movement+selection only, NO combat/turns/AP) and the 'where it stops' boundary are confirmed from the live README. Minor staleness: the repo now ships an in-tree godot4/ folder beside the legacy godot/ (3.x), so the upstream itself has a Godot 4 version — the recipe's 'original is 3.x-era, port is only the community itch.io build' under-credits the repo. LICENSE caveat (verify before shipping; assets separate) is sound — confirm the MIT LICENSE file directly.",
+          "sources": [
+            {
+              "title": "gdquest-demos/godot-2d-tactical-rpg-movement (GitHub)",
+              "url": "https://github.com/gdquest-demos/godot-2d-tactical-rpg-movement"
+            },
+            {
+              "title": "Tactical RPG Movement series (8 lessons, free) — GDQuest",
+              "url": "https://www.gdquest.com/tutorial/godot/2d/tactical-rpg-movement/"
+            },
+            {
+              "title": "GDquest tactical RPG movement demo in Godot 4.3 (community port) — itch.io",
+              "url": "https://samir-alhindi.itch.io/gdquest-tactical-rpg-movement-demo-in-godot-43"
+            }
+          ]
+        },
+        {
+          "name": "SURVEY: ramaureirac/godot-tactical-rpg — fullest Godot-4.3 tactical demo (MIT) and where it stops",
+          "what": "The most complete OPEN, MIT-licensed, Godot-4-native tactical RPG demo on GitHub (~900+ stars). Unlike the GDQuest movement-only starter, this one actually closes the loop: turn-based grid movement AND attacks AND a basic enemy AI, with full 3D camera controls and a Blender-map workflow. Author explicitly frames it as 'a simple project… not a fully functional game framework'.",
+          "how": "Provides: turn-based gameplay, grid-based movement, unit move + attack actions, basic enemy AI, advanced camera (pan/zoom/rotate via mouse/keyboard/gamepad), Blender map integration (with tutorial), controller support, and a toggleable debug overlay. v2.0 released Aug 20 2024.",
+          "godot_version": "4.3 (current main); the project DROPPED support for older engines but keeps archived branches for 3.4 / 4.0 / 4.2. LICENSE: MIT (confirmed).",
+          "gotchas": "WHERE IT STOPS: it is a DEMO/TEMPLATE, not a framework — 'basic' enemy AI, no deep systems (no fixed AP economy such as a 2-AP budget, no part-targeting/loot, no abilities trees, no status/cover depth, no narrative/recruit layer). It also leans on a 3D camera + Blender maps; the target here is painterly 2.5D SPRITES, so adopt its LOGIC (turns, grid actions, AI) but NOT its 3D presentation pipeline. Treat it as a reference to read, not a base to fork wholesale.",
+          "currency": "solid",
+          "verify_note": "Verified live: targets Godot 4.3 (dropped older engines), MIT license confirmed, v2.0 released 2024-08-20, includes turn-based grid movement + move/attack + basic enemy AI + advanced 3D camera + Blender map workflow. 'Where it stops' (no AP economy, no part-targeting/loot, 3D-camera/Blender presentation not painterly-2.5D) is accurate — adopt logic, not the 3D pipeline.",
+          "sources": [
+            {
+              "title": "ramaureirac/godot-tactical-rpg (GitHub, MIT, Godot 4.3, v2.0 2024-08-20)",
+              "url": "https://github.com/ramaureirac/godot-tactical-rpg"
+            }
+          ]
+        },
+        {
+          "name": "SURVEY: gdquest-demos/godot-open-rpg — turn-based combat reference (but NOT tactical-grid combat)",
+          "what": "GDQuest's actively-maintained, ground-up Godot-4 rewrite teaching how to structure a full 2D RPG: Field (exploration) + Combat states, an active-time-queue turn-based combat system, inventory, progression, map transitions, dialogue, and grid-based FIELD movement. Modern, well-structured GDScript — the most polished GDQuest RPG codebase.",
+          "how": "Provides: grid-based gamepiece movement on the field (FF1-style), an active-time-battle combat system, inventory, character progression, map transitions, dialogue, and full menu UI. Two top-level states (Field/Combat). Requires a recent Godot 4.x (README pins 4.6.x; repo history tracks 4.3+).",
+          "godot_version": "4.3+ (README currently pins a 4.6.x point release; it is kept current with the engine).",
+          "gotchas": "CRITICAL MISMATCH: its COMBAT is active-time / menu-style (Final Fantasy lineage), NOT grid-tactical. The grid-based movement here is for the EXPLORATION field, not a battle grid with movement range + AP. So it does NOT provide the tactical layer (range, cover, part-targeting, squad positioning) — borrow its structure/field/UI, get the tactical-combat grid from ramaureirac or build it on the AStarGrid2D + flood-fill recipes above. LICENSE: GDQuest's standard MIT for code (verify LICENSE; assets separate).",
+          "currency": "plausible",
+          "verify_note": "Load-bearing claim is correct: combat is menu/turn-based (NOT grid-tactical), grid movement is for the exploration FIELD, MIT licensed. Version note is accurate — README now pins Godot 4.6.2. One soft point: live README describes combat as 'turn-based' generically; the recipe's specific 'active-time-queue / ATB' label isn't stated on the current repo page, so treat the ATB characterization as unverified detail (the menu-not-grid conclusion stands regardless).",
+          "sources": [
+            {
+              "title": "gdquest-demos/godot-open-rpg (GitHub)",
+              "url": "https://github.com/gdquest-demos/godot-open-rpg"
+            },
+            {
+              "title": "godot-open-rpg README (Field/Combat states, ATB, grid field movement)",
+              "url": "https://github.com/gdquest-demos/godot-open-rpg/blob/main/README.md"
+            },
+            {
+              "title": "gdquest-demos/godot-open-rpg — DeepWiki architecture overview",
+              "url": "https://deepwiki.com/gdquest-demos/godot-open-rpg"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "laneSlug": "turn-combat",
+      "title": "Turn-based combat architecture",
+      "recipes": [
+        {
+          "name": "Node-based combat state machine (CombatState child nodes + a tiny CombatStateMachine)",
+          "what": "Model the battle loop as an explicit finite state machine where each phase is its own Node with a script: StartRound, SelectActor, SelectAction, SelectTarget, ResolveAction, EndTurn, CheckVictory. One CombatStateMachine node holds `current_state`, owns enter/exit/transition, and is visible in the remote scene tree at runtime so you can watch which phase you're in. This is the Godot-idiomatic FSM (node-per-state), the most inspectable and the easiest for an LLM crew to author one small file per state.",
+          "how": "Define `class_name CombatState extends Node` with virtual methods `enter(msg:={})`, `exit()`, `update(delta)`, `handle_input(e)` and a signal `transitioned(state_name: StringName, msg: Dictionary)`. The owner `CombatStateMachine extends Node` keeps `@export var initial_state: NodePath`, a `current_state: CombatState`, builds a `{StringName: CombatState}` map from its children in `_ready()`, and on `transitioned` calls `current_state.exit()` then `next.enter(msg)`. Use `StringName` (the `&\"resolve\"` literal) for state keys — cheaper comparisons than String in 4.x. Drive `update`/`handle_input` by forwarding `_process` / `_unhandled_input` from the machine to the active state only. Keep ALL combat rules out of `_physics_process`; a turn game advances on events (input, `await` of an animation), not per-frame ticks.",
+          "godot_version": "4.x",
+          "gotchas": "Do NOT port a Godot-3 FSM that used `yield(...)` to sequence states — that is stale; use `await` (recipe 8). Avoid the trap of running combat logic in `_process(delta)` every frame; a turn game is event-driven, and frame-tick logic reintroduces nondeterminism. Keep the FSM as pure orchestration — the damage math belongs in plain resolver functions you can unit-test headless (recipe 9), not buried in a state node that needs the scene tree.",
+          "currency": "solid",
+          "verify_note": "Node-per-state FSM with class_name + transitioned signal is idiomatic Godot 4; StringName &\"resolve\" literal and await-not-yield guidance all verified current 4.x. Pure-orchestration framing is correct.",
+          "sources": [
+            {
+              "title": "Node-Based State Machine in Godot 4: A Complete Implementation — Godot Foundry",
+              "url": "https://godotfoundry.com/blog/godot-4-state-machine-tutorial"
+            },
+            {
+              "title": "Make a Finite State Machine in Godot 4 — GDQuest",
+              "url": "https://www.gdquest.com/tutorial/godot/design-patterns/finite-state-machine/"
+            },
+            {
+              "title": "Godot Tactics RPG – 04. State Machine — The Liquid Fire",
+              "url": "https://theliquidfire.com/2024/03/19/godot-tactics-rpg-04-state-machine/"
+            },
+            {
+              "title": "Node Based Finite State Machine 4 — Godot Asset Library",
+              "url": "https://godotengine.org/asset-library/asset/2555"
+            }
+          ]
+        },
+        {
+          "name": "Initiative / turn-order queue with an interleaved (re-sortable) order",
+          "what": "A TurnQueue/ActiveTurnQueue node that collects all Battler children, orders them by an initiative key (speed, or speed derived from installed parts), and yields the next actor each round. For an interleaved Wasteland-3-style order (units act woven together, not all-allies-then-all-enemies), keep a per-round sorted list and re-derive it whenever speed-affecting state changes.",
+          "how": "Build an `Array[Battler]`, sort with a custom comparator: `battlers.sort_custom(func(a, b): return a.stats.speed > b.stats.speed)`. Pop the front for the active actor; advance with index wrap `idx = (idx + 1) % battlers.size()` OR rebuild the list at round start so newly-applied speed buffs reorder next round. Expose `signal round_started`, `signal actor_changed(b)`, `signal round_ended`. Two valid flow styles: (a) callback/`play_turn()` chaining (papierkorp's pattern: `queue.play_turn()` → `actor.play_turn()` → on done, `check_turn_end()` advances), or (b) `await`-driven (`await actor.turn_finished`) which reads top-to-bottom — prefer (b) for legibility (recipe 8). Keep `is_player_controlled` on the Battler so the queue knows whether to await UI input or call the AI (recipe 7).",
+          "godot_version": "4.x",
+          "gotchas": "`sort_custom` in 4.x takes a Callable returning bool (true = a before b); Godot-3 `sort_custom(obj, \"method\")` (object + method-name string) is stale — do not use it. Don't store the active actor only by array index if units can die mid-round (queue_free shifts indices); hold a direct reference and null-check it. If you `await actor.turn_finished`, guarantee that signal always fires (even on skip/stun) or the queue deadlocks (recipe 8 gotcha).",
+          "currency": "solid",
+          "verify_note": "sort_custom(func(a,b): return a.stats.speed > b.stats.speed) is exactly correct Godot 4 Callable syntax, and the gotcha correctly flags Godot-3 sort_custom(obj,\"method\") as stale. Queue-free index-shift warning is real.",
+          "sources": [
+            {
+              "title": "How to create a Turn-Based Game in Godot 4 (turn queue) — papierkorp's Blog",
+              "url": "https://papierkorp.github.io/blog/posts/godot-4-turn-queue"
+            },
+            {
+              "title": "DamnWidget/godot-turn-based-rpg — TurnQueue.gd",
+              "url": "https://github.com/DamnWidget/godot-turn-based-rpg/blob/master/godot/combat/turn_queue/TurnQueue.gd"
+            },
+            {
+              "title": "gdquest-demos/godot-2d-jrpg-combat (ActiveTurnQueue, ATB) — MIT",
+              "url": "https://github.com/gdquest-demos/godot-2d-jrpg-combat"
+            }
+          ]
+        },
+        {
+          "name": "Action-point (AP) economy as plain integer state on the Battler",
+          "what": "A simple, fully-visible AP budget: each unit has `ap_max` and `ap_current`; abilities declare an `ap_cost`; the SelectAction state only offers abilities whose cost ≤ remaining AP, spends on commit, and ends the unit's turn when AP is exhausted or the player passes. No hidden stamina math — the number is on screen.",
+          "how": "On the Battler: `@export var ap_max := 2`, `var ap_current := 2`, plus `func can_afford(a: AbilityResource) -> bool: return a.ap_cost <= ap_current` and `func spend(n: int) -> void: ap_current = max(0, ap_current - n); ap_changed.emit(ap_current, ap_max)`. Reset `ap_current = ap_max` in the queue's per-turn `enter`. Keep AP as an `int` (deterministic, trivially testable); never derive it from `_process` time. Multi-cost moves (a 2-AP heavy strike vs two 1-AP shots) fall straight out of this. The Godot Gameplay Systems addon ships turn-based + action-point nodes if you want a pre-built base, but a hand-rolled int is lighter and easier for the crew to reason about.",
+          "godot_version": "4.x",
+          "gotchas": "Don't conflate AP with the charge meter — they are orthogonal pressures (AP = this turn's actions; charge = loot-tier gate). Keeping them as separate ints prevents the self-contradicting single-meter the combat-design critic flagged. Emit `ap_changed` through the bus rather than letting the HUD poll AP each frame.",
+          "currency": "solid",
+          "verify_note": "Plain-int AP with @export, signal emit, and can_afford/spend is plain-correct GDScript 4. Caveat: the cited Godot Gameplay Systems addon is over-credited (see resolver/abilities note) — but the hand-rolled int it recommends is the right call anyway.",
+          "sources": [
+            {
+              "title": "How to create a Turn-Based Game in Godot 4 (stamina/AP per character) — papierkorp's Blog",
+              "url": "https://papierkorp.github.io/blog/posts/godot-4-turn-queue"
+            },
+            {
+              "title": "Godot Gameplay Systems (Attributes + turn-based + ability nodes) — Godot Asset Library",
+              "url": "https://godotengine.org/asset-library/asset/932"
+            }
+          ]
+        },
+        {
+          "name": "Deterministic damage/effect resolver (subtraction-floor model, no RNG hit-chance)",
+          "what": "A pure function `resolve(attacker_stats, defender_part, ability) -> DamageResult` with zero randomness: same inputs → same output, every time. Use a defense model that never collapses to a flat 0 and that keeps player-facing numbers legible. Two battle-tested options: subtraction `dmg = max(min_dmg, atk + power - def)` (small, Fire-Emblem-predictable numbers) or the multiplicative floor `dmg = atk * (100.0 / (100.0 + def))` (high defense always still takes something). Pick one and keep it visible.",
+          "how": "Put the math in a static/standalone resolver (e.g. `class_name CombatMath`) that takes data, not nodes, and returns a small result struct/Dictionary `{ amount, target_part, disabled: bool, loot_tier }`. Round explicitly (`int(floor(x))`) so results are integers and reproducible. Because there is NO to-hit roll, there is no `randi()`/`randf()` anywhere in resolution — the only 'randomness' you might want (e.g. cosmetic variance) must be excluded from the combat model to keep it a visible number. If you ever DO need reproducible variance elsewhere, seed a dedicated `RandomNumberGenerator` instance with `.seed =...` and keep it out of the damage path. Design guidance: make the player-facing stats (atk, def, the targeted part's armor) dominate the output so the player can predict damage by reading the screen.",
+          "godot_version": "4.x",
+          "gotchas": "Plain `atk - def` subtraction hits the classic 'high def = 0 damage' wall (e.g. 200 atk vs 200 def → 0); guard with a `min_dmg` floor or use the multiplicative form. Keep the resolver free of scene-tree lookups so it runs headless in tests (recipe 9). Do not sprinkle `randf()` 'for feel' into resolution — that breaks the deterministic contract and the pre-commit preview.",
+          "currency": "solid",
+          "verify_note": "Pure static resolver, int(floor(x)) rounding, and seeding a dedicated RandomNumberGenerator via.seed are all valid Godot 4. No Godot-3-isms; deterministic/headless-testable design is sound. Math claims (subtraction-floor vs atk*(100/(100+def))) are engine-agnostic and correct.",
+          "sources": [
+            {
+              "title": "RPG Damage Formula (subtraction vs atk*(100/(100+def))) — Fandom RPG wiki",
+              "url": "https://rpg.fandom.com/wiki/Damage_Formula"
+            },
+            {
+              "title": "Classic JRPG Damage Formulas — Grasp",
+              "url": "https://paths.grasp.study/public-courses/cbd93ffc-1946-433a-bd46-0d9489cdaa7c/modules/2f8c1f0a-3ff4-43a7-aa66-823994f92082/lessons/26153270-8a10-4df9-ae17-66fc5874d835"
+            },
+            {
+              "title": "You smack the rat for damage (visible numbers should dominate output) — jmargaris",
+              "url": "https://jmargaris.substack.com/p/you-smack-the-rat-for-damage"
+            }
+          ]
+        },
+        {
+          "name": "Abilities, stats, and parts as custom Resources (data-driven .tres the crew authors)",
+          "what": "Define every ability, stat block, and bolt-on part as a `Resource` subclass with `class_name` + `@export` fields, saved as `.tres` text files. This is the single highest-leverage pattern for a 1-director + LLM-crew studio: the crew generates/edits human-readable `.tres` (and the script can even write/load them programmatically) WITHOUT touching engine code, designers tune by editing exported fields in the Inspector, and shared assets are real external files referenced by id.",
+          "how": "`class_name AbilityResource extends Resource` with `@export var id: StringName`, `@export var display_name: String`, `@export var ap_cost: int`, `@export var power: int`, `@export var target_kind: int` (enum: self/ally/enemy/part), `@export var charge_meter: bool`, `@export var status_to_apply: StatusResource`. Make `BattlerStats extends Resource` hold base stats AND derive `final` stats by folding active modifiers (GDQuest's base-vs-final pattern). Create `.tres` via right-click → New Resource → pick the class, or `ResourceSaver.save(res, \"res://data/abilities/disable_arm.tres\")`; load with `load(...)` / `preload(...)`. CRITICAL 4.x note: call `.duplicate()` on a Resource you mutate per-instance — Resources are shared by reference, so an un-duplicated stat block is shared across every unit. For data that ships with the game, an exported `Array[AbilityResource]` on an autoload registry gives one lookup table.",
+          "godot_version": "4.x",
+          "gotchas": "Forgetting `.duplicate()` is THE classic Resource bug — a shared `BattlerStats.tres` means buffing one unit buffs all of them; duplicate on instantiate. `@export` typed arrays (`Array[AbilityResource]`) need Godot 4.x; older untyped patterns lose Inspector type-safety. Keep `.tres` (text) not `.res` (binary) so the crew and git can diff them. Resource scripts with `class_name` must compile before the editor can create the New Resource entry.",
+          "currency": "solid",
+          "verify_note": "class_name X extends Resource, @export typed fields,.tres text files, ResourceSaver/preload, Array[AbilityResource], and the CRITICAL.duplicate() shared-by-reference fix are all verified-current Godot 4. The class_name-must-compile-before-New-Resource gotcha is accurate.",
+          "sources": [
+            {
+              "title": "Godot 4 Custom Resources Tutorial — Coding Quests",
+              "url": "https://codingquests.io/blog/godot-4-custom-resources-tutorial"
+            },
+            {
+              "title": "Custom Resources in Godot Engine 4.x — Simon Dalvai",
+              "url": "https://simondalvai.org/blog/godot-custom-resources/"
+            },
+            {
+              "title": "Godot Resources Explained: Items, Stats, Tuning Data — Godot Learning",
+              "url": "https://godotlearning.com/blog/godot-resources-explained"
+            },
+            {
+              "title": "gdquest-demos/godot-2d-jrpg-combat (BattlerStats base vs final) — MIT",
+              "url": "https://github.com/gdquest-demos/godot-2d-jrpg-combat"
+            }
+          ]
+        },
+        {
+          "name": "Per-part / called-shot targeting hooks (parts as a sub-grid of HP+armor on each Battler)",
+          "what": "Give each Battler an ordered set of targetable PartResources (e.g. head/torso/left-arm/right-arm/legs/core), each with its own hp, armor, `disabled` flag, `loot_tier`, and the stat-deltas it contributes. Targeting selects a unit AND a part; the resolver (recipe 4) applies damage to that part's armor/hp; reaching 0 disables it (drops its stat contribution and, when the loot gate is met, drops it as loot).",
+          "how": "`class_name PartResource extends Resource` with `@export var slot: StringName`, `@export var hp: int`, `@export var armor: int`, `@export var disabled: bool`, `@export var loot_tier: int`, `@export var stat_mods: Dictionary`. On the Battler keep `@export var parts: Array[PartResource]` and `func target_part(slot) -> PartResource`. In SelectTarget, the player picks a unit then a part from a small radial/list; feed `defender_part` into `CombatMath.resolve`. On disable, recompute `BattlerStats.final` by folding only non-disabled parts' `stat_mods`. Looting = `attacker_owner.add_part(dropped_part.duplicate())`. Targeting validity (range, line-of-fire) reuses the AStarGrid2D grid distance from recipe — gate selectable parts by whether the unit is in weapon range. Keep all of this as data + pure functions so the pre-commit preview can show 'this shot disables the arm.'",
+          "godot_version": "4.x",
+          "gotchas": "Duplicate the PartResource when moving it between battlers (same shared-reference trap as recipe 5) or the enemy and your unit will share one mutating part. Don't bake part geometry into the visual sprite — keep parts as data so the painterly 2.5D art (which is NOT real-time 3D) stays decoupled from the hit model; the sprite shows the result, the data IS the result. Recompute `final` stats only from enabled parts, or disabled limbs keep buffing the unit.",
+          "currency": "solid",
+          "verify_note": "PartResource as data + @export var parts: Array[PartResource] works in 4.x with class_name (verified Inspector type-safety needs class_name not preload). Duplicate-on-move warning correct. AStarGrid2D for range gating is a real Godot 4 class.",
+          "sources": [
+            {
+              "title": "Godot 4 Custom Resources Tutorial (data-driven items/stats) — Coding Quests",
+              "url": "https://codingquests.io/blog/godot-4-custom-resources-tutorial"
+            },
+            {
+              "title": "Creating and Using Custom Resources – Data-Driven Design — UhiyamaLab",
+              "url": "https://uhiyama-lab.com/en/notes/godot/custom-resource-data-driven/"
+            },
+            {
+              "title": "Pathfinding on a 2D Grid (AStarGrid2D distance for range gating) :: Godot 4 Recipes",
+              "url": "https://kidscancode.org/godot_recipes/4.x/2d/grid_pathfinding/index.html"
+            }
+          ]
+        },
+        {
+          "name": "Enemy AI as a sandboxed BattlerAI returning an Action (utility scoring, deterministic)",
+          "what": "Each AI-controlled Battler owns a swappable `BattlerAI` object whose single job is: given the battle state, return the chosen Action (ability + target). Use Utility AI — score every (ability, target) candidate with normalized 0–1 considerations (distance, target part HP, kill-secure, collateral) and pick the highest. Keep the AI's scoring deterministic so behavior is testable and the player can learn enemy logic.",
+          "how": "GDQuest's sandboxing pattern: `class_name BattlerAI` with `func choose_action(state) -> Action`. For utility scoring, structure considerations as small objects/Resources each returning a 0–1 score, optionally shaped by a `Curve` (`curve.sample(normalized_value)`), then combine per candidate (multiply or average) and take the max via a `get_best_action()` loop. Normalize EVERY consideration to the same 0–1 scale (the one hard rule of utility AI). Return a Command-pattern `Action` object the ResolveAction state executes — same Action type player input produces, so resolution code is shared. Subclass BattlerAI per archetype (Aggressor, Executioner, the courteous Steward) instead of branching one giant `if`. For movement targeting, reuse the AStarGrid2D path/range from recipe 6.",
+          "godot_version": "4.x",
+          "gotchas": "Keep the AI a sandboxed object that returns a decision — do NOT let it directly mutate battler state or drive animations; that belongs to ResolveAction. Don't seed AI choices with `randf()` if you want learnable, deterministic enemies (tie-break by a stable rule like lowest part HP, not a roll). A plain idle/patrol/chase state-machine AI (the common tutorials) is the WRONG shape for tactical turn combat — you need per-turn decision scoring, not real-time behavior states. Avoid one monolithic scoring function; per-archetype subclasses keep each enemy's logic legible and tunable.",
+          "currency": "solid",
+          "verify_note": "curve.sample(normalized_value) is the CORRECT Godot 4 name (Godot 3 was interpolate()/interpolate_baked()) — recipe correctly uses the modern API. Utility-AI normalize-to-0-1, Command/Action pattern, per-archetype subclasses all sound. Cites GDQuest jrpg-combat (MIT code, verified).",
+          "sources": [
+            {
+              "title": "Utility AI Tutorial for Godot 4 (considerations, curves, get_best_action) — Minoqi",
+              "url": "https://minoqi.vercel.app/posts/godot-4-tutorials/utility-ai-godot-4-tutorial/"
+            },
+            {
+              "title": "gdquest-demos/godot-2d-jrpg-combat (BattlerAI sandboxing + Command/Action pattern) — MIT",
+              "url": "https://github.com/gdquest-demos/godot-2d-jrpg-combat"
+            },
+            {
+              "title": "Programming a tactical strategy game in Godot 4 — The Shaggy Dev",
+              "url": "https://shaggydev.com/2024/09/04/unto-deepest-depths-devlog/"
+            }
+          ]
+        },
+        {
+          "name": "Sequence turns with `await` on signals/coroutines (NOT yield) + a signal-bus for UI decoupling",
+          "what": "Two complementary 4.x patterns. (1) Sequencing: use the `await` keyword to write turn flow as linear top-to-bottom code — await player input, await an animation, await resolution — instead of nested callbacks. (2) Decoupling: route combat-to-UI communication through an autoload signal bus ('Events'/'CombatEvents') so the HUD, initiative strip, and damage popups react to events without any hard reference into the combat system.",
+          "how": "Sequencing: `await battler.action_chosen` (player), `await anim_player.animation_finished` (Godot 4.x `animation_finished` fires even on interruption and passes the anim name), `await resolver_done`. The instant a function uses `await` it becomes a coroutine — no special declaration. Decoupling: make an autoload `Events extends Node` holding signals like `signal unit_hp_changed(unit, hp, max)`, `signal ap_changed(unit, cur, max)`, `signal actor_changed(unit)`, `signal part_disabled(unit, slot)`, `signal part_dropped(part)`; combat code does `Events.unit_hp_changed.emit(...)`, UI nodes `Events.unit_hp_changed.connect(_on_hp)`. Namespace event names and unsubscribe on `_exit_tree` for nodes that come and go. Not everything needs a signal — a parent configuring its own child should just call the method; use the bus for distant/decoupled listeners only.",
+          "godot_version": "4.x",
+          "gotchas": "`yield(...)` is GODOT-3-ONLY and removed in 4.x — every `yield` must become `await`; flag any tutorial using `yield` as stale. THE await deadlock: if you `await unit.turn_finished` but the unit is `queue_free()`d (dies mid-turn) before emitting, the signal is disconnected and the coroutine hangs forever — always guarantee the awaited signal fires (emit on skip/stun/death paths) or await with a timeout fallback. Don't overuse the bus into 'signal spaghetti'; reserve it for genuine decoupling. Connect in code (not only via the editor) so combat wiring is greppable and reviewable.",
+          "currency": "plausible",
+          "verify_note": "await + autoload Events bus all correct Godot 4, and yield-is-Godot-3-only is verified. BUT one factual error: claims animation_finished \"fires even on interruption\" — official docs + community say it does NOT emit when interrupted by a new play(); signature is animation_finished(anim_name: StringName) (name part correct). Ironically contradicts the recipe's own await-deadlock gotcha. Fix the parenthetical.",
+          "sources": [
+            {
+              "title": "GDScript's await Keyword Is the Underused Way to Kill Callback Hell — DEV (Ziva)",
+              "url": "https://dev.to/ziva/gdscripts-await-keyword-is-the-underused-way-to-kill-callback-hell-in-godot-1oei"
+            },
+            {
+              "title": "Understanding await and Coroutines in Godot Engine (incl. yield migration) — UhiyamaLab",
+              "url": "https://uhiyama-lab.com/en/notes/godot/await-coroutine-basics/"
+            },
+            {
+              "title": "Godot Signals Architecture: Best Practices & Event Bus — Febucci",
+              "url": "https://blog.febucci.com/2024/12/godot-signals-architecture/"
+            },
+            {
+              "title": "The Events bus singleton — GDQuest",
+              "url": "https://www.gdquest.com/tutorial/godot/design-patterns/event-bus-singleton/"
+            }
+          ]
+        },
+        {
+          "name": "Headless unit tests for the deterministic combat core (GUT or gdUnit4)",
+          "what": "Because resolution is deterministic and lives in pure functions/Resources, the entire combat math is unit-testable without rendering. Use GUT (Godot Unit Test, 9.x = Godot 4.x) or gdUnit4 to assert exact damage numbers, part-disable thresholds, loot-tier drops, AP spend, and AI decisions — and run them headless in CI on a fixed input set.",
+          "how": "Write `extends GutTest` scripts with `test_*` methods asserting concrete outputs: `assert_eq(CombatMath.resolve(atk, part, ability).amount, 14)`, `assert_true(result.disabled)`, `assert_eq(part.loot_tier, 2)`. Test the AI by asserting `BattlerAI.choose_action(fixed_state)` returns the expected Action for a known board (proves the cold-equation enemy always picks the kill-secure). Run headless via the CLI: `godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://test -gexit`. gdUnit4 adds mocking/spies and flaky-test detection if you need scene-level tests; for the pure resolver, plain GUT asserts are enough. Keep every test input fixed (no randomness) — trivial precisely because the model has no hit-roll.",
+          "godot_version": "4.x",
+          "gotchas": "GUT versions matter: use GUT 9.x for Godot 4.x (older GUT is Godot 3). Keep the resolver free of scene-tree/node dependencies (recipes 1 & 4) or tests need a full SceneTree and stop being pure unit tests. Don't test through the UI — test the combat core directly; the signal bus (recipe 8) means the core runs with no UI attached, which is exactly what makes headless CI fast.",
+          "currency": "solid",
+          "verify_note": "GUT 9.x = Godot 4.x verified (7.x = Godot 3); extends GutTest, godot --headless -s addons/gut/gut_cmdln.gd CLI correct. gdUnit4 cite godot-gdunit-labs/gdUnit4 resolves to MikeSchulze/gdUnit4 — both valid, real Godot-4 framework with mocking. No staleness.",
+          "sources": [
+            {
+              "title": "bitwes/Gut — Godot Unit Testing (GUT 9.x = Godot 4.x)",
+              "url": "https://github.com/bitwes/Gut"
+            },
+            {
+              "title": "GUT - Godot Unit Testing (Godot 4) — Godot Asset Library",
+              "url": "https://godotengine.org/asset-library/asset/1709"
+            },
+            {
+              "title": "godot-gdunit-labs/gdUnit4 (embedded testing, mocking, flaky-test handling)",
+              "url": "https://github.com/godot-gdunit-labs/gdUnit4"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "laneSlug": "rendering-2.5d",
+      "title": "Rendering & 2.5D sprites",
+      "recipes": [
+        {
+          "name": "Pick the renderer deliberately: Forward+ for HDR-2D glow on a desktop painterly game",
+          "what": "Godot 4 ships three rendering methods, set in Project Settings > Rendering > Rendering Method (rendering/renderer/rendering_method): forward_plus, mobile, and gl_compatibility. The choice is a one-line project setting but it gates which 2D features exist. For a high-fidelity painterly-sprite game (sprites + controlled neon glow + grimy mood, PC-only) the decisive features are HDR 2D and MSAA 2D, which exist ONLY on Forward+ and Mobile — Compatibility (the GLES3/WebGL path) supports neither. The common 'Compatibility is good enough for 2D' advice is true for flat-lit games, but breaks for a bloom-driven look that needs a real brightness threshold.",
+          "how": "Set forward_plus (the desktop default). Then enable Project Settings > Rendering > Viewport > HDR 2D (rendering/viewport/hdr_2d = true) so the 2D canvas renders in linear/HDR and pixels brighter than 1.0 actually drive glow. Add a WorldEnvironment node with an Environment resource: Background.Mode = Canvas, Glow.Enabled = true, tune Glow HDR Threshold so only the bright neon/emissive pixels bloom (not the whole grimy frame). As of Godot 4.4 glow blends BEFORE tonemapping on all three renderers (avoids the old hue-shift/hard-edge artifacts), but the HDR threshold workflow itself still needs hdr_2d, hence Forward+. Note the renderer can be set per-platform in the export-style override dropdown, but a desktop-only title can just commit to forward_plus.",
+          "godot_version": "4.x (4.4+ for pre-tonemap glow on all renderers; HDR 2D since 4.2)",
+          "gotchas": "Compatibility is the ONLY web-export path — choosing Forward+ forfeits web export (fine for a PC tactical RPG, but document it). With hdr_2d ON, any custom canvas_item shader sampling a color texture MUST mark the sampler uniform `source_color` (hint_color) or it renders washed-out, because the 2D pass is now linear. To set modulate/Color values above 1.0 in the inspector you must use the RAW tab (RGB/HSV tab clamps at 1.0). 4.6 briefly removed/changed the 2D glow threshold UI — pin your exact 4.x point release and re-verify the glow knobs after any engine upgrade.",
+          "currency": "plausible",
+          "verify_note": "Core claims VERIFIED on stable docs (HDR 2D + MSAA 2D = Forward+/Mobile only; Compatibility unsupported; web export forces Compatibility). One version error: 'as of Godot 4.4 glow blends BEFORE tonemapping on all three renderers' is WRONG — that change landed in 4.6 (the 4.6 release page states the new curves 'don't break compatibility with 4.4 and 4.5', i.e. the pre-tonemap behavior is new in 4.6). hdr_2d-since-4.2 is correct. source_color requirement (#84989) and RAW-tab >1.0 are real.",
+          "sources": [
+            {
+              "title": "Overview of renderers — Godot Engine stable docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/rendering/renderers.html"
+            },
+            {
+              "title": "Dev snapshot: Godot 4.6 dev 2 (glow now blends before tonemapping on all renderers)",
+              "url": "https://godotengine.org/article/dev-snapshot-godot-4-6-dev-2/"
+            },
+            {
+              "title": "Using vec4/color in canvas_item shaders washed out when 2D HDR active (source_color requirement) — godot#84989",
+              "url": "https://github.com/godotengine/godot/issues/84989"
+            }
+          ]
+        },
+        {
+          "name": "Y-sort the modern way: y_sort_enabled property, NOT the removed YSort node",
+          "what": "Correct front/back ordering of overlapping sprites on a 2.5D field. In Godot 4 the dedicated YSort node from Godot 3 is GONE — sorting is now a boolean property, Y Sort Enabled (y_sort_enabled), available on any CanvasItem (Node2D, TileMapLayer). When enabled on a parent, its direct children are drawn ordered by their global Y: lower-on-screen (higher Y) draws in front. Any tutorial telling you to 'add a YSort node' is Godot-3-stale.",
+          "how": "On the container node (e.g. a Node2D named World or the unit layer) set y_sort_enabled = true. Each sortable actor (a CharacterBody2D/Node2D for a squad unit) must be a DIRECT child of that container — a grandchild won't sort against its peers. Sorting uses the node's ORIGIN, so position each unit's Sprite2D so the sprite's visual feet sit at the parent node's origin (push the texture up via the Sprite2D Offset, or set centered=false and offset accordingly). Keep z_index = 0 on the sprites and disable 'Z as Relative' where it would otherwise override the Y order. For tiles use TileMapLayer (the 4.3+ replacement for TileMap's internal layers) with Y Sort Enabled on the layer and a correct Y Sort Origin per tile in the TileSet so tall props (walls, machinery) sort by their base, not their center.",
+          "godot_version": "4.x (TileMapLayer node since 4.3; y_sort_enabled property since 4.0)",
+          "gotchas": "z_index hard-overrides y-sort — a stray nonzero z_index (or 'Z as Relative' on a child) silently breaks ordering; this is the #1 'y-sort not working' cause. Godot does NOT auto-sort BETWEEN separate sibling layers/TileMapLayers — cross-layer ordering must be managed by layer order or a shared sorting container. For multi-tile-tall objects the TileSet tile's Y Sort Origin must be moved to the visual base or it pops in front of/behind units incorrectly.",
+          "currency": "solid",
+          "verify_note": "Confirmed: class_ysort.html is 404 on stable (no YSort node in Godot 4); y_sort_enabled is a real CanvasItem property; TileMapLayer is the 4.3+ replacement and TileMap is deprecated. z_index/Z-as-Relative override and origin-based sorting are accurate. (Ignore a stray web claim that 4.4 'reintroduced' a YSort node — unsupported; docs still 404.)",
+          "sources": [
+            {
+              "title": "Using Y-Sort :: Godot 4 Recipes (kidscancode, 4.x)",
+              "url": "https://kidscancode.org/godot_recipes/4.x/2d/using_ysort/index.html"
+            },
+            {
+              "title": "How to make y-sort for TileMapLayer in Godot 4.3? — Godot Forum",
+              "url": "https://forum.godotengine.org/t/how-to-make-y-sort-for-tilemaplayer-in-godot-4-3/87689"
+            },
+            {
+              "title": "Using YSort for Correct 2D Depth Sorting (StudyRaid)",
+              "url": "https://app.studyraid.com/en/read/32761/1441873/using-ysort-for-correct-2d-depth-sorting"
+            }
+          ]
+        },
+        {
+          "name": "Ambient darkness with CanvasModulate as the mood floor",
+          "what": "CanvasModulate is a single node that multiplies the whole 2D canvas by one color, acting as the global ambient/base tint — it is the color the scene reads as in areas no Light2D reaches. It is the cheapest, most impactful tool for a grimy mood: set it to a dark desaturated value and the world goes from 'flat daylight sprites' to 'underlit ruin', and every PointLight2D you add then carves brightness back out of that darkness.",
+          "how": "Add one CanvasModulate node per scene (only the last one in tree order is active). Set its Color to a dark, slightly tinted gray-blue or rust tone (e.g. RGB around 0.12–0.22, cool or warm to taste) rather than pure black so unlit areas keep a readable silhouette. Because it MULTIPLIES, sprite art should be authored close to neutral/bright so the modulate can darken it — don't pre-darken the textures or you lose dynamic range. Pair it with Light2D nodes (next recipes) whose Blend Mode = Add to punch light back in.",
+          "godot_version": "4.x (CanvasModulate unchanged in concept from 3.x; still single global node)",
+          "gotchas": "Multiple CanvasModulate nodes don't blend — only one wins, which surprises people layering scenes. Pure black (0,0,0) ambient makes unlit tactical units invisible — bad for legibility; keep a small floor value. Under hdr_2d, CanvasModulate still works but combine it thoughtfully with glow threshold so darkening doesn't accidentally kill the bloom you wanted.",
+          "currency": "solid",
+          "verify_note": "Verified against stable 2D-lighting docs: CanvasModulate multiplies the whole canvas as base ambient ('darken the scene by specifying a color that acts as base ambient'), only the last one in tree wins, pairs with additive Light2D. Multiply-so-author-bright guidance is correct.",
+          "sources": [
+            {
+              "title": "2D lights and shadows — Godot Engine stable docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/2d/2d_lights_and_shadows.html"
+            },
+            {
+              "title": "Godot: Mastering 2D Lighting (Merxon22, Medium) — CanvasModulate as ambient",
+              "url": "https://medium.com/@merxon22/godot-mastering-2d-lighting-a949320e1f68"
+            }
+          ]
+        },
+        {
+          "name": "PointLight2D / DirectionalLight2D — the split Light2D and how to drive it",
+          "what": "Godot 3's single Light2D was SPLIT in Godot 4 into PointLight2D (omni/spot light from a light Texture — torches, optics, muzzle flashes) and DirectionalLight2D (parallel rays — sun/moon). Both inherit the Light2D base (Enabled, Color, Energy, Blend Mode, Range/Z-Min-Max). Any code or tutorial referencing a bare `Light2D` node to place in the scene is Godot-3-stale; instantiate the concrete subclass.",
+          "how": "PointLight2D needs a Texture that defines its falloff/shape — a soft radial gradient PNG is the standard 'lamp' look; Texture Scale multiplies its reach without re-authoring the texture, and Offset moves the light glow without moving its shadow origin. Set Energy for intensity and Blend Mode = Add (default) so lights accumulate additively over the CanvasModulate darkness; Subtract makes a negative/shadow light, Mix replaces. DirectionalLight2D gives a uniform wash with a direction; its Height property tilts how normal-mapped sprites catch it. For glow integration, push light Color/Energy so lit hotspots exceed 1.0 under hdr_2d and bloom.",
+          "godot_version": "4.x (PointLight2D + DirectionalLight2D replace 3.x Light2D)",
+          "gotchas": "Forgetting the Texture on a PointLight2D = no visible light. Lights stack additively, so several mid-energy lights blow out to white fast under HDR — budget energies per scene. Blend Mode Mix is rarely what you want over a dark ambient (it replaces rather than adds). Light Range Z-Min/Z-Max can silently exclude sprites on certain z layers from being lit.",
+          "currency": "solid",
+          "verify_note": "Confirmed: Godot 4 splits 3.x Light2D into PointLight2D (needs a falloff Texture) + DirectionalLight2D; both inherit the Light2D base (abstract — you instantiate the subclass, not a bare Light2D). Energy/Blend Mode/Texture Scale/Offset and additive-stacking gotchas match docs.",
+          "sources": [
+            {
+              "title": "2D lights and shadows — Godot Engine stable docs (PointLight2D / DirectionalLight2D properties)",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/2d/2d_lights_and_shadows.html"
+            },
+            {
+              "title": "How to Use 2D Lights in Godot 4 — beginner tutorial (YouTube)",
+              "url": "https://www.youtube.com/watch?v=AAPqEebFV-E"
+            }
+          ]
+        },
+        {
+          "name": "2D normal maps via CanvasTexture so painterly sprites catch light like reliefs",
+          "what": "Flat sprites lit by Light2D look flat (uniform brightening). A normal map per sprite tells Godot which way each pixel 'faces' so lights produce directional shading — the rim of a shoulder pauldron catches the lamp, the recess stays dark. In Godot 4 the clean way to attach diffuse+normal(+specular) is the CanvasTexture resource, not a bare Normal Map slot.",
+          "how": "Create a CanvasTexture resource and assign it as the Sprite2D's Texture. On it set Diffuse > Texture (the painted color sprite), Normal Map > Texture (the normal map image), and optionally Specular > Texture/Color/Shininess for wet/metal highlights. IMPORTANT: after adding normals, raise the Height property on your PointLight2D / DirectionalLight2D — with Height at 0 the light is in-plane and normals barely register; a positive Height makes the directional shading read. Normal maps only affect surfaces actually reached by a Light2D (they do nothing in pure CanvasModulate ambient).",
+          "godot_version": "4.x (CanvasTexture is the 4.x mechanism; replaces 3.x's per-Sprite normal slot workflow)",
+          "gotchas": "Wrong-handedness or Y-flipped normal maps make light come from the wrong side — verify against the diffusion pipeline's normal convention. Normals do nothing without a Light2D AND a nonzero light Height — the classic 'I added a normal map and see no change'. The normal-map texture itself should import as a raw (non-sRGB) texture so its vectors aren't color-corrected.",
+          "currency": "solid",
+          "verify_note": "Verified: CanvasTexture is the 4.x mechanism (Diffuse/Normal Map/Specular slots) and the light Height property drives how normals read ('light's virtual height with regards to normal mapping'). 'No effect without a Light2D + nonzero Height' and raw/non-sRGB import are correct.",
+          "sources": [
+            {
+              "title": "2D lights and shadows — Godot Engine stable docs (CanvasTexture diffuse/normal/specular + Height)",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/2d/2d_lights_and_shadows.html"
+            },
+            {
+              "title": "Lighting with 2D normal maps — GDQuest",
+              "url": "https://www.gdquest.com/tutorial/godot/2d/lighting-with-normal-maps/"
+            }
+          ]
+        },
+        {
+          "name": "2D shadows + LightOccluder2D, scoped with light/cull masks for legibility",
+          "what": "Hard 2D shadows are produced by giving a PointLight2D/DirectionalLight2D Shadow > Enabled and placing LightOccluder2D nodes (with an OccluderPolygon2D) on shadow-casting geometry. The pair of MASK systems controls exactly which sprites a light touches and which cast shadows — critical so combat reads cleanly instead of every prop self-shadowing into mush.",
+          "how": "Per light: Shadow > Enabled = true, set Shadow Color, and Filter = None / PCF5 / PCF13 (PCF softens edges at a cost). Per occluder: add LightOccluder2D with an OccluderPolygon2D tracing the blocker's footprint. Two mask layers do the scoping: an object's Visibility > Light Mask = which light layers touch it; a light's Range > Item Cull Mask = which object layers it brightens (counterintuitively named — a layer enabled here GETS lit). The light's Shadow > Item Cull Mask selects which occluders cast for that light and which layers receive shadow. Use these to, e.g., let a light illuminate units but not re-shadow the floor tiles they stand on.",
+          "godot_version": "4.x (LightOccluder2D/OccluderPolygon2D + Light Mask/Item Cull Mask current in 4.x; SDF-based shadows available)",
+          "gotchas": "Item Cull Mask vs Light Mask is the single most-confused pair in Godot 2D — remember: Light Mask = layers the light touches; Range Item Cull Mask = which object layers the light lights. There are known engine reports where DirectionalLight2D item cull masks don't restrict coverage as expected (godot#101714) — test, and prefer PointLight2D scoping when you need precise exclusion. Tiles self-occluding their own light is a notorious pain (two-tilemap / mask workarounds exist).",
+          "currency": "solid",
+          "verify_note": "Verified: LightOccluder2D + OccluderPolygon2D, Shadow Enabled/Filter (PCF), and the Light Mask vs Item Cull Mask pair are current 4.x. The cited DirectionalLight2D cull-mask bug (#101714, v4.3) is real and correctly flagged; the 'prefer PointLight2D for precise exclusion' workaround is sound.",
+          "sources": [
+            {
+              "title": "2D lights and shadows — Godot Engine stable docs (LightOccluder2D, shadow filters, masks)",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/2d/2d_lights_and_shadows.html"
+            },
+            {
+              "title": "Understanding Light2D Masks in Godot (Imaginary Robots)",
+              "url": "https://www.imaginaryrobots.net/posts/2022-02-03-understanding-light2d-masks-godot/"
+            },
+            {
+              "title": "DirectionalLight2D item cull mask does not affect light coverage — godot#101714",
+              "url": "https://github.com/godotengine/godot/issues/101714"
+            }
+          ]
+        },
+        {
+          "name": "Glow / bloom via WorldEnvironment (Canvas background) with a controlled HDR threshold",
+          "what": "Glow/bloom is a post-process on the 2D canvas, enabled by a WorldEnvironment node whose Environment has Background.Mode = Canvas and Glow.Enabled = true. Done right it makes neon and emissive marks blossom; done wrong (no real threshold) it fogs the entire frame. The threshold-correct path requires HDR 2D so 'bright' is a meaningful, isolable value.",
+          "how": "Add ONE WorldEnvironment to the main scene; on its Environment set Background.Mode = Canvas, Glow.Enabled = true, choose Glow Blend Mode (Additive/Screen/Softlight), and set the per-level Glow intensity/strength/bloom. Turn ON Project Settings > Rendering > Viewport > HDR 2D and tune Glow HDR Threshold so only pixels above the threshold bloom. Make things glow by pushing their modulate/Color or shader output above 1.0 (set via the inspector RAW tab, or `modulate = Color(2.0, 1.6, 0.4)` in code, or an emissive canvas_item shader). On 4.4+ glow blends before tonemapping for a clean, hue-stable bloom.",
+          "godot_version": "4.x (HDR 2D since 4.2; pre-tonemap glow on all renderers 4.4+; verify threshold UI per point release after 4.6 changes)",
+          "gotchas": "Without a working threshold (i.e. without hdr_2d) the whole screen glows — the recurring 4.2 complaint (godot#86098). To exclude a CanvasLayer (e.g. crisp UI text) from glow, isolate it on its own viewport/CanvasLayer outside the glowing canvas. Modulate >1.0 only blooms when hdr_2d is on; in non-HDR it clips at 1.0 (godot#75153). The 4.6 line shuffled the 2D glow threshold control — re-verify after upgrades.",
+          "currency": "plausible",
+          "verify_note": "Workflow is correct for current 4.x (WorldEnvironment + Background=Canvas + Glow.Enabled, hdr_2d for a real threshold, push modulate >1.0 via RAW tab; #86098 and #75153 are real). Same version error as recipe #1: 'on 4.4+ glow blends before tonemapping' is actually a 4.6 change. Recipe already hedges the 4.6 threshold-UI churn, which is appropriate given engine is now at 4.7.",
+          "sources": [
+            {
+              "title": "4.2 World Environment Glow Effect makes everything glow — godot#86098",
+              "url": "https://github.com/godotengine/godot/issues/86098"
+            },
+            {
+              "title": "Finally glowing! (Godot 4.4) — HDR 2D + WorldEnvironment glow workflow",
+              "url": "https://initdotdev.itch.io/puzzle-crossing/devlog/903593/finally-glowing-with-godot-44"
+            },
+            {
+              "title": "CanvasItem Modulate values above 1.0 are clipped (HDR threshold) — godot#75153",
+              "url": "https://github.com/godotengine/godot/issues/75153"
+            }
+          ]
+        },
+        {
+          "name": "Import settings for HIGH-FIDELITY painterly sprites (linear filter + mipmaps, lossless) — NOT pixel-art nearest",
+          "what": "Godot's per-texture Import dock controls Filter, Mipmaps, and Compression. Pixel-art guides say 'Nearest, no mipmaps' — that is WRONG here. Painterly diffusion sprites are smooth high-resolution art that gets scaled by camera/parallax, so they want Linear filtering and Mipmaps for clean minification, with Lossless compression to preserve the painted detail.",
+          "how": "For painterly sprites: in the texture's Import tab set Compress > Mode = Lossless (stores the PNG faithfully; avoid VRAM Compressed which adds artifacts to gradients), Mipmaps > Generate = ON (clean downscaling when the tactical camera zooms or sprites sit at varied scale; costs ~33% more VRAM per texture — acceptable for the visual tier), and leave Filter at the linear default (sharp 'Nearest' would make smooth art look harsh). Set the global default once in Project Settings > Rendering > Textures > Canvas Textures > Default Texture Filter = Linear (or Linear Mipmap). Click Reimport after any change. Atlas related sprites into a TextureAtlas/sprite sheet to cut draw calls, but keep generous padding so mipmaps don't bleed neighbors.",
+          "godot_version": "4.x (Import dock Filter/Mipmaps/Compress unchanged in concept; 'Detect 3D' auto-switch is 3D-only)",
+          "gotchas": "Don't copy pixel-art tutorials wholesale — Nearest + no-mipmaps is correct for 16-bit, wrong here. VRAM Compressed (S3TC/BPTC) introduces gradient banding ugly on painterly art — stay Lossless. Mipmaps without atlas padding cause edge bleed between packed sprites. You MUST Reimport for changes to take effect; per-file settings override the project default.",
+          "currency": "solid",
+          "verify_note": "Verified against Importing-images docs: Filter/Mipmaps/Compress are per-texture; Lossless avoids VRAM-compressed gradient banding; Linear + Mipmaps is correct for scaled painterly art (vs Nearest/no-mip for pixel art); global default at Rendering > Textures > Canvas Textures > Default Texture Filter; Reimport required. Atlas-padding-vs-mip-bleed caveat is accurate.",
+          "sources": [
+            {
+              "title": "Importing images — Godot Engine stable docs (Filter, Mipmaps, Compress modes)",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/importing_images.html"
+            },
+            {
+              "title": "Fix Blurry 2D Graphics and Fonts in Godot — texture scaling, mipmaps, filtering (Dre Dyson)",
+              "url": "https://dredyson.com/fix-blurry-2d-graphics-and-fonts-in-godot-a-beginners-step-by-step-guide-to-understanding-texture-scaling-mipmaps-and-resolution-settings-that-actually-work/"
+            },
+            {
+              "title": "Working With Sprites in Godot 4: Nuances, Pitfalls, and Best Practices",
+              "url": "https://ilovesprites.com/blog/godot-sprite-nuances-best-practices"
+            }
+          ]
+        },
+        {
+          "name": "AnimatedSprite2D vs AnimationPlayer (+ AnimationTree) — pick per need, drive combat with multi-track sync",
+          "what": "Two native paths. AnimatedSprite2D uses a SpriteFrames resource (named clips of frames) and is purpose-built, low-overhead frame playback — ideal for simple state loops (idle/walk). AnimationPlayer is general-purpose: it keyframes ANY property on ANY node over a timeline — a Sprite2D's frame, plus modulate, position, a hitbox's disabled flag, an audio trigger, a particle emit — all synced. For a tactical RPG's discrete, event-precise actions, AnimationPlayer (optionally fed by an AnimationTree state machine) is the stronger backbone.",
+          "how": "Simple ambient/loop motion -> AnimatedSprite2D: build a SpriteFrames (add frames from a sprite sheet via the editor, set FPS/loop per clip), then play(\"walk\")/stop() in code. Event-coupled combat -> AnimationPlayer: drive a Sprite2D's frame via either AnimatedSprite2D's clip OR a Sprite2D with hframes/vframes and keyframe the Frame property; on the same timeline keyframe Call Method tracks (apply damage on the exact contact frame), enable/disable a hit Area2D, fire VFX/audio. Wrap multiple AnimationPlayer clips in an AnimationTree (AnimationNodeStateMachine) for clean idle->aim->fire->recoil->hit transitions. Trigger one-shot logic with the animation_finished signal.",
+          "godot_version": "4.x (AnimatedSprite2D + SpriteFrames, AnimationPlayer, AnimationTree all current; note `await` replaces 3.x `yield` in any animation-driven coroutine)",
+          "gotchas": "Don't reach for AnimationPlayer when AnimatedSprite2D suffices — it's more setup for no gain on a pure loop. Mixing both on one actor (AnimatedSprite2D playing AND AnimationPlayer keying its frame) causes fighting over the frame property. Any old tutorial using `yield(...)` to wait on animation is Godot-3-stale — use `await player.animation_finished`. AnimationTree must have.active = true and a configured state-machine playback or nothing plays.",
+          "currency": null,
+          "verify_note": null,
+          "sources": [
+            {
+              "title": "2D sprite animation — Godot Engine stable docs (AnimatedSprite2D/SpriteFrames vs AnimationPlayer + Sprite2D hframes/vframes)",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/2d/2d_sprite_animation.html"
+            },
+            {
+              "title": "AnimatedSprite2D vs AnimationPlayer: When to Use Each (UhiyamaLab)",
+              "url": "https://uhiyama-lab.com/en/notes/godot/animatedsprite2d-vs-animationplayer-comparison/"
+            },
+            {
+              "title": "Godot Spritesheet Animation: AnimatedSprite2D vs AnimationPlayer Explained (Spritesheets.ai)",
+              "url": "https://www.spritesheets.ai/blog/godot-spritesheet-animation-guide"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "laneSlug": "ui-tactical",
+      "title": "Tactical UI (legibility)",
+      "recipes": [
+        {
+          "name": "Build the HUD skeleton with nested Containers + size flags (never hand-place tactical UI)",
+          "what": "Compose the tactical HUD from Container nodes that own their children's geometry, instead of anchoring/positioning Controls manually. Godot 4 provides HBoxContainer, VBoxContainer, GridContainer, MarginContainer, PanelContainer, ScrollContainer, HFlowContainer/VFlowContainer (wrapping), CenterContainer, AspectRatioContainer, TabContainer, and SplitContainer. Children inside a Container cannot set their own position/anchors — the parent drives layout; you steer it with size flags.",
+          "how": "Wrap the action bar in an HBoxContainer, the unit/squad column in a VBoxContainer, pad anything with MarginContainer (set theme constants margin_left/top/right/bottom), and give every panel a PanelContainer so its StyleBox auto-sizes to content. Control children inside a container respond to two properties: `size_flags_horizontal` / `size_flags_vertical` (flags: SIZE_FILL default, SIZE_EXPAND to claim leftover space, SIZE_SHRINK_BEGIN/CENTER/END for alignment, SIZE_EXPAND_FILL = fill+expand) and `size_flags_stretch_ratio` (float) to split shared expand space — ratio 2.0 takes double the space of 1.0. Set a `custom_minimum_size` (Vector2) on any panel that must never collapse below a legible size (this is the Godot-4 name; the Godot-3 `rect_min_size` is GONE). For the loot-part grid use a GridContainer with `columns` set, or an HFlowContainer if part chips should wrap to a new row when the panel narrows.",
+          "godot_version": "4.x (all 4.0–4.6)",
+          "gotchas": "A Control placed as a direct child of a Container ignores its own anchors/offsets — if you anchor-position something and it 'snaps back', it's inside a container; move it out or use a plain Control/MarginContainer wrapper. SIZE_EXPAND with no FILL leaves a gap; you almost always want SIZE_EXPAND_FILL. Deeply nested containers re-sort on every resize — keep nesting shallow for the per-frame HUD.",
+          "currency": "solid",
+          "verify_note": "Verified vs stable docs: Container children give up positioning, all named containers (HBox/VBox/Grid/Margin/Panel/Scroll/HFlow/VFlow/Center/AspectRatio/Tab/Split) are current 4.x nodes, size_flags + stretch_ratio steer them, and custom_minimum_size is correctly flagged as the 4.x name replacing Godot-3 rect_min_size.",
+          "sources": [
+            {
+              "title": "Using Containers — Godot Engine (stable) docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/ui/gui_containers.html"
+            },
+            {
+              "title": "Size and anchors — Godot Engine (stable) docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/ui/size_and_anchors.html"
+            },
+            {
+              "title": "Control class reference — Godot Engine (stable)",
+              "url": "https://docs.godotengine.org/en/stable/classes/class_control.html"
+            },
+            {
+              "title": "Responsive UI Design in Godot: Anchors, Size Flags — Wayline",
+              "url": "https://www.wayline.io/blog/responsive-ui-design-godot-anchors-size-flags"
+            }
+          ]
+        },
+        {
+          "name": "Centralize all HUD styling in ONE Theme resource assigned at the root Control",
+          "what": "Author a single `.tres` Theme resource (StyleBoxes, Colors, Fonts, font_sizes, Constants, Icons) and assign it to the root Control's `theme` property. Every descendant Control inherits from the nearest ancestor that has a Theme, so one assignment styles the whole tactical UI consistently and data-drivenly.",
+          "how": "Open the Theme editor (bottom panel when a Theme `.tres` is selected), add types (Button, Label, PanelContainer, RichTextLabel…) and set their StyleBox/Color/Font/font_size/constant items. Save as e.g. `hud_theme.tres`, then set it on the root Control node's Theme property in the Inspector. At runtime you can hot-swap the whole look with `control.theme = load(\"res://ui/hud_theme.tres\")`. KEY DISTINCTION: a Theme **resource** propagates and is inherited; a **theme override** (the per-node 'Add item override' you set in the Inspector or via `add_theme_color_override()` / `add_theme_stylebox_override()`) is LOCAL to that one node — it does NOT propagate to children and children never see a parent's override. So broad look = Theme resource; one-off tweak = override.",
+          "godot_version": "4.x (all 4.0–4.6)",
+          "gotchas": "If a child panel 'won't pick up' the parent's styling, you almost certainly set an override on the parent instead of editing the Theme resource — overrides don't inherit. StyleBoxEmpty is the explicit 'draw nothing' box; don't leave a panel with a default StyleBoxFlat if you want it transparent. Theme font_size lives as a theme constant/font_size per type, not on the Font resource itself.",
+          "currency": "solid",
+          "verify_note": "Confirmed: a Theme resource on a Control propagates to all direct/indirect children per class_theme docs; add_theme_color_override/add_theme_stylebox_override are current 4.x methods and are per-node (do not propagate). Theme editor workflow and StyleBoxEmpty all accurate.",
+          "sources": [
+            {
+              "title": "Theme class reference — Godot Engine (stable)",
+              "url": "https://docs.godotengine.org/en/stable/classes/class_theme.html"
+            },
+            {
+              "title": "Using the theme editor — Godot Engine (stable) docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/ui/gui_using_theme_editor.html"
+            },
+            {
+              "title": "Fix: Godot Theme Override Not Applying to Child Controls — Bugnet",
+              "url": "https://bugnet.io/blog/fix-godot-theme-override-not-applying"
+            },
+            {
+              "title": "StyleBox class reference — Godot Engine (stable)",
+              "url": "https://docs.godotengine.org/en/stable/classes/class_stylebox.html"
+            }
+          ]
+        },
+        {
+          "name": "Encode semantic UI states as Theme Type Variations (DangerButton, DisabledChipPanel, CollateralLabel)",
+          "what": "Theme Type Variations let you define named variants that extend a base type (e.g. a `DangerButton` that IS a Button but overrides bg color + font color). You then set a Control's `theme_type_variation` (StringName) to that name and it gets base styling plus the variant's overrides — without per-node overrides or subclassing.",
+          "how": "In the Theme editor, click the '+' next to the Type dropdown, name the variation (e.g. `LootChip`, `CollateralWarn`, `APCostLabel`), set its base type, and override only the items that differ (font_color, StyleBox, font_size). On the Control, set the `Theme Type Variation` field in the Inspector (or `node.theme_type_variation = &\"CollateralWarn\"` in code). The control composites base + variation, variation winning on conflicts and able to add items the base never defined.",
+          "godot_version": "4.x (4.0+; documented 4.3/4.4/4.6)",
+          "gotchas": "Variation name is a StringName — typos silently fall back to base type with no error. Variations live inside the Theme resource, so the node must still inherit that Theme (root assignment from Recipe 2). They extend exactly one base type; you can't multi-inherit variations.",
+          "currency": "solid",
+          "verify_note": "Theme type variations confirmed as current 4.x feature; theme_type_variation is a StringName property on Control (verified in class_control), editor '+ base type' workflow matches docs, and silent fallback-to-base on a bad name is the documented/observed behavior.",
+          "sources": [
+            {
+              "title": "Theme type variations — Godot Engine (stable) docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/ui/gui_theme_type_variations.html"
+            },
+            {
+              "title": "godot-docs source: gui_theme_type_variations.rst",
+              "url": "https://github.com/godotengine/godot-docs/blob/master/tutorials/ui/gui_theme_type_variations.rst"
+            }
+          ]
+        },
+        {
+          "name": "Drive HUD panels from custom Resources with a setter + emit_changed (reactive, data-first)",
+          "what": "Model combat-UI data (a part definition, a unit's AP/HP block, a called-shot resolution) as custom `Resource` scripts with `class_name` and `@export` fields saved as `.tres`. A panel script holds that resource and rebuilds its widgets whenever the resource's `changed` signal fires — UI updates follow data, with no tight node coupling.",
+          "how": "Define `class_name PartDef extends Resource` (or `UnitState`, `ShotResolution`) with `@export var name: String`, `@export var disable_chance: int`, etc. Author instances via FileSystem → right-click → New Resource → pick the class → save `.tres`; edit fields in the Inspector. To make the panel reactive, give mutable fields a setter that calls `emit_changed()` — custom Resources do NOT auto-emit `changed` (built-ins do), so you must: `@export var hp: int: set(v): if v != hp: hp = v; emit_changed()`. In the panel: `func bind(res): if data: data.changed.disconnect(_refresh); data = res; data.changed.connect(_refresh); _refresh()`, and `_refresh()` reads `data` and sets labels/bars. The crew authors content as `.tres`; the panel is generic.",
+          "godot_version": "4.x (4.0+; `@export`/`emit_changed`/`changed` are current 4.x API)",
+          "gotchas": "Without the setter, mutating a custom-Resource field NEVER fires `changed` and the panel goes stale — this is the #1 reported gotcha. Always `disconnect` the old resource before binding a new one or you leak stale connections (use `is_connected`/`disconnect`). `.tres` resources can be shared instances — duplicate() if a panel must edit its own copy without mutating the shared asset.",
+          "currency": "solid",
+          "verify_note": "Core gotcha is correct and is the #1 reported issue: custom Resources do NOT auto-emit `changed` (built-ins do), so a setter calling emit_changed() is required (godot#30179, proposal#10720). @export, class_name,.tres authoring, and disconnect-before-rebind all current and idiomatic.",
+          "sources": [
+            {
+              "title": "Resource-based architecture for Godot 4 — Mayke F. dos Santos (Medium)",
+              "url": "https://medium.com/@sfmayke/resource-based-architecture-for-godot-4-25bd4b2d9018"
+            },
+            {
+              "title": "Custom Resource not emitting emit_changed on set — Godot Forum",
+              "url": "https://forum.godotengine.org/t/custom-resource-not-emitting-emit-changed-on-set-value/63643"
+            },
+            {
+              "title": "Godot 4 Custom Resources Tutorial — Coding Quests",
+              "url": "https://codingquests.io/blog/godot-4-custom-resources-tutorial"
+            },
+            {
+              "title": "Creating and Using Custom Resources (Data-Driven Design) — UhiyamaLab",
+              "url": "https://uhiyama-lab.com/en/notes/godot/custom-resource-data-driven/"
+            }
+          ]
+        },
+        {
+          "name": "Override _make_custom_tooltip() to show full deterministic breakdowns on hover",
+          "what": "Replace Godot's plain-text tooltip with a designed Control (a styled panel + RichTextLabel) by overriding `_make_custom_tooltip(for_text: String) -> Object`. This lets a hovered target/part/ability surface its complete, formatted outcome math instead of a one-line string.",
+          "how": "On a Control (or a small script you attach to many widgets), override: `func _make_custom_tooltip(for_text: String) -> Control: var t = preload(\"res://ui/shot_tooltip.tscn\").instantiate(); t.populate(for_text); return t`. Godot auto-wraps the returned Control in a PopupPanel and draws that panel's StyleBox behind it. Feed structured data either by parsing `for_text` or (cleaner) by reading the hovered widget's bound Resource (Recipe 4) before returning. Set the trigger string via the node's `tooltip_text` property (the Godot-4 name; Godot-3 `hint_tooltip` is gone) — it must be non-empty for the tooltip to appear.",
+          "godot_version": "4.x (4.0+; signature returns Control, formerly returned Object)",
+          "gotchas": "The auto-added PopupPanel draws its own background ON TOP — to remove the default box, set the PopupPanel/tooltip StyleBox to StyleBoxEmpty (or theme it) or you get a double-background. Tooltip placement has known quirks (issue #39677). `tooltip_text` must be non-empty or the override never fires. Returning a node that's already in the tree throws — always instantiate a fresh one.",
+          "currency": "shaky",
+          "verify_note": "How-to (instantiate a Control scene, populate, return it; tooltip_text must be non-empty; PopupPanel draws its own StyleBox; use StyleBoxEmpty) is all correct. BUT the version note is INVERTED: current stable class_control declares `_make_custom_tooltip(for_text) -> Object` — it still returns Object (the returned node must be Control-derived), NOT 'returns Control, formerly Object'. Fix the note; the recipe itself works.",
+          "sources": [
+            {
+              "title": "Control._make_custom_tooltip — Godot Engine class reference",
+              "url": "https://docs.godotengine.org/en/stable/classes/class_control.html"
+            },
+            {
+              "title": "Custom Tooltips with BBCode in Godot 4 — Godot Forum",
+              "url": "https://forum.godotengine.org/t/custom-tooltips-with-bbcode-in-godot-4-video-tutorial/93047"
+            },
+            {
+              "title": "How to Remove Tooltip Background in Godot 4 (StyleBox fix) — Dre Dyson",
+              "url": "https://dredyson.com/how-to-remove-tooltip-background-in-godot-4-a-complete-beginners-step-by-step-guide-to-custom-tooltip-panels-and-stylebox-fixes/"
+            }
+          ]
+        },
+        {
+          "name": "Render shown outcomes as BBCode in a RichTextLabel (color-coded, append_text not +=)",
+          "what": "Use a RichTextLabel with `bbcode_enabled = true` to render multi-color, multi-style outcome text — disable %, damage breakdown, status icons inline — so the deterministic result is readable at a glance rather than a flat label string.",
+          "how": "Set `bbcode_enabled = true`, then either write BBCode (`[color=#ff5555]DISABLE 100%[/color] [color=#aaa]−2 AP[/color]`) or build programmatically with `push_color(Color)` / `push_bold()` / `append_text(...)` / `pop()`. CRITICAL performance rule: append with `append_text(\"...\")`, which only parses the new fragment — do NOT use `+= text` or reassign `.text`, which re-parses the whole buffer and erases any `push_*` formatting. Inline sprites via `[img]res://icon.png[/img]`; clickable refs via `[url=part_id]...[/url]` handled through the `meta_clicked` signal (and `meta_hover_started` for hover). Use `[lb]`/`[rb]` to print literal brackets so dynamic strings can't inject BBCode.",
+          "godot_version": "4.x (4.0+; `bbcode_enabled`, `append_text`, `push_*`, `meta_clicked` all current)",
+          "gotchas": "Using `+=` or setting `.text` on a bbcode label nukes all prior push_* formatting and is slow — always `append_text`. `[img]` without a fixed width can blow up line height; size it. `meta` tags only do something if you connect `meta_clicked`. Forgetting to escape player/enemy names that contain '[' can break the parse — use `[lb]`/`[rb]`.",
+          "currency": "solid",
+          "verify_note": "Verified verbatim against bbcode_in_richtextlabel docs: docs explicitly recommend append_text() over the text property for performance (only parses the new fragment); push_color/push_bold/pop, meta_clicked, [lb]/[rb] escapes, and [img] are all current 4.x. tooltip_text is correctly the 4.x name.",
+          "sources": [
+            {
+              "title": "BBCode in RichTextLabel — Godot Engine (stable) docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/ui/bbcode_in_richtextlabel.html"
+            },
+            {
+              "title": "godot-docs source: bbcode_in_richtextlabel.rst",
+              "url": "https://github.com/godotengine/godot-docs/blob/master/tutorials/ui/bbcode_in_richtextlabel.rst"
+            }
+          ]
+        },
+        {
+          "name": "Draw range / threat / collateral overlays with _draw() + queue_redraw() (cached, event-driven)",
+          "what": "For the grid overlays that the HUD implies — movement/attack range tint, line-of-fire, collateral splash radius — override `_draw()` on a CanvasItem (Control or Node2D) and issue primitive draw commands. Draws are cached after one call; you refresh only when state changes by calling `queue_redraw()`.",
+          "how": "Override `_draw()` and use the CanvasItem primitives: `draw_rect(Rect2, Color, filled=true, width=-1.0)` for tinting/outlining cells (pass `filled=false` + width for an outline; shift coords by 0.5 for odd widths), `draw_line(from, to, Color, width, antialiased)` for line-of-fire, `draw_circle(center, radius, Color)` or `draw_arc(...)` for splash/collateral radius, `draw_polyline`/`draw_colored_polygon` for AOE footprints, and `draw_string(font, pos, text, h_align, width, font_size)` for in-grid AP/damage numerals. `_draw()` runs once then caches — call `queue_redraw()` from your setter or input handler when the hovered cell / selected ability changes (NOT every frame unless animating). Use a Color with alpha for translucent tints so the painterly sprite underneath still reads.",
+          "godot_version": "4.x (4.0+; `queue_redraw()` replaces Godot-3 `update()`; signatures current 4.4)",
+          "gotchas": "Godot-3 muscle memory: the redraw call is `queue_redraw()`, NOT `update()` — `update()` was repurposed/removed for this. Calling `queue_redraw()` every `_process` frame for a static overlay wastes the cache benefit. `draw_*` only works inside `_draw()` (or via the lower-level RenderingServer); calling them elsewhere does nothing. For odd-width strokes, offset by 0.5px or lines look blurry/off-center.",
+          "currency": "solid",
+          "verify_note": "queue_redraw() correctly flagged as the 4.x replacement for Godot-3 update() (confirmed in class_canvasitem). draw_rect/draw_line/draw_circle/draw_arc/draw_string all current. Minor: current draw_circle signature now also takes filled/width params (draw_circle(pos,radius,color,filled=true,width=-1,...)) — the 3-arg filled form shown is still valid as the default. Caching + event-driven redraw guidance is accurate.",
+          "sources": [
+            {
+              "title": "Custom drawing in 2D — Godot Engine (4.4) docs",
+              "url": "https://docs.godotengine.org/en/4.4/tutorials/2d/custom_drawing_in_2d.html"
+            },
+            {
+              "title": "CanvasItem class reference (draw_* methods) — Godot Engine (stable)",
+              "url": "https://docs.godotengine.org/en/stable/classes/class_canvasitem.html"
+            },
+            {
+              "title": "godot-docs source: custom_drawing_in_2d.rst",
+              "url": "https://github.com/godotengine/godot-docs/blob/master/tutorials/2d/custom_drawing_in_2d.rst"
+            }
+          ]
+        },
+        {
+          "name": "Decouple combat state from HUD with custom signals (typed, parameterized)",
+          "what": "Have combat/unit logic emit typed custom signals (e.g. `health_changed(hp, max_hp)`, `ap_changed(ap, max_ap)`, `shot_resolved(resolution)`, `collateral_risk_changed(level)`); HUD widgets connect and update themselves. The emitter doesn't know the HUD exists — the decoupling is the point and keeps the shown-everything UI maintainable.",
+          "how": "Declare `signal health_changed(current: int, maximum: int)` on the unit script and `emit_signal(\"health_changed\", hp, max_hp)` (or `health_changed.emit(hp, max_hp)`) whenever it changes. In the HUD: `unit.health_changed.connect(_on_health_changed)` and `func _on_health_changed(cur, max): bar.max_value = max; bar.value = cur`. Pass BOTH current and max so the widget is self-sufficient. For app-wide events (turn start, selection change) use an autoload 'event bus' singleton that re-emits; for direct parent↔child stay with local signals. This is the idiomatic Godot-4 alternative to the panel polling state every frame.",
+          "godot_version": "4.x (4.0+; `Signal.emit()` / `Signal.connect(Callable)` are the current 4.x forms)",
+          "gotchas": "Connect once (e.g. in `_ready` or on bind) — reconnecting on every turn duplicates handlers and the bar updates N times. Use `CONNECT_ONE_SHOT` for one-time events. Prefer the typed `signal.connect(callable)` over string-based `connect(\"name\",...)` for compile-time safety. An over-used global event bus can become a hidden-coupling soup — keep gameplay-local signals local.",
+          "currency": "solid",
+          "verify_note": "signal x.emit(...) and signal.connect(Callable) are the current 4.x forms (over string-based connect); typed signal params, CONNECT_ONE_SHOT, autoload event-bus pattern, and the connect-once gotcha are all correct idiomatic Godot 4.",
+          "sources": [
+            {
+              "title": "Best practices with Godot signals — GDQuest",
+              "url": "https://www.gdquest.com/tutorial/godot/best-practices/signals/"
+            },
+            {
+              "title": "Node communication (the right way) — Godot 4 Recipes (KidsCanCode)",
+              "url": "https://kidscancode.org/godot_recipes/4.x/basics/node_communication/index.html"
+            },
+            {
+              "title": "Godot Signals Architecture: Best Practices & Event Bus — Febucci",
+              "url": "https://blog.febucci.com/2024/12/godot-signals-architecture/"
+            }
+          ]
+        },
+        {
+          "name": "Lock UI legibility across resolutions with stretch_mode = canvas_items + a base size",
+          "what": "Configure Project Settings → Display → Window so the whole 2.5D game + UI scales crisply from one authored base resolution, instead of the HUD rendering tiny on 4K or clipping on ultrawide. Set a base Viewport size, stretch Mode = `canvas_items`, and an Aspect.",
+          "how": "Project Settings → Display → Window → Size: set `Viewport Width/Height` to your design base (e.g. 1920×1080 for painterly 2.5D, or 640×360 for a pixel base), and a larger `Window Width/Height Override` for the actual window. Under Stretch: Mode = `canvas_items` (scales all CanvasItems — sprites + UI — relative to base, crisp UI), Aspect = `keep` (letterbox, no distortion) or `expand` (show more world on wide screens; design the HUD with anchors/containers so edge panels reflow). For a pixel-art base add Scale Mode = `integer` to avoid shimmer. These can also be set at runtime via the Window/Viewport content-scale properties. Combine with Recipe 1 containers + `custom_minimum_size` so panels never collapse below readable size even under `expand`.",
+          "godot_version": "4.x (4.0+; note a reported canvas_items scaling regression in 4.4 — verify on your pinned 4.x and test fullscreen)",
+          "gotchas": "A documented regression: `canvas_items` scaling reportedly misbehaves in Godot 4.4 where 4.3 worked — pin your engine version and test fullscreen + windowed before committing. `expand` aspect reveals more screen edge, so anchor/contain edge HUD or it drifts; `keep` letterboxes instead. Don't mix integer scale mode with a non-pixel base or you forfeit smooth scaling. Verify on the actual target, not just the editor viewport.",
+          "currency": "solid",
+          "verify_note": "Project Settings > Display > Window stretch Mode=canvas_items (correctly noted as formerly '2d'), Aspect keep/expand, integer scale mode for pixel bases — all current 4.x. The flagged 4.4 canvas_items scaling regression (works in 4.3) is real and well-sourced (Godot forum thread + multiple GitHub issues incl. cross-DPI #111271); the 'pin your version and test fullscreen' caveat is sound.",
+          "sources": [
+            {
+              "title": "Multiple resolutions / stretch mode — Godot Engine (stable) docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/rendering/multiple_resolutions.html"
+            },
+            {
+              "title": "How to Fix Godot Screen Resolution and Stretch Problems — Bugnet",
+              "url": "https://bugnet.io/blog/how-to-fix-godot-screen-resolution-stretch-mode"
+            },
+            {
+              "title": "Canvas Items Scaling Mode Broken in Godot 4.4 (works in 4.3) — Godot Forum",
+              "url": "https://forum.godotengine.org/t/canvas-items-scaling-mode-broken-in-godot-4-4-works-in-4-3/105205"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "laneSlug": "tooling-test-export",
+      "title": "Tooling, test, export, CI",
+      "recipes": [
+        {
+          "name": "Target Godot 4.5.x as production baseline; track 4.6 as the upgrade lane",
+          "what": "Pick one pinned 4.x stable to build against, with a deliberate policy for when to jump. As of June 2026 the release landscape is: 4.6 (released 2026-01-26, latest stable, patch 4.6.3 on 2026-05-20, in active support), 4.5 (released 2025-09-15, regular support ended 2026-03-19, final patch 4.5.2), and 3.6 is the only LTS (3.x branch — NOT relevant to this project). There is NO 4.x LTS yet; the 4.x series only becomes LTS when 5.0 ships.",
+          "how": "Concrete call: build on 4.5.2 if you want maximum addon/CI ecosystem maturity right now (GUT 9.5.0 docs target 4.5, most CI actions tested there), OR adopt 4.6.3 to ride active support and the newer 2D/TileMapLayer improvements. Recommended for a fresh project starting mid-2026: target 4.6.3 — it is in active support, 4.5 already left regular support, and starting fresh avoids a forced migration later. Pin the EXACT patch version in a repo file (e.g. a `.godot-version` text file or a README badge) and in your CI setup-action `version:` field so every crew member and every CI run uses byte-identical engine. Treat an engine bump as its own dedicated branch + full GUT pass + export smoke-test, never an incidental change. Re-export templates must match the editor version exactly (mismatched templates are a top export failure).",
+          "godot_version": "4.5.2 (support ended 2026-03) or 4.6.3 (active) — recommend 4.6.3 for a fresh 2026 start",
+          "gotchas": "Do NOT target any 3.x version — the entire Godot-3 API is stale for this project (CharacterBody2D not KinematicBody2D, await not yield, Node3D not Spatial, TileMapLayer not TileMap, @export not export). 3.6 being 'LTS' is a trap: it's the 3.x LTS, irrelevant to a 4.x game. Also: editor version and export-template version must match to the patch; a 4.6.1 editor with 4.6.3 templates can fail or silently misbehave.",
+          "currency": "solid",
+          "verify_note": "Every dated fact verified against endoflife.date: 4.6 released 2026-01-26 (latest stable, 4.6.3 on 2026-05-20, active support), 4.5 released 2025-09-15 with regular support ended 2026-03-19 (final 4.5.2), 3.6 the only LTS, no 4.x LTS until 5.0. Godot-3-isms list (CharacterBody2D/await/Node3D/TileMapLayer/@export) all correct. Note:.godot-version is a repo/CI convention not an engine-read file, but the recipe describes it exactly that way (a pin for crew+CI), so it's accurate.",
+          "sources": [
+            {
+              "title": "Godot | endoflife.date (release/EOL table)",
+              "url": "https://endoflife.date/godot"
+            },
+            {
+              "title": "Godot 4.6 Arrives With Major CG-Friendly Updates",
+              "url": "https://digitalproduction.com/2026/01/28/godot-4-6-arrives-with-major-cg-friendly-updates/"
+            },
+            {
+              "title": "Godot (game engine) — Wikipedia (version history)",
+              "url": "https://en.wikipedia.org/wiki/Godot_(game_engine)"
+            }
+          ]
+        },
+        {
+          "name": "Install GUT 9.x as the unit-test framework and structure tests as data-checkable specs",
+          "what": "GUT (Godot Unit Test) is the GDScript-native unit-testing framework. The 9.x line is the Godot-4 line (current docs 9.5.0/9.6.0; GUT 9.x = Godot 4.x, GUT 7.x = Godot 3.x). It provides asserts, doubling (full + partial), stubbing, spies, scene/inner-class tests, and a CLI — everything needed to verify deterministic combat math without a human in the loop.",
+          "how": "Install via the Godot Asset Library (search 'GUT', asset 1709/9.x) OR drop the `addons/gut/` directory into the project, then Project > Project Settings > Plugins > enable 'GUT', and relaunch. Write tests as scripts that `extends GutTest`, name files `test_*.gd`, methods `test_*()`. Core asserts: `assert_eq(actual, expected)`, `assert_almost_eq`, `assert_true/false`, `assert_null`, `assert_has`, `assert_signal_emitted(obj, 'signal')`. Doubling: `var dbl = double(MyClass).new()` then `stub(dbl, 'method').to_return(value)`; spy with `assert_called(dbl, 'method')`. Run in-editor via the GUT bottom panel, or headless via CLI (see CI recipe). GUT returns exit code 0 = all pass, 1 = any fail.",
+          "godot_version": "GUT 9.x for Godot 4.x (9.5.0 docs target 4.5; works on 4.6)",
+          "gotchas": "GUT 9 changed CLI flag handling vs GUT 7 — old `-gtest`/`-s` invocation patterns from Godot-3 tutorials may throw 'Unrecognized options'. Use the documented 9.x flags. Don't confuse GUT (this) with GdUnit4 (a separate, also-valid Godot-4 framework with an embedded inspector + C# support) — pick ONE; GUT is the lighter GDScript-first choice and the better fit for a GDScript/.tres crew workflow. The `godot_4` branch / 9.x is correct; the master/default branch history references Godot 3.",
+          "currency": "solid",
+          "verify_note": "Verified on bitwes/Gut: 9.x=Godot 4.x, 7.x=Godot 3.x, MIT license, asset ID 1709 (current 9.6.0 on main, 2026-02-24). extends GutTest, test_*/test_*(), the listed asserts, and double()/stub()/spy all current 4.x API. GdUnit4 correctly named as a separate valid Godot-4 framework (MIT, C#-capable). godot_4 branch / master-references-3 caveat accurate.",
+          "sources": [
+            {
+              "title": "GUT — bitwes/Gut (GitHub, Godot 4 on godot_4 branch)",
+              "url": "https://github.com/bitwes/Gut"
+            },
+            {
+              "title": "GUT Wiki — Godot 4 Home",
+              "url": "https://bitwes.github.io/GutWiki/Godot4/Home.html"
+            },
+            {
+              "title": "GUT Command Line — v9.5.0 (Godot 4.5)",
+              "url": "https://gut.readthedocs.io/en/v9.5.0/Command-Line.html"
+            }
+          ]
+        },
+        {
+          "name": "Run GUT headlessly in GitHub Actions with cache + import warm-up (the green-CI pattern)",
+          "what": "A reliable GitHub Actions workflow that installs a pinned Godot binary, warms the import cache, then runs GUT headlessly so a single failing test fails the job. This is the external-verifier gate for every crew-authored change.",
+          "how": "Use a setup action — `chickensoft-games/setup-godot` or `SolarLabyrinth/Action-Setup-Godot` — pinned to your exact version (e.g. 4.6.3) WITH export templates. Then two steps: (1) IMPORT WARM-UP: `godot --headless --import` (or `--headless --import --quit-after 100`) with `continue-on-error: true` — Godot's headless import is flaky and may exit non-zero even on success, so tolerate it here and only here. (2) TEST RUN: `godot --headless -s res://addons/gut/gut_cmdln.gd -gdir=res://test -gprefix=test_ -gsuffix=.gd -glog=2 -gexit_on_complete` (NO continue-on-error — let exit code 1 fail the job). Cache two things with `actions/cache@v4`: the Godot binary keyed by version, and the `.godot/` import directory keyed by a hash of project files (saves 30-60s/run). Required GUT CI flags: `-gexit_on_complete` (exit when done), `-gdir` (test dir), and `-glog=2`. Always add `workflow_dispatch` for manual runs and `paths:` filters so CI only fires on script/scene/test changes.",
+          "godot_version": "Godot 4.5.x/4.6.x headless; GUT 9.x; actions/checkout@v4, actions/cache@v4",
+          "gotchas": "Godot-3 CI tutorials use `-s` script execution differently and lack `--headless` (3.x used `--no-window`); on 4.x always use `--headless`. The single biggest CI failure mode is a cold asset cache: run the import warm-up BEFORE tests or the first headless run can crash. Some setups also need `--audio-driver Dummy`/`--display-driver headless` on bare runners, and `GODOT_DISABLE_LEAK_CHECKS=1` to avoid leak-check false negatives failing the job. Use `ubuntu-latest` (Linux ≈ 1× cost) for the test job — Windows/macOS runners are only needed for platform-specific EXPORT, not for running tests.",
+          "currency": "shaky",
+          "verify_note": "Defect: the headline CI command and 'Required GUT CI flags' list both rely on -gexit_on_complete, which does NOT exist in the official GUT 9.5.0/9.6.0 readthedocs docs — they list only -gexit and -gexit_on_success. The flag propagates from the recipe's own cited helpmetest.com blog, not GUT docs. -gexit already returns exit code 1 on any failure (the exact CI behavior wanted), so the command should use -gexit. As written it risks the 'Unrecognized options' error the recipe's OWN gotcha warns about. Everything else (setup-godot pinning+templates confirmed maintained 4.x, --headless --import warm-up, continue-on-error only on import, actions/cache@v4, ubuntu-latest) is solid.",
+          "sources": [
+            {
+              "title": "CI/CD for Godot Projects: GUT + GitHub Actions (2026)",
+              "url": "https://helpmetest.com/blog/godot-ci-cd-testing/"
+            },
+            {
+              "title": "chickensoft-games/setup-godot (headless CI setup action)",
+              "url": "https://github.com/chickensoft-games/setup-godot"
+            },
+            {
+              "title": "CI-tested GUT for Godot 4: fast, green, and reliable — Kpicaza",
+              "url": "https://medium.com/@kpicaza/ci-tested-gut-for-godot-4-fast-green-and-reliable-c56f16cde73d"
+            }
+          ]
+        },
+        {
+          "name": "Headless command-line export for Windows + steamcmd upload pipeline",
+          "what": "Drive Godot exports from the CLI (no editor GUI) reading `export_presets.cfg`, then push the Windows build to Steam via steamcmd. This is the release path for a Steam-wishlist-building tactical RPG.",
+          "how": "Create export presets ONCE in-editor (Project > Export > add 'Windows Desktop'); this writes `export_presets.cfg` (commit it). Export headlessly with: `godot --headless --export-release \"Windows Desktop\" build/game.exe` (use `--export-debug` for debug builds; `--export-pack` for just the.pck). Note: as of current 4.x you export ONE preset per invocation (a PR to export all presets in one command exists but isn't the stable default) — script a loop over presets. For Steam: install steamcmd, write an app-build VDF script, then `steamcmd +login <user> <pass> +run_app_build_http <path-to-app-build.vdf> +quit`. This uploads to a Steam build but does NOT auto-publish to the public/default branch (Steam blocks automatic public release) — a human sets the live build in the partner backend. Off-the-shelf CI option: `firebelley/godot-export` (GitHub Marketplace 'Godot Export') reads `export_presets.cfg` and produces artifacts.",
+          "godot_version": "Godot 4.5.x/4.6.x (`--export-release`/`--export-debug`, `--headless`)",
+          "gotchas": "Export FAILS without the matching export templates installed (and they must match the editor version exactly). On bare CI/Linux runners you need the Linux headless Godot to perform a Windows export. If using GodotSteam via the MODULE build you must point Custom Templates > Release/Debug at the GodotSteam-enabled templates; if using the GodotSteam GDEXTENSION, use NORMAL Godot templates (mixing them up breaks the Steam API binding). Don't commit the built `.exe`/`.pck` or the Steam content depot to git — those are build artifacts. Godot-3 used `--export` (no `-release`/`-debug` suffix split the same way); on 4.x use the explicit `--export-release`/`--export-debug`.",
+          "currency": "solid",
+          "verify_note": "--export-release/--export-debug/--export-pack/--headless all confirmed in current 4.x CLI docs (--export-debug/--export-pack imply --import). One-preset-per-invocation accurate. --no-window→--headless migration correct. GodotSteam module-vs-GDExtension template rule and steamcmd run_app_build_http + no-auto-publish-to-default-branch are accurate; templates-must-match-editor-version is the real top export failure.",
+          "sources": [
+            {
+              "title": "Automatic Godot game export and upload to Steam and Itch — MrEliptik",
+              "url": "http://mreliptik.dev/godot-auto-export/"
+            },
+            {
+              "title": "Exporting and Shipping — GodotSteam (templates vs GDExtension)",
+              "url": "https://godotsteam.com/tutorials/exporting_shipping/"
+            },
+            {
+              "title": "Godot (Steamworks Documentation)",
+              "url": "https://partner.steamgames.com/doc/steamframe/engines/godot"
+            }
+          ]
+        },
+        {
+          "name": "Data-driven design with custom Resources (.tres) — the LLM-crew authoring substrate",
+          "what": "Define game data as custom `Resource` subclasses serialized to `.tres` (human-readable text) files. This is the core pattern that makes content crew-authorable: units, loot parts, abilities, enemies, and combat rules become plain-text Resources the LLM crew can generate and a human can diff-review.",
+          "how": "Write a script `extends Resource` with `class_name AbilityData` and typed `@export` vars (`@export var ap_cost: int`, `@export var loot_tier: int`, `@export var collateral: int`). In the FileSystem panel right-click > New Resource > pick your class > save as `.tres`. Load with `load(\"res://data/abilities/disable_arm.tres\")` or `ResourceLoader.load(path)`; for runtime-flexible loading use `ResourceLoader.load(path, \"\", ResourceLoader.CACHE_MODE_REPLACE)`. `.tres` is the dev/authoring format (text, diffable, version-controllable); convert to `.res` (binary, faster load, smaller) for release if load time matters. Type the `@export` so the inspector validates and the crew gets a schema to target. Nest Resources (an `EnemyData` holding an array of `AbilityData`) to compose content.",
+          "godot_version": "Godot 4.x (`@export` annotation, `class_name`, ResourceLoader/ResourceSaver)",
+          "gotchas": "Do NOT use Resources for PLAYER SAVE DATA — serialize saves to plain JSON containing only the values you need. Reason: loading a `.tres`/`.res` can instantiate arbitrary embedded scripts (a security + forward-compat hazard for save files), and Resource saves are brittle across class changes. JSON caveat: JSON has only float numbers (no int) and no native Vector2/Color — convert types manually on save/load. Godot-3 used the bare `export` keyword; on 4.x it's the `@export` annotation — generated code using `export var` is stale.",
+          "currency": "solid",
+          "verify_note": "extends Resource + class_name + typed @export, New Resource flow, load()/ResourceLoader.load() with CACHE_MODE_REPLACE,.tres(text)-vs-.res(binary), nesting — all current 4.x. The save-data gotcha is fully verified: Resources can embed arbitrary scripts (code-execution hazard on untrusted load), JSON is the safe save format, and the JSON-has-only-floats / no-native-Vector2-Color caveat is correct. @export (not Godot-3 bare export) correct.",
+          "sources": [
+            {
+              "title": "Custom Resources in Godot Engine 4.x — Simon Dalvai",
+              "url": "https://simondalvai.org/blog/godot-custom-resources/"
+            },
+            {
+              "title": "Saving and Loading Games in Godot 4 (with resources) — GDQuest",
+              "url": "https://www.gdquest.com/library/save_game_godot4/"
+            },
+            {
+              "title": "Custom Resources are OP in Godot 4 — Ezcha",
+              "url": "https://ezcha.net/news/3-1-23-custom-resources-are-op-in-godot-4"
+            }
+          ]
+        },
+        {
+          "name": "TileMapLayer (not TileMap) for the tactical grid, with deliberate overlay-layer budgeting",
+          "what": "Build the combat grid on `TileMapLayer` nodes — the current API. `TileMap` was DEPRECATED in Godot 4.3 and replaced by individual `TileMapLayer` nodes (one node per layer). Tactical games stack overlay layers (movement range, attack zone, part-target highlight), and layer count + update strategy is the main perf lever.",
+          "how": "Use one `TileMapLayer` node per logical layer: ground, cover, and one each for the dynamic tactical overlays. Read/write cells with the layer's own methods (`set_cell`, `get_cell_source_id`, `get_cell_tile_data`, `local_to_map`/`map_to_local`) — these now live on `TileMapLayer`, not on a parent TileMap with a layer index. For movement/attack highlights, update ONLY the overlay layer's changed cells per unit move (e.g. clear+repaint the highlight layer), not the terrain layers, and avoid full-layer rebuilds every frame. For an existing TileMap scene, the editor auto-converts: select the TileMap, open its bottom panel, click the toolbox icon > 'Extract TileMap layers as individual TileMapLayer nodes'.",
+          "godot_version": "Godot 4.3+ for TileMapLayer (4.6 has further 2D/tilemap improvements); REQUIRED on 4.4+",
+          "gotchas": "STALE: `TileMap` the node and its `set_cell(layer,...)` signature are Godot-3/early-4 — any crew-generated code using `TileMap` or passing a layer index into cell calls is deprecated; use `TileMapLayer`. Perf notes: scene files bloat hugely when hand-painted (KB to MB) which slows LOAD time (not runtime); editor brush lags past ~500x500 tiles but runtime is fine — don't over-optimize a small tactical map. Many stacked layers DO cost: budget the overlay layers, don't spawn one per unit. For very large continuous worlds you'd need chunked loading, but a bounded tactical battle map does not.",
+          "currency": "solid",
+          "verify_note": "Verified: TileMap deprecated in 4.3, replaced by individual TileMapLayer nodes; cell methods (set_cell/get_cell_source_id/get_cell_tile_data/local_to_map/map_to_local) now live on TileMapLayer with no layer-index arg. The editor 'Extract TileMap layers as individual TileMapLayer nodes' toolbox flow is described exactly as the docs/migration guides state. Stale-warning about TileMap.set_cell(layer,...) is correct.",
+          "sources": [
+            {
+              "title": "Godot TileMap Replaced with TileMapLayers — GameFromScratch",
+              "url": "https://gamefromscratch.com/godot-tilemap-replaced-with-tilelayers/"
+            },
+            {
+              "title": "Godot Tilemap in 2026: TileMapLayer Migration Guide — Ziva",
+              "url": "https://ziva.sh/blogs/godot-tilemap"
+            },
+            {
+              "title": "Using TileMaps — Godot Engine (stable) docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/2d/using_tilemaps.html"
+            }
+          ]
+        },
+        {
+          "name": "Profile with the built-in Profiler + custom performance monitors before optimizing",
+          "what": "Godot 4 ships a built-in GDScript Profiler and a Monitors tab in the Debugger panel, plus the ability to declare CUSTOM performance monitors (new in 4.0). Measure first — this is how you find a slow turn-resolution or pathfinding hotspot instead of guessing.",
+          "how": "Open the Debugger bottom panel > Profiler sub-tab > press Start, then run the scene; the Profiler splits frame time into Script/Physics/Idle layers and shows per-function self/total time so you can find the costliest GDScript functions. Use the Monitors tab for FPS, draw calls, object/node counts, and memory over time. For game-specific metrics, register custom monitors: connect to `Performance.add_custom_monitor(\"game/ai_turn_ms\", Callable(self, \"_get_ai_turn_ms\"))` (Godot 4.0+) so your own timings appear alongside engine stats. The newer Visual Profiler (frame-timeline view) gained tree-folding in 4.7-dev, making complex frames readable. For deep C++/native hotspots there's a separate 'Using C++ profilers' path, but the in-editor profiler covers GDScript game logic.",
+          "godot_version": "Godot 4.x built-in Profiler + custom monitors (custom monitors since 4.0; Visual Profiler folding 4.7-dev)",
+          "gotchas": "The Profiler must be Started BEFORE you run the scene to capture from frame 0. Profiler overhead skews absolute numbers — compare relative hotspots, not absolutes, and profile release-ish builds for real figures. Don't micro-optimize off editor-only lag (the editor adds its own cost). Godot-3 had a profiler too but lacked custom performance monitors — the `Performance.add_custom_monitor` API is a 4.0+ feature, so it's a safe 'current' pattern.",
+          "currency": "solid",
+          "verify_note": "Performance.add_custom_monitor(name, Callable) confirmed in current docs (callable must return number >=0; get_custom_monitor to read at runtime); custom monitors are a 4.0+ feature, correctly flagged as a safe 'current' pattern vs Godot 3 which lacked them. Profiler/Monitors tabs accurate. Visual Profiler folding 'in 4.7-dev' is forward-looking but plausible (4.7 is in active dev) and hedged appropriately.",
+          "sources": [
+            {
+              "title": "The Profiler — Godot Engine (stable) docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/scripting/debug/the_profiler.html"
+            },
+            {
+              "title": "Custom performance monitors — Godot Engine (stable) docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/scripting/debug/custom_performance_monitors.html"
+            },
+            {
+              "title": "How to Profile GDScript Performance in Godot 4 (2026 Guide) — DEV",
+              "url": "https://dev.to/ziva/how-to-profile-gdscript-performance-in-godot-4-a-2026-guide-16jn"
+            }
+          ]
+        },
+        {
+          "name": "Canonical Godot 4 .gitignore + .gitattributes (Git LFS) for version control",
+          "what": "A Godot-4-correct `.gitignore` (exclude regenerable caches) plus `.gitattributes` (force LF endings, route binary assets to Git LFS). Gets the studio's git hygiene right from commit one so the crew + CI never fight cache churn or line-ending diffs.",
+          "how": "gitignore essentials for Godot 4: ignore `.godot/` (the 4.x import/cache dir — NOT the old 3.x `.import/`), `export.cfg`, `export_presets.cfg` is KEPT (commit it), plus `*.translation`, build/export output dirs, and OS cruft (`.DS_Store`, `Thumbs.db`)..gitattributes: set `* text=auto eol=lf` to normalize line endings (critical cross-platform — the studio runs Windows now, Mac M5 later), and route large binaries through Git LFS: `*.png filter=lfs diff=lfs merge=lfs -text` and likewise for `*.ogg *.wav *.mp3 *.glb *.ttf *.psd`. Commit the `.tres`/`.gd`/`.tscn` as normal text (diffable). Use the maintained karbassi Godot-4.3 gist as the starting template.",
+          "godot_version": "Godot 4.x — ignore `.godot/` (4.x cache dir; the 3.x `.import/` no longer applies)",
+          "gotchas": "STALE: Godot-3 `.gitignore` templates ignore `.import/` — on Godot 4 the cache dir is `.godot/`. Ignoring the wrong one means either committing the cache (bloat) or breaking CI's expected cache path. Set up LFS BEFORE committing large binaries — retroactively moving files into LFS requires history rewriting. Do NOT gitignore `.tres`/`.tscn` (they're source). Keep `.godot/` ignored but expect CI to regenerate it via the import warm-up step (see CI recipe). The official Godot docs 'Version control systems' page documents the recommended ignore set.",
+          "currency": "solid",
+          "verify_note": "Official version-control docs confirm: ignore.godot/ (4.x cache dir, NOT the 3.x/4.0.import/), ignore *.translation, and the.gitattributes LFS routing for png/ogg/wav/glb/ttf etc. export_presets.cfg is safe to commit on 4.1+ (3.x/4.0 could store credentials there) — recipe's 'commit it' guidance is correct for 4.x. LF normalization + set-up-LFS-before-committing all sound. Stale.import/ warning correct.",
+          "sources": [
+            {
+              "title": "Version control systems — Godot Engine (stable) docs",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/best_practices/version_control_systems.html"
+            },
+            {
+              "title": "Godot 4.3 .gitignore + Git LFS gist — karbassi",
+              "url": "https://gist.github.com/karbassi/ce1f3cb68b3c6fc3c471cf992aed0053"
+            },
+            {
+              "title": "Godot 4 — Adding Git/GitLFS to your existing Project — Matt Barrett",
+              "url": "https://mbarrett.dev/godot-4-adding-git-gitlfs-to-your-existing-project/"
+            }
+          ]
+        },
+        {
+          "name": "Debugger toolkit: remote scene tree, breakpoints, and headless debug flags",
+          "what": "Godot 4's Debugger panel gives a live Remote Scene Tree (inspect/edit running nodes), breakpoints + the Stack Trace / Stack Variables view, the Errors/Warnings monitor, and Network/Video monitors. Plus the CLI debug flags for reproducing CI failures locally. This is the day-to-day inspection loop for combat bugs.",
+          "how": "Run the game from the editor (F5); the Debugger panel auto-attaches. Use the 'Remote' tab in the Scene dock to inspect the LIVE tree and tweak node properties at runtime (e.g. watch a unit's AP/HP change mid-fight). Set breakpoints by clicking the gutter or `breakpoint` keyword / `assert(cond)` in GDScript; when hit, read Stack Trace + Stack Variables. The Errors tab surfaces runtime errors/warnings with stack context. For headless/CI-style repro from a terminal: `godot --headless --debug --verbose --path. <scene_or_main>` to see verbose logs; `-d` enables the debugger, `--verbose` (`-v`) prints detailed engine output, `--quit-after N` exits after N frames for scripted runs. To debug an export, do a debug export and run with `--verbose` to capture the same logs a CI runner would.",
+          "godot_version": "Godot 4.x Debugger panel + CLI (`--headless --debug --verbose --quit-after`)",
+          "gotchas": "STALE: Godot-3 used `--no-window` for windowless runs; on 4.x use `--headless`. `assert()` is stripped in release/optimized builds — rely on it for dev invariant-checking, not as runtime production validation. The Remote tree edits affect the running instance only (not saved). Verbose logging is noisy — use it to diagnose, not as a standing setting. For native/engine-level crashes the GDScript debugger won't help; that's the separate C++ profiler/debugger path.",
+          "currency": "solid",
+          "verify_note": "Remote Scene Tree, breakpoints/Stack Trace/Stack Variables, Errors/Warnings + Network/Video monitors all current 4.x. CLI flags --headless --debug(-d) --verbose(-v) --quit-after N confirmed; --no-window→--headless migration correct. assert() stripped in release builds is accurate. Native-crash-needs-C++-debugger caveat correct.",
+          "sources": [
+            {
+              "title": "Debugger panel — Godot Engine (stable) docs (overview of debug tools)",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/scripting/debug/overview_of_debugging_tools.html"
+            },
+            {
+              "title": "Debugging and profiling — Godot Engine (4.4) docs",
+              "url": "https://docs.godotengine.org/en/4.4/contributing/development/debugging/index.html"
+            },
+            {
+              "title": "Command line tutorial — Godot Engine (stable) docs (CLI flags)",
+              "url": "https://docs.godotengine.org/en/stable/tutorials/editor/command_line_tutorial.html"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

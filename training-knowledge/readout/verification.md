@@ -1,0 +1,145 @@
+# readouts — training-knowledge · verification receipt
+
+> **101/204 techniques verified · 432 sources (300 resolve) · 16 waves · generated 2026-09-25.**  
+> Verdicts: 86 confirmed clean · 13 confirmed-with-fixes · 103 unverified.
+
+## Verification method, by wave
+
+- **Wave 1** (Foundation — the SDXL spine + cross-cutting method/dataset/eval/debug craft (thin pass, prove the partition)): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
+- **Wave 2** (Wave 2): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
+- **Wave 3** (Wave 3): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
+- **Wave 4** (SDXL measurement — optimizer + network-type receipts (measured-on-rig)): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
+- **Wave 5** (Eval measurement — CLIP-sim/CMMD style-fidelity panel on the wave-4 LoRAs (n=20 de-noised)): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
+- **Wave 6** (Chroma measurement — rank/flow-shift/fp8-base receipts on Chroma1-HD (measured-on-rig, n=20 eval)): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
+- **Wave 7** (SDXL research measurement — noise levers (noise_offset breaks #165) / checkpoint cadence / multi-concept repeat-balancing (measured-on-rig)): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
+- **Wave 8** (Wave 8): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
+- **Wave 9** (Qwen-Image bestiary expansion — shape-anchored i2i for silhouette-hard classes, 3-run no-late-collapse, TRELLIS winged+headed mesh fragility (measured-on-rig)): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
+- **Wave 10** (Wave 10): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
+- **Wave 11** (Wave 11): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
+- **Wave 12** (Wave 12): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
+- **Wave 13** (Wave 13): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
+- **Wave 14** (Wave 14): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
+- **Wave 15** (Wave 15): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
+- **Wave 16** (RLVR/GRPO on a deterministic-verifier substrate (measured on rig + retrieval-verified literature)): TWO-STAGE GATE. Stage 1 retrieval oracle (arXiv API + Semantic Scholar batch/search + Crossref + arXiv abs pages, deterministic, no LLM): 47/47 arXiv + 6/6 DOI resolved, zero fabricated. Stage 2 groundedness: two lenses from families outside the synthesiser's (qwen3:14b, mistral-small:24b), reasoning stripped, abstract-only. Every citation carried below was SUPPORTED by BOTH lenses. FOUR citations were DROPPED by the gate as real-author-plus-invented-title or real-title-plus-wrong-claim, including one the synthesising advisor itself had over-attributed. Lens limitation recorded: abstract-only cannot confirm body-level detail, so NOT_SUPPORTED there means 'the abstract does not establish this', and such claims were demoted rather than denied. Measured-on-rig rows are receipts from the repo, not literature.
+
+## Corrections — confirmed with fixes (13)
+
+- **Acceptance threshold calibration + bare-scalar ban (delta-vs-base, pre-declared, held-out)** — restructure the claim to lead with the calibration methodology (delta-vs-base, pre-declaration, version-pinning) and explicitly frame the bare-scalar ban as a prerequisite already in wave-1, not the new contribution.
+- **Adapter/model merging: TIES (trim+elect-sign+merge) and DARE (drop+rescale)** — add a cross-domain flag in the note for the diffusion application path.
+- **ai-eyes A/B rubric as the bias-controlled visual arbiter (order-swap + criterion-split)** — add an explicit cross-reference distinguishing this as the visual-lane counterpart to the wave-1 text-lane technique. Third source (internal workflow_standards.md) is legitimate grounding for the external-verifier requirement.
+- **Catastrophic forgetting: LoRA as the regularizer, plus the rank/effective-LR/replay levers** — add a note that the scale-intensification finding is empirically established only in the 1B-7B range; extrapolation to 24-34B requires additional sourcing or a community-claim downgrade for that sub-claim. (2) DreamBooth cross-domain import not flagged: using arXiv:2208.12242 (subject-driven diffusion fine-tuning) as a source for LLM catastrophic forgetting is a cross-domain import (diffusion language-drift → LLM forgetting analogy). Per boundary discipline, this must be flagged in the note. The import is conceptually valid as an illustrative analogy but should be tagged accordingly and rated no higher than community-claim for the LLM forgetting inference. evidence_strength='reproduced-from-source' is accurate for the Biderman and Luo claims taken within their studied ranges.
+- **DoRA: weight-decomposed LoRA (magnitude + direction, LoRA on direction only)** — add a parenthetical noting the normalization step is present but characterized as negligible in the paper, to avoid overclaiming. The evidence_strength reproduced-from-source is accurate.
+- **Eval acceptance gate: threshold + accepted, never a bare scalar** — replace or supplement the Datasheets citation with a source that directly argues for contamination-checked evaluation splits and threshold discipline (e.g. the BIG-bench paper, Srivastava et al. 2022, or the HELM paper, Liang et al. 2022, both of which address held-out and contamination protocol directly). The evidence_strength='reproduced-from-source' is acceptable for the Biderman/Jayasumana legs but is weak for the Datasheets leg.
+- **Flux LoRA serving - keep it as a runtime adapter, merge only to bake fp8, and there is no generic LoRA->base converter** — soften 'no generic LoRA->base converter' to community-claim level, not reproduced-from-source.
+- **Frying / saturation: the effective-LR = unet_lr x (alpha/rank) runaway and its cure** — update that source's identifier/URL to github.com/kohya-ss/sd-scripts/pull/545 and narrow its claim accordingly. (2) The SECourses Patreon post (patreon.com/posts/108426133) is from July 2024, not 2025 as listed; fix the year field. Core claim (effective-LR runaway) is solidly supported and boundary-clean. evidence_strength='reproduced-from-source' is honest.
+- **Metric routing: distribution (CMMD) vs per-image preference (HPSv2/PickScore/ImageReward) vs perceptual-to-exemplar (LPIPS/DreamSim)** — explicitly note in the KB entry that this extends wave-1 by adding routing logic and cross-family misuse warnings, not merely by listing the same instruments. No evidence_strength overclaim.
+- **Overfit/replication and style-bleed: the caption+pruning+regularization fix, not the LR fix** — add a cross-domain-import flag on the DreamBooth source and either find a style-LoRA-specific citation or downgrade evidence_strength on that source to community-claim.
+- **Overfitting & memorization detection (SSCD copy-detection + train-vs-novel-prompt divergence)** — move the threshold claim citation to arXiv:2212.03860. Not in wave-1. evidence_strength 'reproduced-from-source' is justified.
+- **The guidance-distilled-base training problem (FLUX.1-dev/FLUX.2-dev) - train at guidance_scale=1.0, reintroduce CFG at sampling** — SimpleTuner says non-1.0 'reintroduces CFG and affects inference compatibility / requires a different inference pipeline' — NOT that it 'collapses the model on long runs.' The collapse language is not supported by the cited source. Remove or soften to 'de-distills the base and requires a modified inference pipeline.' Medium blog (John Shi) is PARTIAL as marked — acceptable. evidence_strength 'reproduced-from-source' is justified. DEDUP: wave-1 flux-flow-matching-timestep-prediction-theory mentions guidance_scale briefly as a lever; this wave-3 entry goes substantially deeper into the distillation mechanism and inference re-introduction at 2-4. Not a duplicate.
+- **Two-stage dedup: pHash gate then CLIP/DINO cosine gate (with thresholds)** — the threshold values (Hamming ≤8, cosine ≥0.90–0.93) should be tagged community-claim or marked as 'practical starting points from community practice' rather than paper-derived results. The DataComp citation is a reasonable PARTIAL fit for embedding-based filtering quality. Not a dedup of wave-1's semantic-dedup entry — this genuinely extends it by adding the pHash fast-pass gate.
+
+## Unverified (103)
+
+- `train_lora_qwen_image_24gb.yaml`
+- A Rank Stabilization Scaling Factor for Fine-Tuning with LoRA
+- A Unified Study of LoRA Variants: Taxonomy, Review, Codebase, and Empirical Evaluation
+- AlpacaEval
+- AlpacaEval annotator protocol (same repo §Evaluators)
+- Amulet: Putting Complex Multi-Turn Conversations on the Stand with LLM Juries
+- Axolotl docs — LoRA/QLoRA/DPO/GRPO surface
+- Bradley–Terry model
+- Calendar Versioning (CalVer)
+- Clean First, Align Later: Benchmarking Preference Data Cleaning for Reliable LLM Alignment
+- CLIP+MLP Aesthetic Predictor
+- CMMD README CLI eval stack (google-research)
+- Cohen's kappa
+- CoT legibility: Judged != actual CoT importance
+- DAA differences are a blur — SFT then preference
+- DAPO — open-source LLM RL at scale
+- Datasheets for Datasets
+- Datasheets for Datasets provenance gate (Gebru et al.)
+- Diffusers adapter scale 0–1 checkpoint grid
+- Diffusers LoRA training guide
+- Diffusers Training LoRA — train_text_to_image_lora
+- DreamSim
+- EleutherAI lm-evaluation-harness pinned LLM eval
+- FastChat LLM Judge / MT-Bench
+- Frozen Cores: Fisher-whitened low-resource PEFT
+- G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment
+- GoF Adapter pattern hold-with-limit (≠ ΔW)
+- GRPO/SFT/DPO: Context-grounding post-train audit
+- HF PEFT LoRA/QLoRA + Diffusers LoRA + bnb AdamW8bit stack
+- HF Trainer — TrainingArguments surface
+- HPSv2 human preference scorer (Wu et al. 2023)
+- HPSv3
+- HPSv3 README Updates
+- Human Preference Score v2
+- ImageReward learned T2I preference reward (Xu et al. 2023)
+- Inter-rater reliability
+- JoyCaption diffusion-dataset caption VLM
+- Judging LLM-as-a-Judge (MT-Bench / Arena)
+- Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena
+- Judging the Judges: Evaluating Alignment and Vulnerabilities in LLMs-as-Judges
+- KanAdapter: KAN plug-and-play PEFT module
+- Keep a Changelog 1.1.0
+- kohya sd-scripts 0.11.1
+- kohya train_network.md
+- kohya-ss dataset TOML craft (aug/repeats/reg)
+- Kustomize kustomization overlays
+- Large-Scale Data Selection for Instruction Tuning
+- Learning Rate Matters — LoRA LR retuning
+- Learning Rate Matters: Vanilla LoRA May Suffice for LLM Fine-tuning
+- LIMA quality-over-quantity alignment data (Zhou et al. 2023)
+- LoFT — LoRA that behaves like full fine-tuning
+- LoFT: Low-Rank Adaptation That Behaves Like Full Fine-Tuning
+- LoRA Dropout as a Sparsity Regularizer for Overfitting Control
+- LoRA learns less and forgets less (Biderman et al. 2024)
+- LoRA+ asymmetric learning rates (Hayou et al. 2024)
+- LoRA-GA: Low-Rank Adaptation with Gradient Approximation
+- LoRA-Pro: Are Low-Rank Adapters Properly Optimized?
+- LoRA-TSD: Tangent-space LoRA updates
+- LPIPS / PerceptualSimilarity
+- MoE+LoRA: Intra-adapter subspace contention
+- npm outdated
+- Ostris AI Toolkit README
+- Ostris train_lora_qwen_image_24gb.yaml (sourced 24GB path)
+- ostris/ai-toolkit tip commit
+- PEFT docs index
+- PEFT docs main
+- PEFT library index — live mid-2026 surface
+- PEFT LoRA conceptual guide (`LoraConfig` r / `lora_alpha`)
+- PEFT LoraConfig package ref
+- PEFT v0.20.0
+- Pick-a-Pic open user preference pairs (Kirstain et al. 2023)
+- PiSSA principal-subspace adapter init (Meng et al. 2024)
+- Pre-SPEC pre-specified eval endpoints
+- Prometheus 2: An Open Source Language Model Specialized in Evaluating Other Language Models
+- Prometheus: Inducing Fine-grained Evaluation Capability in Language Models
+- Rating Scales in UX (Likert biases)
+- Reliability without Validity — LLM-as-judge audit
+- Reliability without Validity: A Systematic, Large-Scale Evaluation of LLM-as-a-Judge Models Across Agreement, Consistency, and Bias
+- Semantic Versioning 2.0.0
+- Semantic Versioning 2.0.0
+- sklearn common pitfalls — train/test leakage
+- sklearn train/test leakage + learning-curve overfit checks
+- Spaced repetition / sequenced curriculum hold-with-limit
+- SSCD copy-detection
+- TaRA: Training-aware LoRA initialization
+- train_lora_chroma_24gb.yaml
+- train_lora_flex_24gb.yaml
+- train_lora_flux_24gb.yaml
+- train_lora_qwen_image_edit_32gb.yaml
+- train_lora_wan22_14b_24gb.yaml
+- TruthInsightBench: Evidence-grounded open-ended eval
+- TsqLoRA — sensitivity and quality LoRA
+- TsqLoRA: Towards Sensitivity and Quality Low-Rank Adaptation for Efficient Fine-Tuning
+- Twelve-Factor App III. Config
+- Unified Study of LoRA Variants — taxonomy
+- Unsloth docs — local run+train surface
+- Unsloth fine-tune + Blackwell RTX 50 series tooling
+- Unsloth LoRA Hyperparameters Guide
+- Unsloth Updates changelog
+- VeRA vector-based random matrix adaptation (Kopiczko et al. 2023)
+- WCR PEFT fine-tune license flow-down
+- WD EVA02-Large Tagger v3 card metrics (sourced only)
+- What Happens to the License When You Fine‑Tune a Model

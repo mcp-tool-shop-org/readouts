@@ -1,0 +1,384 @@
+{
+  "laneSlug": "rigging",
+  "title": "UniRig quality, limitations & alternatives",
+  "recipes": [
+    {
+      "slug": "unirig-exotic-species-quality-honest",
+      "name": "UniRig on non-humanoid / exotic meshes — decisive advantage, honest quality ceiling",
+      "kind": "technique",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "UniRig is the only MIT-licensed auto-rigger that can produce a skeleton and skinning for arbitrary/non-humanoid topology (tortle, kenku, sahuagin, minotaur) without hand-placing bones — but the output is an 80-90% draft requiring cleanup on tails, wings, digitigrade legs, and joint skin weights.",
+      "summary": "UniRig's Skeleton Tree Tokenization predicts bone placement from geometry rather than a fixed template, giving it a decisive advantage on the studio's 15 exotic species. The Rig-XL training set covers 8 non-humanoid categories (Quadruped, Bird & Flyer, Insect & Arachnid, Water Creature) but human-related categories are overrepresented in source data, so sampling probability adjustments were applied during training — meaning non-humanoid results are good but not as reliable as humanoid results. Community reports confirm missing or mis-placed bones on tails (squirrel/dragon tails), turtle limbs, and misaligned joints on hands. The paper's own supplemental notes that skin weights 'degrade significantly if the skeleton is inaccurate' and recommends skeleton refinement before running the skin stage. Treat UniRig output as a strong first-pass draft, not a hands-off production rig.",
+      "design_implication": "For the studio's exotic-species roster, UniRig is still the correct tool — no template-based alternative can handle a tortle, kenku, or sahuagin at all. Build a skeleton-cleanup pass into every non-humanoid character budget: fix tail and wing bone chains, verify digitigrade leg alignment, then re-run the skin stage with the corrected skeleton before hand-editing weights. Hero characters with unusual proportions may need more cleanup time than biped supporting cast.",
+      "evidence_strength": "community-claim",
+      "license": "MIT",
+      "commercial_use": "yes",
+      "commercial_notes": "MIT; cleanup is artist time only, no license constraint.",
+      "vram_gb": "8-16",
+      "rig_fit": 5,
+      "studio_fit": 4,
+      "status": "recommended",
+      "failures": [
+        {
+          "symptom": "Missing bone chains on tails and wings",
+          "cause": "Autoregressive skeleton predictor prematurely emits the termination token, cutting chain short — documented failure mode in Auto-Connect (CVPR 2026) paper analyzing UniRig's architecture",
+          "remediation": "After skeleton generation, open the predicted skeleton in Blender, manually extend the tail/wing bone chain to the tip, then re-run generate_skin.sh with the corrected skeleton JSON",
+          "severity": "quality",
+          "recipe_field": "summary"
+        },
+        {
+          "symptom": "Spatial gap / discontinuity between bone chains",
+          "cause": "UniRig uses heuristic distance-threshold rules to merge chain endpoints — non-end-to-end design produces compounding error when chains are far apart (e.g., wings far from spine root)",
+          "remediation": "Manually connect disconnected chains in Blender Pose Mode before skinning; the merge gap is typically visible as a floating chain with no parent",
+          "severity": "quality",
+          "recipe_field": "summary"
+        },
+        {
+          "symptom": "Mis-placed bones on turtle limbs and quadruped extremities",
+          "cause": "Explicitly documented in UniRig supplemental and confirmed in Auto-Connect paper: 'missing bones on turtle limbs and squirrel tail and misaligned skeletons on human hands'",
+          "remediation": "Skeleton edit pass in Blender; move individual bone heads/tails to correct anatomical positions before skin stage",
+          "severity": "quality",
+          "recipe_field": "summary"
+        },
+        {
+          "symptom": "Skinning artifacts (stretching / tearing at deforming joints)",
+          "cause": "Skin quality is downstream of skeleton accuracy; any skeleton error compounds into bad weight assignments. Overlapping geometry (wings over body, tails between legs) produces phantom bone targets.",
+          "remediation": "Weight paint touch-up in Blender after skin stage; focus on hips/shoulder junction, joint interiors, and any overlapping mesh region",
+          "severity": "quality",
+          "recipe_field": "summary"
+        },
+        {
+          "symptom": "Incomplete skeletons on heavily stylized / chibi proportions",
+          "cause": "Training distribution skewed toward realistic proportions; extreme stylization departs from learned geometry-to-bone mapping",
+          "remediation": "Use Blender automatic weights as a fallback for extreme stylized meshes; or manually place bones and use UniRig only for skinning stage",
+          "severity": "compatibility",
+          "recipe_field": "summary"
+        }
+      ],
+      "purposes": ["exotic-species-rig", "non-humanoid-auto-rig", "cleanup-guide"],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig",
+          "authors": "Wang, Lingteng et al. (Tsinghua University / VAST AI Research)",
+          "year": "2025",
+          "identifier": "arXiv:2504.12451 / ACM DOI:10.1145/3730930",
+          "url": "https://arxiv.org/html/2504.12451v1",
+          "claim": "Rig-XL dataset covers 8 non-humanoid categories; human-related categories remain overrepresented in source data requiring sampling probability adjustments; UniRig recommends skeleton refinement before skinning because skin quality degrades significantly with inaccurate skeletons."
+        },
+        {
+          "kind": "paper",
+          "title": "Auto-Connect: Connectivity-Preserving RigFormer with Direct Preference Optimization",
+          "authors": "Auto-Connect authors (CVPR 2026 submission)",
+          "year": "2026",
+          "identifier": "arXiv:2506.11430",
+          "url": "https://arxiv.org/html/2506.11430",
+          "claim": "Explicitly identifies UniRig failure modes: premature termination token (missing bone chains), spatial discontinuity between chains (initialization barriers), and non-end-to-end heuristic merging causing compounding errors. Documents 'missing bones on turtle limbs and squirrel tail and misaligned skeletons on human hands' as concrete examples."
+        },
+        {
+          "kind": "github",
+          "title": "VAST-AI-Research/UniRig — README",
+          "authors": "VAST AI Research",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://github.com/VAST-AI-Research/UniRig",
+          "claim": "README states 'results may degrade significantly if the skeleton is inaccurate' and recommends skeleton refinement before skinning; notes training distribution includes Quadruped, Bird & Flyer, Insect & Arachnid, Water Creature categories."
+        },
+        {
+          "kind": "web",
+          "title": "ComfyUI UniRig Automatic Rigging Guide 2025 — Apatero",
+          "authors": "Apatero",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://www.apatero.com/blog/comfyui-unirig-automatic-skeleton-rigging-guide-2025",
+          "claim": "Community guide documents practical failure modes: 'non-humanoid designs (animals, robots, monsters)' and 'extreme stylization' require significant manual adjustment; overlapping elements create phantom bones."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-benchmark-claims-vs-reality",
+      "name": "UniRig paper benchmarks — what the numbers mean and what they do not cover",
+      "kind": "reference",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "UniRig's 215% rigging accuracy / 194% motion accuracy benchmark improvements are real and verified against prior art, but the evaluation datasets (VRoid anime + Rig-XL Objaverse) do not include stylized JRPG creature meshes from image-to-3D generators — studio results will differ from paper numbers.",
+      "summary": "The paper evaluates on VRoid (2,061 anime humanoid meshes from VRoidHub, standardized skeleton with spring bones) and Rig-XL (14,611 Objaverse-XL models including Quadruped/Bird/Insect/Water Creature categories). Metrics are Chamfer Distance joint-to-joint, joint-to-bone, bone-to-bone (lower is better) and IoU (higher is better). UniRig outperforms prior methods by large margins on these datasets. However, none of the evaluation meshes are TRELLIS-generated images-to-3D outputs (which have characteristic topology artifacts and dense vertex counts), and VRoid anime meshes differ significantly from painterly JRPG creature designs. The Auto-Connect follow-up (arXiv:2506.11430) shows that even on a new Art-XL2.0 dataset, UniRig CD-J2J degrades to 3.232% vs Auto-Connect's 2.572% — a 20% gap the paper does not mention. Take the 215% headline as valid proof of superiority over prior art, not as a guarantee for arbitrary creature meshes.",
+      "design_implication": "The benchmark gap between VRoid/Rig-XL and TRELLIS creature meshes means studio testing is the only way to know actual quality for a given species. Prioritize measured-on-rig data over paper claims when deciding whether a skeleton needs cleanup. The Auto-Connect paper's Art-XL2.0 results suggest UniRig is 80% as accurate as the best current alternative on out-of-distribution meshes.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "MIT",
+      "commercial_use": "yes",
+      "commercial_notes": "MIT; benchmark discussion is informational only.",
+      "vram_gb": "8-16",
+      "rig_fit": 4,
+      "studio_fit": 4,
+      "status": "reference",
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig",
+          "authors": "Wang, Lingteng et al. (Tsinghua University / VAST AI Research)",
+          "year": "2025",
+          "identifier": "arXiv:2504.12451 / ACM DOI:10.1145/3730930",
+          "url": "https://arxiv.org/abs/2504.12451",
+          "claim": "Evaluated on VRoid (anime humanoid, 2061 models) and Rig-XL (14611 diverse models, 8 categories); reports 215% rigging accuracy and 194% motion accuracy improvement over prior art. Tokenization reduces token count 27-30% vs naive approaches on both datasets."
+        },
+        {
+          "kind": "paper",
+          "title": "Auto-Connect: Connectivity-Preserving RigFormer with Direct Preference Optimization",
+          "authors": "Auto-Connect authors",
+          "year": "2026",
+          "identifier": "arXiv:2506.11430",
+          "url": "https://arxiv.org/html/2506.11430",
+          "claim": "On Art-XL2.0 dataset, UniRig achieves CD-J2J 3.232%, CD-J2B 2.540%, CD-B2B 2.124%, IoU 75.571% vs Auto-Connect's CD-J2J 2.572%, IoU 82.806% — a ~20% gap across all metrics, showing UniRig is strong but not the absolute ceiling."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-trellis-mesh-prep",
+      "name": "Mesh preparation for UniRig: decimating TRELLIS.2 dense meshes before auto-rigging",
+      "kind": "technique",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "TRELLIS.2 outputs ~800k-vert meshes that must be decimated to ~30-50k triangles before UniRig auto-rig, both for inference speed and to produce a game-weight asset that deforms cleanly.",
+      "summary": "TRELLIS.2-4B outputs high-density meshes (~800k vertices) optimized for photorealism, not animation. UniRig samples a point cloud from the mesh surface for its geometry encoder; extremely dense meshes slow inference and can produce sampling artifacts. Additionally, 800k-vert meshes are not game-weight assets — shipping a rigged character at that density is not viable for a Godot/UE5 build. The proven workflow (from the studio's measured run 2026-06-25) is to decimate in Blender using Decimate modifier (Collapse mode, target ratio to hit ~30-50k tris) before exporting to OBJ/GLB for UniRig. Non-manifold edges and disconnected geometry should be cleaned (Merge by Distance, Delete Loose) before decimation. After UniRig produces the rigged GLB, import back to Blender for skeleton cleanup and weight paint touch-up.",
+      "design_implication": "Add a decimate + clean step as the first operation in the TRELLIS.2 → UniRig → Blender pipeline. The existing unirig-blackwell-wsl2-skeleton-skin-measured recipe already notes this requirement. For the 68-character MESH game-asset line, batch the decimate step in Blender Python before queuing UniRig jobs. Target 30k tris for supporting cast, 50k tris for hero characters who need more geometric fidelity in their sprite-sheet renders.",
+      "evidence_strength": "community-claim",
+      "license": "GPL (Blender Decimate modifier); MIT (UniRig)",
+      "commercial_use": "yes",
+      "commercial_notes": "Blender GPL covers the application. Decimated mesh output and rigged GLB are fully the studio's IP.",
+      "vram_gb": "8-16",
+      "rig_fit": 4,
+      "studio_fit": 5,
+      "status": "recommended",
+      "failures": [
+        {
+          "symptom": "Bone heat weighting / skinning failures on non-manifold geometry",
+          "cause": "UniRig and Blender automatic weights both require clean manifold mesh; non-manifold edges, interior faces, and loose vertices cause skinning errors",
+          "remediation": "In Blender: Edit Mode → Mesh → Clean Up → Merge by Distance; then Select → Select All by Trait → Non-Manifold to find and repair bad geometry before decimation",
+          "severity": "blocking",
+          "recipe_field": "summary"
+        },
+        {
+          "symptom": "Skinning produces incorrect weights on decimated mesh",
+          "cause": "Aggressive decimation (below 15k tris) can collapse topology needed for joint deformation zones (elbow, knee, shoulder)",
+          "remediation": "Use 30-50k tris as a floor; apply Decimate in Planar mode around joints to preserve edge loops at deforming regions",
+          "severity": "quality",
+          "recipe_field": "summary"
+        }
+      ],
+      "purposes": ["mesh-prep", "trellis-pipeline", "game-asset"],
+      "sources": [
+        {
+          "kind": "github",
+          "title": "VAST-AI-Research/UniRig — README: inference pipeline notes",
+          "authors": "VAST AI Research",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://github.com/VAST-AI-Research/UniRig",
+          "claim": "UniRig processes dense meshes via point cloud sampling; README notes mesh should be clean and free of non-manifold edges or other geometry issues before use."
+        },
+        {
+          "kind": "web",
+          "title": "ComfyUI UniRig Auto Rig node — RunComfy documentation",
+          "authors": "RunComfy",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://www.runcomfy.com/comfyui-nodes/ComfyUI-UniRig/uni-rig-auto-rig",
+          "claim": "Node documentation recommends clean mesh free of non-manifold edges before UniRig auto-rig for best results."
+        },
+        {
+          "kind": "docs",
+          "title": "Armature Deform Parent — Blender Manual (Automatic Weights)",
+          "authors": "Blender Foundation",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://docs.blender.org/manual/en/latest/animation/armatures/skinning/parenting.html",
+          "claim": "Blender automatic weights requires manifold geometry; non-manifold meshes cause 'Bone Heat Weighting failed' errors. Mesh cleanup (Merge by Distance, Delete Loose) resolves most failures."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-skeleton-cleanup-workflow",
+      "name": "UniRig skeleton cleanup workflow — the manual pass every non-humanoid needs",
+      "kind": "technique",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "Every UniRig skeleton for non-humanoid / exotic meshes requires a Blender skeleton-edit pass before the skin stage: extend missing tail/wing chains, re-parent disconnected bones, verify roll axes, then re-run generate_skin.sh with the corrected skeleton JSON.",
+      "summary": "After generate_skeleton.sh produces the predicted skeleton, import it into Blender (the merge.sh output or the intermediate JSON) and inspect in Pose Mode. Common fixes for exotic species: (1) tail chains — manually add missing tail bones to the tip, parenting each to the last predicted tail bone; (2) wing chains — connect floating wing chain to the predicted shoulder bone; (3) digitigrade legs (kenku, sahuagin) — verify the hock/ankle joint exists as a distinct bone, not merged with the toe; (4) re-roll all bones so the Y-axis points along the bone and X-axis points toward the character's right (use Recalculate Roll → Global -Z Axis in Blender). Once the skeleton JSON is corrected, pass it to generate_skin.sh explicitly to avoid re-predicting the skeleton. The skin stage produces noticeably better weights on a clean skeleton than on the predicted-only version.",
+      "design_implication": "Budget one Blender cleanup session per exotic species character — approximately 30-60 minutes for a thorough skeleton edit and spot weight-paint fix. This is the irreducible human cost of auto-rigging non-humanoid topology. The studio's 15 exotic species characters should each have a documented cleanup checklist stored with their Blender file so the cleanup is reproducible across character variants.",
+      "evidence_strength": "community-claim",
+      "license": "GPL (Blender); MIT (UniRig)",
+      "commercial_use": "yes",
+      "commercial_notes": "All cleanup work is in Blender; rigged output is studio IP.",
+      "vram_gb": "8-16",
+      "rig_fit": 4,
+      "studio_fit": 4,
+      "status": "recommended",
+      "failures": [
+        {
+          "symptom": "Re-running generate_skin.sh after skeleton edit still uses old predicted skeleton",
+          "cause": "generate_skin.sh may cache or re-predict if the skeleton input path is not explicitly overridden",
+          "remediation": "Pass the corrected skeleton JSON path explicitly as an argument; check shell script arguments before running",
+          "severity": "workflow",
+          "recipe_field": "summary"
+        },
+        {
+          "symptom": "Weight paint seam at tail base / wing root after skin stage",
+          "cause": "Manually added bones were not present during skinning or have incorrect roll causing weight assignment to wrong bone",
+          "remediation": "Use Blender Weight Paint mode on the problematic region; normalize weights after manual paint",
+          "severity": "quality",
+          "recipe_field": "summary"
+        }
+      ],
+      "purposes": ["exotic-species-rig", "non-humanoid-cleanup", "skinning"],
+      "sources": [
+        {
+          "kind": "github",
+          "title": "VAST-AI-Research/UniRig — README: skeleton refinement recommendation",
+          "authors": "VAST AI Research",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://github.com/VAST-AI-Research/UniRig",
+          "claim": "README explicitly recommends skeleton refinement before skinning because results degrade significantly with inaccurate skeletons."
+        },
+        {
+          "kind": "paper",
+          "title": "Auto-Connect: Connectivity-Preserving RigFormer with Direct Preference Optimization",
+          "authors": "Auto-Connect authors",
+          "year": "2026",
+          "identifier": "arXiv:2506.11430",
+          "url": "https://arxiv.org/html/2506.11430",
+          "claim": "Documents the specific UniRig gap: heuristic post-hoc chain merging (distance threshold) is the root cause of connectivity errors requiring manual repair."
+        },
+        {
+          "kind": "docs",
+          "title": "Armatures — Blender Manual (Edit Mode / Roll)",
+          "authors": "Blender Foundation",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://docs.blender.org/manual/en/latest/animation/armatures/index.html",
+          "claim": "Blender Pose Mode and Armature Edit Mode provide bone manipulation (parent, roll, head/tail position) for correcting predicted skeletons before skinning."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-vs-alternatives-comparison",
+      "name": "UniRig vs Rigify vs AccuRIG vs Auto-Rig Pro vs Mixamo vs Blender automatic weights — head-to-head",
+      "kind": "reference",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "claim": "UniRig wins decisively for arbitrary/non-humanoid topology and MIT redistribution; template-based riggers (Rigify, AccuRIG, Mixamo, Auto-Rig Pro) win for humanoid characters when the skeleton must match a specific convention or when cleaner default weights are needed without a cleanup pass.",
+      "summary": "Six tools compared on four axes: non-humanoid support, skeleton convention match, output license, and workflow integration. Rigify (Blender-bundled, GPL) generates a production-quality control rig from a positioned metarig — it includes quadruped, bird, wolf, horse, and shark templates, but exotic/novel body plans (tortle, kenku, minotaur, sahuagin) require building a 'Frankenstein' rig from modules, which is expert work. AccuRIG 2 (Reallusion, free) is primarily humanoid but claims beastman / minotaur / bird support via manual joint layout adjustment — non-humanoid results require more manual configuration than UniRig. Auto-Rig Pro (paid, ~$40) has the best non-humanoid Blender support among template riggers: Multi-Ped mode for quadrupeds, IK Spline for long necks, digitigrade leg types for dog/cat/T-Rex — but still requires marker placement and correct template selection, meaning it cannot auto-detect a novel species the way UniRig can. Mixamo (Adobe, free, cloud) is humanoid-only with no exceptions; it cannot rig any of the 15 studio exotic species, and its EULA prohibits standalone file redistribution. Blender automatic weights is not an auto-rigger — it only assigns skin weights given a manually placed armature, and is the fallback when UniRig's skeleton prediction fails (or when flash_attn is unavailable). UniRig wins on: arbitrary body plan, zero manual bone placement, MIT redistribution, and consistent pipeline integration. Template riggers win on: clean default weights for humanoid characters, animator-friendly control rigs (IK/FK switch, stretch), and no cleanup needed for supported body types.",
+      "design_implication": "Studio decision tree: (1) Is the character one of the 15 exotic species (non-humanoid body plan)? → UniRig first pass + cleanup. (2) Is it a biped humanoid hero character that will be hand-animated with an animator-friendly rig? → Rigify or Auto-Rig Pro for cleaner control rig, retarget mocap with ARP Remap. (3) Is it a humanoid supporting cast needing quick mocap retarget only? → AccuRIG or Mixamo for speed. (4) Does the output need to be redistributed as MIT-licensed assets? → Never Mixamo; UniRig or Rigify only.",
+      "evidence_strength": "community-claim",
+      "license": "varies per tool — see commercial_notes",
+      "commercial_use": "conditional",
+      "commercial_notes": "UniRig: MIT (yes). Rigify: GPL (yes, output unrestricted). AccuRIG: proprietary freeware (yes, no stated commercial restriction). Auto-Rig Pro: commercial license ~$40 (yes, ships in projects). Mixamo: Adobe EULA — commercial use yes but standalone redistribution prohibited. Blender automatic weights: GPL (yes, output unrestricted).",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "reference",
+      "purposes": ["tool-selection", "comparison", "exotic-species-rig"],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig",
+          "authors": "Wang, Lingteng et al. (Tsinghua University / VAST AI Research)",
+          "year": "2025",
+          "identifier": "arXiv:2504.12451 / ACM DOI:10.1145/3730930",
+          "url": "https://arxiv.org/abs/2504.12451",
+          "claim": "UniRig outperforms academic and commercial baselines on diverse mesh categories without template selection; geometry-based prediction handles arbitrary body plans."
+        },
+        {
+          "kind": "docs",
+          "title": "Rigify Human/Quadruped Meta-Rigs — CGDive Tutorial Series",
+          "authors": "CGDive",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://cgdive.com/rig-anything-with-rigify-chapter-3-the-prebuilt-metarigs-human-and-quadruped/",
+          "claim": "Rigify includes prebuilt metarigs for Wolf, Cat, Horse, Bird, Shark — novel creatures (Dragon, Spider, Tortle) require expert 'Frankenstein' rig assembly from individual bone modules."
+        },
+        {
+          "kind": "web",
+          "title": "AccuRIG 2 vs Mixamo: Smarter Auto-Rigging — The Morphic Studio",
+          "authors": "The Morphic Studio",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://www.themorphicstudio.com/accurig-2-vs-mixamo-smarter-auto-rigging/",
+          "claim": "AccuRIG 2 supports some non-humanoid characters (beastmen, minotaur, bird) with manual configuration; Mixamo is strictly humanoid-only and its limitations for non-standard body types have led professionals to seek alternatives."
+        },
+        {
+          "kind": "docs",
+          "title": "Auto-Rig Pro — Documentation: Creature / Multi-Ped rigging",
+          "authors": "artell",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://www.lucky3d.fr/auto-rig-pro/doc/auto_rig.html",
+          "claim": "Auto-Rig Pro includes Multi-Ped type for quadrupeds, digitigrade 3-bone IK for dog/cat/T-rex, and IK Spline spine for long-neck creatures — best template-based non-humanoid support in Blender."
+        },
+        {
+          "kind": "docs",
+          "title": "Mixamo FAQ — Creative Cloud",
+          "authors": "Adobe",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html",
+          "claim": "Mixamo auto-rigger and animation library is for bipedal humanoids only; characters cannot be redistributed as standalone assets."
+        },
+        {
+          "kind": "docs",
+          "title": "Armature Deform Parent — Blender Manual (Automatic Weights)",
+          "authors": "Blender Foundation",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://docs.blender.org/manual/en/latest/animation/armatures/skinning/parenting.html",
+          "claim": "Blender Automatic Weights assigns per-vertex bone influence given an existing armature; it is a skinning tool, not a skeleton predictor — requires manually placed bones as input."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-successor-landscape-2026",
+      "name": "UniRig successor landscape — Auto-Connect, SkinTokens, and when to upgrade",
+      "kind": "reference",
+      "engine_family": "blender",
+      "applicable_to": "rigging",
+      "claim": "As of mid-2026, two research successors address UniRig's documented weaknesses: Auto-Connect (CVPR 2026, connectivity-preserving tokenization) shows ~20% metric improvement on out-of-distribution meshes; SkinTokens (announced) unifies skeleton + skinning into a single autoregressive sequence — neither is released as MIT weights yet.",
+      "summary": "Auto-Connect (arXiv:2506.11430, mid-2026) directly addresses UniRig's three failure modes — premature termination, spatial discontinuity, chain merging — using Direct Preference Optimization and connectivity-preserving tokenization. On the Art-XL2.0 benchmark it closes the CD-J2J gap from 3.232% (UniRig) to 2.572% (Auto-Connect), a 20% improvement, and IoU from 75.6% to 82.8%. Code/weights as of mid-2026 are not confirmed MIT. SkinTokens (announced, referenced in UniRig README as a 'powerful successor') aims to unify skeleton prediction and skinning into a single sequence, potentially eliminating the two-stage pipeline and the skeleton-quality dependency on the skin stage. Neither has the verified MIT weights + Blender integration that UniRig has today. For the studio, UniRig remains the correct choice for the 2026 MESH game-asset line; Auto-Connect or SkinTokens become relevant when they ship permissive weights and a Blender integration.",
+      "design_implication": "Monitor VAST-AI-Research GitHub for SkinTokens release (expected to be a drop-in upgrade for UniRig's two-stage pipeline). If Auto-Connect ships permissive weights, it directly reduces the cleanup burden on tail/wing chains for the exotic species roster — worth a one-week evaluation against the current UniRig measured baseline when available.",
+      "evidence_strength": "community-claim",
+      "license": "not yet released (research only as of mid-2026)",
+      "commercial_use": "unknown",
+      "commercial_notes": "Auto-Connect and SkinTokens are research papers as of mid-2026; license unknown. Do not adopt for production until MIT or equivalent weights ship.",
+      "vram_gb": "8-16",
+      "rig_fit": 5,
+      "studio_fit": 3,
+      "status": "watch",
+      "purposes": ["future-planning", "research-horizon", "auto-rig-upgrade"],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "Auto-Connect: Connectivity-Preserving RigFormer with Direct Preference Optimization",
+          "authors": "Auto-Connect authors",
+          "year": "2026",
+          "identifier": "arXiv:2506.11430",
+          "url": "https://arxiv.org/html/2506.11430",
+          "claim": "Addresses UniRig's chain-connectivity failures with end-to-end connectivity-preserving tokenization and DPO training; achieves 20% improvement across all skeleton metrics on Art-XL2.0 benchmark vs UniRig."
+        },
+        {
+          "kind": "github",
+          "title": "VAST-AI-Research/UniRig — README: SkinTokens mention",
+          "authors": "VAST AI Research",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://github.com/VAST-AI-Research/UniRig",
+          "claim": "UniRig README describes SkinTokens as the 'powerful successor to UniRig, unifying skeleton prediction and skinning into a single autoregressive sequence'."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,197 @@
+{
+  "bucket": "dsp-grid",
+  "domains": [
+    "js-dsp-implementation",
+    "music-as-seconds-grid"
+  ],
+  "count": 17,
+  "findings": [
+    {
+      "slug": "39-essentia-js-npm-registry-metadata",
+      "name": "essentia.js - npm registry metadata",
+      "claim": "essentia.js is AGPL-3.0 and last published 2021-06-24.",
+      "detail": null,
+      "design_implication": "Excluded: AGPL in the tree of an MIT npm package.",
+      "citation_id": "npm essentia.js 0.1.3",
+      "authors": "MTG/UPF",
+      "year": "2021",
+      "domain": "js-dsp-implementation"
+    },
+    {
+      "slug": "40-meyda-audio-features-npm-5-6-3",
+      "name": "Meyda audio features / npm 5.6.3",
+      "claim": "Meyda is MIT with offline extraction, MFCC and chroma but no raw mel bands; last release 2024-04-21.",
+      "detail": null,
+      "design_implication": "Usable for spectral scalars; the mel filterbank is still ours to write.",
+      "citation_id": "npm meyda 5.6.3",
+      "authors": "Meyda project",
+      "year": "2024",
+      "domain": "js-dsp-implementation"
+    },
+    {
+      "slug": "41-tensorflow-js-api-signal-namespace-fft-js-npm",
+      "name": "TensorFlow.js API signal namespace; fft.js npm",
+      "claim": "tfjs ships stft/frame/hannWindow but no mel filterbank op; fft.js is a MIT radix-4 FFT.",
+      "detail": null,
+      "design_implication": "Skip the tensor runtime; take the FFT from fft.js and write ~200 lines of DSP.",
+      "citation_id": "tfjs 4.22.0 / fft.js 4.0.4",
+      "authors": "Google / fft.js",
+      "year": "2024",
+      "domain": "js-dsp-implementation"
+    },
+    {
+      "slug": "42-web-audio-api-1-1-s1-8-5-1-8-6-analysernode",
+      "name": "Web Audio API 1.1 s1.8.5-1.8.6 AnalyserNode",
+      "claim": "AnalyserNode mandates a Blackman window, 0.8 default smoothing, and reads only the most recent fftSize frames (max 32768).",
+      "detail": null,
+      "design_implication": "AnalyserNode is excluded from the analysis path; compute the STFT over the rendered AudioBuffer.",
+      "citation_id": "W3C webaudio-1.1",
+      "authors": "W3C",
+      "year": "2026",
+      "domain": "js-dsp-implementation"
+    },
+    {
+      "slug": "43-librosa-filters-mel-vs-torchaudio-transforms-melspectrogram-defaults",
+      "name": "librosa.filters.mel vs torchaudio.transforms.MelSpectrogram defaults",
+      "claim": "librosa's mel default is htk=False, norm='slaney'; torchaudio's is mel_scale='htk', norm=None.",
+      "detail": null,
+      "design_implication": "Expose melScale and norm explicitly in the tool schema and pin them.",
+      "citation_id": "librosa 0.11 filters.mel",
+      "authors": "librosa / PyTorch",
+      "year": "2025",
+      "domain": "js-dsp-implementation"
+    },
+    {
+      "slug": "44-melspectrogram-inconsistency-with-librosa-melspectrogram-pytorch-audio-1058",
+      "name": "MelSpectrogram inconsistency with librosa melspectrogram (pytorch/audio #1058)",
+      "claim": "The librosa/torchaudio mel mismatch is a filed real-world bug class.",
+      "detail": null,
+      "design_implication": "Pick one reference (pinned librosa) and generate goldens from it.",
+      "citation_id": "pytorch/audio issue 1058",
+      "authors": "SolomidHero",
+      "year": "2020",
+      "domain": "js-dsp-implementation"
+    },
+    {
+      "slug": "45-whisper-audio-py-log-mel-spectrogram",
+      "name": "whisper/audio.py log_mel_spectrogram",
+      "claim": "Whisper's log-mel uses Hann/n_fft 400/hop 160, power, log10, a peak-relative clamp at max-8, then (x+4)/4.",
+      "detail": null,
+      "design_implication": "Peak-relative dB changes every value when a clip is trimmed; record ref explicitly.",
+      "citation_id": "openai/whisper audio.py",
+      "authors": "OpenAI",
+      "year": "2024",
+      "domain": "js-dsp-implementation"
+    },
+    {
+      "slug": "46-librosa-power-to-db-0-11",
+      "name": "librosa.power_to_db (0.11)",
+      "claim": "power_to_db defaults ref=1.0, amin=1e-10, top_db=80.",
+      "detail": null,
+      "design_implication": "Tests use ref=1.0, top_db=null; peak-relative dB is display-only.",
+      "citation_id": "librosa 0.11 power_to_db",
+      "authors": "librosa developers",
+      "year": "2025",
+      "domain": "js-dsp-implementation"
+    },
+    {
+      "slug": "47-mit-js-building-blocks-for-mel-and-cqt",
+      "name": "MIT JS building blocks for mel and CQT",
+      "claim": "meljs 1.0.2 (NeMo-calibrated mel), cqt-web 1.0.4 (librosa-compatible CQT, WASM), wavedraw 2.7.0 (Node WAV + mel render) are all MIT.",
+      "detail": null,
+      "design_implication": "Read as reference implementations; meljs's NeMo constants would break librosa parity if vendored unchecked.",
+      "citation_id": "npm cqt-web 1.0.4",
+      "authors": "npm registry (meljs, cqt-web, wavedraw)",
+      "year": "2026",
+      "domain": "js-dsp-implementation"
+    },
+    {
+      "slug": "48-audio-analysis-mcp",
+      "name": "audio-analysis-mcp",
+      "claim": "An existing audio-analysis MCP server (librosa + matplotlib) saves visual outputs to disk and returns paths.",
+      "detail": null,
+      "design_implication": "Precedent for path + numbers; match this repo's view_scored_piano_roll shape (path + inline image + summary).",
+      "citation_id": "github audio-analysis-mcp",
+      "authors": "zachswift615",
+      "year": "2025",
+      "domain": "js-dsp-implementation"
+    },
+    {
+      "slug": "49-offscreencanvas-converttoblob-pngjs-7-0-0-sharp-0-35-4",
+      "name": "OffscreenCanvas.convertToBlob(); pngjs 7.0.0; sharp 0.35.4",
+      "claim": "convertToBlob produces PNG in every browser and in Workers; pngjs is pure-JS MIT; sharp is a native binary.",
+      "detail": null,
+      "design_implication": "Raster PNG is the render target; a 30 s clip at 10 ms hop is 384,000 cells, so rect-per-cell SVG is out.",
+      "citation_id": "MDN OffscreenCanvas.convertToBlob",
+      "authors": "MDN / npm",
+      "year": "2026",
+      "domain": "js-dsp-implementation"
+    },
+    {
+      "slug": "1-standard-midi-files-1-1",
+      "name": "Standard MIDI Files 1.1",
+      "claim": "SMF times a sung line as integer ticks × microseconds-per-quarter, not BPM.",
+      "detail": null,
+      "design_implication": "startSec is the integral of that map; a duration sentence in a prompt is not a clock.",
+      "citation_id": "SMF 1.1",
+      "authors": "MMA",
+      "year": "1996",
+      "domain": "music-as-seconds-grid"
+    },
+    {
+      "slug": "2-intuitive-analysis-of-song-structure",
+      "name": "Intuitive Analysis of Song Structure",
+      "claim": "pretty_midi exists because MIDI ticks are unusable in Python; notes are pitch + start + end in seconds.",
+      "detail": null,
+      "design_implication": "jam-sessions ScoreNote.startSec is already the lingua franca.",
+      "citation_id": "ISMIR 2014 pretty_midi",
+      "authors": "Raffel & Ellis",
+      "year": "2014",
+      "domain": "music-as-seconds-grid"
+    },
+    {
+      "slug": "4-music21-a-toolkit-for-computer-aided-musicology",
+      "name": "music21: A Toolkit for Computer-Aided Musicology",
+      "claim": "music21 is the Python object graph of a score.",
+      "detail": null,
+      "design_implication": "Python Streams, not SuperCollider or MIDI hex, are what an LLM emits correctly.",
+      "citation_id": "ISMIR 2010",
+      "authors": "Cuthbert & Ariza",
+      "year": "2010",
+      "domain": "music-as-seconds-grid"
+    },
+    {
+      "slug": "5-librosa-audio-and-music-signal-analysis-in-python",
+      "name": "librosa: Audio and Music Signal Analysis in Python",
+      "claim": "librosa analyzes audio; it does not specify a score.",
+      "detail": null,
+      "design_implication": "DSP features recover a performance; they cannot author New Britain.",
+      "citation_id": "SciPy 2015",
+      "authors": "McFee et al.",
+      "year": "2015",
+      "domain": "music-as-seconds-grid"
+    },
+    {
+      "slug": "6-chatmusician",
+      "name": "ChatMusician",
+      "claim": "LLMs emit more valid music as Python/ABC than as MIDI-like tokens; free audio prompts fail the grid.",
+      "detail": null,
+      "design_implication": "Python emits chords/beats/seconds; the model fills timbre.",
+      "citation_id": "arXiv:2402.16153",
+      "authors": "Yuan et al.",
+      "year": "2024",
+      "domain": "music-as-seconds-grid"
+    },
+    {
+      "slug": "7-remi",
+      "name": "REMI",
+      "claim": "Without a beat-bar grid, sequence models drift; singing models consume phoneme × MIDI × duration.",
+      "detail": null,
+      "design_implication": "sing in 35 seconds has nothing to scale.",
+      "citation_id": "arXiv:2002.00212",
+      "authors": "Huang & Yang",
+      "year": "2020",
+      "domain": "music-as-seconds-grid"
+    }
+  ]
+}

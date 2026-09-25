@@ -1,0 +1,1087 @@
+{
+  "bucket": "testing-tooling",
+  "title": "Testing, lints & dev tooling",
+  "tier": "essentials",
+  "count": 10,
+  "recipes": [
+    {
+      "slug": "unit-test-the-cdylib-in-cfg-test-modules-at-the-end-of-each-file-so-the-wasm-bytes-stay-put",
+      "name": "Unit-test the cdylib in #[cfg(test)] modules at the end of each file so the wasm bytes stay put",
+      "what": "cargo test --lib builds a cdylib-only crate's #[cfg(test)] modules into a native libtest binary without any crate-type change; the test code never reaches the wasm, but its position can, because line numbers of shipped code are stored in the binary.",
+      "how": "Write `#[cfg(test)] mod tests { use super::*; #[test] fn ...() {...} }` as the last item of the file, or `#[cfg(test)] mod tests;` backed by its own file; `use super::*` reaches private functions. Attributes: `#[should_panic(expected = \"substring\")]` (the test must return `()`), `#[ignore = \"reason\"]`. Arguments after `--` go to libtest: a positional filter matches any substring of the test path, `--exact` the full path, `--skip F`, `--ignored` / `--include-ignored`, `--list`, `--show-output`, `--test-threads=1`, and `--no-capture` (exposed in 1.88 by rust-lang/rust#139224; `--nocapture` is the deprecated alias and 1.98.1 still accepts it without a warning). Measured on a git-archive copy of solver/ at e5fbcb9, crate-type left at [\"cdylib\"]: five tests appended to lib.rs and rapier_law.rs; `cargo +1.98.1 test --offline --locked --lib` -> `test result: ok. 5 passed; 0 failed` on x86_64-pc-windows-msvc (19.35 s cold). `cargo +1.98.1 build --offline --locked --release --target wasm32-unknown-unknown` then gave SHA-256 c8782b06d03c046ac3b68097bc8e65a55d0fa9e7ae2961d7be038d11d1fdd4e2, byte-identical to the build without tests. Moving the same 23-line module (plus one blank line) to line 2 of rapier_law.rs gave 5be4dd6b54a36f5d...: the 25 differing bytes all sit in the data section and decode as 21 u32 line numbers of rapier_law.rs, each raised by exactly 24 (the other 4 bytes are carries into a second byte). All tests of one binary are threads of one process (alphabetical order when serialised, per the 1.98.1 harness --help): with `--test-threads=1` a test that bumps a static made the next test, which expects a fresh value, fail; each passed alone under `--exact`. cargo-nextest (per its docs; not installed here) runs every test in its own process, which is what running each test alone under `--exact` emulates.",
+      "rust_version": "any; --no-capture 1.88+",
+      "gotchas": "Any edit that changes the line count above a panicking line in solver/src (a test module, a comment) moves the digest; append tests or keep them in their own file. Tests that call step or solver_load share the static mut world with every other test in the binary: parallel threads on static mut are a data race, so serialise and reset, or isolate per process with cargo-nextest. #[should_panic] cannot sit on a Result-returning test, and expected is a substring match. Guides that say --nocapture show the deprecated spelling.",
+      "engine_note": "solver/src/lib.rs (js_min, js_max) and solver/src/rapier_law.rs (canon, canon_quat, mix_f64) have no tests at e5fbcb9. Appended #[cfg(test)] modules built and passed natively with crate-type untouched and left the wasm bytes identical on a Windows copy; the Linux digest in fixtures/solver.sha256 was not rebuilt here.",
+      "checks": [
+        {
+          "label": "libtest harness: plain, should_panic(expected) and ignore(reason) tests; ignored test not run",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "expect": "runs",
+          "stdout_contains": [
+            "test result: ok. 2 passed; 0 failed; 1 ignored",
+            "ignored, needs the full world"
+          ],
+          "exit_code": 0,
+          "source": "fn canon(x: f64) -> f64 {\n    if x == 0.0 { 0.0 } else { x }\n}\n\nfn refuse_nan(x: f64) -> f64 {\n    if x.is_nan() {\n        panic!(\"NaN input refused\");\n    }\n    x\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]\n    fn negative_zero_becomes_positive_zero() {\n        assert_eq!(canon(-0.0).to_bits(), 0.0f64.to_bits());\n    }\n\n    #[test]\n    #[should_panic(expected = \"NaN input\")]\n    fn nan_is_refused() {\n        refuse_nan(f64::NAN);\n    }\n\n    #[test]\n    #[ignore = \"needs the full world\"]\n    fn full_world_replay() {}\n}\n"
+        },
+        {
+          "label": "#[cfg(test)] code never enters the cdylib: its compile_error! does not fire; wasm export returns +0",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "0",
+          "wasm_exports": [
+            "canon_zero"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "canon_zero",
+            "args": []
+          },
+          "source": "fn canon(x: f64) -> f64 {\n    if x == 0.0 { 0.0 } else { x }\n}\n\n#[no_mangle]\npub extern \"C\" fn canon_zero() -> f64 {\n    canon(-0.0)\n}\n\n#[cfg(test)]\nmod tests {\n    compile_error!(\"test code reached the shipped cdylib\");\n}\n"
+        },
+        {
+          "label": "tests in one binary share one copy of a static: the second test sees the first test's write",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "expect": "runs",
+          "stdout_contains": [
+            "state leaked from another test",
+            "test result: FAILED. 1 passed; 1 failed"
+          ],
+          "exit_code": 101,
+          "source": "use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};\nuse std::time::{Duration, Instant};\n\n// One copy per process, like the solver's `static mut` world.\nstatic STEPS: AtomicU32 = AtomicU32::new(0);\nstatic A_DONE: AtomicBool = AtomicBool::new(false);\n\n#[test]\nfn a_steps_the_world() {\n    STEPS.fetch_add(1, Ordering::SeqCst);\n    A_DONE.store(true, Ordering::SeqCst);\n}\n\n#[test]\nfn b_expects_a_fresh_world() {\n    // Wait for test a whether the harness runs the tests in parallel or one by one.\n    let t0 = Instant::now();\n    while !A_DONE.load(Ordering::SeqCst) && t0.elapsed() < Duration::from_secs(5) {\n        std::thread::yield_now();\n    }\n    assert_eq!(STEPS.load(Ordering::SeqCst), 0, \"state leaked from another test\");\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Programming Language, 11.3 Test Organization",
+          "url": "https://doc.rust-lang.org/book/ch11-03-test-organization.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "#[cfg(test)] compiles the tests module only under cargo test, so the tests are not included in the compiled artifact; integration tests can call only the library's public API."
+        },
+        {
+          "title": "The rustc book: Tests",
+          "url": "https://doc.rust-lang.org/rustc/tests/index.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "All tests run in the same process and must be built with the unwind strategy; documents --include-ignored, --ignored, --exact, --skip, --show-output, --list, --test-threads and --no-capture, with --nocapture a deprecated alias; filters match any substring of the test path."
+        },
+        {
+          "title": "The Rust Reference: Testing attributes",
+          "url": "https://doc.rust-lang.org/reference/attributes/testing.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "#[ignore] takes an optional reason string; #[should_panic(expected = \"...\")] passes only if the panic message contains the string, and the test must return ()."
+        },
+        {
+          "title": "The Rust Programming Language, 11.2 Controlling How Tests Are Run",
+          "url": "https://doc.rust-lang.org/book/ch11-02-running-tests.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Tests run in parallel on threads by default, so they must not depend on each other or on shared state; --test-threads=1 serialises them."
+        },
+        {
+          "title": "The Cargo Book: cargo test",
+          "url": "https://doc.rust-lang.org/cargo/commands/cargo-test.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The lib target is built 'to link with binaries, examples, integration tests, and doc tests'; --release tests with the release profile; arguments after -- go to libtest, e.g. cargo test -- --no-capture."
+        },
+        {
+          "title": "rust-lang/rust PR #139224: Expose '--no-capture' in favor of --nocapture",
+          "url": "https://github.com/rust-lang/rust/pull/139224",
+          "year": 2025,
+          "kind": "pr",
+          "identifier": "rust-lang/rust#139224",
+          "claim": "Merged 2025-04-28 with the 1.88.0 milestone: libtest's --nocapture is deprecated in favour of --no-capture and stays available."
+        },
+        {
+          "title": "cargo-nextest: How nextest works",
+          "url": "https://nexte.st/docs/design/how-it-works/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "cargo-nextest executes each individual test in a separate process, in parallel."
+        },
+        {
+          "title": "cargo-nextest: Why process-per-test?",
+          "url": "https://nexte.st/docs/design/why-process-per-test/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "With process-per-test, test authors do not need to coordinate global state usage; the cost is that shared in-memory state must move out of process."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "expect-tests-and-doc-tests-to-need-an-rlib-adding-rlib-to-the-solver-s-crate-type-changed-its-wasm-bytes",
+      "name": "Expect tests/ and doc tests to need an rlib; adding rlib to the solver's crate-type changed its wasm bytes",
+      "what": "A cdylib-only crate gives tests/*.rs and doc tests nothing to link: an integration test fails with E0433, plain cargo test skips the doc tests without a word, and cargo test --doc warns then errors. crate-type = [\"cdylib\", \"rlib\"] fixes both, but on a copy of the solver it changed the release wasm's SHA-256.",
+      "how": "Measured with cargo 1.98.1 on a two-function crate with crate-type = [\"cdylib\"]: tests/api.rs calling the crate -> `error[E0433]: cannot find module or crate `cdy` in this scope` (`use of unresolved module or unlinked crate `cdy``). With no tests/ file, `cargo test` printed only the unittests section (no Doc-tests line, no warning, exit 0) although lib.rs carried a /// example. `cargo test --doc` -> `warning: doc tests are not supported for crate type(s) `cdylib` in package `cdy`` then `error: no library targets found in package `cdy``, exit 101. With crate-type = [\"cdylib\", \"rlib\"] the unittests, tests\\api.rs and Doc-tests sections all ran and passed. Doc tests link only the public API: a /// example calling a private fn failed with `error[E0603]: function `canon` is private`, and the rustdoc book says private items need a unit test. Intra-doc links: write [`mix_f64`] in a doc comment; an unresolved one gives `warning: unresolved link to `canon_quat`` under rustdoc::broken_intra_doc_links (warn by default, cargo doc still exits 0, and cargo doc works on a cdylib-only crate); `RUSTDOCFLAGS=\"-D warnings\" cargo doc` makes it an error (exit 101). Re-pin evidence on a git-archive copy of solver/ at e5fbcb9, `cargo +1.98.1 build --offline --locked --release --target wasm32-unknown-unknown`: [\"cdylib\"] -> c8782b06d03c046ac3b68097bc8e65a55d0fa9e7ae2961d7be038d11d1fdd4e2 (1,526,380 bytes, reproduced on rebuild); [\"cdylib\", \"rlib\"] -> 8191738eccd8cffbfadfef5f56879a4bcc4cd1997f251f7fd3ddb974ccbd54d7 (1,526,408 bytes). The type, function, code (+28 bytes) and name sections differ; Cargo passed -C metadata=648e556cfabde42d versus abbc9578777e9c76, the second in one rustc call with both --crate-type flags. A two-function toy crate kept identical bytes either way (eeef8150...), so measure rather than assume.",
+      "rust_version": "cargo 1.98.1 (measured)",
+      "gotchas": "The 2019 report (rust-lang/cargo#6659, still open) shows E0463 for extern crate; 1.98.1 with 2021-edition paths reports E0433, so search for both. A silently skipped doc test is a harness that cannot fail. Doc tests of private functions cannot compile at all, so for the solver an rlib buys only tests of its extern \"C\" exports. The byte change was measured on Windows builds and its mechanism was not isolated beyond the -C metadata difference. cargo-nextest does not run doc tests; run cargo test --doc as its own step.",
+      "engine_note": "solver/Cargo.toml has crate-type = [\"cdylib\"]: keep it unless a tests/ harness is worth re-pinning fixtures/solver.sha256. The helpers worth testing are private, so unit tests in the same files are the reachable form, and any /// example added to solver/src is never run by cargo test today.",
+      "checks": [],
+      "sources": [
+        {
+          "title": "The Cargo Book: cargo test",
+          "url": "https://doc.rust-lang.org/cargo/commands/cargo-test.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The lib target is built 'to link with binaries, examples, integration tests, and doc tests'; --release tests with the release profile; arguments after -- go to libtest, e.g. cargo test -- --no-capture."
+        },
+        {
+          "title": "The Cargo Book: Cargo Targets",
+          "url": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "crate-type accepts bin, lib, rlib, dylib, cdylib, staticlib and proc-macro for libraries; integration tests use the public API of the package's library."
+        },
+        {
+          "title": "The rustdoc book: Documentation tests",
+          "url": "https://doc.rust-lang.org/rustdoc/write-documentation/documentation-tests.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "rustdoc inserts extern crate <mycrate>; doc tests link against only the public items, and private items need a unit test; from edition 2024 compatible doctests are merged before running."
+        },
+        {
+          "title": "The rustdoc book: Linking to items by name",
+          "url": "https://doc.rust-lang.org/rustdoc/write-documentation/linking-to-items-by-name.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Intra-doc links such as [`Bar`] resolve in the scope of the module where the item is defined and accept paths and disambiguators like fn@ or a trailing !."
+        },
+        {
+          "title": "The rustdoc book: Lints",
+          "url": "https://doc.rust-lang.org/rustdoc/lints.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "rustdoc::broken_intra_doc_links and private_intra_doc_links warn by default; private_doc_tests is allowed by default."
+        },
+        {
+          "title": "The Rust Programming Language, 11.3 Test Organization",
+          "url": "https://doc.rust-lang.org/book/ch11-03-test-organization.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "#[cfg(test)] compiles the tests module only under cargo test, so the tests are not included in the compiled artifact; integration tests can call only the library's public API."
+        },
+        {
+          "title": "cargo-nextest: Running tests",
+          "url": "https://nexte.st/docs/running/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Doctests are not supported because of limitations in stable Rust; run them separately with cargo test --doc."
+        }
+      ],
+      "background_sources": [
+        {
+          "title": "rust-lang/cargo issue #6659: Crate not found in integration tests if crate-type = [\"cdylib\"]",
+          "url": "https://github.com/rust-lang/cargo/issues/6659",
+          "year": 2019,
+          "kind": "issue",
+          "identifier": "rust-lang/cargo#6659",
+          "claim": "Opened 2019-02-13 and still open: integration tests of a cdylib-only crate fail with error[E0463]: can't find crate.",
+          "retrieved": true
+        },
+        {
+          "title": "rust-lang/cargo issue #4717: cargo test does not run doctests for cdylib",
+          "url": "https://github.com/rust-lang/cargo/issues/4717",
+          "year": 2017,
+          "kind": "issue",
+          "identifier": "rust-lang/cargo#4717",
+          "claim": "Opened 2017-11-13, closed: cargo test --doc silently ran no doc tests for a cdylib.",
+          "retrieved": true
+        }
+      ]
+    },
+    {
+      "slug": "run-cargo-test-and-cargo-test-release-the-release-run-wraps-integer-overflow-that-the-debug-run-panics-on",
+      "name": "Run cargo test and cargo test --release: the release run wraps integer overflow that the debug run panics on",
+      "what": "cargo test uses the test profile (inherits dev, overflow checks on); --release is --profile=release, so a crate whose release profile sets overflow-checks = false runs its tests with wrapping arithmetic, the shipped behaviour. panic = \"abort\" is ignored for test builds, and rustc itself refuses --test with -C panic=abort.",
+      "how": "Measured with cargo 1.98.1 on a crate whose [profile.release] copies the solver's (opt-level 3, lto false, codegen-units 1, panic abort, overflow-checks false): `cargo test` -> `Finished `test` profile [unoptimized + debuginfo]`, both #[should_panic] tests pass; `cargo test --release` -> `Finished `release` profile [optimized]`, the test expecting `u32::MAX * 17` to panic fails with `note: test did not panic as expected`, while the explicit-panic test still passes although the profile says panic = \"abort\". rustc 1.98.1 rejects `--test -C panic=abort`: `building tests with panic=abort is not supported without `-Zpanic_abort_tests``. rustc's own default ties overflow checks to debug-assertions, which are on only at opt-level 0, so `-O` alone turns them off (check). Write arithmetic that must not depend on the profile explicitly (`wrapping_mul`, `checked_add`).",
+      "rust_version": "any (measured on 1.98.1)",
+      "gotchas": "A green cargo test does not describe the wasm: the artifact wraps where the debug test panicked. The Cargo book notes that with the abort strategy a test build also forces its dependencies to unwind; abort-mode tests need the unstable panic-abort-tests flag. cargo test --release rebuilds the dependency tree optimised, which is slower.",
+      "engine_note": "solver/Cargo.toml [profile.release] sets overflow-checks = false and panic = \"abort\". Native tests of the solver run with overflow panics under cargo test and with the artifact's wrapping under cargo test --release; mix_u64 in solver/src/rapier_law.rs already uses wrapping_mul / wrapping_add and is profile-independent.",
+      "checks": [
+        {
+          "label": "default rustc --test (opt-level 0): u32 overflow panics, so the should_panic test passes",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "expect": "runs",
+          "stdout_contains": [
+            "test result: ok. 1 passed; 0 failed"
+          ],
+          "exit_code": 0,
+          "source": "const BODY_STRIDE: u32 = 17;\n\nfn slot(i: u32) -> u32 {\n    i * BODY_STRIDE\n}\n\n#[test]\n#[should_panic(expected = \"overflow\")]\nfn slot_overflow_is_caught() {\n    let i = std::hint::black_box(u32::MAX);\n    let _ = slot(i);\n}\n"
+        },
+        {
+          "label": "overflow-checks=off (the solver's release profile): the same test fails, the product wrapped",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=off"
+          ],
+          "expect": "runs",
+          "stdout_contains": [
+            "did not panic as expected",
+            "test result: FAILED"
+          ],
+          "exit_code": 101,
+          "source": "const BODY_STRIDE: u32 = 17;\n\nfn slot(i: u32) -> u32 {\n    i * BODY_STRIDE\n}\n\n#[test]\n#[should_panic(expected = \"overflow\")]\nfn slot_overflow_is_caught() {\n    let i = std::hint::black_box(u32::MAX);\n    let _ = slot(i);\n}\n"
+        },
+        {
+          "label": "-O alone disables overflow checks: debug-assertions default off above opt-level 0",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "rustc_flags": [
+            "-O"
+          ],
+          "expect": "runs",
+          "stdout_contains": [
+            "did not panic as expected"
+          ],
+          "exit_code": 101,
+          "source": "const BODY_STRIDE: u32 = 17;\n\nfn slot(i: u32) -> u32 {\n    i * BODY_STRIDE\n}\n\n#[test]\n#[should_panic(expected = \"overflow\")]\nfn slot_overflow_is_caught() {\n    let i = std::hint::black_box(u32::MAX);\n    let _ = slot(i);\n}\n"
+        },
+        {
+          "label": "rustc refuses a test harness built with -C panic=abort on stable",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "rustc_flags": [
+            "-C",
+            "panic=abort"
+          ],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "building tests with panic=abort is not supported without `-Zpanic_abort_tests`"
+          ],
+          "source": "#[test]\n#[should_panic(expected = \"NaN\")]\nfn nan_is_refused() {\n    panic!(\"NaN input\");\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Cargo Book: Profiles",
+          "url": "https://doc.rust-lang.org/cargo/reference/profiles.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "cargo test defaults to the test profile (inherits dev); --release is equivalent to --profile=release; tests, benchmarks, build scripts and proc macros ignore the panic setting; release defaults to overflow-checks = false."
+        },
+        {
+          "title": "The Cargo Book: cargo test",
+          "url": "https://doc.rust-lang.org/cargo/commands/cargo-test.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The lib target is built 'to link with binaries, examples, integration tests, and doc tests'; --release tests with the release profile; arguments after -- go to libtest, e.g. cargo test -- --no-capture."
+        },
+        {
+          "title": "The rustc book: Codegen options",
+          "url": "https://doc.rust-lang.org/rustc/codegen-options/index.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "If not specified, overflow checks follow debug-assertions, which are enabled only at opt-level 0."
+        },
+        {
+          "title": "The rustc book: Tests",
+          "url": "https://doc.rust-lang.org/rustc/tests/index.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "All tests run in the same process and must be built with the unwind strategy; documents --include-ignored, --ignored, --exact, --skip, --show-output, --list, --test-threads and --no-capture, with --nocapture a deprecated alias; filters match any substring of the test path."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "keep-wasm-evidence-in-the-js-harness-wasm32-unknown-unknown-libtest-prints-nothing-and-skips-should-panic",
+      "name": "Keep wasm evidence in the JS harness: wasm32-unknown-unknown libtest prints nothing and skips should_panic",
+      "what": "Cargo has no runner for wasm32-unknown-unknown: it builds the libtest harness as a .wasm and fails to execute it. Given CARGO_TARGET_<TRIPLE>_RUNNER the harness runs, but println! does nothing, a failure is only an unreachable trap, and libtest marks every #[should_panic] test ignored on non-emscripten wasm.",
+      "how": "Measured (cargo 1.98.1, Windows host): `cargo test --target wasm32-unknown-unknown` -> `could not execute process `...\\cdy2-fb045ff75d8e8ee1.wasm` (never executed)` caused by `%1 is not a valid Win32 application. (os error 193)`. The harness module exports memory, the crate's exports and `main`, and imports nothing. With `CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=\"node run-wasm.js\"` (instantiate with {} and call main(0, 0)): a passing suite -> main returned 0 and no test lines; a failing assert -> `RuntimeError: unreachable`; a #[should_panic] test that never panics -> FAILED on the host but main returned 0 on wasm. libtest at tag 1.98.1 (library/test/src/lib.rs lines 642-651) sets `ignore_because_no_process_support` for should_panic tests when `cfg!(target_family = \"wasm\")` and not emscripten. Real options: wasm-bindgen-test (dev-dependency, #[wasm_bindgen_test], runner = 'wasm-bindgen-test-runner' from a wasm-bindgen-cli of the same version, Node.js by default, tests in the crate root or a pub mod), which presumes wasm-bindgen; or a WASI target run by a runtime through the same runner key (the rustc book recommends testing wasm32-wasip1 for WebAssembly compatibility; wasmtime runs a wasm32-wasip2 hello world directly), where should_panic stays ignored because the rule is target_family = \"wasm\" (`rustc +1.98.1 --print cfg` reports target_family=\"wasm\", target_os=\"wasi\" for wasm32-wasip1 and wasm32-wasip2).",
+      "rust_version": "1.98.1 (libtest rule read at that tag)",
+      "gotchas": "An exit status is all a bare runner gets: no test names, and the first failure traps the whole module. The rustc book: this target is not tested in rust-lang CI, println! does nothing, and it compiles with -Cpanic=abort by default. Neither WASI target is installed on this rig (only wasm32-unknown-unknown and wasm32v1-none), so the WASI route here is from documentation, not measurement.",
+      "engine_note": "The solver has no wasm-bindgen (solver/build.mjs emits raw extern \"C\" exports), so wasm-bindgen-test would add a toolchain the artifact does not use; the wasm binary is already measured by the JS harness under V8, SpiderMonkey and JavaScriptCore against golden hashes. Keep Rust tests native and let the JS harness own the wasm.",
+      "checks": [
+        {
+          "label": "wasm32 libtest harness: a should_panic test that cannot pass is skipped, main returns 0",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "test",
+          "expect": "runs",
+          "stdout": "0",
+          "wasm_exports": [
+            "main"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "main",
+            "args": [
+              0,
+              0
+            ]
+          },
+          "source": "#[test]\n#[should_panic(expected = \"NaN\")]\nfn claims_to_panic_but_never_does() {}\n"
+        },
+        {
+          "label": "same test on the host harness: it runs and fails",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "expect": "runs",
+          "stdout_contains": [
+            "did not panic as expected",
+            "test result: FAILED. 0 passed; 1 failed"
+          ],
+          "exit_code": 101,
+          "source": "#[test]\n#[should_panic(expected = \"NaN\")]\nfn claims_to_panic_but_never_does() {}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Cargo Book: Configuration (target.<triple>.runner)",
+          "url": "https://doc.rust-lang.org/cargo/reference/config.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "target.<triple>.runner / CARGO_TARGET_<triple>_RUNNER runs the target's executables through the given program with the executable as an argument, for cargo run, cargo test and cargo bench; by default executables are run directly."
+        },
+        {
+          "title": "The rustc book: wasm32-unknown-unknown",
+          "url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The target is not tested in rust-lang CI; println! does nothing, so failures are non-obvious; testing wasm32-wasip1 is recommended instead; the target compiles with -Cpanic=abort by default."
+        },
+        {
+          "title": "rust-lang/rust at tag 1.98.1: library/test/src/lib.rs",
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/library/test/src/lib.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Lines 642-651: a test with should_panic is reported ignored when target_family = \"wasm\" (or zkvm) and the target OS is not emscripten ('Emscripten can catch panics but other wasm targets cannot')."
+        },
+        {
+          "title": "The wasm-bindgen Guide: wasm-bindgen-test usage",
+          "url": "https://wasm-bindgen.github.io/wasm-bindgen/wasm-bindgen-test/usage.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Add wasm-bindgen-test as a dev-dependency, mark tests #[wasm_bindgen_test], set runner = 'wasm-bindgen-test-runner' for wasm32-unknown-unknown (from wasm-bindgen-cli of the same version); tests target Node.js by default and must be in the crate root or a pub mod."
+        },
+        {
+          "title": "The rustc book: wasm32-wasip1",
+          "url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-wasip1.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "wasm32-wasip1 is tested in rust-lang CI; it was named wasm32-wasi before March 2024."
+        },
+        {
+          "title": "bytecodealliance/wasmtime README",
+          "url": "https://github.com/bytecodealliance/wasmtime",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Quick start: rustc hello.rs --target wasm32-wasip2, then wasmtime hello.wasm prints Hello, world!."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "rely-on-rustc-for-constant-overflow-and-nan-and-on-clippy-s-pedantic-float-cmp-and-cast-lints-for-the-rest",
+      "name": "Rely on rustc for constant overflow and NaN ==, and on Clippy's pedantic float_cmp and cast lints for the rest",
+      "what": "rustc denies overflow it can evaluate at compile time (arithmetic_overflow, overflowing_literals, unconditional_panic) and warns on == f64::NAN; it accepts `1088 as u8` and `0.1 + 0.2 == 0.3` without a word, even under #![deny(clippy::...)]. Clippy's float_cmp and cast_possible_truncation are the lints written for those, and they run only under cargo clippy.",
+      "how": "Measured on 1.98.1: `let bytes: u8 = 255 + 1;` -> `error: this arithmetic operation will overflow`; `let lit: u8 = 1088;` -> `error: literal out of range for `u8``; indexing a [f64; 1088] at 1088 -> `error: this operation will panic at runtime`; `y == f64::NAN` -> `warning: incorrect NaN comparison`; `(MAX_BODIES * BODY_STRIDE) as u8` prints 64 and `0.1 + 0.2 == 0.3` prints false with no diagnostic. The Reference: tool lints are only checked when the tool is active. Clippy as shipped at tag 1.98.1 (src/tools/clippy/clippy_lints): float_cmp is pedantic and exempts comparisons with zero and functions named *eq*; float_cmp_const is restriction; cast_possible_truncation, cast_sign_loss and cast_precision_loss are pedantic; undocumented_unsafe_blocks is restriction (since 1.58.0) and wants a `// SAFETY:` comment on the line(s) directly above the block. Groups: correctness deny; suspicious, style, complexity, perf warn; pedantic, restriction, nursery, cargo allow, so these lints stay off until named. Enable them one by one (`[lints.clippy] float_cmp = \"warn\"`) rather than the restriction group, which Clippy's README says should not be enabled as a whole. Install with `rustup component add clippy`; fail on warnings with `cargo clippy -- -D warnings`, or with `CARGO_BUILD_WARNINGS=deny cargo clippy`, which Clippy's README prefers because it does not invalidate build caches.",
+      "rust_version": "1.98.1 (lint groups read at that tag)",
+      "gotchas": "The compile-time lints see only values the compiler can evaluate: the same overflow behind std::hint::black_box compiles and then panics or wraps by profile. float_cmp exempts comparisons with zero, so the solver's `x == 0.0` signed-zero test is never flagged; a bit-level (to_bits) test has to guard it. Read a lint's group from its declaration at the pinned tag; the JS-rendered lint list is easy to misread.",
+      "engine_note": "solver/src/lib.rs sizes its buffers from MAX_BODIES = 64 and BODY_STRIDE = 17 (1088 slots): rustc stops a literal or constant expression that overflows, but not an `as` cast that truncates. canon's `if x == 0.0` sits inside float_cmp's zero exemption, so float_cmp says nothing about the rule that makes -0.0 hash like 0.0.",
+      "checks": [
+        {
+          "label": "deny-by-default: constant overflow, out-of-bounds constant index, out-of-range literal all fail",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "lints": [
+            "arithmetic_overflow",
+            "unconditional_panic",
+            "overflowing_literals"
+          ],
+          "source": "const MAX_BODIES: usize = 64;\nconst BODY_STRIDE: usize = 17;\n\nfn main() {\n    let bytes: u8 = 255 + 1;\n    let slot = [0.0f64; MAX_BODIES * BODY_STRIDE][MAX_BODIES * BODY_STRIDE];\n    let lit: u8 = 1088;\n    println!(\"{bytes} {slot} {lit}\");\n}\n"
+        },
+        {
+          "label": "rustc accepts deny(clippy::...) yet enforces nothing: 1088 as u8 and 0.1 + 0.2 == 0.3 run silently",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "64 false",
+          "source": "#![deny(clippy::float_cmp, clippy::cast_possible_truncation)]\n\nconst MAX_BODIES: usize = 64;\nconst BODY_STRIDE: usize = 17;\n\nfn main() {\n    let slots = (MAX_BODIES * BODY_STRIDE) as u8;\n    let x = 0.1f64 + 0.2;\n    println!(\"{} {}\", slots, x == 0.3);\n}\n"
+        },
+        {
+          "label": "comparing with f64::NAN is a warn-by-default rustc lint and is always false",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "lints": [
+            "invalid_nan_comparisons"
+          ],
+          "stdout": "false",
+          "source": "fn main() {\n    let y = std::hint::black_box(f64::NAN);\n    println!(\"{}\", y == f64::NAN);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The rustc book: Deny-by-default lints",
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "arithmetic_overflow, overflowing_literals and unconditional_panic are deny-by-default and fire when the compiler can detect the overflow, out-of-range literal or unconditional panic at compile time."
+        },
+        {
+          "title": "The rustc book: Warn-by-default lints",
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "invalid_nan_comparisons warns on == or != against f64::NAN, which is always false."
+        },
+        {
+          "title": "The Rust Reference: Diagnostic attributes",
+          "url": "https://doc.rust-lang.org/reference/attributes/diagnostics.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Tool lints are only checked when the associated tool is active; #[expect(C)] emits unfulfilled_lint_expectations when C is not emitted, is fulfilled only by emissions it suppresses itself, and for a group one member lint suffices; every lint attribute accepts reason."
+        },
+        {
+          "title": "rust-lang/rust at tag 1.98.1: src/tools/clippy/clippy_lints/src/operators/mod.rs",
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/src/tools/clippy/clippy_lints/src/operators/mod.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "FLOAT_CMP is declared pedantic and checks float (in-)equality 'apart from zero', except in functions named *eq*; FLOAT_CMP_CONST is restriction."
+        },
+        {
+          "title": "rust-lang/rust at tag 1.98.1: src/tools/clippy/clippy_lints/src/casts/mod.rs",
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/src/tools/clippy/clippy_lints/src/casts/mod.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "CAST_POSSIBLE_TRUNCATION, CAST_SIGN_LOSS and CAST_PRECISION_LOSS are declared pedantic."
+        },
+        {
+          "title": "rust-lang/rust at tag 1.98.1: src/tools/clippy/clippy_lints/src/undocumented_unsafe_blocks.rs",
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/src/tools/clippy/clippy_lints/src/undocumented_unsafe_blocks.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "UNDOCUMENTED_UNSAFE_BLOCKS is restriction, added in 1.58.0, and wants a SAFETY comment on the line(s) directly preceding the unsafe block."
+        },
+        {
+          "title": "rust-lang/rust-clippy README",
+          "url": "https://github.com/rust-lang/rust-clippy",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Groups: correctness deny; suspicious, style, complexity, perf warn; pedantic, restriction, nursery, cargo allow; install with rustup component add clippy; fail on warnings with cargo clippy -- -D warnings, though CARGO_BUILD_WARNINGS=deny is preferred because it does not invalidate build caches; the restriction group should not be enabled as a whole."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "give-lint-groups-priority-1-in-cargo-s-lints-table-add-clippy-and-rustfmt-to-the-pinned-toolchain-file",
+      "name": "Give lint groups priority = -1 in Cargo's [lints] table; add clippy and rustfmt to the pinned toolchain file",
+      "what": "Cargo turns [lints] into --allow/--warn/--deny flags ordered by priority, not by position in the file; at equal priority a group can come last and override a member lint (measured), which clippy::lint_groups_priority flags. The pinned 1.98.1 minimal toolchain has neither cargo clippy nor cargo fmt.",
+      "how": "[lints] is respected from Cargo 1.74 (announced 2023-11-16): `[lints.clippy] pedantic = { level = \"warn\", priority = -1 }`, then single-lint overrides at the default priority 0. Measured with `cargo +1.98.1 build -v`: `unused = \"deny\"` and `unused_variables = \"allow\"` at equal priority passed `--allow=unused_variables --deny=unused` in either file order and failed with `error: unused variable: `scratch`` and `-D unused-variables implied by -D unused`; with `unused = { level = \"deny\", priority = -1 }` Cargo passed `--deny=unused --allow=unused_variables` and the build succeeded. On rustc's command line the later flag wins (checks). Clippy's lint_groups_priority (correctness, since 1.78.0): the file order is ignored and without priority the sort order is undefined. Toolchain: add `components = [\"clippy\", \"rustfmt\"]` to rust-toolchain.toml (rustup installs listed components on top of the profile; minimal is rustc, rust-std, cargo). Measured: `cargo +1.98.1 fmt --check` -> `error: 'cargo-fmt.exe' is not installed for the toolchain '1.98.1-x86_64-pc-windows-msvc'` (exit 1), `cargo +1.98.1 clippy` -> the same for cargo-clippy.exe; rustup 1.29.1 lists clippy, rustfmt, rust-analyzer and llvm-tools as available for 1.98.1. `cargo fmt --check` exits 0 when rustfmt would change nothing and 1 when it would; config lives in rustfmt.toml or .rustfmt.toml. Warnings gate: build.warnings / CARGO_BUILD_WARNINGS (respected as of Cargo 1.97; warn, allow, deny; local packages only). Measured: `CARGO_BUILD_WARNINGS=deny cargo +1.98.1 build` on a crate with one unused variable -> `error: warnings are denied by `build.warnings` configuration`, exit 101, and the next plain build finished without recompiling. rust-analyzer: `rust-analyzer.check.command` defaults to \"check\" (set \"clippy\"); `rust-analyzer.cargo.target` defaults to null, no override (set \"wasm32-unknown-unknown\" to analyse the artifact's cfgs); `rust-analyzer.cargo.cfgs` defaults to [\"debug_assertions\", \"miri\"].",
+      "rust_version": "1.74+ for [lints]; clippy lint_groups_priority 1.78+",
+      "gotchas": "[lints] applies to the current package only, never to dependencies. A -D warnings gate on the solver fails on day one: a copy at e5fbcb9 emits 7 static_mut_refs warnings under 1.98.1 (edition 2021, where the lint is warn-by-default as part of rust_2024_compatibility). Because rust-analyzer turns cfg(miri) on by default, code under cfg(not(miri)) shows as inactive in the editor.",
+      "engine_note": "solver/rust-toolchain.toml pins channel 1.98.1, profile minimal and target wasm32-unknown-unknown with no components, and solver/Cargo.toml has no [lints] table; a lint gate needs both. The 7 static_mut_refs sites (lib.rs lines 28, 33, 183, 184; rapier_law.rs lines 78, 738, 743) belong to the unsafe-ffi rewrite.",
+      "checks": [
+        {
+          "label": "group flag last wins: -A unused_variables then -D unused denies the unused variable",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "rustc_flags": [
+            "-Aunused_variables",
+            "-Dunused"
+          ],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "unused variable: `scratch`",
+            "implied by `-D unused`"
+          ],
+          "source": "pub fn step(dt: f64) -> f64 {\n    let scratch = dt * 2.0;\n    dt\n}\n"
+        },
+        {
+          "label": "member flag last wins: -D unused then -A unused_variables compiles with no warning",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "rustc_flags": [
+            "-Dunused",
+            "-Aunused_variables"
+          ],
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "pub fn step(dt: f64) -> f64 {\n    let scratch = dt * 2.0;\n    dt\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Cargo Book: The Manifest Format, the [lints] section",
+          "url": "https://doc.rust-lang.org/cargo/reference/manifest.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "priority is a signed integer; lower numbers are overridden by higher ones and show up first on the command line; Cargo applies [lints] only to the current package; respected as of 1.74."
+        },
+        {
+          "title": "Announcing Rust 1.74.0",
+          "url": "https://blog.rust-lang.org/2023/11/16/Rust-1.74.0/",
+          "year": 2023,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Cargo.toml supports a [lints] table to set forbid/deny/warn/allow for compiler and tool lints, also inheritable from [workspace.lints]."
+        },
+        {
+          "title": "rust-lang/rust at tag 1.98.1: src/tools/clippy/clippy_lints/src/cargo/mod.rs",
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/src/tools/clippy/clippy_lints/src/cargo/mod.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "LINT_GROUPS_PRIORITY (correctness, 1.78.0) flags a lint group at the same priority as a lint in [lints]: the file order is ignored and without priority the sort order is undefined; its example uses pedantic = { level = \"warn\", priority = -1 }."
+        },
+        {
+          "title": "The rustup book: Overrides, the toolchain file",
+          "url": "https://rust-lang.github.io/rustup/overrides.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "rust-toolchain.toml takes channel, components, targets and profile; components lists additional components to install."
+        },
+        {
+          "title": "The rustup book: Profiles",
+          "url": "https://rust-lang.github.io/rustup/concepts/profiles.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The minimal profile is rustc, rust-std and cargo; default adds rust-docs, rustfmt and clippy."
+        },
+        {
+          "title": "rust-lang/rustfmt README",
+          "url": "https://github.com/rust-lang/rustfmt",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Install with rustup component add rustfmt; with --check rustfmt exits 0 if it would make no changes and 1 if it would; configuration lives in rustfmt.toml or .rustfmt.toml."
+        },
+        {
+          "title": "The Cargo Book: Configuration (build.warnings)",
+          "url": "https://doc.rust-lang.org/cargo/reference/config.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "build.warnings / CARGO_BUILD_WARNINGS (warn by default; allow; deny = an error for a crate that has lint warnings) adjusts lint warnings of local packages only; respected as of 1.97."
+        },
+        {
+          "title": "rust-analyzer manual: Configuration",
+          "url": "https://rust-analyzer.github.io/book/configuration.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "rust-analyzer.cargo.target (default null) overrides the compilation target; rust-analyzer.check.command defaults to \"check\"; rust-analyzer.cargo.cfgs defaults to [\"debug_assertions\", \"miri\"]."
+        },
+        {
+          "title": "rust-lang/rust-analyzer: crates/rust-analyzer/src/config.rs",
+          "url": "https://github.com/rust-lang/rust-analyzer/blob/master/crates/rust-analyzer/src/config.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "cargo_cfgs defaults to vec![\"debug_assertions\", \"miri\"]; cargo_target defaults to None; check_command defaults to \"check\"."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "suppress-lints-with-expect-lint-reason-1-81-instead-of-allow-so-a-stale-suppression-warns",
+      "name": "Suppress lints with #[expect(lint, reason = \"...\")] (1.81+) instead of #[allow], so a stale suppression warns",
+      "what": "#[expect] silences a lint and emits unfulfilled_lint_expectations once the lint stops firing, while #[allow] goes stale silently. rustc never checks an #[expect(clippy::...)] (only a Clippy run does), and an expectation that holds on the host can be unfulfilled on wasm32.",
+      "how": "Stable since 1.81 (announced 2024-09-05). Measured on 1.98.1: `#[expect(unused_variables, reason = \"...\")]` over an unused binding compiles silently; once the binding is used, rustc prints `warning: this lint expectation is unfulfilled`, the reason as a note, and `#[warn(unfulfilled_lint_expectations)]` on by default; under -D warnings that is an error. `#[expect(clippy::float_cmp)]` on code without a float == stays silent under rustc. The Reference: an expectation is fulfilled only by emissions it suppressed itself, an inner allow or warn leaves it unfulfilled, and for a lint group one emitted member suffices. Scope target-dependent expectations with cfg_attr: `#[cfg_attr(not(target_arch = \"wasm32\"), expect(unused_variables, reason = \"...\"))]`.",
+      "rust_version": "1.81+",
+      "gotchas": "The reason text is printed in the diagnostic, so write it for the reader. The 1.81 announcement's own example, #[expect(clippy::undocumented_unsafe_blocks)] during a migration, is only ever checked by cargo clippy. A plain #[allow] never reports that it has become unnecessary.",
+      "engine_note": "Once native tests exist, solver/src compiles for two targets (the host for cargo test, wasm32-unknown-unknown for the artifact); an #[expect] tied to cfg(target_arch) code holds on one and warns on the other (checks), so scope it with cfg_attr.",
+      "checks": [
+        {
+          "label": "fulfilled #[expect] suppresses the lint and prints nothing",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "#[expect(unused_variables, reason = \"kept until the restore path reads it\")]\npub fn step(dt: f64) -> f64 {\n    let scratch = dt * 2.0;\n    dt\n}\n"
+        },
+        {
+          "label": "unfulfilled #[expect] warns unfulfilled_lint_expectations and shows the reason",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "lints": [
+            "unfulfilled_lint_expectations"
+          ],
+          "stderr_contains": [
+            "this lint expectation is unfulfilled",
+            "kept until the restore path reads it"
+          ],
+          "source": "#[expect(unused_variables, reason = \"kept until the restore path reads it\")]\npub fn step(dt: f64) -> f64 {\n    let scratch = dt * 2.0;\n    scratch\n}\n"
+        },
+        {
+          "label": "under -D warnings an unfulfilled expectation fails the build",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "rustc_flags": [
+            "-Dwarnings"
+          ],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "this lint expectation is unfulfilled"
+          ],
+          "source": "#[expect(unused_variables, reason = \"kept until the restore path reads it\")]\npub fn step(dt: f64) -> f64 {\n    let scratch = dt * 2.0;\n    scratch\n}\n"
+        },
+        {
+          "label": "rustc does not check #[expect(clippy::float_cmp)]: no float == and still no warning",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "#[expect(clippy::float_cmp, reason = \"exact compare is the point\")]\npub fn is_tiny(x: f64) -> bool {\n    x.abs() < 1e-12\n}\n"
+        },
+        {
+          "label": "host build: scratch is unused, so the expectation is fulfilled",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "#[expect(unused_variables, reason = \"only the wasm32 build reads it\")]\npub fn step(dt: f64) -> f64 {\n    let scratch = dt * 2.0;\n    #[cfg(target_arch = \"wasm32\")]\n    let dt = scratch;\n    dt\n}\n"
+        },
+        {
+          "label": "wasm32 build of the same source: scratch is used, so the expectation is unfulfilled",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "compiles",
+          "lints": [
+            "unfulfilled_lint_expectations"
+          ],
+          "source": "#[expect(unused_variables, reason = \"only the wasm32 build reads it\")]\npub fn step(dt: f64) -> f64 {\n    let scratch = dt * 2.0;\n    #[cfg(target_arch = \"wasm32\")]\n    let dt = scratch;\n    dt\n}\n"
+        },
+        {
+          "label": "cfg_attr scopes the expectation to non-wasm targets: the wasm32 build is clean",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "#[cfg_attr(not(target_arch = \"wasm32\"), expect(unused_variables, reason = \"only the wasm32 build reads it\"))]\npub fn step(dt: f64) -> f64 {\n    let scratch = dt * 2.0;\n    #[cfg(target_arch = \"wasm32\")]\n    let dt = scratch;\n    dt\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Announcing Rust 1.81.0",
+          "url": "https://blog.rust-lang.org/2024/09/05/Rust-1.81.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "1.81 stabilizes the expect lint level, which warns if the expected lint does not occur, and the reason field on lint attributes; its example is #[expect(clippy::undocumented_unsafe_blocks)] during a migration."
+        },
+        {
+          "title": "The Rust Reference: Diagnostic attributes",
+          "url": "https://doc.rust-lang.org/reference/attributes/diagnostics.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Tool lints are only checked when the associated tool is active; #[expect(C)] emits unfulfilled_lint_expectations when C is not emitted, is fulfilled only by emissions it suppresses itself, and for a group one member lint suffices; every lint attribute accepts reason."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "property-test-the-solver-s-float-helpers-with-proptest-over-prop-num-f64-any-not-only-hand-picked-values",
+      "name": "Property-test the solver's float helpers with proptest over prop::num::f64::ANY, not only hand-picked values",
+      "what": "A proptest over f64::ANY on a verbatim copy of canon_quat failed in 6 of 6 runs: an infinite component returns Some((NaN, 0.0, 0.0, 0.0)), and a finite one whose square overflows (sqrt(f64::MAX) = 1.3407807929942596e154; measured at 1.4e154 and 1e200) returns Some((0.0, 0.0, 0.0, 0.0)), though its doc comment says unit quaternion. proptest shrinks each failure and replays saved seeds.",
+      "how": "`proptest! { #[test] fn name(x in prop::num::f64::ANY, ...) { prop_assert!(...) } }` with proptest 1.11.0. f64::ANY includes infinities and quiet NaNs, not signalling NaNs; ranges such as `0u32..1000` shrink toward their start and never leave the range. Measured: `n in 0u32..1000` against `n <= 64` -> `minimal failing input: n = 65` on three runs; in a crate layout the failure was saved to proptest-regressions/lib.txt as `cc <64 hex digits> # shrinks to n = 65` under a header recommending source control. Commit that directory: saved cases replay before novel ones. Config: cases 256 (PROPTEST_CASES); failure_persistence FileFailurePersistence::SourceParallel(\"proptest-regressions\"); rng_seed random unless RngSeed::Fixed(u64) or PROPTEST_RNG_SEED. The six canon_quat runs shrank to x = -1.1869936194728579e203; x = -inf; z = inf; z = -inf; y = -2.309088135335261e260; z = -inf: the seed differs per run, the defect does not. With `rng_seed: RngSeed::Fixed(20260925)` the shrink landed on `x = 0.0, y = 0.0, z = -inf, w = 0.0` (n2 = NaN) in all three oracle runs. A wasm32-unknown-unknown build of the same code returns the same edge values (checks).",
+      "rust_version": "proptest 1.11.0 (oracle-pinned)",
+      "gotchas": "With a random seed a rare failure can pass locally and fail in CI; commit proptest-regressions/ or fix the seed. A test file compiled outside a crate layout prints `FileFailurePersistence::SourceParallel set, but failed to find lib.rs or main.rs` and saves nothing. A property must state the contract: js_min(1.0, NaN) returns 1 while node 22's Math.min(1, NaN) returns NaN, so a property against Math.min either excludes NaN or reports that asymmetry.",
+      "engine_note": "solver/src/rapier_law.rs canon_quat (used by quat_from_body): once the sum of squares overflows (a single component beyond about 1.34e154, less when several are large) it returns Some((0.0, 0.0, 0.0, 0.0)), which quat_from_body hands to Rotation::from_xyzw, and plus or minus infinity yields a NaN component instead of None. T3's planned refusal of non-finite literals would stop infinity but not 1e200; refusing out-of-range values at load or rescaling before squaring is an engine decision.",
+      "checks": [
+        {
+          "label": "canon_quat property holds on bounded inputs incl. +-0: None iff all zero, else unit, w >= +0, no -0",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "deps": [
+            "proptest"
+          ],
+          "expect": "runs",
+          "stdout_contains": [
+            "test result: ok. 1 passed; 0 failed"
+          ],
+          "exit_code": 0,
+          "source": "use proptest::prelude::*;\n\nfn canon(x: f64) -> f64 {\n    if x == 0.0 { 0.0 } else { x }\n}\n\n/// Verbatim copy of si-rpg-engine solver/src/rapier_law.rs canon_quat (e5fbcb9).\nfn canon_quat(x: f64, y: f64, z: f64, w: f64) -> Option<(f64, f64, f64, f64)> {\n    if x.is_nan() || y.is_nan() || z.is_nan() || w.is_nan() {\n        return None;\n    }\n    let n = (x * x + y * y + z * z + w * w).sqrt();\n    if !(n > 0.0) {\n        return None;\n    }\n    let mut x = canon(x / n);\n    let mut y = canon(y / n);\n    let mut z = canon(z / n);\n    let mut w = canon(w / n);\n    if w.is_sign_negative() {\n        x = canon(-x);\n        y = canon(-y);\n        z = canon(-z);\n        w = canon(-w);\n    }\n    Some((x, y, z, w))\n}\n\nfn component() -> impl Strategy<Value = f64> {\n    prop_oneof![Just(0.0), Just(-0.0), -1.0e6..1.0e6f64]\n}\n\nproptest! {\n    #![proptest_config(ProptestConfig { failure_persistence: None, ..ProptestConfig::default() })]\n\n    #[test]\n    fn unit_non_negative_w_no_negative_zero(x in component(), y in component(),\n                                            z in component(), w in component()) {\n        match canon_quat(x, y, z, w) {\n            None => prop_assert!(x == 0.0 && y == 0.0 && z == 0.0 && w == 0.0),\n            Some((a, b, c, d)) => {\n                let n2 = a * a + b * b + c * c + d * d;\n                prop_assert!((n2 - 1.0).abs() <= 1e-12, \"n2 = {}\", n2);\n                prop_assert!(!d.is_sign_negative());\n                for v in [a, b, c, d] {\n                    prop_assert_ne!(v.to_bits(), (-0.0f64).to_bits());\n                }\n            }\n        }\n    }\n}\n"
+        },
+        {
+          "label": "proptest shrinks a failing u32 from 0..1000 to the boundary: minimal failing input n = 65",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "deps": [
+            "proptest"
+          ],
+          "expect": "runs",
+          "stdout_contains": [
+            "minimal failing input: n = 65"
+          ],
+          "exit_code": 101,
+          "source": "use proptest::prelude::*;\n\nconst MAX_BODIES: u32 = 64;\n\nfn admit(n_bodies: u32) -> bool {\n    n_bodies <= MAX_BODIES\n}\n\nproptest! {\n    // Persistence off: inside the oracle's temp dir there is no crate layout to write beside.\n    #![proptest_config(ProptestConfig { failure_persistence: None, ..ProptestConfig::default() })]\n\n    #[test]\n    fn every_count_is_admitted(n in 0u32..1000) {\n        prop_assert!(admit(n), \"refused n = {}\", n);\n    }\n}\n"
+        },
+        {
+          "label": "over f64::ANY (fixed seed) the 'Some means unit' property fails for canon_quat and is shrunk",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "deps": [
+            "proptest"
+          ],
+          "expect": "runs",
+          "stdout_contains": [
+            "not unit: n2 = NaN",
+            "minimal failing input: x = 0.0, y = 0.0, z = -inf, w = 0.0"
+          ],
+          "exit_code": 101,
+          "source": "use proptest::prelude::*;\nuse proptest::test_runner::RngSeed;\n\nfn canon(x: f64) -> f64 {\n    if x == 0.0 { 0.0 } else { x }\n}\n\n/// Verbatim copy of si-rpg-engine solver/src/rapier_law.rs canon_quat (e5fbcb9).\nfn canon_quat(x: f64, y: f64, z: f64, w: f64) -> Option<(f64, f64, f64, f64)> {\n    if x.is_nan() || y.is_nan() || z.is_nan() || w.is_nan() {\n        return None;\n    }\n    let n = (x * x + y * y + z * z + w * w).sqrt();\n    if !(n > 0.0) {\n        return None;\n    }\n    let mut x = canon(x / n);\n    let mut y = canon(y / n);\n    let mut z = canon(z / n);\n    let mut w = canon(w / n);\n    if w.is_sign_negative() {\n        x = canon(-x);\n        y = canon(-y);\n        z = canon(-z);\n        w = canon(-w);\n    }\n    Some((x, y, z, w))\n}\n\nproptest! {\n    #![proptest_config(ProptestConfig {\n        failure_persistence: None,\n        rng_seed: RngSeed::Fixed(20260925),\n        ..ProptestConfig::default()\n    })]\n\n    #[test]\n    fn some_means_unit(x in prop::num::f64::ANY, y in prop::num::f64::ANY,\n                       z in prop::num::f64::ANY, w in prop::num::f64::ANY) {\n        if let Some((a, b, c, d)) = canon_quat(x, y, z, w) {\n            let n2 = a * a + b * b + c * c + d * d;\n            prop_assert!((n2 - 1.0).abs() <= 1e-12, \"not unit: n2 = {}\", n2);\n        }\n    }\n}\n"
+        },
+        {
+          "label": "canon_quat edges: +inf gives a NaN component; 1e200 and 1.4e154 give a zero quaternion",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "Some((NaN, 0.0, 0.0, 0.0))\nSome((0.0, 0.0, 0.0, 0.0))\nSome((0.0, 0.0, 0.0, 0.0))\n1.3407807929942596e154",
+          "source": "fn canon(x: f64) -> f64 {\n    if x == 0.0 { 0.0 } else { x }\n}\n\n/// Verbatim copy of si-rpg-engine solver/src/rapier_law.rs canon_quat (e5fbcb9).\nfn canon_quat(x: f64, y: f64, z: f64, w: f64) -> Option<(f64, f64, f64, f64)> {\n    if x.is_nan() || y.is_nan() || z.is_nan() || w.is_nan() {\n        return None;\n    }\n    let n = (x * x + y * y + z * z + w * w).sqrt();\n    if !(n > 0.0) {\n        return None;\n    }\n    let mut x = canon(x / n);\n    let mut y = canon(y / n);\n    let mut z = canon(z / n);\n    let mut w = canon(w / n);\n    if w.is_sign_negative() {\n        x = canon(-x);\n        y = canon(-y);\n        z = canon(-z);\n        w = canon(-w);\n    }\n    Some((x, y, z, w))\n}\n\nfn main() {\n    println!(\"{:?}\", canon_quat(f64::INFINITY, 0.0, 0.0, 1.0));\n    println!(\"{:?}\", canon_quat(1e200, 0.0, 0.0, 1.0));\n    println!(\"{:?}\", canon_quat(1.4e154, 0.0, 0.0, 1.0));\n    println!(\"{:e}\", f64::MAX.sqrt());\n}\n"
+        },
+        {
+          "label": "wasm32 build: canon_quat(1e200, 0, 0, 1) has squared norm 0, not 1",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "0",
+          "wasm_call": {
+            "export": "norm2_after_huge",
+            "args": []
+          },
+          "source": "fn canon(x: f64) -> f64 {\n    if x == 0.0 { 0.0 } else { x }\n}\n\n/// Verbatim copy of si-rpg-engine solver/src/rapier_law.rs canon_quat (e5fbcb9).\nfn canon_quat(x: f64, y: f64, z: f64, w: f64) -> Option<(f64, f64, f64, f64)> {\n    if x.is_nan() || y.is_nan() || z.is_nan() || w.is_nan() {\n        return None;\n    }\n    let n = (x * x + y * y + z * z + w * w).sqrt();\n    if !(n > 0.0) {\n        return None;\n    }\n    let mut x = canon(x / n);\n    let mut y = canon(y / n);\n    let mut z = canon(z / n);\n    let mut w = canon(w / n);\n    if w.is_sign_negative() {\n        x = canon(-x);\n        y = canon(-y);\n        z = canon(-z);\n        w = canon(-w);\n    }\n    Some((x, y, z, w))\n}\n\n/// Squared norm of canon_quat(1e200, 0, 0, 1) in the wasm build: 1.0 if unit.\n#[no_mangle]\npub extern \"C\" fn norm2_after_huge() -> f64 {\n    match canon_quat(1e200, 0.0, 0.0, 1.0) {\n        Some((a, b, c, d)) => a * a + b * b + c * c + d * d,\n        None => -1.0,\n    }\n}\n"
+        },
+        {
+          "label": "wasm32 build: canon_quat(+inf, 0, 0, 1) returns Some with a NaN x component",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "NaN",
+          "wasm_call": {
+            "export": "x_after_inf",
+            "args": []
+          },
+          "source": "fn canon(x: f64) -> f64 {\n    if x == 0.0 { 0.0 } else { x }\n}\n\n/// Verbatim copy of si-rpg-engine solver/src/rapier_law.rs canon_quat (e5fbcb9).\nfn canon_quat(x: f64, y: f64, z: f64, w: f64) -> Option<(f64, f64, f64, f64)> {\n    if x.is_nan() || y.is_nan() || z.is_nan() || w.is_nan() {\n        return None;\n    }\n    let n = (x * x + y * y + z * z + w * w).sqrt();\n    if !(n > 0.0) {\n        return None;\n    }\n    let mut x = canon(x / n);\n    let mut y = canon(y / n);\n    let mut z = canon(z / n);\n    let mut w = canon(w / n);\n    if w.is_sign_negative() {\n        x = canon(-x);\n        y = canon(-y);\n        z = canon(-z);\n        w = canon(-w);\n    }\n    Some((x, y, z, w))\n}\n\n/// x component of canon_quat(+inf, 0, 0, 1) in the wasm build; -1.0 means None.\n#[no_mangle]\npub extern \"C\" fn x_after_inf() -> f64 {\n    match canon_quat(f64::INFINITY, 0.0, 0.0, 1.0) {\n        Some((x, _, _, _)) => x,\n        None => -1.0,\n    }\n}\n"
+        },
+        {
+          "label": "js_min is not NaN-symmetric: js_min(1, NaN) = 1, js_min(NaN, 1) = NaN",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "1 NaN",
+          "source": "/// Verbatim copy of si-rpg-engine solver/src/lib.rs js_min (e5fbcb9).\nfn js_min(a: f64, b: f64) -> f64 {\n    if b < a || (a == 0.0 && b == 0.0 && b.is_sign_negative() && !a.is_sign_negative()) {\n        b\n    } else {\n        a\n    }\n}\n\nfn main() {\n    println!(\"{} {}\", js_min(1.0, f64::NAN), js_min(f64::NAN, 1.0));\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "proptest 1.11.0: test_runner::Config",
+          "url": "https://docs.rs/proptest/1.11.0/proptest/test_runner/struct.Config.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "cases defaults to 256 (PROPTEST_CASES); failure_persistence defaults to FileFailurePersistence::SourceParallel(\"proptest-regressions\"); rng_seed is random unless PROPTEST_RNG_SEED is set."
+        },
+        {
+          "title": "proptest 1.11.0: num::f64",
+          "url": "https://docs.rs/proptest/1.11.0/proptest/num/f64/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "f64::ANY generates arbitrary floats including infinities and quiet NaNs but not signalling NaNs; NORMAL, SUBNORMAL, ZERO, INFINITE, POSITIVE, NEGATIVE and QUIET_NAN select classes."
+        },
+        {
+          "title": "proptest 1.11.0: test_runner::RngSeed",
+          "url": "https://docs.rs/proptest/1.11.0/proptest/test_runner/enum.RngSeed.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "RngSeed is Random (default) or Fixed(u64)."
+        },
+        {
+          "title": "The proptest book: Failure persistence",
+          "url": "https://proptest-rs.github.io/proptest/proptest/failure-persistence.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Failing cases are saved as seeds under a proptest-regressions tree named after the source file, replayed before novel cases, and should be checked into source control."
+        },
+        {
+          "title": "The proptest book: Shrinking basics",
+          "url": "https://proptest-rs.github.io/proptest/proptest/tutorial/shrinking-basics.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Shrinking binary-searches for the simplest failing input; an integer from 100..1000 shrinks toward zero but stops at 100, never leaving the strategy's range."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "prove-each-rust-harness-can-go-red-cargo-mutants-on-unit-tests-insta-goldens-that-ci-cannot-auto-accept",
+      "name": "Prove each Rust harness can go red: cargo-mutants on unit tests, insta goldens that CI cannot auto-accept",
+      "what": "cargo-mutants copies the tree, runs cargo test per mutant, replaces an f64 body with 0.0, 1.0 or -1.0 and swaps == with !=; a mutant no test kills is 'missed' (exit 2). For the solver's canon, assert_eq!(canon(-0.0), 0.0) misses the ==-to-!= mutant because -0.0 == 0.0, and a to_bits assertion catches it. An insta golden fails on a mismatch by default; cargo insta test and INSTA_FORCE_PASS=1 force it to pass.",
+      "how": "`cargo install --locked cargo-mutants`, then `cargo mutants` in the crate: it copies the tree to a scratch directory (without .git and target), requires a green baseline `cargo test` (exit 4 otherwise), marks a mutant unviable when `cargo test --no-run` fails, and writes mutants.out/ (caught.txt, missed.txt, timeout.txt, unviable.txt, outcomes.json; the previous run becomes mutants.out.old). Exit codes: 0 all caught, 2 missed, 3 timeouts, 4 baseline failing. Mutations include float bodies -> 0.0 / 1.0 / -1.0, == <-> !=, < and > -> == and each other, + <-> - and *, and deleting unary - and !. Hand-applied in the checks: the ==-to-!= mutant of canon passes the == test and fails the to_bits test; the body-to-0.0 mutant passes the -0.0 bit test and fails canon(1.5); each assertion kills different mutants. insta 1.48.0: assert_snapshot! / assert_debug_snapshot! store snapshots/*.snap next to the test; INSTA_UPDATE=auto behaves as no in CI and as new (.snap.new files pending review) elsewhere; always, unseen and force write snapshots; `cargo insta review` accepts or rejects; `cargo insta test` forces snapshot assertions to pass so they are collected (--no-force-pass turns that off); INSTA_FORCE_PASS=1 forces a pass.",
+      "rust_version": "any; insta 1.48.0",
+      "gotchas": "A missed mutant can be equivalent to the original ('undistinguishable from the correct code'). cargo-mutants runs cargo test, so in a cdylib-only crate doc tests never count. A golden gate that runs cargo insta test or sets INSTA_FORCE_PASS=1 cannot fail, and INSTA_UPDATE=always rewrites the .snap files unasked; the CI step is plain cargo test, where auto means no. cargo-mutants and cargo-insta are not installed on this rig (`no such command`): their behaviour here is from their documentation, and the checks apply the mutants by hand.",
+      "engine_note": "PHASE-2 requires each harness to be shown red; for solver/ that is cargo mutants reporting no missed mutants on the native tests. canon, js_min, js_max and canon_quat encode signed-zero rules that == cannot see, so their tests assert on to_bits.",
+      "checks": [
+        {
+          "label": "original canon: the to_bits test and the nonzero test both pass",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "expect": "runs",
+          "stdout_contains": [
+            "test result: ok. 2 passed; 0 failed"
+          ],
+          "exit_code": 0,
+          "source": "fn canon(x: f64) -> f64 {\n    if x == 0.0 { 0.0 } else { x }\n}\n\n#[test]\nfn canon_maps_negative_zero_to_positive_zero() {\n    assert_eq!(canon(-0.0).to_bits(), 0.0f64.to_bits());\n}\n\n#[test]\nfn canon_keeps_nonzero() {\n    assert_eq!(canon(1.5).to_bits(), 1.5f64.to_bits());\n}\n"
+        },
+        {
+          "label": "mutant == to !=: the natural == test still passes, so the mutant is missed",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "expect": "runs",
+          "stdout_contains": [
+            "test result: ok. 1 passed; 0 failed"
+          ],
+          "exit_code": 0,
+          "source": "fn canon(x: f64) -> f64 {\n    if x != 0.0 { 0.0 } else { x } // mutant: == replaced with !=\n}\n\n#[test]\nfn canon_zero_compares_equal() {\n    assert_eq!(canon(-0.0), 0.0);\n}\n"
+        },
+        {
+          "label": "mutant == to !=: the to_bits test fails, so the mutant is caught",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "expect": "runs",
+          "stdout_contains": [
+            "test result: FAILED. 0 passed; 1 failed"
+          ],
+          "exit_code": 101,
+          "source": "fn canon(x: f64) -> f64 {\n    if x != 0.0 { 0.0 } else { x } // mutant: == replaced with !=\n}\n\n#[test]\nfn canon_maps_negative_zero_to_positive_zero() {\n    assert_eq!(canon(-0.0).to_bits(), 0.0f64.to_bits());\n}\n"
+        },
+        {
+          "label": "mutant body -> 0.0: the -0.0 bit test passes, only the nonzero test catches it",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "expect": "runs",
+          "stdout_contains": [
+            "test result: FAILED. 1 passed; 1 failed"
+          ],
+          "exit_code": 101,
+          "source": "fn canon(_x: f64) -> f64 {\n    0.0 // mutant: body replaced with 0.0\n}\n\n#[test]\nfn canon_maps_negative_zero_to_positive_zero() {\n    assert_eq!(canon(-0.0).to_bits(), 0.0f64.to_bits());\n}\n\n#[test]\nfn canon_keeps_nonzero() {\n    assert_eq!(canon(1.5).to_bits(), 1.5f64.to_bits());\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Rust std: primitive f64",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f64.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "to_bits is a raw transmutation to u64; +0.0 and -0.0 compare equal (min/max docs); is_sign_negative is true for -0.0."
+        },
+        {
+          "title": "insta 1.48.0 crate documentation",
+          "url": "https://docs.rs/insta/1.48.0/insta/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "INSTA_UPDATE: auto (no in CI, new otherwise), new (.snap.new pending review), always, unseen, no, force; snapshots are stored in a snapshots folder next to the test as .snap files."
+        },
+        {
+          "title": "cargo-mutants book: Generated mutants",
+          "url": "https://mutants.rs/mutants.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Float-returning bodies become 0.0, 1.0, -1.0; == and != swap; < and > become == and each other; + and - swap with each other and *; unary - and ! are deleted."
+        },
+        {
+          "title": "cargo-mutants book: Using the results",
+          "url": "https://mutants.rs/using-results.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Outcomes: caught (a test failed), missed (no test failed: a coverage gap or an equivalent mutant), unviable (does not compile), timeout."
+        },
+        {
+          "title": "cargo-mutants book: Exit codes",
+          "url": "https://mutants.rs/exit-codes.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "0 all viable mutants caught; 1 usage error; 2 missed mutants; 3 timeouts; 4 baseline tests already failing."
+        },
+        {
+          "title": "cargo-mutants book: How it works",
+          "url": "https://mutants.rs/how-it-works.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "It copies the tree to a scratch directory without .git and target, checks a baseline cargo test, then per mutant runs cargo test --no-run (failure = unviable) and cargo test."
+        },
+        {
+          "title": "cargo-mutants book: The mutants.out directory",
+          "url": "https://mutants.rs/mutants-out.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Results go to mutants.out (caught.txt, missed.txt, timeout.txt, unviable.txt, outcomes.json, logs/); an existing mutants.out is renamed mutants.out.old."
+        },
+        {
+          "title": "insta: Advanced (environment variables)",
+          "url": "https://insta.rs/docs/advanced/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "By default tests fail when the snapshot assertion fails; INSTA_FORCE_PASS=1 forces them to pass so that all new snapshots can be created in one go."
+        },
+        {
+          "title": "insta: cargo-insta CLI",
+          "url": "https://insta.rs/docs/cli/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "cargo insta test runs the tests but forces all snapshot tests to pass so they are collected (--no-force-pass disables that); review, accept and reject handle pending snapshots."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "add-what-rustc-cannot-check-miri-on-native-tests-nightly-only-cargo-deny-and-cargo-audit-on-dependencies",
+      "name": "Add what rustc cannot check: Miri on native tests (nightly only), cargo-deny and cargo-audit on dependencies",
+      "what": "Miri interprets cargo miri test and reports out-of-bounds access, use-after-free, uninitialised reads, misalignment, invalid values and data races, but it is a nightly component (1.98.1 offers none) with no FFI; cargo-deny lints the dependency graph (advisories, bans, licenses, sources) from deny.toml, and cargo-audit checks dependencies against the RustSec Advisory Database.",
+      "how": "Miri: `rustup +nightly component add miri`, then `cargo +nightly miri test`; on Windows add `--target x86_64-unknown-linux-gnu` for better system-API support; mark tests Miri cannot or should not run with `#[cfg_attr(miri, ignore)]` (it is an interpreter, slower than compiled code); `--target` also cross-interprets other architectures. Measured: `rustup component list --toolchain 1.98.1` offers clippy, rustfmt, rust-analyzer and llvm-tools but no miri, and `cargo +1.98.1 miri` answers `the 'miri' component which provides the command 'cargo-miri.exe' is not available for the '1.98.1-x86_64-pc-windows-msvc' toolchain`; under Cargo's check-cfg, cfg(miri) raises nothing while a typo (mirii) warns `unexpected `cfg` condition name: `mirii`` with `there is a config with a similar name: `miri``. cargo-deny: `cargo install --locked cargo-deny && cargo deny init && cargo deny check`; advisories covers vulnerable, unmaintained and yanked crates, bans covers named crates and duplicate versions. cargo-audit: `cargo install cargo-audit`, then `cargo audit` at the top of the project; `--ignore` or audit.toml waives an advisory; `cargo audit bin` audits built binaries.",
+      "rust_version": "Miri: nightly only",
+      "gotchas": "Miri runs host-compiled tests, not the wasm artifact or its JS boundary. Its aliasing model is the unsafe-ffi lane's subject. None of these tools is installed on this rig (`cargo +1.98.1 deny` and `cargo +1.98.1 audit` answer `no such command`); their commands here come from their documentation.",
+      "engine_note": "solver/src reaches static mut BODIES, COLLIDERS, HEIGHTS and SOLVER through references (e.g. `&mut *core::ptr::addr_of_mut!(SOLVER)`, `&mut BODIES`) and hands raw pointers to JS (7 static_mut_refs sites on 1.98.1); native tests that call bodies_ptr or step are what Miri can check. solver/Cargo.lock holds the rapier3d-f64 0.35.3 tree that cargo deny check and cargo audit read.",
+      "checks": [
+        {
+          "label": "#[cfg_attr(miri, ignore)] is inert outside Miri: the test runs and cfg!(miri) is false",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "expect": "runs",
+          "stdout_contains": [
+            "test result: ok. 1 passed; 0 failed; 0 ignored"
+          ],
+          "exit_code": 0,
+          "source": "#[test]\n#[cfg_attr(miri, ignore = \"too slow under the interpreter\")]\nfn heavy_world_step() {\n    assert!(!cfg!(miri));\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "rust-lang/rust at tag 1.98.1: src/tools/miri/README.md",
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/src/tools/miri/README.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Miri detects out-of-bounds access, use-after-free, uninitialized reads, intrinsic precondition violations, misalignment, invalid values and data races; install with rustup +nightly component add miri; run cargo miri test; it has no access to most platform APIs or FFI; on Windows use --target x86_64-unknown-linux-gnu; skip tests with #[cfg_attr(miri, ignore)]."
+        },
+        {
+          "title": "The rustup book: Profiles",
+          "url": "https://rust-lang.github.io/rustup/concepts/profiles.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The minimal profile is rustc, rust-std and cargo; default adds rust-docs, rustfmt and clippy."
+        },
+        {
+          "title": "cargo-deny book",
+          "url": "https://embarkstudios.github.io/cargo-deny/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "cargo-deny lints the dependency graph; quick start: cargo install --locked cargo-deny && cargo deny init && cargo deny check, configured by deny.toml."
+        },
+        {
+          "title": "cargo-deny book: Checks",
+          "url": "https://embarkstudios.github.io/cargo-deny/checks/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Checks: licenses, bans (specific crates and duplicates), advisories (vulnerable, unmaintained or yanked crates), sources."
+        },
+        {
+          "title": "rustsec/rustsec: cargo-audit README",
+          "url": "https://github.com/rustsec/rustsec/tree/main/cargo-audit",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "cargo audit audits dependencies for crates with vulnerabilities reported to the RustSec Advisory Database; install with cargo install cargo-audit; --ignore or audit.toml waives advisories; cargo audit bin audits binaries."
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

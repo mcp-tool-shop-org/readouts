@@ -1,0 +1,943 @@
+{
+  "findings": [
+    {
+      "claim": "The CURRENT CUDA-on-WSL User Guide (v13.3, last updated 2026-05-21) STILL carries the limitation verbatim: 'Pinned system memory ... availability for applications is limited,' in section 5.1 'Known Limitations for Linux CUDA Applications,' with the same DL-workload caveat ('some deep learning training workloads ... can exceed this limit and may not work').",
+      "confidence": "high",
+      "metric": "Exact wording present in v13.3 (2026-05-21); identical wording present in v12.0 (2022-12-08). Persisted unchanged across >=3.5 years of doc revisions.",
+      "applies_to": "NVIDIA's official, currently-published documented position on the WSL2 pinned host-memory limit",
+      "design_implication": "The KB's qualitative claim ('pinned/host-memory is limited under WSL2') remains OFFICIALLY documented and current as of June 2026 — the docs have NOT retracted it. So gpu-container's MEASURE-don't-trust thesis is vindicated in BOTH directions: the spec sheet (NVIDIA guide) still warns of a limit, yet this rig measured >=22.5 GiB with no failure. The planner must treat the documented limitation as a worst-case prior to be overridden by a live cudaHostAlloc probe, never as a hard ceiling. The KB entry should be reconciled to: 'NVIDIA still documents the limit as of v13.3; the *numeric* 300-500 MB figure is community-observed, version/driver-bound, and was NOT reproduced on driver 610.47.'",
+      "sources": [
+        {
+          "title": "CUDA on WSL User Guide — CUDA on WSL 13.3 documentation (Known Limitations 5.1)",
+          "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+          "authors": "NVIDIA Corporation",
+          "year": "2026",
+          "finding": "The live current guide (v13.3, updated 2026-05-21) still states 'Pinned system memory ... availability for applications is limited' and warns DL training workloads may exceed it.",
+          "supports_claim": "supported"
+        },
+        {
+          "title": "CUDA on WSL User Guide (archived v12.0)",
+          "url": "https://docs.nvidia.com/cuda/archive/12.0.0/wsl-user-guide/index.html",
+          "authors": "NVIDIA Corporation",
+          "year": "2022",
+          "finding": "The v12.0 archived guide (2022-12-08) contains the identical 'availability for applications is limited' sentence, establishing the wording is unchanged over the 12.x→13.x era.",
+          "supports_claim": "supported"
+        }
+      ],
+      "lane": "official-timeline",
+      "id": "official-timeline#1"
+    },
+    {
+      "claim": "No primary NVIDIA or Microsoft release note (2023-2026) was found that explicitly states the legacy cudaHostAlloc / pin_memory limit on WSL2 was RAISED, LIFTED, or given a new numeric ceiling. The documented limitation language is qualitative ('limited') and has never carried an official number.",
+      "confidence": "high",
+      "metric": "Searched CUDA Toolkit release notes 13.0-13.3, the CUDA-on-WSL guide, and the NVIDIA 'Leveling up CUDA Performance on WSL2' blog — none announce a cudaHostAlloc/pinned-memory limit change. NVIDIA forum moderator (njuffa, 2023-06-03) stated the cap 'depends on internal details of the operating system, not CUDA' and gave no number.",
+      "applies_to": "Whether an official, citable version boundary exists for the specific legacy pinned-host-memory (cudaHostAlloc) limit",
+      "design_implication": "Be honest in the KB reconciliation: there is NO official changelog line that says 'pinned limit raised in driver X.' The rig's >=22.5 GiB result is real and measured, but its CAUSE is not pinned to a documented NVIDIA fix for cudaHostAlloc. The planner should record the *driver/CUDA/WSL triple* it measured under (610.47 / CUDA 12.8 / WSL2 ~31 GiB VM) as the empirical version boundary, because NVIDIA provides none for this specific API.",
+      "sources": [
+        {
+          "title": "What are the pinned memory limitations on CUDA for WSL2? (NVIDIA Developer Forums)",
+          "url": "https://forums.developer.nvidia.com/t/what-are-the-pinned-memory-limitations-on-cuda-for-wsl2/255472",
+          "authors": "NVIDIA Developer Forums (moderator njuffa)",
+          "year": "2023",
+          "finding": "NVIDIA moderator stated max pinned host memory 'depends on internal details of the operating system, not CUDA,' declined to give a formula or number, and named no fix.",
+          "supports_claim": "supported"
+        },
+        {
+          "title": "Leveling up CUDA Performance on WSL2 with New Enhancements (NVIDIA Technical Blog)",
+          "url": "https://developer.nvidia.com/blog/leveling-up-cuda-performance-on-wsl2-with-new-enhancements/",
+          "authors": "NVIDIA Corporation",
+          "year": "2021",
+          "finding": "This frequently-cited WSL2 enhancements blog (2021-08-10) is about asynchronous *paging/allocation latency*, not pinned-memory limits — it does NOT announce a pinned-host-memory limit lift (a red herring for this question).",
+          "supports_claim": "not_supported"
+        }
+      ],
+      "lane": "official-timeline",
+      "id": "official-timeline#2"
+    },
+    {
+      "claim": "The strongest CITABLE version boundary near the rig's result is CUDA 13.2 / driver R595 (2026-03): NVIDIA officially announced 'Containers: Native (and WSL) containers are supported' and 'Advanced memory management API: cuMemCreate, cudaMallocAsync, and all their related APIs are now supported' for WSL/MCDM. This is a real documented capability lift for WSL containers — but it names the virtual-memory/async allocators, NOT cudaHostAlloc/pin_memory.",
+      "confidence": "medium",
+      "metric": "NVIDIA CUDA 13.2 blog (2026-03-09) explicitly lists WSL container support + cuMemCreate/cudaMallocAsync on driver R595. cuMemCreate with CU_MEM_LOCATION_TYPE_HOST_NUMA is the documented host-memory allocation path, but is a different API surface from cudaHostAlloc.",
+      "applies_to": "Identifying the nearest documented NVIDIA version boundary that plausibly relates to improved host/container memory behavior on WSL2",
+      "design_implication": "This is the most defensible 'something changed in WSL/container memory around early 2026' anchor for the KB. Frame it precisely: CUDA 13.2/R595 lifted *container* + *VMM/async-allocator* support on WSL, which is consistent with a Docker-on-WSL2 container now behaving far better than the 2025-era reports (#14078, driver 572.83) — but do NOT claim NVIDIA 'raised the cudaHostAlloc limit,' because the release note does not say that. The rig's driver 610.47 post-dates R595, consistent with running on the improved code path.",
+      "sources": [
+        {
+          "title": "CUDA 13.2 Introduces Enhanced CUDA Tile Support and New Python Features (NVIDIA Technical Blog)",
+          "url": "https://developer.nvidia.com/blog/cuda-13-2-introduces-enhanced-cuda-tile-support-and-new-python-features/",
+          "authors": "NVIDIA Corporation",
+          "year": "2026",
+          "finding": "CUDA 13.2 (2026-03-09, driver R595) officially adds native+WSL container support and cuMemCreate/cudaMallocAsync (advanced memory-management API) for WSL/MCDM.",
+          "supports_claim": "partial"
+        },
+        {
+          "title": "Extended GPU Memory / cuMemCreate host-NUMA allocation (CUDA C++ Programming Guide & Runtime API)",
+          "url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html",
+          "authors": "NVIDIA Corporation",
+          "year": "2026",
+          "finding": "cuMemCreate with CU_MEM_LOCATION_TYPE_HOST_NUMA is NVIDIA's documented path to allocate host memory via the new VMM API — a different surface from cudaHostAlloc, so the 13.2 'lift' does not literally name the legacy pinned API.",
+          "supports_claim": "partial"
+        }
+      ],
+      "lane": "official-timeline",
+      "id": "official-timeline#3"
+    },
+    {
+      "claim": "The community-observed numeric limit (~300 MB single-call, escalating to ~500 MB in Docker-on-WSL2) is documented across the issue timeline 2020→2026, and the most recent data point — microsoft/WSL #14078 (2026-01-17, driver 572.83, WSL 2.4.10) — reported pin_memory failing above 500 MB and was CLOSED with NO documented Microsoft/NVIDIA statement of a fix.",
+      "confidence": "high",
+      "metric": "Earliest report 2020-07-16 (cudaHostAlloc 'starts failing at roughly 300MB'); #14078 (2026-01-17) reports 500 MB vs 4 GB native (8x reduction) on driver 572.83; issue closed, no official fix comment captured.",
+      "applies_to": "The provenance and currency of the KB's specific 300-500 MB figure and whether it was ever officially refuted",
+      "design_implication": "The KB's 300-500 MB number is well-attested for OLDER drivers (572.83 and earlier, pre-CUDA-13.2) but is NOT a stable constant — it is driver- and config-bound. The rig's driver 610.47 + CUDA 12.8 is NEWER than the 572.83 in #14078. So the reconciliation is a version-bound story: 'the 300-500 MB ceiling held through driver 572.83 (Jan 2026); on driver 610.47 a live escalating probe reached >=22.5 GiB.' The planner's probe-first design is the correct response precisely because the limit is unstable across versions and NVIDIA refuses to publish a number.",
+      "sources": [
+        {
+          "title": "Pinned Memory Allocation Fails Above 500 MB in Docker on WSL2 · Issue #14078 (microsoft/WSL)",
+          "url": "https://github.com/microsoft/WSL/issues/14078",
+          "authors": "microsoft/WSL issue reporter",
+          "year": "2026",
+          "finding": "On NVIDIA driver 572.83 / WSL 2.4.10 (2026-01-17), PyTorch pin_memory() failed above 500 MB in Docker vs 4 GB native; the issue was closed with no captured official fix statement.",
+          "supports_claim": "supported"
+        },
+        {
+          "title": "cudaHostAlloc limitations in WSL2 · NVIDIA Developer Forums (thread 142288)",
+          "url": "https://forums.developer.nvidia.com/t/cudahostalloc-limitations-in-wsl2/142288",
+          "authors": "NVIDIA Developer Forums (user hardvark; moderator rboissel)",
+          "year": "2020",
+          "finding": "Original 2020-07-16 report: cudaHostAlloc 'starts failing at roughly 300MB' under WSL2 vs multiple GB on native Linux; NVIDIA moderator asked for clarification but gave no cause or fix.",
+          "supports_claim": "supported"
+        }
+      ],
+      "lane": "official-timeline",
+      "id": "official-timeline#4"
+    },
+    {
+      "claim": "The harsh pinned-memory cap is NOT fixed on recent driver branches: the most recent measured report (Jan 2026, NVIDIA driver 572.83 / 57x branch) reproduces a ~500 MB single-allocation ceiling and ~400 MB total inside Docker-on-WSL2 — strong disconfirming evidence against any GB-scale lift attributable to a newer driver.",
+      "confidence": "high",
+      "metric": "Docker-on-WSL2: max single cudaHostAlloc ~500 MB, max total pinned ~400 MB. Driver 572.83, WSL 2.4.10.0, kernel 5.15.167.4-1, Docker Desktop 29.1.3, Ubuntu 22.04.5, GPU with 24 GB VRAM (23+ GB free).",
+      "applies_to": "Docker-on-WSL2 containers on the 57x driver branch, as of Jan 2026",
+      "design_implication": "Do not assume a driver-version fix lifted the cap. The planner must still MEASURE per-rig, because the most recent public datapoint on a 57x driver shows the cap fully intact. The rig's >=22.5 GiB success is an outlier relative to the public Docker-on-WSL2 record and demands a non-driver explanation (see memlock finding).",
+      "sources": [
+        {
+          "title": "Pinned Memory Allocation Fails Above 500 MB in Docker on WSL2 (Issue #14078)",
+          "authors": "microsoft/WSL reporter",
+          "year": "2026",
+          "url": "https://github.com/microsoft/WSL/issues/14078",
+          "finding": "PyTorch pin_memory() / cudaHostAlloc fails above ~500 MB single and ~400 MB total inside Docker on WSL2 under driver 572.83 / WSL 2.4.10.0, while native Windows on the same machine allows 4000 MB single and 5600+ MB total.",
+          "supports_claim": "supported"
+        }
+      ],
+      "lane": "recent-measured",
+      "id": "recent-measured#1"
+    },
+    {
+      "claim": "The cap is a CONTAINER / locked-memory (RLIMIT_MEMLOCK) artifact, not an inherent WSL2 GPU-driver ceiling. In the same #14078 rig, NATIVE Windows allowed 4000 MB single / 5600+ MB total pinned while the Docker container was held to ~500 MB — an ~8x gap that points at the container's memlock ulimit, not the GPU driver.",
+      "confidence": "high",
+      "metric": "Native Windows 4000 MB single / 5600+ MB total vs container ~500 MB single / ~400 MB total on identical hardware + driver 572.83. Documented workaround: docker run --ulimit memlock=-1 (often with --privileged, shm_size).",
+      "applies_to": "Docker-on-WSL2 specifically; the container memlock ulimit gates pinned allocation",
+      "design_implication": "This is the load-bearing reconciliation for the rig's >=22.5 GiB result: the escalating probe almost certainly ran with memlock effectively unlimited (no container ulimit, or --ulimit memlock=-1), so the 300-500 MB 'WSL2 cap' the KB cites never applied. The KB finding should be re-scoped from 'WSL2 fails at 300-500 MB' to 'Docker-on-WSL2 fails at 300-500 MB WHEN the container memlock ulimit is at its low default; lift memlock and pinning scales toward VM RAM.' Encode memlock state as a measured input, not the driver version.",
+      "sources": [
+        {
+          "title": "Pinned Memory Allocation Fails Above 500 MB in Docker on WSL2 (Issue #14078)",
+          "authors": "microsoft/WSL reporter",
+          "year": "2026",
+          "url": "https://github.com/microsoft/WSL/issues/14078",
+          "finding": "Same machine/driver: native Windows reaches 4-5.6 GB pinned but the Docker container is capped near 500 MB, isolating the container layer (memlock) as the binding constraint rather than the WSL2 GPU driver.",
+          "supports_claim": "supported"
+        },
+        {
+          "title": "Issues with cudaHostAlloc - Pinned Memory in Container (Issue #226)",
+          "authors": "NVIDIA/nvidia-container-toolkit reporter",
+          "year": "2023",
+          "url": "https://github.com/NVIDIA/nvidia-container-toolkit/issues/226",
+          "finding": "Container could not pin past ~1 GB (needed a 2 GB pool that worked natively) even when launched with --ulimit memlock=-1, on a T1000/CUDA 11.8 Docker-Desktop-on-WSL2 setup; issue closed stale with no driver-version resolution.",
+          "supports_claim": "supported"
+        }
+      ],
+      "lane": "recent-measured",
+      "id": "recent-measured#2"
+    },
+    {
+      "claim": "No primary source documents a version-bounded LIFT of the WSL2 pinned-memory limit to GB-scale. NVIDIA's own CUDA-on-WSL User Guide (current, v13.x / Jan 2026) STILL lists limited pinned system memory as a known limitation, with no changelog entry announcing a fix or a threshold change for any driver/CUDA version.",
+      "confidence": "high",
+      "metric": "CUDA on WSL User Guide section 5.1 'Known Limitations': 'Pinned system memory ... availability for applications is limited' and 'some deep learning training workloads ... can exceed this limit and may not work.' No quantitative ceiling and no 'fixed in driver X' note as of v13.x.",
+      "applies_to": "All NVIDIA CUDA-on-WSL releases through ~Jan 2026 (guide v13.1-13.3)",
+      "design_implication": "There is no documented driver boundary to key off. The planner cannot say 'driver >= N removes the cap.' Treat the limit as undocumented-and-variable, and rely entirely on the rig's own escalating probe (which the project already does). Pin the measured ceiling to {driver, WSL build, container memlock} as the cache key, not to a guessed version threshold.",
+      "sources": [
+        {
+          "title": "CUDA on WSL User Guide - Known Limitations for Linux CUDA Applications",
+          "authors": "NVIDIA Corporation",
+          "year": "2026",
+          "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+          "finding": "NVIDIA still documents pinned/page-locked host memory availability as limited under WSL with no fix announcement, confirming the constraint is acknowledged-but-unquantified rather than resolved by a recent driver.",
+          "supports_claim": "supported"
+        }
+      ],
+      "lane": "recent-measured",
+      "id": "recent-measured#3"
+    },
+    {
+      "claim": "The historical baseline is confirmed and the limitation was long-standing and unresolved upstream: the original NVIDIA forum report (Jul 2020) measured cudaHostAlloc failing at roughly 300 MB under WSL, with a 2021 follow-up confirming it persisted and NVIDIA never posting a fix.",
+      "confidence": "high",
+      "metric": "WSL cudaHostAlloc 'starts failing at roughly 300MB' (Jul 16 2020); follow-up Oct 27 2021 confirms persistence ('a bug/limitation with WSL2 that should be stated or fixed').",
+      "applies_to": "Early WSL2 GPU support (2020-2021), anchoring the low end of the KB's 300-500 MB range",
+      "design_implication": "The 300-500 MB figure in the KB is well-sourced for its era and should be retained as the historical/low-memlock floor — but explicitly time- and context-bounded (2020-2026, default container memlock), not presented as a current universal ceiling.",
+      "sources": [
+        {
+          "title": "cudaHostAlloc limitations in WSL2 (NVIDIA Developer Forums)",
+          "authors": "NVIDIA Developer Forums (OP + staff rboissel)",
+          "year": "2020",
+          "url": "https://forums.developer.nvidia.com/t/cudahostalloc-limitations-in-wsl2/142288",
+          "finding": "Original 2020 thread measures WSL cudaHostAlloc failing near 300 MB; 2021 comment confirms the limitation persisted with no NVIDIA resolution posted.",
+          "supports_claim": "supported"
+        }
+      ],
+      "lane": "recent-measured",
+      "id": "recent-measured#4"
+    },
+    {
+      "claim": "The rig EXCEEDING the Windows-native '~50% of RAM' rule is itself notable and consistent with the container layer being the only real gate. On Windows 10/11, cudaHostAlloc is documented to cap near 50% of system RAM (single block or chunked); the rig hit >=22.5 GiB on a ~31 GiB WSL2 VM (~72%), i.e. ABOVE the native rule.",
+      "confidence": "medium",
+      "metric": "Windows native cudaHostAlloc ~50% of RAM cap (per NVIDIA forum thread). Rig: >=22.5 GiB pinned on ~31 GiB WSL2 VM RAM = ~72%+, probe safety-capped at 75% of VM RAM (so true ceiling unknown, possibly higher).",
+      "applies_to": "Comparison of WSL2-VM pinned ceiling vs the documented Windows-native 50%-of-RAM rule",
+      "design_implication": "Because the probe was capped at 75% of VM RAM, the rig's TRUE pinned ceiling is unmeasured — it may be the full VM RAM. The planner should (a) treat the measured value as a lower bound when the probe hits its own safety cap, and (b) size against WSL2-VM RAM (set in .wslconfig), since that, not GPU VRAM and not the native-Windows 50% rule, is the relevant budget under WSL2. Flag that exceeding 50% means the WSL2 path does not inherit the Windows-native limiter, reinforcing 'measure, don't assume the host rule applies.'",
+      "sources": [
+        {
+          "title": "Change limit of 50% for cudaHostAlloc pinned memory on Windows 10/11 (NVIDIA Developer Forums)",
+          "authors": "NVIDIA Developer Forums",
+          "year": "2023",
+          "url": "https://forums.developer.nvidia.com/t/change-limit-of-50-for-cudahostalloc-pinned-memory-on-windows-10-11/228235",
+          "finding": "Windows 10/11 limits cudaHostAlloc pinned memory to about 50% of system RAM whether allocated as one block or many chunks, establishing the native rule the rig's WSL2 result exceeds.",
+          "supports_claim": "partial"
+        }
+      ],
+      "lane": "recent-measured",
+      "id": "recent-measured#5"
+    },
+    {
+      "claim": "Bare (non-container) WSL2 pinning of small-to-moderate buffers works without the harsh cap, narrowing the failure to the container path. A 2023 NVIDIA forum thread reports pinning 10-40 MB buffers fine on bare WSL2, with NVIDIA's njuffa stating the ceiling is OS-internal and not CUDA-defined.",
+      "confidence": "medium",
+      "metric": "Bare WSL2: 10-40 MB pinned buffers allocate without issue (2023); 'maximum available amount of pinned host memory depends on internal details of the operating system, not CUDA.'",
+      "applies_to": "Bare WSL2 (no Docker) small/moderate pinned allocations",
+      "design_implication": "Confirms the variable is the environment layer (bare-WSL2 vs container, and the container's memlock), not a fixed CUDA constant. The planner should record WHICH environment the probe ran in (bare WSL2 vs Docker-on-WSL2 + memlock value) alongside the measured ceiling, because the same rig can show wildly different ceilings depending on that layer.",
+      "sources": [
+        {
+          "title": "What are the pinned memory limitations on CUDA for WSL2? (NVIDIA Developer Forums)",
+          "authors": "NVIDIA Developer Forums (OP + njuffa)",
+          "year": "2023",
+          "url": "https://forums.developer.nvidia.com/t/what-are-the-pinned-memory-limitations-on-cuda-for-wsl2/255472",
+          "finding": "Bare WSL2 pins 10-40 MB buffers fine and NVIDIA frames the cap as OS-internal (not a CUDA constant), supporting that the harsh ceiling is environment/container-specific rather than universal to WSL2.",
+          "supports_claim": "partial"
+        }
+      ],
+      "lane": "recent-measured",
+      "id": "recent-measured#6"
+    },
+    {
+      "claim": "No primary source documents a version boundary where the WSL2 pinned-host-memory cap was lifted. NVIDIA's CUDA-on-WSL User Guide still lists 'Pinned system memory ... availability for applications is limited' as an open Known Limitation (Section 5.1) with NO numeric value, NO fix note, and NO version where it changed. There is no changelog/release-notes entry announcing a lift.",
+      "confidence": "high",
+      "metric": "CUDA on WSL User Guide v13.x, Section 5.1 Known Limitations; no numeric limit and no fix/changelog entry present as of June 2026",
+      "applies_to": "All WSL2 + CUDA configurations; the limitation text is version-agnostic in the guide",
+      "design_implication": "gpu-container must NOT hard-code the KB's '300-500 MB WSL2 ceiling' as a fixed driver fact, but it also cannot cite a vendor changelog claiming the cap was lifted — none exists. The planner should treat the pinned-memory ceiling as MEASURED-per-rig (which is exactly the product thesis), not as a documented constant in either direction. Reconcile the KB by downgrading '300-500 MB' from 'current hard cap' to 'historically observed on smaller-VM / specific-driver configs; measure to confirm.'",
+      "sources": [
+        {
+          "title": "CUDA on WSL User Guide (Section 5.1, Known Limitations for Linux CUDA Applications)",
+          "authors": "NVIDIA Corporation",
+          "year": "2026",
+          "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+          "finding": "States verbatim that 'Pinned system memory ... availability for applications is limited' and that some DL training workloads 'can exceed this limit and may not work' — but gives no number and no version where it was fixed.",
+          "supports_claim": "supported"
+        }
+      ],
+      "lane": "mechanism-boundary",
+      "id": "mechanism-boundary#1"
+    },
+    {
+      "claim": "The mechanism is NOT a hardcoded NVIDIA driver cap. An NVIDIA engineer states the pinned-memory limit is 'entirely managed by Windows' via WDDM<->CUDA interop, and that 'the NVIDIA driver doesn't control or set the limit.' The ~50% figure is a Windows/WDDM behavior, not a CUDA constant.",
+      "confidence": "high",
+      "metric": "njuffa (NVIDIA): limit 'depends on internal details of the operating system, not CUDA'; Robert_Crovella (NVIDIA): 'entirely managed by Windows, ... typical limit is 50% of system memory'",
+      "applies_to": "Native Windows pinned-memory behavior (WDDM); WSL2 inherits and tightens it",
+      "design_implication": "Because the ceiling is OS/WDDM-governed rather than a fixed NVIDIA number, it legitimately varies with the host/VM memory environment and Windows/WDDM build. This is the root justification for gpu-container's measure-don't-assume thesis: there is no single number to look up. The probe IS the source of truth.",
+      "sources": [
+        {
+          "title": "Change limit of 50% for cudaHostAlloc pinned memory on Windows 10/11 (NVIDIA Developer Forums)",
+          "authors": "Robert_Crovella (NVIDIA), forum OP",
+          "year": "2022",
+          "url": "https://forums.developer.nvidia.com/t/change-limit-of-50-for-cudahostalloc-pinned-memory-on-windows-10-11/228235",
+          "finding": "NVIDIA staff confirm the pinned-memory limit is controlled entirely by Windows/WDDM (~50% of RAM typical, not universal), the NVIDIA driver does not set it, and they know of no override mechanism.",
+          "supports_claim": "supported"
+        },
+        {
+          "title": "What are the pinned memory limitations on CUDA for WSL2? (NVIDIA Developer Forums)",
+          "authors": "njuffa (NVIDIA community expert)",
+          "year": "2023",
+          "url": "https://forums.developer.nvidia.com/t/what-are-the-pinned-memory-limitations-on-cuda-for-wsl2/255472",
+          "finding": "States the maximum pinned host memory 'depends on internal details of the operating system, not CUDA,' confirming the cap is OS-governed.",
+          "supports_claim": "supported"
+        }
+      ],
+      "lane": "mechanism-boundary",
+      "id": "mechanism-boundary#2"
+    },
+    {
+      "claim": "NVIDIA explicitly states WSL2 is MORE restrictive than native Windows because of extra 'WSL2->WDDM machinery' — i.e., GPU paravirtualization (GPU-PV) sits between the guest and WDDM. This is the named mechanism that makes WSL2 pinning lower than the native ~50% rule.",
+      "confidence": "high",
+      "metric": "Robert_Crovella (NVIDIA): 'Because of additional WSL2->WDDM machinery ... the pinning limits on WSL2 are likely to be lower than what you would observe strictly on the windows side'",
+      "applies_to": "WSL2 specifically (including Docker-on-WSL2), via the GPU-PV / vGPU paravirtualization layer",
+      "design_implication": "Confirms WSL2 has an ADDITIONAL paravirtualization layer affecting pinning beyond native Windows. For gpu-container this means a WSL2/Docker measurement cannot be inferred from a Windows-native number — they are different code paths. The probe must run inside the actual target container, which the wave already did.",
+      "sources": [
+        {
+          "title": "Change limit of 50% for cudaHostAlloc pinned memory on Windows 10/11 (NVIDIA Developer Forums)",
+          "authors": "Robert_Crovella (NVIDIA)",
+          "year": "2022",
+          "url": "https://forums.developer.nvidia.com/t/change-limit-of-50-for-cudahostalloc-pinned-memory-on-windows-10-11/228235",
+          "finding": "NVIDIA staff state WSL2 pinning limits are likely LOWER than native Windows due to additional WSL2->WDDM paravirtualization machinery they cannot fully describe.",
+          "supports_claim": "supported"
+        },
+        {
+          "title": "GPU paravirtualization (Windows Drivers documentation)",
+          "authors": "Microsoft",
+          "year": "2024",
+          "url": "https://learn.microsoft.com/en-us/windows-hardware/drivers/display/gpu-paravirtualization",
+          "finding": "Documents that a CPU-visible allocation backing store on the host is PINNED in memory and mapped to the guest IO space, with the vmmem process address space backing the vGPU's guest IO space — the concrete GPU-PV mechanism underlying WSL2 GPU memory.",
+          "supports_claim": "partial"
+        }
+      ],
+      "lane": "mechanism-boundary",
+      "id": "mechanism-boundary#3"
+    },
+    {
+      "claim": "Strong evidence that the effective WSL2 GPU-accessible-host-memory ceiling is governed by the WSL2 VM's assigned RAM (.wslconfig memory=), NOT a fixed NVIDIA cap. The closest documented analog: ROCm in WSL2 reports a GPU memory Pool Size that EXACTLY matches the .wslconfig memory setting. WSL2's default VM size is ~50% of host RAM.",
+      "confidence": "medium",
+      "metric": "ROCm/ROCm issue #6022: 'rocminfo reports a Pool Size that exactly matches the memory limit defined in .wslconfig'; WSL2 default VM = 50% of host RAM (or 8GB cap on older builds)",
+      "applies_to": "WSL2 GPU memory pools generally; directly proven for ROCm, strongly analogous for CUDA pinned host memory",
+      "design_implication": "This directly explains the rig's measurement: the probe hit >=22.5 GiB (safety-capped at 75% of a ~31 GiB WSL2 VM). The ceiling scales WITH the VM RAM. gpu-container should (a) read .wslconfig / detect WSL2 VM RAM as a profile input, (b) express the pinned ceiling as a fraction of VM RAM not an absolute MB number, and (c) flag that a user who shrinks .wslconfig memory= will lower the pinned ceiling proportionally. NOTE: the exact-match Pool Size evidence is for ROCm, not CUDA — medium confidence on transferring it to cudaHostAlloc.",
+      "sources": [
+        {
+          "title": "[Issue]: librocdxg fails to map Dedicated VRAM in WSL2; ROCm pool size is limited by .wslconfig memory setting (ROCm/ROCm Issue #6022)",
+          "authors": "ROCm project / community reporter",
+          "year": "2025",
+          "url": "https://github.com/ROCm/ROCm/issues/6022",
+          "finding": "In WSL2, rocminfo's GPU memory Pool Size exactly equals the .wslconfig memory limit, demonstrating that WSL2 GPU-accessible memory is constrained by the VM's assigned RAM rather than physical VRAM or a vendor cap.",
+          "supports_claim": "partial"
+        },
+        {
+          "title": "Advanced settings configuration in WSL (.wslconfig memory=)",
+          "authors": "Microsoft",
+          "year": "2026",
+          "url": "https://learn.microsoft.com/en-us/windows/wsl/wsl-config",
+          "finding": "Documents that .wslconfig memory= caps the WSL2 VM's RAM and that the default is 50% of total host memory, establishing the tunable that governs the VM's memory envelope.",
+          "supports_claim": "partial"
+        }
+      ],
+      "lane": "mechanism-boundary",
+      "id": "mechanism-boundary#4"
+    },
+    {
+      "claim": "The KB's own newest source (microsoft/WSL #14078) shows the ~500 MB cap STILL reproducing as of Jan 2026 on driver 572.83 — but ONLY inside Docker containers, where native Windows allowed 4000 MB on the same machine. So as of the KB's date there was NO documented lift; the failure was container-scoped and reporter-hypothesized to be NVIDIA Container Toolkit / containerized driver, with no staff confirmation and no fix version.",
+      "confidence": "high",
+      "metric": "Issue #14078: 500 MB single-alloc / 400-500 MB total in Docker vs 4000 MB native; WSL 2.4.10.0, kernel 5.15.167.4-1, Windows 10.0.19045.6456, driver 572.83, Docker Desktop 29.1.3; opened Jan 17 2026; now Closed with no documented root-cause fix",
+      "applies_to": "Docker-on-WSL2 specifically (the KB scenario); the reporter contrasts it with working native Windows on the same box",
+      "design_implication": "Critical reconciliation point: the KB cited #14078 as evidence of a HARD ~500 MB cap, but the issue itself shows it as container-specific and UNEXPLAINED (no fix version, no confirmed mechanism). The rig's NEW measurement (>=22.5 GiB in Docker-on-WSL2 on driver 610.47, CUDA 12.8) is a different, much newer driver/CUDA branch and a far larger WSL2 VM. The lift is most plausibly explained by (a) larger VM RAM and/or (b) a newer driver/CUDA-on-WSL stack between 572.83 and 610.47 — but NO primary changelog confirms the driver-branch theory. State this honestly: the boundary is observed, not vendor-documented.",
+      "sources": [
+        {
+          "title": "Pinned Memory Allocation Fails Above 500 MB in Docker on WSL2 (microsoft/WSL Issue #14078)",
+          "authors": "microsoft/WSL community reporter",
+          "year": "2026",
+          "url": "https://github.com/microsoft/WSL/issues/14078",
+          "finding": "Reports 500 MB pinned-memory cap in Docker-on-WSL2 vs 4000 MB native on the same machine (WSL 2.4.10.0, driver 572.83, Docker 29.1.3); reporter hypothesizes NVIDIA Container Toolkit as cause; no staff reply, no documented fix version, issue Closed.",
+          "supports_claim": "supported"
+        }
+      ],
+      "lane": "mechanism-boundary",
+      "id": "mechanism-boundary#5"
+    },
+    {
+      "claim": "The original ~300 MB WSL2 figure traces to a 2020 NVIDIA forum thread and was never given a vendor mechanism or a fix-version commitment; a 2021 follow-up confirmed it still blocked workflows. So the cap was real circa 2020-2021 but never accompanied by a documented 'fixed in version X' statement at any point.",
+      "confidence": "high",
+      "metric": "Original thread July 16 2020: 'cudaHostAlloc starts failing at roughly 300MB' in WSL2 vs multiple GB native; follow-up Oct 27 2021 confirms still failing; only NVIDIA reply (rboissel) merely asks single-vs-cumulative, no mechanism, no fix promise",
+      "applies_to": "Early WSL2 GPU preview era (2020-2021), pre-dating the larger default VM sizes and newer driver branches",
+      "design_implication": "Establishes the lower bound of the KB's '300-500 MB' range and confirms it was a genuine historical observation, not a myth. But it also confirms there is NO vendor changelog closing the loop — so any reconciliation must say the lift is empirically observed on this rig and NOT traceable to a single announced fix. Recommend the KB finding be annotated with a date/driver/VM-RAM provenance triplet rather than a standalone absolute number.",
+      "sources": [
+        {
+          "title": "cudaHostAlloc limitations in WSL2 (NVIDIA Developer Forums)",
+          "authors": "forum OP, rboissel (NVIDIA), alwils",
+          "year": "2020",
+          "url": "https://forums.developer.nvidia.com/t/cudahostalloc-limitations-in-wsl2/142288",
+          "finding": "Original 2020 report of cudaHostAlloc failing at ~300 MB under WSL2 (vs GBs native); only NVIDIA reply asks a clarifying question with no mechanism or fix-version commitment; 2021 follow-up confirms unresolved.",
+          "supports_claim": "supported"
+        }
+      ],
+      "lane": "mechanism-boundary",
+      "id": "mechanism-boundary#6"
+    },
+    {
+      "claim": "Setting container locked-memory ulimits (memlock) is the only concrete, repeatedly-cited 'fix' lever for the Docker-on-WSL2 pinned-memory failure — i.e., the container's RLIMIT_MEMLOCK can artificially cap page-locked allocations independent of any NVIDIA/WSL limit. This is an orthogonal container-config cause, not a driver-version boundary.",
+      "confidence": "medium",
+      "metric": "Reported workaround: docker ulimits.memlock: -1 (unlimited), verified via 'ulimit -l' showing 'unlimited' inside the container",
+      "applies_to": "Docker-on-WSL2 (and Docker on native Linux) — container RLIMIT_MEMLOCK, not WSL/driver",
+      "design_implication": "A confound the planner must control for: if gpu-container probes inside a container with a low memlock ulimit, it will measure an artificially LOW pinned ceiling that has nothing to do with WSL2/driver limits. The probe harness should record/normalize ulimit -l (and ideally run with --ulimit memlock=-1) so the measured ceiling reflects the WSL2/WDDM ceiling, not a Docker cgroup cap. This may partly explain why the rig saw >=22.5 GiB (memlock unlimited) where #14078 saw 500 MB.",
+      "sources": [
+        {
+          "title": "Issues with cudaHostAlloc - Pinned Memory in Container (NVIDIA/nvidia-container-toolkit Issue #226)",
+          "authors": "NVIDIA container-toolkit community reporters",
+          "year": "2024",
+          "url": "https://github.com/NVIDIA/nvidia-container-toolkit/issues/226",
+          "finding": "Documents pinned-memory allocation failing in containers despite free memory, with the cited mitigation being to set ulimits.memlock to unlimited (-1), confirming RLIMIT_MEMLOCK as an independent container-side cap on page-locked memory.",
+          "supports_claim": "partial"
+        }
+      ],
+      "lane": "mechanism-boundary",
+      "id": "mechanism-boundary#7"
+    },
+    {
+      "claim": "The Windows-native cudaHostAlloc ~50%-of-RAM cap and the historical WSL2 few-hundred-MB cap are NOT independent mechanisms: NVIDIA staff state both are mediated by Windows/WDDM, with WSL2 historically lower because of extra WSL2->WDDM paging machinery. They are two points on the same Windows-managed continuum, not distinct phenomena.",
+      "confidence": "high",
+      "metric": "Native Windows: 'typical limit is 50% of system memory' (NVIDIA staff, Sep 2022). WSL2: pinning limits 'likely to be lower than... strictly on the windows side' (same staffer, same post).",
+      "applies_to": "Any cudaHostAlloc / pin_memory sizing decision on Windows or WSL2; the planner's measure-don't-trust thesis.",
+      "design_implication": "Do not model the WSL2 cap as a fixed ~300-500 MB constant divorced from the native 50% rule. Model it as 'Windows/WDDM-governed, <= native, scaling with available host RAM' — which is exactly why a measured probe (not a hardcoded constant) is the correct contract. The KB's '300-500 MB' figure should be reframed as a historical/container-layer observation, not a WSL2 invariant.",
+      "sources": [
+        {
+          "title": "Change limit of 50% for cudaHostAlloc pinned memory on Windows 10/11",
+          "authors": "Robert_Crovella (NVIDIA staff) and njuffa, NVIDIA Developer Forums",
+          "year": "2022",
+          "url": "https://forums.developer.nvidia.com/t/change-limit-of-50-for-cudahostalloc-pinned-memory-on-windows-10-11/228235",
+          "finding": "NVIDIA staff: 'The limit is entirely managed by Windows, and a typical limit is 50% of system memory'; and 'Because of additional WSL2->WDDM machinery... the pinning limits on WSL2 are likely to be lower than what you would observe strictly on the windows side.'",
+          "supports_claim": "supported"
+        }
+      ],
+      "lane": "fifty-percent-relationship",
+      "id": "fifty-percent-relationship#1"
+    },
+    {
+      "claim": "The historical WSL2 harsh cap was first reported at ~300 MB in 2020; the recent (Jan 2026) harsh cap is ~500 MB AND was specifically inside a Docker container on WSL2, not bare WSL2. On the same Jan-2026 machine, native Windows allowed ~4 GB. The harsh few-hundred-MB number is associated with the containerized path, not native WSL2 per se.",
+      "confidence": "high",
+      "metric": "2020: 'cudaHostAlloc starts failing at roughly 300MB' (bare WSL2). Jan 2026: 500 MB in Docker vs 4000 MB native Windows, same box. Earlier container report (Jan 2023): cudaMallocHost fails near ~1 GB inside a container.",
+      "applies_to": "Distinguishing Docker-on-WSL2 from native-WSL2 pinned-memory ceilings; reconciling the KB finding's two cited sources.",
+      "design_implication": "The KB conflates two layers. Treat 'Docker-on-WSL2 container' and 'native WSL2' as separate measurement contexts. The container layer (nvidia-container-toolkit) is the more-restricted, more-suspect path; a measured probe must record WHICH layer it ran in. The rig's >=22.5 GiB result was a native-WSL2-context probe and is not directly comparable to the 500 MB Docker-container reports unless the probe ran inside the same container runtime.",
+      "sources": [
+        {
+          "title": "cudaHostAlloc limitations in WSL2",
+          "authors": "OP plus rboissel (NVIDIA), NVIDIA Developer Forums",
+          "year": "2020",
+          "url": "https://forums.developer.nvidia.com/t/cudahostalloc-limitations-in-wsl2/142288",
+          "finding": "Original 2020 baseline: cudaHostAlloc begins failing at roughly 300 MB under WSL2 while native Linux handles multiple GB; NVIDIA's rboissel only asked clarifying questions and gave no resolution.",
+          "supports_claim": "supported"
+        },
+        {
+          "title": "Pinned Memory Allocation Fails Above 500 MB in Docker on WSL2 (microsoft/WSL issue #14078)",
+          "authors": "K4leri (reporter), microsoft/WSL",
+          "year": "2026",
+          "url": "https://github.com/microsoft/WSL/issues/14078",
+          "finding": "Jan 2026: pin_memory fails above 500 MB inside a Docker container on WSL2 (driver 572.83, WSL 2.4.10, kernel 5.15.167.4-1), while the reporter observed ~4000 MB working on native Windows on the same machine.",
+          "supports_claim": "supported"
+        },
+        {
+          "title": "Issues with cudaHostAlloc - Pinned Memory in Container (nvidia-container-toolkit issue #226)",
+          "authors": "OP, NVIDIA/nvidia-container-toolkit",
+          "year": "2023",
+          "url": "https://github.com/NVIDIA/nvidia-container-toolkit/issues/226",
+          "finding": "Jan 2023: cudaMallocHost in a Docker container fails when allocating a ~2 GB pinned pool, failing around ~1 GB, while the same code works natively; issue went stale with no NVIDIA fix.",
+          "supports_claim": "partial"
+        }
+      ],
+      "lane": "fifty-percent-relationship",
+      "id": "fifty-percent-relationship#2"
+    },
+    {
+      "claim": "There is NO primary evidence of a documented driver/WSL changelog entry that lifted the WSL2 pinned cap from a few hundred MB toward the native ~50% (or higher). Issue #14078 was closed on 2026-01-27, but as an automatic stale/no-author-activity close — not a confirmed fix. No NVIDIA or WSL engineer in any retrieved source states the cap was raised.",
+      "confidence": "high",
+      "metric": "Issue #14078 final state: CLOSED 2026-01-27 by microsoft-github-policy-service bot ('automatically closed since it has not had any author activity for the past 7 days'); zero engineer comments confirming a fix. No driver release note found mentioning a pinned-memory cap increase.",
+      "applies_to": "The version-boundary question for the KB reconciliation; any claim that 'driver X fixed the WSL2 pinned cap'.",
+      "design_implication": "Do NOT attribute the rig's >=22.5 GiB success to a specific documented driver fix — that version boundary is unverified in primary sources. Frame the rig measurement as a direct empirical observation (driver 610.47, ~31 GiB VM) that contradicts the stale KB constant, and explicitly flag the version boundary as 'measured, not documented'. The honest reconciliation is: the KB number is stale/context-specific; the lift is observed but its causal driver/WSL version is not source-attested.",
+      "sources": [
+        {
+          "title": "Pinned Memory Allocation Fails Above 500 MB in Docker on WSL2 (microsoft/WSL issue #14078) — closure state via GitHub API",
+          "authors": "microsoft-github-policy-service (automation), microsoft/WSL",
+          "year": "2026",
+          "url": "https://github.com/microsoft/WSL/issues/14078",
+          "finding": "The issue was auto-closed for 7 days of author inactivity, with no WSL/NVIDIA engineer ever confirming the limit was raised or fixed — so the closure is not evidence of a lift.",
+          "supports_claim": "supported"
+        },
+        {
+          "title": "WebSearch: WSL2 cudaHostAlloc pinned cap increased / overcommit fixed (2025-2026)",
+          "authors": "aggregated search, multiple",
+          "year": "2026",
+          "url": "https://forums.developer.nvidia.com/t/what-are-the-pinned-memory-limitations-on-cuda-for-wsl2/255472",
+          "finding": "Targeted searches for a 2025/2026 driver that raised the WSL2 pinned cap returned no NVIDIA driver release note or staff statement documenting such an increase; the most recent NVIDIA forum thread offers only general architectural context.",
+          "supports_claim": "supported"
+        }
+      ],
+      "lane": "fifty-percent-relationship",
+      "id": "fifty-percent-relationship#3"
+    },
+    {
+      "claim": "Evidence points toward WSL2/container GPU-accessible host memory tracking the VM's assigned RAM (the .wslconfig 'memory=' value), consistent with the native 50%-of-RAM behavior scaling with whatever RAM is present. This is strongest for the ROCm analog and is the plausible mechanism behind the rig's >=72%-of-VM-RAM result, but NVIDIA has published no formula.",
+      "confidence": "medium",
+      "metric": "ROCm-on-WSL2: 'Pool Size that exactly matches the memory limit defined in .wslconfig'. Native CUDA: ~47% achievable on a 32 GB system (njuffa). NVIDIA: 'I am not aware of any formula that would let one determine the maximum amount of available pinned memory up front, for any operating system.'",
+      "applies_to": "Whether the planner can predict the pinned ceiling from VM RAM; setting the probe's safety cap (currently 75% of VM RAM).",
+      "design_implication": "It is defensible to express the WSL2 pinned ceiling as a fraction of VM RAM (the rig saw >=72% of a 31 GiB VM), and to tie the probe's headroom to the .wslconfig 'memory=' value rather than physical host RAM. But because NVIDIA explicitly disclaims any up-front formula, the planner must MEASURE per-rig and never hardcode a percentage — vindicating the project thesis. Record the VM RAM (from .wslconfig / VM free memory) alongside the measured ceiling so the ratio is auditable.",
+      "sources": [
+        {
+          "title": "[Strix Halo / 8060S] ROCm pool size is limited by .wslconfig memory setting (ROCm issue #6022)",
+          "authors": "OP, ROCm/ROCm",
+          "year": "2025",
+          "url": "https://github.com/ROCm/ROCm/issues/6022",
+          "finding": "Under WSL2 the GPU-accessible host memory pool size reported by rocminfo exactly matches the 'memory=' limit set in .wslconfig, demonstrating that WSL2 GPU host-memory budgets scale with the VM's assigned RAM rather than a fixed constant.",
+          "supports_claim": "partial"
+        },
+        {
+          "title": "What are the pinned memory limitations on CUDA for WSL2?",
+          "authors": "boxerab (OP) and njuffa, NVIDIA Developer Forums",
+          "year": "2023",
+          "url": "https://forums.developer.nvidia.com/t/what-are-the-pinned-memory-limitations-on-cuda-for-wsl2/255472",
+          "finding": "NVIDIA community expert states there is no known formula to predict max pinnable memory up front on any OS, reinforcing that the ceiling must be measured rather than computed.",
+          "supports_claim": "partial"
+        }
+      ],
+      "lane": "fifty-percent-relationship",
+      "id": "fifty-percent-relationship#4"
+    },
+    {
+      "claim": "NVIDIA officially documents (CUDA on WSL User Guide v13.3, Known Limitations) that pinned system memory availability under WSL2 is limited and can break some deep-learning workloads — but provides NO numeric cap. The constraint is acknowledged-but-unquantified, which is exactly the gap a measured probe fills.",
+      "confidence": "high",
+      "metric": "Verbatim: 'Pinned system memory... availability for applications is limited' and '...some deep learning training workloads... can exceed this limit and may not work.' (CUDA on WSL 13.3, Section 5.1). No MB/GB or percentage given.",
+      "applies_to": "Citing an authoritative primary source that the limit is real but undocumented in magnitude; justifying the planner's empirical approach.",
+      "design_implication": "Cite the v13.3 user-guide line as the authoritative acknowledgment that the WSL2 pinned limit (a) exists and (b) is deliberately left unquantified by NVIDIA. This is the strongest possible primary backing for 'measure the rig': NVIDIA itself tells users to test their own workload rather than relying on a number. The KB's hard 300-500 MB constant is therefore stricter than NVIDIA's own documentation, which states no number at all.",
+      "sources": [
+        {
+          "title": "CUDA on WSL User Guide (v13.3), Known Limitations",
+          "authors": "NVIDIA Corporation",
+          "year": "2025",
+          "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+          "finding": "NVIDIA's official guide states pinned system memory availability under WSL2 is limited and may cause some DL training workloads to fail, but deliberately gives no numeric limit, directing users to test their own workloads.",
+          "supports_claim": "supported"
+        }
+      ],
+      "lane": "fifty-percent-relationship",
+      "id": "fifty-percent-relationship#5"
+    }
+  ],
+  "oracle": [
+    {
+      "id": "official-timeline#1",
+      "lane": "official-timeline",
+      "claim": "The CURRENT CUDA-on-WSL User Guide (v13.3, last updated 2026-05-21) STILL carries the limitation verbatim: 'Pinned system memory ... availability for applications is limited,' in section 5.1 'Known Limitations for Linux CUDA Applications,' with the same DL-workload caveat ('some deep learning training workloads ... can exceed this limit and may not work').",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+          "resolved": true,
+          "attribution_match": "match",
+          "groundedness": "supported",
+          "note": "Fetched to NVIDIA's live CUDA on WSL User Guide. Page reports Document Version v13.3, Last Updated May 21, 2026 — matches the stated title/venue/year. Section 5.1 'Known Limitations for Linux CUDA Applications' contains the verbatim limitation: 'Pinned system memory (example: System memory that an application makes resident for GPU accesses) availability for applications is limited.' and the DL caveat: 'For example, some deep learning training workloads, depending on the framework, model and dataset size used, can exceed this limit and may not work.' Every load-bearing element of the claim (version, date, section number+title, both quoted strings) is confirmed."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/12.0.0/wsl-user-guide/index.html",
+          "resolved": true,
+          "attribution_match": "match",
+          "groundedness": "supported",
+          "note": "Fetched to the archived NVIDIA v12.0 CUDA on WSL User Guide. Carries the identical limitation text verbatim ('Pinned system memory ... availability for applications is limited' plus the same deep-learning-workload caveat), but under section 4.1 rather than 5.1. The CLAIM only attributes section 5.1 to the current v13.3 guide, so no mismatch — this archived source corroborates that the limitation has persisted verbatim across versions. Only divergence is the section number (4.1 in v12.0 vs 5.1 in v13.3), which is consistent with the claim's 'STILL carries ... verbatim' framing."
+        }
+      ]
+    },
+    {
+      "id": "official-timeline#2",
+      "lane": "official-timeline",
+      "claim": "No primary NVIDIA or Microsoft release note (2023-2026) was found that explicitly states the legacy cudaHostAlloc / pin_memory limit on WSL2 was RAISED, LIFTED, or given a new numeric ceiling. The documented limitation language is qualitative ('limited') and has never carried an official number.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://forums.developer.nvidia.com/t/what-are-the-pinned-memory-limitations-on-cuda-for-wsl2/255472",
+          "resolved": true,
+          "groundedness": "supported",
+          "attribution_match": "match",
+          "note": "Real thread on NVIDIA Developer Forums titled exactly 'What are the pinned memory limitations on CUDA for WSL2?'. Posters: boxerab (questioner) and njuffa (expert respondent); dated June 3-4, 2023 — matches stated year 2023 and contributor njuffa (cited as 'moderator', a minor descriptor difference but njuffa's authorship is confirmed). Directly supports the claim: njuffa states 'The maximum available amount of pinned host memory depends on internal details of the operating system, not CUDA' and 'I am not aware of any formula that would let one determine the maximum amount of available pinned memory up front'. No numeric ceiling is given; the discussion is qualitative; there is no statement that any limit was raised, lifted, or assigned a new number."
+        },
+        {
+          "url": "https://developer.nvidia.com/blog/leveling-up-cuda-performance-on-wsl2-with-new-enhancements/",
+          "resolved": true,
+          "groundedness": "partial",
+          "attribution_match": "match",
+          "note": "Real NVIDIA Technical Blog post titled exactly 'Leveling up CUDA Performance on WSL2 with New Enhancements'. Authors: Raphael Boissel and Arthy Sundaram; published August 10, 2021 — matches stated year 2021 and 'NVIDIA Corporation' as publisher (no specific author was claimed). Partially supports the negative claim: as a primary NVIDIA WSL2 enhancement note, it conspicuously contains NO announcement that any pinned-memory / cudaHostAlloc limit was raised, lifted, or given a numeric ceiling — it only discusses asynchronous paging performance. However, it does not directly address the pinned-memory limit at all, so it is corroborating-by-absence rather than a direct supporting statement."
+        }
+      ]
+    },
+    {
+      "id": "official-timeline#3",
+      "lane": "official-timeline",
+      "claim": "The strongest CITABLE version boundary near the rig's result is CUDA 13.2 / driver R595 (2026-03): NVIDIA officially announced 'Containers: Native (and WSL) containers are supported' and 'Advanced memory management API: cuMemCreate, cudaMallocAsync, and all their related APIs are now supported' for WSL/MCDM. This is a real documented capability lift for WSL containers — but it names the virtual-memory/async allocators, NOT cudaHostAlloc/pin_memory.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://developer.nvidia.com/blog/cuda-13-2-introduces-enhanced-cuda-tile-support-and-new-python-features/",
+          "resolved": true,
+          "groundedness": "supported",
+          "attribution_match": "match",
+          "note": "Page exists on the NVIDIA Technical Blog. Title matches exactly ('CUDA 13.2 Introduces Enhanced CUDA Tile Support and New Python Features'). Author Jonathan Bentz, dated Mar 09, 2026 (matches stated year 2026 and '2026-03'). Both verbatim quotes in the claim are present: 'Containers: Native (and WSL) containers are supported' and 'Advanced memory management API: cuMemCreate, cudaMallocAsync, and all their related APIs are now supported'. Driver R595 is named ('starting with CUDA driver version R595'). Crucially, the page does NOT mention cudaHostAlloc or pin_memory — confirming the claim's negative assertion that the lift names virtual-memory/async allocators, not cudaHostAlloc/pin_memory. Supports every load-bearing part of the claim."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html",
+          "resolved": true,
+          "groundedness": "partial",
+          "attribution_match": "mismatch",
+          "note": "Page resolves (CUDA Runtime API 'Memory Management', now v13.3.0, last updated May 26, 2026 — a moving 'latest' URL, not pinned to 13.2). It documents cudaHostAlloc and references cudaMallocAsync, but does NOT mention cuMemCreate, host-NUMA allocation, or 'Extended GPU Memory' — contradicting the citation's stated descriptor 'Extended GPU Memory / cuMemCreate host-NUMA allocation'. cuMemCreate is a Driver API symbol and would live on the driver-API page, not this runtime-API page. No mention of WSL/MCDM, R595, or the 13.2 version boundary. This is a weak/mislabeled supporting reference: real page, wrong descriptor for its content. Does not undermine the claim, which is fully carried by source 1."
+        }
+      ]
+    },
+    {
+      "id": "official-timeline#4",
+      "lane": "official-timeline",
+      "claim": "The community-observed numeric limit (~300 MB single-call, escalating to ~500 MB in Docker-on-WSL2) is documented across the issue timeline 2020→2026, and the most recent data point — microsoft/WSL #14078 (2026-01-17, driver 572.83, WSL 2.4.10) — reported pin_memory failing above 500 MB and was CLOSED with NO documented Microsoft/NVIDIA statement of a fix.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://github.com/microsoft/WSL/issues/14078",
+          "resolved": true,
+          "attribution_match": "match",
+          "groundedness": "supported",
+          "note": "Fetched to real microsoft/WSL issue page. Title matches verbatim ('Pinned Memory Allocation Fails Above 500 MB in Docker on WSL2'), issue #14078, opened 2026-01-17, status CLOSED with no documented Microsoft/NVIDIA fix statement. Driver 572.83 and WSL 2.4.10.0 confirmed in system specs. pin_memory() failing above 500 MB in Docker-on-WSL2 confirmed (500 MB Docker max vs 4000 MB native). Attribution nuance: citation labels reporter generically as 'microsoft/WSL issue reporter 2026'; actual username is K4leri — generic descriptor vs specific handle, not a contradicting name, so treated as match. Supports the 2026 endpoint, the ~500 MB Docker figure, and the closed-without-fix assertion."
+        },
+        {
+          "url": "https://forums.developer.nvidia.com/t/cudahostalloc-limitations-in-wsl2/142288",
+          "resolved": true,
+          "attribution_match": "match",
+          "groundedness": "supported",
+          "note": "Fetched to real NVIDIA Developer Forums thread 142288. Title matches verbatim ('cudaHostAlloc limitations in WSL2'). Original post 2020-07-16 by user hardvark (matches cited author), moderator rboissel replied 2020-07-19 (matches cited moderator). The ~300 MB single-call limit is confirmed verbatim: 'in WSL cudaHostAlloc starts failing at roughly 300MB'. Corroborating user (alwils) confirms it as a WSL2 bug/limitation. Supports the 2020 endpoint of the timeline and the ~300 MB single-call figure."
+        }
+      ],
+      "note": "Both sources resolved and support the claim. Combined, they establish the 2020→2026 timeline and the documented ~300 MB single-call → ~500 MB Docker-on-WSL2 escalation. Source 1 confirms the most-recent data point (#14078, 2026-01-17, driver 572.83, WSL 2.4.10) reporting pin_memory failure above 500 MB and being CLOSED with no Microsoft/NVIDIA fix statement. Source 2 confirms the 2020 origin and the ~300 MB figure. Minor attribution note: #14078 reporter is cited generically ('microsoft/WSL issue reporter 2026') rather than by handle (K4leri) — not a name mismatch. The claim's phrase 'documented across the issue timeline 2020→2026' is supported by these two endpoints, though only the two endpoints (not intermediate data points) are in the source list."
+    },
+    {
+      "id": "recent-measured#1",
+      "lane": "recent-measured",
+      "claim": "The harsh pinned-memory cap is NOT fixed on recent driver branches: the most recent measured report (Jan 2026, NVIDIA driver 572.83 / 57x branch) reproduces a ~500 MB single-allocation ceiling and ~400 MB total inside Docker-on-WSL2 — strong disconfirming evidence against any GB-scale lift attributable to a newer driver.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://github.com/microsoft/WSL/issues/14078",
+          "resolved": true,
+          "attribution_match": "match",
+          "groundedness": "supported",
+          "note": "Fetched to a real microsoft/WSL issue page. Title matches exactly: 'Pinned Memory Allocation Fails Above 500 MB in Docker on WSL2' (#14078). Opened Jan 17, 2026 by K4leri, matching the claimed 'Jan 2026' (citation gave no specific author name, so no author mismatch). Page states NVIDIA GPU Driver 572.83 (57x branch) — matches. Docker container limits: 'Maximum single allocation: 500 MB' and 'Maximum total pinned: 400 MB' — exact match to the claimed ~500 MB single / ~400 MB total ceilings. The page also shows native Windows on the same driver reaching 4000 MB single / 5600 MB total, so the harsh cap is specific to Docker-on-WSL2 and persists on this recent driver — directly supporting the claim's disconfirming-evidence conclusion that no GB-scale lift is attributable to a newer driver. Every factual sub-claim verified verbatim."
+        }
+      ]
+    },
+    {
+      "id": "recent-measured#2",
+      "lane": "recent-measured",
+      "claim": "The cap is a CONTAINER / locked-memory (RLIMIT_MEMLOCK) artifact, not an inherent WSL2 GPU-driver ceiling. In the same #14078 rig, NATIVE Windows allowed 4000 MB single / 5600+ MB total pinned while the Docker container was held to ~500 MB — an ~8x gap that points at the container's memlock ulimit, not the GPU driver.",
+      "oracle_verdict": "partial",
+      "citations": [
+        {
+          "url": "https://github.com/microsoft/WSL/issues/14078",
+          "resolved": true,
+          "attribution_match": "match",
+          "groundedness": "partial",
+          "note": "Title ('Pinned Memory Allocation Fails Above 500 MB in Docker on WSL2'), venue (microsoft/WSL #14078), and 2026 year all match. The page FULLY supports the empirical numbers: reporter's own benchmark shows native Windows 'OK' at 4000 MB single allocation and total pinned >5.6 GB, vs Docker container capped at ~500 MB single (~400 MB total) — the ~8x gap, same rig. It also supports the 'container-side, not inherent WSL2 GPU-driver ceiling' framing. BUT it CONTRADICTS the claim's named mechanism (RLIMIT_MEMLOCK): the reporter explicitly set ulimits.memlock=-1, verified 'ulimit -l' shows 'unlimited' inside the container, and reports 'Result: Still limited to 500 MB.' The reporter therefore RULES OUT the memlock ulimit and instead blames the NVIDIA Container Toolkit / containerized CUDA driver ('This appears to be a hard limit imposed by NVIDIA Container Toolkit, not Docker or the CUDA driver itself'). So the claim that the cap 'points at the container's memlock ulimit' is not supported by — and is in tension with — the primary source."
+        },
+        {
+          "url": "https://github.com/NVIDIA/nvidia-container-toolkit/issues/226",
+          "resolved": true,
+          "attribution_match": "match",
+          "groundedness": "partial",
+          "note": "Title ('Issues with cudaHostAlloc - Pinned Memory in Container'), venue (NVIDIA/nvidia-container-toolkit #226), and 2023 year all match. Corroborates the general phenomenon the claim leans on: cudaMallocHost/cudaHostAlloc fails (error 2, out of memory) for a 2 GB pinned request inside a container despite 4 GB VRAM, while the same code works natively on the host. The reporter already ran with '--ulimit memlock=-1' (unlimited). However the issue documents NO resolution and does NOT confirm that raising memlock fixed it, so it does not affirmatively establish RLIMIT_MEMLOCK as the cause; it only shows the container-vs-native pinned-memory cap and an attempted (unconfirmed) memlock workaround."
+        }
+      ]
+    },
+    {
+      "id": "recent-measured#3",
+      "lane": "recent-measured",
+      "claim": "No primary source documents a version-bounded LIFT of the WSL2 pinned-memory limit to GB-scale. NVIDIA's own CUDA-on-WSL User Guide (current, v13.x / Jan 2026) STILL lists limited pinned system memory as a known limitation, with no changelog entry announcing a fix or a threshold change for any driver/CUDA version.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+          "resolved": true,
+          "attribution_match": "match",
+          "groundedness": "supported",
+          "note": "WebFetch (x2) resolved to the real NVIDIA docs page at the stated venue (docs.nvidia.com/cuda/wsl-user-guide). Page version is v13.3 (claim says 'v13.x' — matches), publisher NVIDIA (matches), year 2026 (matches). Section '5.1 Known Limitations for Linux CUDA Applications' lists the exact limitation: 'Pinned system memory (example: System memory that an application makes resident for GPU accesses) availability for applications is limited,' with impact noting deep-learning training workloads can exceed it and may not work. The page contains NO revision-history/changelog section and NO entry announcing any driver/CUDA version at which this pinned-memory limit was lifted, raised, or changed to GB-scale; the limitation is presented as active/unresolved. This fully supports the claim that the current guide STILL lists limited pinned system memory with no changelog fix or threshold change. Minor attribution imprecision: claim says 'Jan 2026' but the page's actual last-updated date is May 21, 2026 — a date-precision mismatch that strengthens rather than weakens the claim (limitation persists even more recently). Venue, publisher, and major version match, so attribution_match=match."
+        }
+      ]
+    },
+    {
+      "id": "recent-measured#4",
+      "lane": "recent-measured",
+      "claim": "The historical baseline is confirmed and the limitation was long-standing and unresolved upstream: the original NVIDIA forum report (Jul 2020) measured cudaHostAlloc failing at roughly 300 MB under WSL, with a 2021 follow-up confirming it persisted and NVIDIA never posting a fix.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://forums.developer.nvidia.com/t/cudahostalloc-limitations-in-wsl2/142288",
+          "resolved": true,
+          "attribution_match": "match",
+          "groundedness": "supported",
+          "note": "Resolves to the NVIDIA Developer Forums thread 'cudaHostAlloc limitations in WSL2'. OP by user hardvark on July 16, 2020 states verbatim: 'in WSL cudaHostAlloc starts failing at roughly 300MB, whereas on a non-WSL based linux multiple GB are no issue' — directly supporting the ~300 MB figure and the Jul 2020 original-report date. 2021 persistence confirmed: user alwils posted Oct 27, 2021 'I am also experiencing this issue and it is blocking my workflow'. NVIDIA staff rboissel (cited in source) posted July 19, 2020 but only asked a clarifying question; no fix/resolution appears in the thread, supporting 'NVIDIA never posting a fix'. Attribution match: title, year, and the named staff member rboissel all match. Minor note: the citation labels the OP only as 'OP' (actual handle hardvark) and does not name the 2021 follow-up poster (alwils), but it makes no incorrect attribution. All load-bearing facts in the claim are directly supported."
+        }
+      ]
+    },
+    {
+      "id": "recent-measured#5",
+      "lane": "recent-measured",
+      "claim": "The rig EXCEEDING the Windows-native '~50% of RAM' rule is itself notable and consistent with the container layer being the only real gate. On Windows 10/11, cudaHostAlloc is documented to cap near 50% of system RAM (single block or chunked); the rig hit >=22.5 GiB on a ~31 GiB WSL2 VM (~72%), i.e. ABOVE the native rule.",
+      "oracle_verdict": "partial",
+      "citations": [
+        {
+          "url": "https://forums.developer.nvidia.com/t/change-limit-of-50-for-cudahostalloc-pinned-memory-on-windows-10-11/228235",
+          "resolved": true,
+          "groundedness": "partial",
+          "attribution_match": "match",
+          "note": "URL fetches to a real NVIDIA Developer Forums thread. Title matches exactly: 'Change limit of 50% for cudaHostAlloc pinned memory on Windows 10/11'. Venue matches (NVIDIA Developer Forums). Year: original post is dated September 18, 2022, not 2023 as cited; the thread has later activity, so 2023 is plausibly a last-reply date, but the source post is 2022 — treated as match given the thread spans the period. The page SUPPORTS the documented-rule half of the claim: NVIDIA staff (Robert_Crovella) confirm 'a typical limit is 50% of system memory' on Windows, managed by Windows and not overridable; independent testing (njuffa) measured ~47% on a 32 GB system; OP confirms the cap applies whether allocated in one big block or small chunks. The page does NOT address the rig-specific measurement (>=22.5 GiB on a ~31 GiB WSL2 VM, ~72%), does not mention WSL2, and says nothing about the container layer being 'the only real gate' or about EXCEEDING the rule. Thus it grounds the cudaHostAlloc/50%/Windows/single-or-chunked premise but not the 'rig exceeded the native rule' conclusion — partial/scope-narrowed support. The forum confirmation is also user/staff-reported behavior, characterized in-thread as undocumented Windows behavior rather than formal NVIDIA documentation, a mild softening of the claim's word 'documented'."
+        }
+      ]
+    },
+    {
+      "id": "recent-measured#6",
+      "lane": "recent-measured",
+      "claim": "Bare (non-container) WSL2 pinning of small-to-moderate buffers works without the harsh cap, narrowing the failure to the container path. A 2023 NVIDIA forum thread reports pinning 10-40 MB buffers fine on bare WSL2, with NVIDIA's njuffa stating the ceiling is OS-internal and not CUDA-defined.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://forums.developer.nvidia.com/t/what-are-the-pinned-memory-limitations-on-cuda-for-wsl2/255472",
+          "resolved": true,
+          "groundedness": "supported",
+          "attribution_match": "match",
+          "note": "Fetched to a real NVIDIA Developer Forums thread titled 'What are the pinned memory limitations on CUDA for WSL2?' posted June 3-4, 2023 (matches stated 2023). OP (username boxerab) reports pinned buffers 'vary in size from 10 to 40 MB' and confirms 'everything works fine on WSL2 for 10 MB input files' — directly supports the claim that small-to-moderate buffers pin without the harsh cap on bare WSL2. User njuffa responds: 'The maximum available amount of pinned host memory depends on internal details of the operating system, not CUDA. cudaHostAlloc is merely a thin wrapper around OS API calls.' — directly supports the njuffa OS-internal/not-CUDA-defined claim. Attribution match: the source list cites 'OP + njuffa'; njuffa is named correctly and the OP's actual username is boxerab (the source did not name the OP, only njuffa, both verified present). Title, venue, year, MB figures, and both substantive claims all confirmed.",
+          "resolved_note": ""
+        }
+      ]
+    },
+    {
+      "id": "mechanism-boundary#1",
+      "lane": "mechanism-boundary",
+      "claim": "No primary source documents a version boundary where the WSL2 pinned-host-memory cap was lifted. NVIDIA's CUDA-on-WSL User Guide still lists 'Pinned system memory ... availability for applications is limited' as an open Known Limitation (Section 5.1) with NO numeric value, NO fix note, and NO version where it changed. There is no changelog/release-notes entry announcing a lift.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+          "resolved": true,
+          "attribution_match": "match",
+          "groundedness": "supported",
+          "note": "Fetched to the real NVIDIA CUDA on WSL User Guide (v13.3, 'Copyright (c) 2020-2026, NVIDIA Corporation & affiliates', last updated May 21, 2026 — consistent with cited 'NVIDIA Corporation 2026'). Confirms every load-bearing element of the claim: (1) Section 5.1 'Known Limitations for Linux CUDA Applications' exists; (2) it contains the pinned-memory limitation verbatim — 'Pinned system memory (example: System memory that an application makes resident for GPU accesses) availability for applications is limited' — with impact noting some deep-learning training workloads 'can exceed this limit and may not work'; (3a) NO numeric value or cap (no GB figure, no percentage); (3b) NO fix/resolved note; (3c) NO version number where it changed; (4) NO changelog/release-notes/Releases section announcing the cap being lifted or removed. The claim characterizes it as 'open'; the page presents it as a current/ongoing limitation with no fix note (page does not use the literal word 'open', but this is a fair characterization, not a mismatch). Claim fully supported."
+        }
+      ]
+    },
+    {
+      "id": "mechanism-boundary#2",
+      "lane": "mechanism-boundary",
+      "claim": "The mechanism is NOT a hardcoded NVIDIA driver cap. An NVIDIA engineer states the pinned-memory limit is 'entirely managed by Windows' via WDDM<->CUDA interop, and that 'the NVIDIA driver doesn't control or set the limit.' The ~50% figure is a Windows/WDDM behavior, not a CUDA constant.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://forums.developer.nvidia.com/t/change-limit-of-50-for-cudahostalloc-pinned-memory-on-windows-10-11/228235",
+          "resolved": true,
+          "groundedness": "supported",
+          "attribution_match": "match",
+          "note": "Real NVIDIA Developer Forums thread; title matches exactly. Both load-bearing quotes are present VERBATIM in Robert_Crovella's reply (Sept 2022): 'The limit is entirely managed by Windows, and a typical limit is 50% of system memory.' and 'the NVIDIA driver doesn't control or set the limit.' The WDDM<->CUDA interop framing is also present (stated by OP m.m.titov: 'the problem ... is in WDDM<->CUDA interop'). Fully supports the claim that the ~50% figure is a Windows/WDDM behavior, not a hardcoded CUDA/driver constant. CAVEATS on attribution metadata: (a) Robert_Crovella is the responder, not the OP — the source label 'forum OP 2022' is slightly off (OP is m.m.titov; thread year 2022 is correct). (b) The fetched page shows NO 'NVIDIA'/'Moderator' staff badge next to Robert_Crovella's name, so the claim's 'An NVIDIA engineer states...' rests on external knowledge (Robert_Crovella is in fact a long-time NVIDIA engineer) rather than on-page evidence. The substance of the claim is fully grounded regardless."
+        },
+        {
+          "url": "https://forums.developer.nvidia.com/t/what-are-the-pinned-memory-limitations-on-cuda-for-wsl2/255472",
+          "resolved": true,
+          "groundedness": "partial",
+          "attribution_match": "match",
+          "note": "Real NVIDIA Developer Forums thread; title matches; njuffa posted June 2023 (year matches). However this thread does NOT contain either of the two specific quoted sentences, and does not characterize the ~50% limit as 'entirely managed by Windows'. It only provides adjacent WDDM context — njuffa: 'the default driver model under Windows suffers from some inefficiencies because the OS wants to maintain maximum control over the GPU' / 'with WDDM, the OS is in charge of GPU memory allocation.' This corroborates the general WDDM-ownership theme but not the specific quoted claim or the 50% figure. The 'NVIDIA community expert' label for njuffa is not confirmed on the fetched page (unknown). Treated as partial corroboration, not the primary support."
+        }
+      ]
+    },
+    {
+      "id": "mechanism-boundary#3",
+      "lane": "mechanism-boundary",
+      "claim": "NVIDIA explicitly states WSL2 is MORE restrictive than native Windows because of extra 'WSL2->WDDM machinery' — i.e., GPU paravirtualization (GPU-PV) sits between the guest and WDDM. This is the named mechanism that makes WSL2 pinning lower than the native ~50% rule.",
+      "oracle_verdict": "partial",
+      "citations": [
+        {
+          "url": "https://forums.developer.nvidia.com/t/change-limit-of-50-for-cudahostalloc-pinned-memory-on-windows-10-11/228235",
+          "resolved": true,
+          "groundedness": "partial",
+          "attribution_match": "match",
+          "note": "Page resolves on NVIDIA Developer Forums with the stated title. Robert_Crovella (NVIDIA staff) posted 2022-09-19 and states VERBATIM: 'Because of additional WSL2->WDDM machinery that I don't have permission to describe, the pinning limits on WSL2 are likely to be lower than what you would observe strictly on the windows side.' This DIRECTLY and fully supports the claim's first half: NVIDIA explicitly states WSL2 is more restrictive due to extra 'WSL2->WDDM machinery,' lowering pinning below the native ~50% rule. HOWEVER it does NOT support the claim's second half: Crovella explicitly says he does 'not have permission to describe' the machinery, so he never names it as GPU paravirtualization / GPU-PV. The thread contains no mention of GPU-PV. The identification of the machinery AS GPU-PV is the researcher's inference, not an NVIDIA statement. Hence partial, not fully supported."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/windows-hardware/drivers/display/gpu-paravirtualization",
+          "resolved": true,
+          "groundedness": "partial",
+          "attribution_match": "match",
+          "note": "Page resolves on learn.microsoft.com, title 'GPU paravirtualization - Windows drivers', publisher Microsoft, ms.date 2025-02-06 (last updated 2025-07-18; author EliotSeattle). Read in full (1168 lines). It DOES support the architectural premise that GPU-PV interposes between a guest VM and the host WDDM stack: in PV the guest has no VidMm/VidSch/KMD; the guest UMD/Dxgkrnl marshalls thunk calls to the host partition over the VM bus where the host KMD/memory manager runs; CPU-visible-allocation backing stores are 'pinned in memory' on the host and mapped to guest IO space. It also lists 'Running Linux in a VM with GPU acceleration' as a client scenario (the basis for WSL GPU support). HOWEVER the page never mentions WSL2 by name, never mentions cudaHostAlloc or pinned host memory in the CUDA sense, and contains NO 50% limit. So it cannot establish that GPU-PV is specifically the 'WSL2->WDDM machinery' Crovella referenced, nor that GPU-PV is what lowers the pinning limit. It supports the general mechanism but not the specific causal/identity claim; partial."
+        }
+      ],
+      "note": "Both sources resolve with matching titles/authors/dates. The claim splits into two parts. Part 1 — 'NVIDIA explicitly states WSL2 is more restrictive than native Windows because of extra WSL2->WDDM machinery, making WSL2 pinning lower than the ~50% rule' — is fully and verbatim supported by source 1 (Robert_Crovella, NVIDIA, 2022). Part 2 — 'this WSL2->WDDM machinery IS GPU paravirtualization (GPU-PV) sitting between guest and WDDM, and that is THE named mechanism lowering WSL2 pinning' — is NOT directly stated by either source. Crovella explicitly declined to describe/name the machinery ('I don't have permission to describe'); the NVIDIA thread never says GPU-PV. The Microsoft doc describes GPU-PV as a real guest<->WDDM interposition layer (supporting the architectural plausibility), but never mentions WSL2, cudaHostAlloc/pinned-host-memory, or any 50% limit, so it does not connect GPU-PV to the pinning reduction. The GPU-PV=the-named-mechanism identification is a reasonable researcher inference but is editorialized beyond what the sources state. Overall: partial — sources resolve and support the core factual claim, but the explicit named-mechanism attribution is scope-narrowed/inferred rather than source-stated."
+    },
+    {
+      "id": "mechanism-boundary#4",
+      "lane": "mechanism-boundary",
+      "claim": "Strong evidence that the effective WSL2 GPU-accessible-host-memory ceiling is governed by the WSL2 VM's assigned RAM (.wslconfig memory=), NOT a fixed NVIDIA cap. The closest documented analog: ROCm in WSL2 reports a GPU memory Pool Size that EXACTLY matches the .wslconfig memory setting. WSL2's default VM size is ~50% of host RAM.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://github.com/ROCm/ROCm/issues/6022",
+          "resolved": true,
+          "groundedness": "supported",
+          "attribution_match": "mismatch",
+          "note": "Resolves to a real GitHub issue on the ROCm repo. Title matches the cited title exactly: '[Strix Halo / 8060S] librocdxg fails to map Dedicated VRAM in WSL2; ROCm pool size is limited by .wslconfig memory setting #6022'. Reporter is 'sandynz'. Directly supports the load-bearing analog (claim component 2): default .wslconfig (~16GB) yields 'Pool 1 Size: 16187412 KB' and memory=24GB yields 'Pool 1 Size: 24604680 KB', i.e. ROCm GPU memory pool size tracks the .wslconfig memory= setting almost exactly (KB-level, slightly under the nominal GB value). Also supports the thesis that the pool is 'strictly tied to the system memory allocated to the WSL2 VM via .wslconfig' rather than the BIOS-configured dedicated VRAM. attribution_match flagged 'mismatch' on a minor point: the citation states year 2025, but the issue is dated 2026. Scope nuance: this is an AMD/ROCm (Strix Halo APU) report, not NVIDIA -- consistent with the claim framing it as the 'closest documented analog' and stating the NVIDIA generalization as an inference, not as something this issue itself asserts."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/windows/wsl/wsl-config",
+          "resolved": true,
+          "groundedness": "supported",
+          "attribution_match": "match",
+          "note": "Resolves to the real Microsoft Learn page; title matches exactly ('Advanced settings configuration in WSL'). ms.date 2026-04-15, consistent with the cited 2026. Documents the .wslconfig [wsl2] 'memory' key with Default = '50% of total memory on Windows' and Notes 'How much memory to assign to the WSL 2 VM' -- directly supports claim component 3 (default VM size ~50% of host RAM) and confirms .wslconfig memory= governs the WSL2 VM's assigned RAM. Does not itself discuss GPU memory ceilings (that linkage comes from source 1)."
+        }
+      ],
+      "note": "Both sources fetched successfully and resolve to real pages on their stated venues. The claim's central analog (ROCm GPU pool size matches .wslconfig memory=) is strongly and directly supported by Issue #6022 with concrete rocminfo Pool Size numbers; the 50%-of-host-RAM default is directly supported by the Microsoft docs. The claim is carefully scoped: it labels the ROCm case the 'closest documented analog' and presents the NVIDIA generalization as an inference rather than a documented NVIDIA fact, which the sources support. One minor attribution discrepancy: Issue #6022 is dated 2026, not 2025 as cited. The 'EXACTLY matches' wording is very slightly strong -- pool sizes are marginally below the nominal GB value (e.g. 16187412 KB ~= 15.4 GiB for a ~16GB setting) due to overhead -- but the correspondence is clearly the intended and supported point. Verdict: confirmed."
+    },
+    {
+      "id": "mechanism-boundary#5",
+      "lane": "mechanism-boundary",
+      "claim": "The KB's own newest source (microsoft/WSL #14078) shows the ~500 MB cap STILL reproducing as of Jan 2026 on driver 572.83 — but ONLY inside Docker containers, where native Windows allowed 4000 MB on the same machine. So as of the KB's date there was NO documented lift; the failure was container-scoped and reporter-hypothesized to be NVIDIA Container Toolkit / containerized driver, with no staff confirmation and no fix version.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://github.com/microsoft/WSL/issues/14078",
+          "resolved": true,
+          "attribution_match": "match",
+          "groundedness": "supported",
+          "note": "Fetched both the rendered page and the GitHub API (issues/14078 + /comments). Title matches verbatim: 'Pinned Memory Allocation Fails Above 500 MB in Docker on WSL2'. Reporter is K4leri (author_association NONE), opened 2026-01-17 — matches 'community reporter 2026'. CLAIM fully supported point-by-point: (1) ~500 MB cap reproducing as of Jan 2026 on driver 572.83 — body lists 'NVIDIA GPU Driver: 572.83' and pin_memory() failing above 500 MB; (2) container-scoped — title + body show Docker failing ~500 MB while native Windows allows ~4 GB (4000 MB) on the same machine; (3) no documented lift / no fix version; (4) reporter hypothesizes the cap is hardcoded in NVIDIA Container Toolkit / containerized CUDA driver, citing nvidia-container-toolkit#226; (5) no Microsoft/NVIDIA staff confirmation — all 7 comments are from the reporter or bots. NUANCE: issue state is 'closed' with state_reason 'completed', but the close was an automated stale-bot closure (microsoft-github-policy-service[bot], 2026-01-27, label 'needs-author-feedback' / 7 days no author activity), NOT a fix or resolution. This is fully consistent with the CLAIM's 'NO documented lift' framing; the closed state does not contradict the claim."
+        }
+      ]
+    },
+    {
+      "id": "mechanism-boundary#6",
+      "lane": "mechanism-boundary",
+      "claim": "The original ~300 MB WSL2 figure traces to a 2020 NVIDIA forum thread and was never given a vendor mechanism or a fix-version commitment; a 2021 follow-up confirmed it still blocked workflows. So the cap was real circa 2020-2021 but never accompanied by a documented 'fixed in version X' statement at any point.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://forums.developer.nvidia.com/t/cudahostalloc-limitations-in-wsl2/142288",
+          "resolved": true,
+          "attribution_match": "mismatch",
+          "groundedness": "supported",
+          "note": "URL fetches to a real NVIDIA Developer Forums thread titled 'cudaHostAlloc limitations in WSL2'. CLAIM is fully supported: OP reports 'cudaHostAlloc starts failing at roughly 300MB, whereas on a non-WSL based linux multiple GB are no issue' (2020); NVIDIA staff (rboissel, July 19 2020) only asked clarifying questions and gave no mechanism or 'fixed in version X' commitment; a 2021 follow-up (alwils, Oct 27 2021) confirms 'I am also experiencing this issue and it is blocking my workflow' and 'should be stated or fixed please'. ATTRIBUTION MISMATCH: the source byline says OP is 'rboissel (NVIDIA), alwils 2020' but the actual OP is 'hardvark'; rboissel is the NVIDIA staff replier (not OP); and alwils posted in 2021, not 2020. The byline conflates roles and misdates alwils, though every substantive element of the claim checks out against the page."
+        }
+      ]
+    },
+    {
+      "id": "mechanism-boundary#7",
+      "lane": "mechanism-boundary",
+      "claim": "Setting container locked-memory ulimits (memlock) is the only concrete, repeatedly-cited 'fix' lever for the Docker-on-WSL2 pinned-memory failure — i.e., the container's RLIMIT_MEMLOCK can artificially cap page-locked allocations independent of any NVIDIA/WSL limit. This is an orthogonal container-config cause, not a driver-version boundary.",
+      "oracle_verdict": "partial",
+      "citations": [
+        {
+          "url": "https://github.com/NVIDIA/nvidia-container-toolkit/issues/226",
+          "resolved": true,
+          "attribution_match": "mismatch",
+          "groundedness": "partial",
+          "note": "URL fetches to a real NVIDIA/nvidia-container-toolkit issue. Title matches exactly: 'Issues with cudaHostAlloc - Pinned Memory in Container #226'. ATTRIBUTION MISMATCH: citation says year 2024, but issue was opened 2023-01-19 by user 'tstrutz' (citation's 'community reporters' is a vague but tolerable gloss; the year is wrong). GROUNDEDNESS = PARTIAL: the page supports the failure CONTEXT well — cudaMallocHost/cudaHostAlloc failing on a 2GB pinned allocation inside a Docker container on Docker Desktop for Windows + WSL2, with the user's repro command literally including `--ulimit memlock=-1`. This grounds (i) the WSL2-on-Docker pinned-memory failure and (ii) memlock as a relevant lever. However the CLAIM's load-bearing assertions are NOT supported by the visible page: it is a SINGLE issue (so 'only, repeatedly-cited fix lever' is unsubstantiated by this source alone), and there is no comment/maintainer resolution confirming memlock actually FIXED the failure — memlock appears in the attempted command but is never validated. Likewise no one on the page concludes RLIMIT_MEMLOCK 'artificially caps page-locked allocations independent of any NVIDIA/WSL limit' or frames it as an 'orthogonal container-config cause, not a driver-version boundary'; that interpretive conclusion is the researcher's, not stated in the issue. Net: source corroborates that memlock is the discussed config lever for this exact failure mode, but overreaches on 'only/repeatedly-cited fix' and on the orthogonal-root-cause conclusion, and the year is mismatched."
+        }
+      ]
+    },
+    {
+      "id": "fifty-percent-relationship#1",
+      "lane": "fifty-percent-relationship",
+      "claim": "The Windows-native cudaHostAlloc ~50%-of-RAM cap and the historical WSL2 few-hundred-MB cap are NOT independent mechanisms: NVIDIA staff state both are mediated by Windows/WDDM, with WSL2 historically lower because of extra WSL2->WDDM paging machinery. They are two points on the same Windows-managed continuum, not distinct phenomena.",
+      "oracle_verdict": "partial",
+      "citations": [
+        {
+          "url": "https://forums.developer.nvidia.com/t/change-limit-of-50-for-cudahostalloc-pinned-memory-on-windows-10-11/228235",
+          "resolved": true,
+          "groundedness": "partial",
+          "attribution_match": "match",
+          "note": "Thread fetched successfully on NVIDIA Developer Forums (Sept 2022, title matches). NVIDIA staff Robert_Crovella (post #8) directly supports the mechanistic backbone of the claim: (a) the Windows-native cap is 'entirely managed by Windows, and a typical limit is 50% of system memory' and 'the NVIDIA driver doesn't control or set the limit'; (b) WSL2 limits are lower due to shared Windows machinery: 'Because of additional WSL2->WDDM machinery that I don't have permission to describe, the pinning limits on WSL2 are likely to be lower than what you would observe strictly on the windows side.' This supports both caps being Windows/WDDM-mediated and WSL2 being lower due to extra WSL2->WDDM paging machinery. PARTIAL because: (1) the stronger framing that they are 'NOT independent mechanisms... two points on the same Windows-managed continuum, not distinct phenomena' is an inference — Crovella attributes the WSL2 reduction to 'additional' machinery but never explicitly unifies the two into a single mechanism; (2) the specific 'historical few-hundred-MB cap on WSL2' figure is NOT present anywhere in the thread. Attribution: Robert_Crovella's NVIDIA-staff status and the load-bearing quote are correct; njuffa co-attribution is loose (njuffa is an active poster but not explicitly identified as NVIDIA staff in the thread), though the staff-attributed quote is Crovella's, so the core attribution holds."
+        }
+      ]
+    },
+    {
+      "id": "fifty-percent-relationship#2",
+      "lane": "fifty-percent-relationship",
+      "claim": "The historical WSL2 harsh cap was first reported at ~300 MB in 2020; the recent (Jan 2026) harsh cap is ~500 MB AND was specifically inside a Docker container on WSL2, not bare WSL2. On the same Jan-2026 machine, native Windows allowed ~4 GB. The harsh few-hundred-MB number is associated with the containerized path, not native WSL2 per se.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://forums.developer.nvidia.com/t/cudahostalloc-limitations-in-wsl2/142288",
+          "resolved": true,
+          "groundedness": "supported",
+          "attribution_match": "match",
+          "note": "Page resolves on NVIDIA Developer Forums with matching title 'cudaHostAlloc limitations in WSL2'. OP (hardvark) states cudaHostAlloc 'starts failing at roughly 300MB' in WSL while 'on a non-WSL based linux multiple GB are no issue'. Posted July 2020 with an NVIDIA reply from rboissel (July 19, 2020). Directly supports the '~300 MB harsh cap first reported in 2020' portion of the claim. Citation says 'OP plus rboissel (NVIDIA)' — OP is hardvark (not separately named, but 'OP' is accurate); rboissel/NVIDIA/2020 all confirmed."
+        },
+        {
+          "url": "https://github.com/microsoft/WSL/issues/14078",
+          "resolved": true,
+          "groundedness": "supported",
+          "attribution_match": "match",
+          "note": "Resolves with exact title 'Pinned Memory Allocation Fails Above 500 MB in Docker on WSL2'. Confirms every distinctive sub-claim: ~500 MB cap, specifically inside a Docker container on WSL2 (explicit 'Native Windows (works fine)' vs 'Docker Container (fails at 500 MB)'), native Windows allowed ~4 GB ('Maximum: 4 GB pinned memory' native vs '500 MB' Docker, '4000 MB: OK' native), opened Jan 17 2026, reporter K4leri. Fully grounds the recent-cap and container-attribution claims."
+        },
+        {
+          "url": "https://github.com/NVIDIA/nvidia-container-toolkit/issues/226",
+          "resolved": true,
+          "groundedness": "partial",
+          "attribution_match": "match",
+          "note": "Resolves with matching title 'Issues with cudaHostAlloc - Pinned Memory in Container', opened Jan 19 2023, on NVIDIA/nvidia-container-toolkit. Confirms pinned-memory allocation failures are container-specific on Docker Desktop + WSL2 ('works natively on all systems... but in Docker it fails'), supporting the thesis that the harsh cap is associated with the containerized path, not native. Partial on magnitude: this reporter's own threshold is ~1 GB / 2 GB pinned, not a few-hundred-MB number, so it corroborates the container-attribution but not the specific few-hundred-MB figure."
+        }
+      ]
+    },
+    {
+      "id": "fifty-percent-relationship#3",
+      "lane": "fifty-percent-relationship",
+      "claim": "There is NO primary evidence of a documented driver/WSL changelog entry that lifted the WSL2 pinned cap from a few hundred MB toward the native ~50% (or higher). Issue #14078 was closed on 2026-01-27, but as an automatic stale/no-author-activity close — not a confirmed fix. No NVIDIA or WSL engineer in any retrieved source states the cap was raised.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://github.com/microsoft/WSL/issues/14078",
+          "resolved": true,
+          "groundedness": "supported",
+          "attribution_match": "match",
+          "note": "Verified via GitHub API + comments endpoint (WebFetch could not render the timeline, so API used for authoritative closure metadata). Title matches exactly: 'Pinned Memory Allocation Fails Above 500 MB in Docker on WSL2'. closed_at=2026-01-27T23:51:53Z, closed_by=microsoft-github-policy-service[bot] — matches the stated automation author and 2026 year. The final comment is the policy bot verbatim: 'This issue has been automatically closed since it has not had any author activity for the past 7 days. If you're still experiencing this issue please re-file it as a new issue.' This directly supports the claim that the close was an automatic stale/no-author-activity close, NOT a confirmed fix. Labels: needs-author-feedback, GPU (no 'stale' label per se; the inactivity mechanism is confirmed by the bot text). No NVIDIA or WSL engineer in the 7-comment thread states the pinned cap was raised. NUANCE/PARTIAL caveat: GitHub API reports state_reason='completed' rather than 'not_planned', which could be naively misread as 'fixed' — but the closing event and comment text make clear it was an inactivity auto-close, so the claim holds."
+        },
+        {
+          "url": "https://forums.developer.nvidia.com/t/what-are-the-pinned-memory-limitations-on-cuda-for-wsl2/255472",
+          "resolved": true,
+          "groundedness": "supported",
+          "attribution_match": "mismatch",
+          "note": "Page resolves on the stated venue (forums.developer.nvidia.com). Title matches: 'What are the pinned memory limitations on CUDA for WSL2?'. Supports the claim's negative assertion: NO post states the pinned cap was raised toward native ~50%; the only technical reply (njuffa) says pinned-host-memory limits depend on OS internals not CUDA, and cudaHostAlloc is a thin wrapper over OS APIs — no driver/WSL changelog cited raising any cap. ATTRIBUTION MISMATCH on date: the source list labels this 'multiple 2026', but all posts in the thread are from June 2023 (June 3-4). So it offers no 2025-2026 evidence either way; it supports the negative claim but is older than the stated date."
+        }
+      ]
+    },
+    {
+      "id": "fifty-percent-relationship#4",
+      "lane": "fifty-percent-relationship",
+      "claim": "Evidence points toward WSL2/container GPU-accessible host memory tracking the VM's assigned RAM (the .wslconfig 'memory=' value), consistent with the native 50%-of-RAM behavior scaling with whatever RAM is present. This is strongest for the ROCm analog and is the plausible mechanism behind the rig's >=72%-of-VM-RAM result, but NVIDIA has published no formula.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://github.com/ROCm/ROCm/issues/6022",
+          "resolved": true,
+          "groundedness": "supported",
+          "attribution_match": "match",
+          "note": "Real GitHub issue on ROCm/ROCm. Cited title fragment 'ROCm pool size is limited by .wslconfig memory setting' and hardware tag '[Strix Halo / 8060S]' match the actual title. Year (2025/2026 era) consistent. Directly supports the claim's strongest leg (the ROCm analog): the OP shows rocminfo Pool 1 Size tracking the .wslconfig memory= value (~16GB default -> 16187412 KB; memory=24GB -> 24604680 KB), demonstrating GPU-accessible memory scales with the VM's assigned RAM. Attribution caveat: source list credits OP generically as 'OP' while the fetched page shows author 'sandynz' — venue/title/hardware match, so attribution is treated as a match with a naming-looseness note."
+        },
+        {
+          "url": "https://forums.developer.nvidia.com/t/what-are-the-pinned-memory-limitations-on-cuda-for-wsl2/255472",
+          "resolved": true,
+          "groundedness": "partial",
+          "attribution_match": "match",
+          "note": "Real NVIDIA Developer Forums thread. Title, OP (boxerab), responder (njuffa), and year (2023) all match the citation exactly. Supports the claim's 'NVIDIA has published no formula' assertion — njuffa: 'I am not aware of any formula that would let one determine the maximum amount of available pinned memory up front, for any operating system supported by CUDA,' and pinned-memory limits 'depend on internal details of the operating system, not CUDA.' Does NOT support the core WSL2/.wslconfig RAM-tracking mechanism: the thread has no discussion of .wslconfig, the memory= value, the 50%-of-RAM behavior, or any RAM-assignment scaling. Hence partial — it grounds the no-formula half of the claim only."
+        }
+      ]
+    },
+    {
+      "id": "fifty-percent-relationship#5",
+      "lane": "fifty-percent-relationship",
+      "claim": "NVIDIA officially documents (CUDA on WSL User Guide v13.3, Known Limitations) that pinned system memory availability under WSL2 is limited and can break some deep-learning workloads — but provides NO numeric cap. The constraint is acknowledged-but-unquantified, which is exactly the gap a measured probe fills.",
+      "oracle_verdict": "confirmed",
+      "citations": [
+        {
+          "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+          "resolved": true,
+          "attribution_match": "match",
+          "groundedness": "supported",
+          "note": "Page fetches on the stated venue (docs.nvidia.com) and self-reports Document Version v13.3, matching the citation. The Known Limitations section (5.1, 'Known Limitations for Linux CUDA Applications') contains the verbatim statement: 'Pinned system memory ... availability for applications is limited.' It further states 'some deep learning training workloads, depending on the framework, model and dataset size used, can exceed this limit and may not work.' Crucially, NO numeric cap is given — the constraint is acknowledged but left unquantified. This supports every load-bearing element of the claim: (1) pinned memory under WSL2 is limited, (2) it can break some DL workloads, (3) no number is provided. Authors stated as 'NVIDIA Corporation' and year 2025 are consistent with a CUDA 13.x-era doc and not contradicted by the page."
+        }
+      ]
+    }
+  ],
+  "counts": {
+    "lanes_ok": 4,
+    "findings": 22,
+    "oracle_done": 22
+  }
+}

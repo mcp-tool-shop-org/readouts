@@ -1,0 +1,496 @@
+{
+  "bucket": "host-embedding",
+  "verifier_note": "Checked every recipe's warrant sources by direct retrieval, never from memory: docs.rs pages at the pinned versions (wasmtime 49.0.1, godot 0.5.5, rapier3d-f64 0.35.3, parry3d-f64 0.30.2, glamx 0.3.1, bytemuck 1.25.2, cbindgen 0.29.4), official docs (wasmtime.dev, doc.rust-lang.org/stable, docs.godotengine.org 4.7/4.5, dev.epicgames.com, component-model.bytecodealliance.org, godot-rust.github.io), raw crate/GitHub source (godot-wasm store.h/SConstruct/utils.py at two refs, glamx eigen3.rs, parry mass_properties.rs, cbindgen CHANGES, Cargo.toml source views), GitHub release pages via gh CLI (wasmtime v49.0.0/v49.0.1/v48.0.3, wasmer v7.4.2, WAMR-2.4.5, wasm3 v0.9.0, jco-v1.35.0, wit-bindgen v0.62.0), two godot-proposals issues, and si-rpg-engine itself at the pinned commit f84c98b (build.mjs, FLAGS.md, README.md, solver/src/lib.rs, rapier_law.rs, .cargo/config.toml, trace-line.mjs, first-difference.js, docs/PHASE-2.md, the product-alignment dispatch). I ran all 17 of the lane's checks through the real pinned rustc 1.98.1 plus the real rapier3d-f64/parry3d-f64/bytemuck rlibs and node v22.22.3 via compile_oracle.py: 17/17 passed with exact stdout, exact compile_fail error codes (E0277, E0080), and exact wasm export/import lists, including a real rapier3d-f64 physics run whose collision event lands at quantum 20 exactly as claimed and a native/wasm FNV match (4769065195358558711) that is genuinely opt-level-3-native-vs-wasm, not asserted. I independently reproduced the JS negative-zero claim on this rig's node v22.22.3 (String(-0), (-0).toFixed(3), JSON.stringify(-0) all print without a minus sign) and confirmed wasm3's and godot-wasm's release histories have no tagged release hiding between the cited versions. I also diffed the pinned commit against main (17 commits ahead as of this sweep) specifically hunting for the stale-engine_note pattern another lane in this sweep flagged: docs/PHASE-2.md did change on main, but only in the T2/T7 area; the T1 and T3 rows every host-embedding recipe cites are byte-for-byte identical, and the new docs/dispatch-t3-platforms.md corroborates rather than contradicts recipe 2's 'T3 will refuse growable memory' claim (it reveals the pinned binary's allocator did still call memory.grow at f84c98b, which is exactly the live risk recipes 1 and 2 tell hosts to defend against). Nothing in the ten recipes was false, unsupported, or mismatched between check and prose; every one of roughly 74 warrant sources resolved and supported its claim verbatim. What failed: nothing verifiable failed. The systemic weakness is not an error but a shelf-life one: the lane's authority rests on two extremely fast-moving artifacts, Wasmtime (a new major every month; 49.0.1 and 48.0.3 both shipped the identical fuel-spend security fix on 2026-09-24, one day before this sweep) and si-rpg-engine itself (17 commits and a same-day PHASE-2.md amendment within the pinned commit's own calendar day) - so 'solid' here means solid against today's ground truth, not against a stable target, and the runtime-config recipe plus every engine_note will need the 30-day freshness re-check the studio's own memory rule already prescribes sooner than most lanes would.",
+  "verdicts": [
+    {
+      "slug": "host-the-law-as-the-one-pinned-wasm-in-an-embedded-runtime-it-imports-nothing-so-no-wasi-is-linked",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle check PASS (wasm_no_imports, 5 exports, solver_step(3)=1). build.mjs instantiate() takes no import object verbatim; lib.rs+rapier_law.rs export exactly the ten named functions, confirmed by name.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/solver/build.mjs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://webassembly.github.io/spec/js-api/",
+          "supported": true,
+          "note": "'read the imports' step 1: throws TypeError when imports non-empty and importObject undefined, verbatim."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/solver/build.mjs",
+          "supported": true,
+          "note": "instantiate() = new WebAssembly.Instance(module), no import object; each fn builds fresh Float64Array(memory.buffer)."
+        },
+        {
+          "url": "https://docs.rs/wasmtime/49.0.1/wasmtime/struct.Memory.html",
+          "supported": true,
+          "note": "'growth may change the base pointer...holding a raw pointer...over a wasm function call is also incorrect' verbatim."
+        },
+        {
+          "url": "https://docs.rs/wasmtime/49.0.1/wasmtime/struct.Instance.html",
+          "supported": true,
+          "note": "new(store, &Module, imports: &[Extern]) -> Result<Instance>; get_typed_func/get_memory confirmed."
+        },
+        {
+          "url": "https://docs.rs/wasmtime/49.0.1/wasmtime/trait.WasmTy.html",
+          "supported": true,
+          "note": "impl WasmTy present for i32/i64/u32/u64/f32/f64, confirmed on the live page."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/solver/FLAGS.md",
+          "supported": true,
+          "note": "'digest of the Linux build only...golden hash, not the digest, is the cross-host invariant' verbatim."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/README.md",
+          "supported": true,
+          "note": "'simulation core inside a host...Presentation has no path back into the hash' verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "build-wasmtime-s-config-for-the-law-by-hand-and-pin-an-lts-line-defaults-and-fuel-costs-move-between-releases",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "All 5 Config defaults, all 5 C-API function names, and both release-note fuel-spend fixes (GHSA-m63x, GHSA-jqpg) confirmed verbatim live on docs.rs/docs.wasmtime.dev and the exact 2026-09-24 release pages.",
+      "evidence_url": "https://docs.rs/wasmtime/49.0.1/wasmtime/struct.Config.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/wasmtime/49.0.1/wasmtime/struct.Config.html",
+          "supported": true,
+          "note": "5 defaults verbatim: nan_canon=false, relaxed_simd=true, threads=crate-feature, fuel=false, epoch non-deterministic."
+        },
+        {
+          "url": "https://docs.wasmtime.dev/examples-deterministic-wasm-execution.html",
+          "supported": true,
+          "note": "Recommends nan canon, deterministic/disabled relaxed-simd, bounded growth (limiter/upfront/wasmparser), fuel not epoch."
+        },
+        {
+          "url": "https://docs.wasmtime.dev/c-api/config_8h.html",
+          "supported": true,
+          "note": "All 5 fn names verbatim: nan_canonicalization_set, relaxed_simd_set/_deterministic_set, threads_set, consume_fuel_set."
+        },
+        {
+          "url": "https://github.com/bytecodealliance/wasmtime/releases/tag/v49.0.0",
+          "supported": true,
+          "note": "2026-09-21: wide-arithmetic default on; operator_cost now charges const-exprs+start; 'requires Rust 1.96.0' verbatim."
+        },
+        {
+          "url": "https://github.com/bytecodealliance/wasmtime/releases/tag/v49.0.1",
+          "supported": true,
+          "note": "2026-09-24: GHSA-m63x (call_ref/exception fuel) + GHSA-jqpg (record-lifting fuel) fixes, matching claim exactly."
+        },
+        {
+          "url": "https://github.com/bytecodealliance/wasmtime/releases/tag/v48.0.3",
+          "supported": true,
+          "note": "2026-09-24: identical two fuel-spend GHSA fixes shipped on the 48 LTS line, confirmed."
+        },
+        {
+          "url": "https://docs.wasmtime.dev/stability-release.html",
+          "supported": true,
+          "note": "'new major...on the 20th of each month'; 'multiple of 12...LTS...24 months...others...2 months' verbatim."
+        },
+        {
+          "url": "https://webassembly.github.io/spec/core/exec/numerics.html",
+          "supported": true,
+          "note": "NaN sign nondeterministic, payload nondet. unless canonical inputs; deterministic profile = positive canonical NaN."
+        }
+      ]
+    },
+    {
+      "slug": "choose-the-runtime-per-platform-by-tier-cranelift-needs-executable-pages-at-run-time-interpreters-do-not",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Oracle 2/2 checks PASS (simd128 guard compiles and traps as claimed). Tiers/platform-support pages, Wasmer default=Cranelift, WAMR's 3 CVEs, and wasm3's release gap (v0.9.0 is literally the next tag after v0.5.0/2021) all confirmed live.",
+      "evidence_url": "https://docs.wasmtime.dev/stability-tiers.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.wasmtime.dev/stability-tiers.html",
+          "supported": true,
+          "note": "Tier1 (3 platforms/Cranelift+Winch/Rust+C), Tier2 (aarch64/no_std/threads/Pulley/C++), Tier3 (ios/android/win,i686)."
+        },
+        {
+          "url": "https://docs.wasmtime.dev/stability-platform-support.html",
+          "supported": true,
+          "note": "Cranelift/Winch need exec-page OS, no static precompiled link; Pulley portable w/ perf cost; no_std needs AOT."
+        },
+        {
+          "url": "https://github.com/wasmerio/wasmer/blob/v7.4.2/lib/compiler-cranelift/src/config.rs",
+          "supported": true,
+          "note": "canonicalize_nans doc 'useful...deterministically across different architectures' verbatim; new() sets false."
+        },
+        {
+          "url": "https://github.com/wasmerio/wasmer/releases/tag/v7.4.2",
+          "supported": true,
+          "note": "Published 2026-09-16, confirmed."
+        },
+        {
+          "url": "https://github.com/wasm-micro-runtime/wasm-micro-runtime",
+          "supported": true,
+          "note": "Architecture list + interpreter/AOT/JIT modes + org move to wasm-micro-runtime all confirmed verbatim."
+        },
+        {
+          "url": "https://github.com/wasm-micro-runtime/wasm-micro-runtime/releases/tag/WAMR-2.4.5",
+          "supported": true,
+          "note": "2026-06-29; all three CVEs (54912/54913/54914) confirmed verbatim in Bug Fixes."
+        },
+        {
+          "url": "https://github.com/wasm3/wasm3",
+          "supported": true,
+          "note": "'Wasm3 will enter a minimal maintenance phase' verbatim; Deterministic=Ready, Threads/SIMD=N/A in features table."
+        },
+        {
+          "url": "https://github.com/wasm3/wasm3/releases/tag/v0.9.0",
+          "supported": true,
+          "note": "2026-08-24; 'fully validates...Wasm 2.0+parts of 3.0' verbatim; no tag exists between v0.5.0(2021) and v0.9.0."
+        }
+      ]
+    },
+    {
+      "slug": "in-godot-4-embed-the-wasm-through-a-gdextension-you-configure-godot-wasm-runs-wasmtime-on-its-defaults",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "store.h confirmed verbatim: wasm_engine_new() takes no args, comment says 'same store...used between all compiled Wasm modules'. Both utils.py version sets confirmed at their exact refs, incl. the Feb-6-2026 bump commit by message and date.",
+      "evidence_url": "https://github.com/ashtonmeuser/godot-wasm/blob/master/src/store.h",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://github.com/godotengine/godot-proposals/issues/10488",
+          "supported": true,
+          "note": "Opened 2024-08-18 (API-confirmed), still open; proposes Wasm3-like interpreter, cites W^X platforms + JIT."
+        },
+        {
+          "url": "https://github.com/ashtonmeuser/godot-wasm",
+          "supported": true,
+          "note": "'still in its infancy', 'Web/HTML5 export is not supported', 'Only int and float return values' all verbatim."
+        },
+        {
+          "url": "https://github.com/ashtonmeuser/godot-wasm/blob/master/src/store.h",
+          "supported": true,
+          "note": "'still in its infancy', 'Web/HTML5 export is not supported', 'Only int and float return values' all verbatim."
+        },
+        {
+          "url": "https://github.com/ashtonmeuser/godot-wasm/blob/master/SConstruct",
+          "supported": true,
+          "note": "'still in its infancy', 'Web/HTML5 export is not supported', 'Only int and float return values' all verbatim."
+        },
+        {
+          "url": "https://github.com/ashtonmeuser/godot-wasm/blob/v0.5.0-godot-4/utils.py",
+          "supported": true,
+          "note": "'still in its infancy', 'Web/HTML5 export is not supported', 'Only int and float return values' all verbatim."
+        },
+        {
+          "url": "https://github.com/ashtonmeuser/godot-wasm/blob/master/utils.py",
+          "supported": true,
+          "note": "'still in its infancy', 'Web/HTML5 export is not supported', 'Only int and float return values' all verbatim."
+        },
+        {
+          "url": "https://docs.godotengine.org/en/stable/classes/class_javascriptbridge.html",
+          "supported": true,
+          "note": "'implemented only in the Web export' verbatim; eval/get_interface/create_callback/create_object present."
+        },
+        {
+          "url": "https://docs.godotengine.org/en/4.5/tutorials/platform/consoles.html",
+          "supported": true,
+          "note": "'the only console Godot officially supports is Steam Deck' verbatim; W4 Games middleware for Switch/Xbox/PS5 confirmed."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/docs/study-swarm/product-alignment.dispatch.md",
+          "supported": true,
+          "note": "Step 5: 'first host is Godot, by GDExtension or the browser build; the second is Unreal' verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "bind-the-law-natively-in-godot-with-gdext-0-5-5-a-cdylib-entry-point-api-4-n-no-newer-than-the-running-godot",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Oracle check PASS: f32 narrow/widen of 0.1+0.2 is not exact, exact bits shown. docs.rs feature text and crates.io metadata (2026-08-09T08:21:52Z, rust_version 1.94, MPL-2.0) confirmed verbatim; compat matrix row '0.4+ | 4.2' confirmed.",
+      "evidence_url": "https://docs.rs/godot/0.5.5/godot/index.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://godot-rust.github.io/book/toolchain/compatibility.html",
+          "supported": true,
+          "note": "'Latest godot-rust requires at least Godot 4.2' verbatim; matrix row '0.4+ | 4.2'; breaking-changes note confirmed."
+        },
+        {
+          "url": "https://godot-rust.github.io/book/intro/hello-world.html",
+          "supported": true,
+          "note": "cdylib, #[gdextension], #[derive(GodotClass)] #[class(base=...)], entry_symbol \"gdext_rust_init\" all confirmed verbatim."
+        },
+        {
+          "url": "https://docs.rs/godot/0.5.5/godot/index.html",
+          "supported": true,
+          "note": "At-most-one api-*, default=current minor/patch0; double-precision; experimental-threads/wasm wording all verbatim."
+        },
+        {
+          "url": "https://docs.rs/crate/godot/0.5.5/features",
+          "supported": true,
+          "note": "Full feature list confirmed: api-4-2..4-7, api-custom(-json), experimental-threads/wasm, double-precision present."
+        },
+        {
+          "url": "https://crates.io/api/v1/crates/godot/0.5.5",
+          "supported": true,
+          "note": "created_at 2026-08-09T08:21:52Z, rust_version 1.94, license MPL-2.0 confirmed exactly via the crates.io API."
+        }
+      ]
+    },
+    {
+      "slug": "treat-a-native-law-build-as-a-second-artifact-basic-ops-match-the-wasm-std-math-inside-dependencies-may-not",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle 3/3 PASS: native and wasm FNV both 4769065195358558711; parry inertia diagonal/off-diagonal exact. glamx source's own p1 formula and 'if p1==0.0 the matrix is diagonal' branch match the check's off_diagonal() fn line for line.",
+      "evidence_url": "https://docs.rs/crate/glamx/0.3.1/source/src/eigen3.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f64.html",
+          "supported": true,
+          "note": "sin 'non-deterministic...platform, Rust version'; sqrt 'guaranteed not to change'; min tie-break - all verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f32.html",
+          "supported": true,
+          "note": "roundTiesToEven per IEEE754-2008 for +,-,*,/ confirmed verbatim."
+        },
+        {
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/Cargo.toml",
+          "supported": true,
+          "note": "enhanced-determinism=[\"simba/libm_force\",\"parry3d-f64/enhanced-determinism\"] confirmed verbatim in the live source view."
+        },
+        {
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/Cargo.toml",
+          "supported": true,
+          "note": "enhanced-determinism=[\"simba/libm_force\",\"indexmap\",\"glamx/libm\",\"glamx/scalar-math\"], all 4 entries confirmed verbatim."
+        },
+        {
+          "url": "https://docs.rs/crate/glamx/0.3.1/source/src/eigen3.rs",
+          "supported": true,
+          "note": "ComplexField gated cfg(not(std)); p1==0.0 -> diagonal branch; else r.acos()/3.0, phi.cos() - confirmed in source."
+        },
+        {
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/mass_properties/mass_properties.rs",
+          "supported": true,
+          "note": "with_inertia_matrix calls symmetric_eigen(); dim3 Add() early-returns on is_zero() else with_inertia_matrix."
+        },
+        {
+          "url": "https://rapier.rs/docs/user_guides/rust/determinism",
+          "supported": true,
+          "note": "Written for Rapier 0.36; enhanced-determinism, IEEE754-2008 incl. WASM, insertion order, ComplexField/RealField."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/method-call-expr.html",
+          "supported": true,
+          "note": "'T's inherent methods' searched before 'methods provided by a visible trait' confirmed verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "link-the-law-into-unreal-5-as-one-rust-staticlib-or-cdylib-behind-a-cbindgen-header-in-an-external-module",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle 4/4 PASS incl. identical layout code 136008128 on host and wasm32, matching lib.rs's own BODY_STRIDE comment verbatim. cbindgen PR #1020 + unsafe(no_mangle) test + crates.io date/rust_version/license all confirmed.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/linkage.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/linkage.html",
+          "supported": true,
+          "note": "staticlib carries deps+std+exports syms; '--print=native-static-libs'; multiple staticlibs conflict; cdylib =dyn lib."
+        },
+        {
+          "url": "https://dev.epicgames.com/documentation/en-us/unreal-engine/integrating-third-party-libraries-into-unreal-engine",
+          "supported": true,
+          "note": "ModuleType.External, PublicIncludePaths/AdditionalLibraries, DelayLoadDLLs+RuntimeDependencies caveats - verbatim."
+        },
+        {
+          "url": "https://github.com/mozilla/cbindgen",
+          "supported": true,
+          "note": "'creates C/C++11 headers for Rust libs exposing a public C API', CLI or build.rs, confirmed verbatim."
+        },
+        {
+          "url": "https://github.com/mozilla/cbindgen/blob/master/docs.md",
+          "supported": true,
+          "note": "'creates C/C++11 headers for Rust libs exposing a public C API', CLI or build.rs, confirmed verbatim."
+        },
+        {
+          "url": "https://github.com/mozilla/cbindgen/blob/master/CHANGES",
+          "supported": true,
+          "note": "0.28.0: 'Parse unsafe attributes...pull/1020'; nearby: unsafe(no_mangle) test added; 0.29.4 = latest release."
+        },
+        {
+          "url": "https://crates.io/api/v1/crates/cbindgen/0.29.4",
+          "supported": true,
+          "note": "created_at 2026-06-09T19:03:00Z, rust_version 1.74, MPL-2.0 confirmed exactly via the crates.io API."
+        },
+        {
+          "url": "https://docs.wasmtime.dev/c-api/",
+          "supported": true,
+          "note": "Artifacts end '-c-api' w/ include+lib; Windows static needs -DWASM_API_EXTERN=/-DWASI_API_EXTERN= + 7 libs."
+        },
+        {
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-attributes.html",
+          "supported": true,
+          "note": "'2024 Edition...required to mark these attributes unsafe': export_name, link_section, no_mangle - verbatim."
+        },
+        {
+          "url": "https://dev.epicgames.com/documentation/en-us/unreal-engine/consoles-development-in-unreal-engine",
+          "supported": true,
+          "note": "Supports Switch/Switch2/PS4/PS5/Xbox with per-console developer registration, confirmed."
+        }
+      ]
+    },
+    {
+      "slug": "treat-the-component-model-as-a-new-target-and-abi-wit-values-are-copied-across-and-memory-is-never-shared",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Every claim confirmed verbatim live: Canonical ABI's fuse-into-one-copy + NaN-sign/payload-discarded text, wasm32-wasip2 Tier2/component-output, jco/wit-bindgen 2026-09-24/09-10 release dates, and component-model listed as Wasmtime Tier 1.",
+      "evidence_url": "https://raw.githubusercontent.com/WebAssembly/component-model/main/design/mvp/CanonicalABI.md",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://component-model.bytecodealliance.org/design/why-component-model.html",
+          "supported": true,
+          "note": "Core fns restricted to int/float; components use WIT+Canonical ABI, 'may not export a memory' - all confirmed verbatim."
+        },
+        {
+          "url": "https://component-model.bytecodealliance.org/language-support/building-a-simple-component/rust.html",
+          "supported": true,
+          "note": "wasm32-wasip2 + wit_bindgen::generate! + wasmtime; 'cargo-component...in the process of being deprecated' - verbatim."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/WebAssembly/component-model/main/design/mvp/CanonicalABI.md",
+          "supported": true,
+          "note": "'fuse lifting/lowering into a single direct copy'; floats loaded w/ NaN sign+payload discarded - verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-wasip2.html",
+          "supported": true,
+          "note": "Tier 2; 'this target outputs a component'; runtime 'should support the wasi preview 2 API set' - verbatim."
+        },
+        {
+          "url": "https://github.com/bytecodealliance/jco",
+          "supported": true,
+          "note": "'Transpile WebAssembly components into ES modules...NodeJS and the browser' confirmed verbatim."
+        },
+        {
+          "url": "https://github.com/bytecodealliance/jco/releases/tag/jco-v1.35.0",
+          "supported": true,
+          "note": "Published 2026-09-24T15:30:18Z, confirmed."
+        },
+        {
+          "url": "https://github.com/bytecodealliance/wit-bindgen/releases/tag/v0.62.0",
+          "supported": true,
+          "note": "Published 2026-09-10T19:28:25Z, confirmed."
+        },
+        {
+          "url": "https://docs.rs/wasmtime/49.0.1/wasmtime/component/macro.bindgen.html",
+          "supported": true,
+          "note": "bindgen! 'ingests a WIT world' and generates bindings; requires component-model+runtime features - verbatim."
+        },
+        {
+          "url": "https://docs.wasmtime.dev/examples-deterministic-wasm-execution.html",
+          "supported": true,
+          "note": "'Do not give Wasm access to non-deterministic host fns'; virtualize WASI clocks/fs with wasi-virt."
+        }
+      ]
+    },
+    {
+      "slug": "drive-one-law-instance-per-world-from-one-thread-collect-rapier-events-in-a-sync-buffer-the-host-drains",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle 5/5 PASS: E0277/MaybeSync compile_fail, a real rapier3d-f64 sim draining the Started event at exactly quantum 20, byte totals, and Pod layout (136/8/104/128, matching recipe 7's own numbers) and E0080 padding refusal all exact.",
+      "evidence_url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/trait.EventHandler.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/trait.EventHandler.html",
+          "supported": true,
+          "note": "pub trait EventHandler: MaybeSync; both &self methods; ChannelEventCollector under std feature - verbatim."
+        },
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/utils/trait.MaybeSync.html",
+          "supported": true,
+          "note": "'Sync, unless the unsync-callbacks feature says otherwise' confirmed verbatim."
+        },
+        {
+          "url": "https://docs.rs/wasmtime/49.0.1/wasmtime/struct.TypedFunc.html",
+          "supported": true,
+          "note": "call(&self, store: impl AsContextMut, params) -> Result<Results> confirmed verbatim."
+        },
+        {
+          "url": "https://docs.godotengine.org/en/stable/tutorials/performance/thread_safe_apis.html",
+          "supported": true,
+          "note": "'Scene tree...not thread-safe...call_deferred or set_deferred' confirmed verbatim, page is Godot 4.7."
+        },
+        {
+          "url": "https://docs.rs/godot/0.5.5/godot/index.html",
+          "supported": true,
+          "note": "experimental-threads 'high risk of unsoundness at the moment' confirmed verbatim (same page checked for recipe 5)."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/solver/src/rapier_law.rs",
+          "supported": true,
+          "note": "static mut SOLVER one world; ensure() rebuilds on sig change; 'world is ours alone'; step() called with no handler."
+        },
+        {
+          "url": "https://docs.rs/bytemuck/1.25.2/bytemuck/trait.Pod.html",
+          "supported": true,
+          "note": "repr(C)/repr(transparent); 'allow any bit pattern'; 'no uninit (or padding) bytes' - all confirmed verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "accept-a-new-host-only-when-its-t1-trace-equals-node-s-in-16-hex-digit-ieee-bits-never-in-decimals",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle check PASS. trace-line.mjs bits() = getUint32(4,true)+getUint32(0,true) verbatim. PHASE-2.md's T1/T3 rows and 'no error thresholds' line confirmed unchanged on main (diffed pinned commit vs main: only the T2/T7 area moved).",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/harness/trace-line.mjs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/harness/trace-line.mjs",
+          "supported": true,
+          "note": "FIELDS list and bits(x) = hex(getUint32(4,true))+hex(getUint32(0,true)) confirmed verbatim in source."
+        },
+        {
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/f84c98b35c6707a10c8ddcb99caf505efc02e6af/docs/PHASE-2.md",
+          "supported": true,
+          "note": "T1 row + T3 ARM64-lane row verbatim; 'no error thresholds...bit-exact agreement' matches; unchanged on main."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f64.html",
+          "supported": true,
+          "note": "to_bits 'identical to transmute::<f64,u64>...all platforms'; floats/ints 'same endianness' - verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/fmt/index.html",
+          "supported": true,
+          "note": "'0' flag pads with zero verbatim; 'x' => LowerHex; '.N' sets float decimal digits - all confirmed."
+        }
+      ]
+    }
+  ]
+}

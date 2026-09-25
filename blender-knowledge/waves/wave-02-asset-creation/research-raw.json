@@ -1,0 +1,1674 @@
+{
+  "wave": 2,
+  "date": "2026-06-20",
+  "title": "Wave 2 — asset-creation: mesh, materials, geometry-nodes, rigging, add-ons",
+  "domain_scope": "mesh-ops, materials-baking, geometry-nodes, rigging-animation, addons-pipeline",
+  "agent_count": 5,
+  "verifier_note": "10 web-grounded research lanes (2 waves), each recipe sourced to current Blender 4.x docs (docs.blender.org manual + bpy API + release notes) as the live-docs retrieval oracle; currency self-assessed against fetched docs. Cross-family cloud verify (deepseek-v3.1:671b) is the planned hardening pass per readouts convention.  CROSS-FAMILY HARDENING: re-adjudicated by deepseek-v3.1:671b-cloud (different model family), reasoning-stripped, refute-by-default; solid recipes the juror couldn't confirm were down-weighted to plausible, refuted ones moved to shaky/blender3_stale.",
+  "lanes": [
+    {
+      "laneSlug": "addons-pipeline",
+      "title": "Add-ons & ecosystem",
+      "recipes": [
+        {
+          "slug": "extensions-platform-4-2",
+          "name": "Blender 4.2 Extensions platform — what changed",
+          "what": "Blender 4.2 LTS (July 2024) replaced the old Add-ons section in Preferences with an Extensions section and launched extensions.blender.org as the official distribution hub. Extensions use a blender_manifest.toml file instead of (or alongside) the old bl_info dict. The old bundled add-ons were split: functionality promoted to Blender core (e.g., some Cycles nodes), popular ones migrated to extensions.blender.org as individual installs, and the rest shipped as a downloadable 'Legacy Add-ons Bundle'. Any pre-4.2 install guide that says 'drop a.py or.zip into the add-ons folder via Preferences > Add-ons > Install' is now stale — the UI path is Preferences > Extensions > Install from Disk.",
+          "how": "Interactive install from extensions.blender.org: open Preferences > Extensions, allow online access, browse or search, click Get. Drag-and-drop from the website into Blender also works in 4.2+. Install from disk (local.zip extension): Preferences > Extensions > dropdown arrow (⌄) > Install from Disk. Legacy add-ons bundle (for offline/airgapped studios): download the separate legacy.zip from blender.org downloads, then Preferences > Extensions > ⌄ > Install Legacy Add-on.",
+          "blender_version": "4.2+ (extensions platform GA); 4.1 and earlier use the old Add-ons panel",
+          "gotchas": [
+            "Pre-4.2 guides reference 'Preferences > Add-ons > Install' — that UI is gone in 4.2+.",
+            "Online access must be explicitly granted the first time; airgapped machines need the legacy bundle or local repo.",
+            "The 'Legacy Add-ons Bundle' is a separate download, not bundled in the main 4.2 installer.",
+            "Extensions require blender_manifest.toml; legacy add-ons still use bl_info — mixing them in the same file is possible but the manifest takes precedence on 4.2+."
+          ],
+          "studio_use": "For a headless pipeline, pre-install extensions into a portable Blender build before shipping; avoid relying on online access at render-time. Use a local directory repository (custom repo in Extensions prefs) to distribute studio extensions to all workstations without internet dependency.",
+          "currency": "solid",
+          "verify_note": "Confirmed via extensions.blender.org/about/, code.blender.org blog (May 2024 beta release), and devtalk.blender.org bundling thread. | cross-family (deepseek-v3.1): confirmed — Correctly describes the 4.2 Extensions platform replacement of the old Add-ons panel and the new installation workflows.",
+          "sources": [
+            {
+              "title": "Extensions Platform Beta Release — Blender Developers Blog",
+              "url": "https://code.blender.org/2024/05/extensions-platform-beta-release/",
+              "claim": "Extensions platform went GA in Blender 4.2 LTS; describes install flow and bundling changes"
+            },
+            {
+              "title": "Changes to Add-on and Themes Bundling (4.2 onwards) — Developer Forum",
+              "url": "https://devtalk.blender.org/t/changes-to-add-on-and-themes-bundling-4-2-onwards/34593",
+              "claim": "Official thread detailing which add-ons were removed from core, how the legacy bundle works"
+            },
+            {
+              "title": "Get Extensions — Blender 5.1 Manual",
+              "url": "https://docs.blender.org/manual/en/latest/editors/preferences/extensions.html",
+              "claim": "Current install flow, online access requirement, Install from Disk path"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "blender-manifest-toml",
+          "name": "blender_manifest.toml — the extension manifest format",
+          "what": "Extensions in Blender 4.2+ are described by a blender_manifest.toml file in the root of the extension.zip. It replaces the old bl_info dict for extensions distributed via extensions.blender.org or local repos. Legacy add-ons (still using bl_info) are also supported in 4.2+ via the legacy install path but will not appear in extensions.blender.org.",
+          "how": "Minimum required fields: schema_version, id, version, name, tagline, maintainer, type, blender_version_min, license (SPDX string). Example: ```toml\nschema_version = \"1.0.0\"\nid = \"studio_batch_exporter\"\nversion = \"1.0.0\"\nname = \"Studio Batch Exporter\"\ntagline = \"Headless multi-format export for game assets\"\nmaintainer = \"Studio Name <studio@example.com>\"\ntype = \"add-on\"\nblender_version_min = \"4.2.0\"\nlicense = [\"SPDX:GPL-2.0-or-later\"] # Optional:\n# tags = [\"Import-Export\", \"Game Engine\"]\n# blender_version_max = \"5.0.0\"\n# platforms = [\"windows-x64\", \"linux-x64\"]\n# wheels = [\"./wheels/my_lib-1.0-py3-none-any.whl\"]\n# [permissions]\n# files = \"Reads/writes asset directories\"\n``` The id must be globally unique on extensions.blender.org; convention is author_extensionname (underscores). type must be 'add-on' or 'theme'.",
+          "blender_version": "4.2+ only — blender_manifest.toml is not read by Blender 4.1 or earlier",
+          "gotchas": [
+            "id uses underscores (not hyphens); mismatches cause install failures.",
+            "license must be an SPDX identifier array: e.g., [\"SPDX:GPL-2.0-or-later\"]. Plain strings like 'GPL' are rejected.",
+            "blender_version_min must be '4.2.0' or higher to use the extensions platform; setting it to '3.x' is valid but the extension won't appear on extensions.blender.org.",
+            "wheels (bundled Python packages) are a key feature over legacy add-ons — include third-party .whl files in the zip, no pip install needed at runtime.",
+            "If you include both blender_manifest.toml and bl_info in the same __init__.py, Blender 4.2+ prefers the manifest."
+          ],
+          "studio_use": "For studio-internal extensions, host a local repository directory and point all workstations to it via Preferences > Extensions > Repositories. Use wheels to bundle numpy, Pillow, or other deps so headless render nodes need no internet or pip.",
+          "currency": "solid",
+          "verify_note": "Required fields confirmed by fetching github.com/BlenderDefender/blender_manifest_schema (cross-referenced against Pallaidium and MedBlend real extension manifests on GitHub). | cross-family (deepseek-v3.1): confirmed — Accurate description of the blender_manifest.toml format and its required fields for Blender 4.2+ extensions.",
+          "sources": [
+            {
+              "title": "blender_manifest_schema — example TOML (GitHub)",
+              "url": "https://github.com/BlenderDefender/blender_manifest_schema/blob/main/blender_manifest_v1.example.toml",
+              "claim": "Community-maintained JSON Schema for the manifest; shows all required and optional fields"
+            },
+            {
+              "title": "How to Create Extensions — Blender 5.1 Manual",
+              "url": "https://docs.blender.org/manual/en/latest/advanced/extensions/getting_started.html",
+              "claim": "Official manifest field documentation"
+            },
+            {
+              "title": "How to Convert Your Blender Add-on to an Extension — Superhive",
+              "url": "https://superhivemarket.com/posts/how-to-convert-your-blender-add-on-to-an-extension",
+              "claim": "Step-by-step bl_info → blender_manifest.toml migration guide"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "bpy-addon-api-register",
+          "name": "bpy add-on API: register/unregister and the minimal operator pattern",
+          "what": "Blender add-ons and extensions both use the same bpy Python API internally. An __init__.py must define register() and unregister() functions. Classes (operators, panels, menus) are registered with bpy.utils.register_class() and unregistered with bpy.utils.unregister_class(). For extensions, bl_info is no longer required (the manifest supplies metadata), but is still valid as a fallback and for backward compatibility.",
+          "how": "Minimal extension __init__.py: ```python\nimport bpy # bl_info retained for Blender < 4.2 compatibility (ignored by 4.2+ if manifest present)\nbl_info = { \"name\": \"My Operator\", \"author\": \"Studio\", \"version\": (1, 0, 0), \"blender\": (4, 2, 0), \"category\": \"Import-Export\",\n} class STUDIO_OT_BatchExport(bpy.types.Operator): bl_idname = \"studio.batch_export\" bl_label = \"Batch Export Assets\" bl_description = \"Export selected objects to FBX/glTF\" def execute(self, context): # pipeline logic here self.report({'INFO'}, \"Export complete\") return {'FINISHED'} classes = [STUDIO_OT_BatchExport] def register(): for cls in classes: bpy.utils.register_class(cls) def unregister(): for cls in reversed(classes): bpy.utils.unregister_class(cls)\n``` Naming convention: operators use CATEGORY_OT_name, panels use CATEGORY_PT_name, menus CATEGORY_MT_name. bl_idname uses dot notation: 'category.action'.",
+          "blender_version": "4.x (pattern unchanged from 3.x; bl_info optional when manifest present in 4.2+)",
+          "gotchas": [
+            "Unregister must iterate classes in reverse order to avoid dependency errors.",
+            "bl_idname must be globally unique; clashes with another registered operator will silently shadow one.",
+            "For 4.2+ extensions, bl_info is IGNORED if blender_manifest.toml is present — do not put version metadata only in bl_info for extensions.",
+            "Operators called headlessly need 'EXEC_DEFAULT' execution context: bpy.ops.studio.batch_export('EXEC_DEFAULT') — the default 'INVOKE_DEFAULT' requires a window."
+          ],
+          "studio_use": "Write studio pipeline operators as extensions with blender_manifest.toml for 4.2+ deploy. Keep bl_info as a fallback comment for any artist who still runs 4.1. Call operators with 'EXEC_DEFAULT' in headless scripts to avoid window context errors.",
+          "currency": "solid",
+          "verify_note": "register/unregister pattern is stable across all Blender 4.x versions; confirmed via Blender addon tutorial docs and multiple GitHub extension examples. | cross-family (deepseek-v3.1): confirmed — Correct description of the unchanged register/unregister pattern and bl_info becoming optional with manifests in 4.2+.",
+          "sources": [
+            {
+              "title": "Add-on Tutorial — Blender Manual",
+              "url": "https://docs.blender.org/manual/en/latest/advanced/scripting/addon_tutorial.html",
+              "claim": "Official register/unregister pattern, bl_info structure, operator basics"
+            },
+            {
+              "title": "Addons — Blender Developer Documentation (2.80 Python API changes)",
+              "url": "https://developer.blender.org/docs/release_notes/2.80/python_api/addons/",
+              "claim": "Describes the register/unregister API that remains the basis in 4.x"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "headless-addon-enable",
+          "name": "Enabling add-ons headlessly in --background --python scripts",
+          "what": "When Blender runs in headless mode (blender --background --python script.py), add-ons and extensions are NOT auto-enabled from user preferences unless prefs were saved with them enabled. For pipeline scripts that need an add-on's operators/functions, you must enable it programmatically in the script itself. Two approaches: addon_utils.enable() (session-only, does not modify saved prefs) or bpy.ops.preferences.addon_enable() + bpy.ops.wm.save_userpref() (persistent). For pre-installed extensions (4.2+), the same addon_utils API works.",
+          "how": "Session-only enable (preferred for headless — no prefs mutation):\n```python\nimport addon_utils\n# Enable by module name (for legacy add-ons: the module filename without.py)\naddon_utils.enable(\"io_scene_gltf2\", default_set=False, persistent=True)\n# persistent=True keeps it enabled across bpy.ops.wm.open_mainfile() calls in the same session\n``` Persistent enable (write to prefs — use for initial setup, not per-render):\n```python\nbpy.ops.preferences.addon_enable(module=\"io_scene_gltf2\")\nbpy.ops.wm.save_userpref()\n``` Install + enable a.zip add-on headlessly (legacy method, still works in 4.2):\n```python\nbpy.ops.preferences.addon_install(filepath=\"/path/to/addon.zip\")\nbpy.ops.preferences.addon_enable(module=\"addon_module_name\")\nbpy.ops.wm.save_userpref()\n# Run as: blender --background --python install_addon.py -- /path/to/addon.zip\n``` For Blender 4.2 extensions installed from disk, install with:\n```\nblender --command extension install-file -r user_default --enable studio_batch_exporter-1.0.0.zip\n```\nThe `-r user_default` specifies the local repository (use `blender --command extension repo-list` to see available repos).",
+          "blender_version": "addon_utils.enable() works in 4.x (same API as 3.x). blender --command extension install-file is 4.2+ only.",
+          "gotchas": [
+            "addon_utils.enable() without persistent=True will disable the add-on when bpy.ops.wm.open_mainfile() is called — always pass persistent=True for pipeline scripts that open .blend files.",
+            "bpy.ops.preferences.addon_enable() requires an operator context; in a headless script at module level this is usually fine, but if called inside a modal or from a non-context thread it fails.",
+            "The module name for addon_utils is the Python module name (directory or .py filename), NOT the display name. For extensions in 4.2+, it is the extension id from blender_manifest.toml.",
+            "bpy.context.preferences.addons[module_name] raises KeyError if the add-on was enabled with addon_utils (session-only) but not written to prefs.",
+            "blender --background without --factory-startup loads saved user prefs; if prefs have the add-on enabled, it loads automatically without any Python call needed."
+          ],
+          "studio_use": "The recommended headless pattern: pre-configure a studio Blender build with all extensions pre-enabled and prefs saved; pipeline scripts then run without any addon_enable() boilerplate. For dynamic per-script add-on loading, use addon_utils.enable(module, persistent=True) at the top of the script before any other bpy calls.",
+          "currency": "solid",
+          "verify_note": "Pattern confirmed by Blender developer tracker (T66924), Preferences Operators API docs (bpy.ops.preferences), and a real headless install script from HuggingFace StdGEN space. | cross-family (deepseek-v3.1): confirmed — Accurate headless enable patterns using addon_utils.enable() and the persistent enable methods.",
+          "sources": [
+            {
+              "title": "bpy.ops.preferences — Blender Python API",
+              "url": "https://docs.blender.org/api/current/bpy.ops.preferences.html",
+              "claim": "addon_enable() and addon_install() operator signatures"
+            },
+            {
+              "title": "Headless addon install script (StdGEN / HuggingFace)",
+              "url": "https://huggingface.co/spaces/hyz317/StdGEN/blame/6f8045fd0df8fbc08cf155b13232481af379c9e4/blender/install_addon.py",
+              "claim": "Working headless install pattern: addon_install + addon_enable + save_userpref via --background --python"
+            },
+            {
+              "title": "Extensions Command Line Arguments — Blender Manual",
+              "url": "https://docs.blender.org/manual/en/latest/advanced/command_line/extension_arguments.html",
+              "claim": "blender --command extension install-file syntax for 4.2+"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "bundled-pipeline-addons-4-2",
+          "name": "Bundled pipeline add-ons in Blender 4.2 — what moved where",
+          "what": "Several workflow-critical add-ons changed status in Blender 4.2. glTF 2.0 and OBJ importers are now native (compiled C) — no enable needed, always available. FBX import/export remains a Python add-on bundled with Blender core, enabled by default. Node Wrangler moved from bundled to extensions.blender.org (install separately in 4.2+). 'Import Images as Planes' similarly moved to extensions.blender.org. The 'legacy add-ons bundle' (separate download from blender.org) contains most of the other previously-bundled add-ons for users who need them.",
+          "how": "glTF 2.0 (native in 4.2+): always available, no enable required. Access via File > Import/Export > glTF 2.0 (.glb/.gltf). Headless: bpy.ops.export_scene.gltf() directly. FBX: bundled, enabled by default. Headless: bpy.ops.export_scene.fbx(). Node Wrangler (4.2+): must be installed from extensions.blender.org or the legacy bundle. After install: addon_utils.enable('node_wrangler', persistent=True) in headless scripts. Node Wrangler adds Ctrl+Shift+Click (viewer node) and Ctrl+T (texture setup) shortcuts — not relevant headlessly, but its batch texture-setup can be scripted. Import Images as Planes (4.2+): now on extensions.blender.org. Headless use: enable via addon_utils then bpy.ops.import_image.to_plane(). Useful for sprite-sheet plane setup in batch.",
+          "blender_version": "4.2+ for the split; Node Wrangler on extensions.blender.org requires 4.2.0 minimum",
+          "gotchas": [
+            "Node Wrangler is NOT included in the standard Blender 4.2 install — users upgrading from 4.1 lose it unless they install the legacy bundle or grab it from extensions.blender.org.",
+            "The glTF exporter changed from Python to native C in 4.x; bpy.ops.export_scene.gltf() still works but some bl_info-based detection scripts checking for the old module name 'io_scene_gltf2' may behave differently.",
+            "The legacy add-ons bundle is a point-in-time snapshot; it will NOT receive updates — extensions.blender.org versions will be maintained going forward.",
+            "Some add-ons from the legacy bundle conflict with their extensions.blender.org counterpart if both are installed; uninstall the legacy version first."
+          ],
+          "studio_use": "For a game-asset headless pipeline: glTF and FBX work out of the box. Node Wrangler is primarily interactive (keyboard shortcuts) — skip enabling it headlessly unless scripting its batch PBR setup. Import Images as Planes is useful for sprite/billboard batch setup.",
+          "currency": "solid",
+          "verify_note": "Node Wrangler extensions.blender.org status confirmed (extensions.blender.org/add-ons/node-wrangler/versions/). glTF native status confirmed via multiple 4.2 release notes references. | cross-family (deepseek-v3.1): confirmed — Correct description of the 4.2 add-on restructuring with glTF becoming native and Node Wrangler moving to extensions.",
+          "sources": [
+            {
+              "title": "Node Wrangler Version History — Blender Extensions",
+              "url": "https://extensions.blender.org/add-ons/node-wrangler/versions/",
+              "claim": "Node Wrangler on extensions.blender.org, requires Blender 4.2+, GPL-2.0-or-later"
+            },
+            {
+              "title": "Import Images as planes — Extension? — Blender Artists",
+              "url": "https://blenderartists.org/t/import-images-as-planes-extension/1616331",
+              "claim": "Community confirmation that Import Images as Planes moved to extensions.blender.org in 4.2"
+            },
+            {
+              "title": "Changes to Add-on and Themes Bundling (4.2 onwards) — Developer Forum",
+              "url": "https://devtalk.blender.org/t/changes-to-add-on-and-themes-bundling-4-2-onwards/34593",
+              "claim": "Official list of what moved where in the 4.2 bundling restructure"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "gpl-caveat-studio",
+          "name": "GPL licensing caveat — what it means for a studio using or shipping add-ons",
+          "what": "Any Python file that imports bpy is legally a derivative work of Blender (GPL-2.0-or-later). This means all add-on CODE must be GPL-compatible. However, the ASSETS created with Blender or its add-ons are not affected — rendered frames, exported meshes, textures, and game assets belong to the studio under whatever license they choose. The GPL only governs the add-on source code itself.",
+          "how": "Three scenarios for a studio: 1. Using third-party GPL add-ons (e.g., from extensions.blender.org): no restrictions on using them commercially. The GPL covers the add-on code, not your output. You can use unlimited seats — GPL prohibits seat-licensing restrictions. 2. Writing in-house add-ons that stay inside the studio: internal tools that are never distributed outside the organization are NOT subject to GPL disclosure. The GPL copyleft only triggers on *distribution*. You can keep a proprietary internal extension as long as you never ship it outside the studio. 3. Distributing add-ons to customers or other studios: the GPL requires you to provide source code to anyone you distribute the add-on to. You can charge for it (you're 'charging for the service of delivering the software'), but you cannot prevent redistribution or modification by the recipient. Bottom line: the studio's rendered output, game assets,.blend scenes, and exported meshes are YOURS, fully proprietary. Only the.py files that import bpy fall under GPL when distributed.",
+          "blender_version": "All Blender versions — GPL has applied since Blender went open-source",
+          "gotchas": [
+            "Including a bpy-importing script in a commercial software product distributed externally triggers GPL disclosure on that script — this is a real risk if you bundle pipeline scripts with a shipped game's asset tools.",
+            "The blender_manifest.toml requires an SPDX license field; submitting to extensions.blender.org requires GPL-compatible license. You cannot submit a proprietary add-on to the official platform.",
+            "GPL-2.0-or-later vs GPL-3.0: Blender itself is GPL-2.0-or-later; using GPL-3.0 for an extension is technically incompatible by strict reading, though in practice the community and Blender Foundation accept either for extensions.",
+            "The 'output is yours' principle is well-established but not a written Blender Foundation statement — it follows from general GPL interpretation of tool vs. work produced by the tool."
+          ],
+          "studio_use": "For in-house pipeline add-ons: keep them internal (never distribute) and GPL does not require disclosure. Document internal tools as 'GPL-2.0-or-later (not distributed)' to make the intent explicit. For tools you might open-source later, author them GPL from day one and host on extensions.blender.org.",
+          "currency": "solid",
+          "verify_note": "GPL derivative-work principle confirmed by multiple sources: cgmarket.net add-on license post, Blender Foundation FAQ, devtalk.blender.org GPL thread. 'Internal use doesn't trigger disclosure' is standard GPL interpretation per FSF guidance. | cross-family (deepseek-v3.1): confirmed — Accurate explanation of GPL implications for add-ons, including internal use vs distribution scenarios.",
+          "sources": [
+            {
+              "title": "What License Should You Use for Blender Add-ons? — CGMarket Blog",
+              "url": "https://blog.cgmarket.net/blender-addon-license/",
+              "claim": "Importing bpy makes code GPL derivative; output assets are not covered; commercial use of add-ons is unrestricted"
+            },
+            {
+              "title": "License — Blender Foundation",
+              "url": "https://www.blender.org/about/license/",
+              "claim": "Blender is GPL-2.0-or-later; the license page clarifies add-on status"
+            },
+            {
+              "title": "How to Make Your Blender Add-on GPL Compliant — Superhive Docs",
+              "url": "https://support.superhivemarket.com/article/294-how-to-make-your-blender-addon-gpl-compliant",
+              "claim": "Practical compliance guide for commercial add-on developers"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "game-asset-extensions-picks",
+          "name": "Useful current extensions for a game-asset batch pipeline",
+          "what": "As of 2025-2026, extensions.blender.org hosts several verified game-pipeline add-ons worth knowing. These are extensions (not legacy add-ons), compatible with Blender 4.2+, available for headless batch use via their operators.",
+          "how": "Picks with practical notes: **1. ACT — Asset Creation Toolset** (mrven / MIT/GPL): Batch FBX/glTF export for Unity/UE/Godot, origin alignment, UV tools, renaming. Has a long release history (github.com/mrven/Blender-Asset-Creation-Toolset). Headless: bpy.ops.act.batch_export() pattern. Supports Blender 3.0–5.0+. **2. Game Asset Optimizer**: One-click LOD generation, mesh decimation, dual UV unwrapping, batch optimization presets (CAD Import, Game Asset, VR Optimized, Custom). Good for preparing hi-poly sculpts for engine import. **3. BatchForge / EasyMesh Batch Exporter**: Batch export with per-object origin control, game-engine naming conventions (LOD0/LOD1 suffixes), texture resizing per LOD. Both on extensions.blender.org. **4. Super Duper Batch Exporter**: Auto LOD on export via decimate modifier; Unreal/Unity auto-detect LOD on import. Streamlined single-operator batch export. Install any of these via Preferences > Extensions (online) or blender --command extension install-file for offline. Enable headlessly with addon_utils.enable('act', persistent=True) (module name varies — check the extension id in its blender_manifest.toml).",
+          "blender_version": "All listed target Blender 4.2+; ACT also supports 3.x",
+          "gotchas": [
+            "License: most game pipeline extensions on extensions.blender.org are GPL-2.0-or-later (required by the platform). Some (ACT) carry dual MIT/GPL notice. Check each extension's manifest.",
+            "Module names for addon_utils.enable() must match the 'id' field in blender_manifest.toml, NOT the display name — verify by inspecting the installed extension's toml.",
+            "Batch exporters that use bpy.ops internally need 'EXEC_DEFAULT' context in headless scripts, or they will error with 'context is incorrect'.",
+            "Extensions on extensions.blender.org are reviewed but not audited for security — treat unfamiliar extensions the same as any open-source code before integrating into an automated pipeline."
+          ],
+          "studio_use": "ACT or BatchForge cover the core game-asset-to-engine export loop (FBX/glTF, origin alignment, LOD naming). Pre-bake these into a portable Blender studio build. For Godot-targeted pipeline, glTF via native exporter is sufficient without any add-on; ACT adds per-object batch control on top.",
+          "currency": "plausible",
+          "verify_note": "Extensions confirmed on extensions.blender.org search results (June 2025 search). ACT confirmed at github.com/mrven/Blender-Asset-Creation-Toolset with 2025.x releases. Full headless operator names not independently verified — confirm by inspecting each extension's source. | cross-family (deepseek-v3.1): unverified — Cannot verify the current status and availability of these specific extensions on extensions.blender.org as of 2025-2026.",
+          "sources": [
+            {
+              "title": "Game Asset Optimizer — Blender Extensions",
+              "url": "https://extensions.blender.org/add-ons/asset-optimizer/",
+              "claim": "LOD generation, batch optimization presets, available on extensions.blender.org"
+            },
+            {
+              "title": "ACT: Game Asset Creation Toolset releases — GitHub",
+              "url": "https://github.com/mrven/Blender-Asset-Creation-Toolset/releases",
+              "claim": "Actively maintained batch FBX/glTF exporter for Unity/UE/Godot; 2025.x releases confirm 4.x support"
+            },
+            {
+              "title": "EasyMesh Batch Exporter — Blender Extensions",
+              "url": "https://extensions.blender.org/add-ons/easymesh-batch-exporter/",
+              "claim": "LOD hierarchy export, automatic texture resizing, game-engine naming conventions"
+            }
+          ],
+          "research_currency": "plausible"
+        },
+        {
+          "slug": "local-repo-studio-distribution",
+          "name": "Studio distribution: local extension repository + portable Blender build",
+          "what": "Blender 4.2 introduces support for custom (local) extension repositories — a directory on disk or network share that Blender treats exactly like extensions.blender.org. This is the correct pattern for a studio that wants to distribute in-house extensions to multiple machines without internet access or publishing to the public platform. Combined with a portable Blender install (extracted, not system-installed), this produces a fully self-contained pipeline build.",
+          "how": "Setup a local repo:\n1. Create a directory: /studio/blender-extensions/\n2. Copy extension.zip files into it\n3. In Blender: Preferences > Extensions > Repositories > + (Add) > Local Repository > path to directory\n4. Blender will scan and list extensions from that directory in the Extensions panel For headless batch nodes:\n- Ship a portable Blender.zip extracted to /studio/blender/\n- Pre-configure user prefs (userpref.blend) with all extensions enabled and the local repo registered\n- Store the userpref.blend in version control alongside the portable build\n- On each render node, copy the portable build — prefs (including enabled extensions) travel with it Portable Blender user data: set BLENDER_USER_RESOURCES env var to a directory inside the portable build so all prefs/extensions are self-contained and don't pollute the OS user profile:\n```\nBLENDER_USER_RESOURCES=/studio/blender/portable blender --background --python pipeline.py\n```",
+          "blender_version": "Local repository support: Blender 4.2+. Portable builds + BLENDER_USER_RESOURCES: all Blender 3.x/4.x",
+          "gotchas": [
+            "BLENDER_USER_RESOURCES is the correct env var for 4.2+; older docs may reference BLENDER_USER_CONFIG, BLENDER_USER_SCRIPTS, BLENDER_USER_DATAFILES — these still work individually but BLENDER_USER_RESOURCES overrides all of them at once.",
+            "Local repo extensions must be valid .zip archives with a blender_manifest.toml at the root — Blender does NOT accept legacy add-on .zips in a local repo (use Install Legacy Add-on for those instead).",
+            "The local repo directory must not require write permission from the render node user if extensions are pre-installed; make it read-only on nodes.",
+            "extensions.blender.org rate limits or network restrictions won't affect a local-repo build — fully offline."
+          ],
+          "studio_use": "Canonical headless pipeline pattern: one portable Blender build in version control, BLENDER_USER_RESOURCES pointed into it, all studio extensions pre-enabled in committed userpref.blend. New render nodes need only a directory copy. No per-node setup, no internet dependency.",
+          "currency": "plausible",
+          "verify_note": "Local repository feature confirmed by the extensions platform beta blog and community coverage. BLENDER_USER_RESOURCES env var confirmed in Blender 4.2 release notes discussion; verify exact name against current docs.blender.org/manual (was blocked by 403 during this research session). | cross-family (deepseek-v3.1): confirmed — Correct description of local repository support in 4.2+ and portable build configuration using BLENDER_USER_RESOURCES.",
+          "sources": [
+            {
+              "title": "Extensions Platform Beta Release — Blender Developers Blog",
+              "url": "https://code.blender.org/2024/05/extensions-platform-beta-release/",
+              "claim": "Mentions portable installation and custom bundling of extensions as pipeline features of 4.2"
+            },
+            {
+              "title": "4.2 LTS — Blender (release page)",
+              "url": "https://www.blender.org/download/releases/4-2/",
+              "claim": "Pipeline integration improvements including portable install and environment variable support"
+            }
+          ],
+          "research_currency": "plausible"
+        }
+      ],
+      "cloud_verify": {
+        "model": "deepseek-v3.1:671b",
+        "verdicts": [
+          {
+            "recipe": "Blender 4.2 Extensions platform — what changed",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Correctly describes the 4.2 Extensions platform replacement of the old Add-ons panel and the new installation workflows."
+          },
+          {
+            "recipe": "blender_manifest.toml — the extension manifest format",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Accurate description of the blender_manifest.toml format and its required fields for Blender 4.2+ extensions."
+          },
+          {
+            "recipe": "bpy add-on API: register/unregister and the minimal operator pattern",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Correct description of the unchanged register/unregister pattern and bl_info becoming optional with manifests in 4.2+."
+          },
+          {
+            "recipe": "Enabling add-ons headlessly in --background --python scripts",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Accurate headless enable patterns using addon_utils.enable() and the persistent enable methods."
+          },
+          {
+            "recipe": "Bundled pipeline add-ons in Blender 4.2 — what moved where",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Correct description of the 4.2 add-on restructuring with glTF becoming native and Node Wrangler moving to extensions."
+          },
+          {
+            "recipe": "GPL licensing caveat — what it means for a studio using or shipping add-ons",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Accurate explanation of GPL implications for add-ons, including internal use vs distribution scenarios."
+          },
+          {
+            "recipe": "Useful current extensions for a game-asset batch pipeline",
+            "overall": "unverified",
+            "currency_check": "unknown",
+            "fixes": "",
+            "note": "Cannot verify the current status and availability of these specific extensions on extensions.blender.org as of 2025-2026."
+          },
+          {
+            "recipe": "Studio distribution: local extension repository + portable Blender build",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Correct description of local repository support in 4.2+ and portable build configuration using BLENDER_USER_RESOURCES."
+          }
+        ],
+        "tally": {
+          "confirmed": 7,
+          "confirmed-with-fixes": 0,
+          "unverified": 1,
+          "refuted": 0,
+          "no-verdict": 0
+        }
+      }
+    },
+    {
+      "laneSlug": "geometry-nodes",
+      "title": "Geometry Nodes (procedural)",
+      "recipes": [
+        {
+          "slug": "gn-modifier-basics",
+          "name": "GN Modifier + Node Group Inputs/Outputs",
+          "what": "Add a Geometry Nodes modifier to any object, wire up Group Input → Group Output as the data pipe, and expose socket values to the modifier panel so artists can art-direct procedural params without opening the node editor.",
+          "how": "1. Select object → Properties → Modifier tab (blue wrench) → Add Modifier → Geometry Nodes (or press New in GN editor header). 2. The default tree is Group Input → Group Output — this is the identity passthrough. 3. To expose a parameter: add any node (e.g. Set Position with an Offset input), drag the Offset socket to Group Input, then that socket appears in the modifier panel as a named field. 4. In Blender 4.0+ you can mark the whole node group as an asset and enable 'Is Modifier' — the group then appears directly in the Add Modifier menu by catalog path, and the node-group-selector is hidden by default for a cleaner interface. 5. Use the Menu Switch node (added 4.1) to create a dropdown enum in the modifier panel — connect different geometry branches to one Menu Switch whose items become a UI dropdown. 6. Node inputs can be flagged 'Single Value' (4.0+) to suppress the attribute toggle, keeping the modifier panel uncluttered.",
+          "blender_version": "4.0+",
+          "gotchas": "Pre-4.0 node group assets could not be marked 'Is Modifier' — that's 4.0-only. Menu Switch node is 4.1+. In 3.x the N-panel > Group tab was the only way to add inputs; 4.x still supports it but exposing sockets by dragging is faster. Single-value flag only available 4.0+.",
+          "studio_use": "Core pattern for every procedural prop in the 2.5D pipeline: expose Seed, Density, Detail Level as modifier inputs so art-direction happens in the properties panel without touching nodes. Reusable node group assets let the same 'rock scatter' or 'pipe cluster' GN group appear in the Add Modifier menu and get dropped onto any prop.",
+          "currency": "solid",
+          "verify_note": "Confirmed via Blender 4.0 release notes (developer.blender.org/docs/release_notes/4.0/geometry_nodes/) and community sources (cgcookie, artisticrender). Is Modifier + asset catalog integration is 4.0-specific and confirmed. | cross-family (deepseek-v3.1): confirmed — Correct description of GN modifier workflow with parameter exposure and 4.0+ asset modifier features.",
+          "sources": [
+            {
+              "title": "Everything New in Blender 4.0 — CG Cookie",
+              "url": "https://cgcookie.com/posts/everything-new-in-blender-4-0",
+              "claim": "Node groups marked as assets with 'Is Modifier' appear in the modifier menu; node group selector hidden by default; inputs can be forced single-value."
+            },
+            {
+              "title": "Blender Geometry Nodes Fundamentals Guide — Artisticrender",
+              "url": "https://artisticrender.com/blender-geometry-nodes-fundamentals-guide/",
+              "claim": "Group Input/Output structure, exposing parameters to modifier panel via socket drag or N-panel Group tab, field vs non-field socket shapes."
+            },
+            {
+              "title": "Menu Switch Node — Blender 4.1 Manual",
+              "url": "https://docs.blender.org/manual/en/4.1/modeling/geometry_nodes/utilities/menu_switch.html",
+              "claim": "Menu Switch outputs one of its inputs based on a dropdown; menu items defined in editor sidebar; 4.1 added 'extend' socket in 4.2."
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "scatter-instances",
+          "name": "Scatter/Instancing — Distribute Points on Faces → Instance on Points",
+          "what": "The canonical GN scatter pattern: place a cloud of points on a mesh surface, then instance a collection or object at every point. Controls density, seed, minimum spacing (Poisson Disk), per-instance random rotation/scale. Foundation for environment set-dressing, ground-cover, debris, prop clusters.",
+          "how": "Node chain: Group Input (Mesh) → Distribute Points on Faces → Instance on Points → [optional Realize Instances] → Group Output. Key socket wiring: (A) Distribute Points on Faces: Mesh ← Group Input Geometry; set Distribution Method to 'Random' (uniform) or 'Poisson Disk' (prevents overlap, adds Distance Min input); Density controls point count per unit area; Seed randomises placement. (B) Instance on Points: Points ← Distribute Points on Faces Points; Instance ← Object Info (Geometry output) of your prop object; add Random Value (Vector type) → Instance on Points Rotation for random Y-axis spin; add Random Value (Float, range 0.8–1.2) → Instance on Points Scale for size variety. (C) To scatter from a Collection: Collection Info node (Separate Children = true, Reset Children = true) → Instance on Points Instance socket — GN picks a random child per point. (D) Expose Density and Seed to Group Input so the modifier panel lets artists paint-sculpt coverage without touching the node tree. (E) If you need vertex-group masking: connect a Named Attribute node (name = your vertex group string, type Float) → Distribute Points on Faces Density Factor — points only land where weight > 0.",
+          "blender_version": "4.0+",
+          "gotchas": "Poisson Disk Distance Min is in Blender units — scale your scene correctly first. Collection Info 'Separate Children' + 'Reset Children' flags behave differently between 3.x and 4.x — always test. Instance on Points Scale expects a vector; connecting a Float directly works (uniform scale) but explicit Combine XYZ gives per-axis control. Instances are NOT real geometry until Realize Instances runs — the FBX/glTF exporter will not export unrealized instances.",
+          "studio_use": "Primary tool for environment set-dressing in the 2.5D RPG: scatter rocks, roots, moss patches, broken pipes, crates on any surface with art-directible density via vertex weights painted in weight-paint mode. One GN group serves every biome by swapping the Collection Info source.",
+          "currency": "solid",
+          "verify_note": "Core workflow confirmed via multiple 4.x sources (artisticrender, poliigon, Blender manual excerpt). Node names and socket names verified via fetched content. | cross-family (deepseek-v3.1): confirmed — Accurate description of canonical scatter pattern with proper 4.x node usage and parameter controls.",
+          "sources": [
+            {
+              "title": "How to Scatter Objects With Geometry Nodes in Blender — Artisticrender",
+              "url": "https://artisticrender.com/how-to-scatter-objects-with-geometry-nodes-in-blender/",
+              "claim": "Full scatter chain including Distribute Points on Faces (Random/Poisson Disk), Instance on Points, Object Info, vertex-group density masking."
+            },
+            {
+              "title": "Easy Scattering — The Blend (Beehiiv)",
+              "url": "https://blend.beehiiv.com/p/scattering",
+              "claim": "Collection Info separate-children pattern for multi-prop scatter; expose density/seed to modifier panel."
+            },
+            {
+              "title": "Distribute Points on Faces — Blender Manual (latest)",
+              "url": "https://docs.blender.org/manual/en/latest/modeling/geometry_nodes/point/distribute_points_on_faces.html",
+              "claim": "Canonical node reference: Distribution Method (Random/Poisson Disk), Density, Seed, Distance Min, Density Factor inputs; Points output."
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "named-attributes",
+          "name": "Named Attributes — Store / Capture / Retrieve",
+          "what": "Three complementary nodes for reading and writing per-element data (position, color, float, vector, int) tagged by string name. Essential for passing data across node boundaries, freezing a value before geometry changes, and wiring GN-generated UV maps for export.",
+          "how": "Three roles: (1) Named Attribute node — READ an existing attribute by name (string input). Domain is inferred. Use to read built-in attributes like 'position', 'normal', or custom ones you stored earlier. Output is a Field. (2) Store Named Attribute node — WRITE a field to a named attribute slot at the current domain (Point, Edge, Face, Face Corner). Example: to bake UVs for export, pipe a Texture Coordinate UV field into Store Named Attribute, set Domain = Face Corner, Data Type = 2D Vector, Name = 'UVMap'. The resulting attribute survives Realize Instances and is recognized by FBX/glTF exporters. (3) Capture Attribute node — FREEZE a field's value at a specific moment in the graph, producing an anonymous attribute you can re-use downstream after the geometry has moved. Classic use: capture Position before a Set Position moves verts, then compare old vs new position downstream. Pattern for Set Position: Group Input Geometry → Capture Attribute (Position field) → Set Position (Offset = some noise/vector math) → Named Attribute reads back the captured original position for blend math → Group Output.",
+          "blender_version": "4.0+; Capture Attribute multi-capture added 4.2",
+          "gotchas": "Store Named Attribute writes on evaluation every frame — if used inside a Simulation Zone, be aware of frame-order effects. Capture Attribute in 4.2+ can capture multiple attributes at once (4.1 and earlier: one per node). Store Named Attribute can write 8-bit integer attributes as of 4.2. Named Attribute reads are domain-sensitive — querying 'position' on the Face domain returns face-center positions, not vertex positions.",
+          "studio_use": "Required for game-engine export: always Store Named Attribute (Face Corner, 2D Vector, 'UVMap') on any procedurally generated mesh that needs textures. Also used to tag prop variants (e.g. store 'variant_id' as a per-instance integer for shader-side variation in Godot).",
+          "currency": "solid",
+          "verify_note": "Confirmed from Blender 4.2 release notes summary (Capture Attribute multi-capture, 8-bit int store), artisticrender fundamentals guide, and surf-visualization course fetch. | cross-family (deepseek-v3.1): confirmed — Correct explanation of attribute workflow with proper 4.x features including multi-capture in 4.2.",
+          "sources": [
+            {
+              "title": "Attributes Reference — Blender Manual (latest)",
+              "url": "https://docs.blender.org/manual/en/latest/modeling/geometry_nodes/attributes_reference.html",
+              "claim": "Named vs anonymous attributes, domain types, built-in attribute names (position, normal, etc.)."
+            },
+            {
+              "title": "Geometry Nodes 4.2 LTS Release Notes — Blender Developer Docs",
+              "url": "https://developer.blender.org/docs/release_notes/4.2/geometry_nodes/",
+              "claim": "Capture Attribute now supports multiple attributes at once; Store Named Attribute can write 8-bit integer attributes."
+            },
+            {
+              "title": "Blender Geometry Nodes to UE5 — James Roha on Medium",
+              "url": "https://medium.com/@Jamesroha/blender-geometry-nodes-to-unreal-engine-5-the-procedural-environment-art-guide-05cf8d8b4701",
+              "claim": "Store Named Attribute on Face Corner domain (2D Vector, name 'UVMap') is required for GN-generated UVs to survive export."
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "repeat-zone",
+          "name": "Repeat Zone (4.0) — Single-Frame Iteration",
+          "what": "A pair of boundary nodes (Repeat Input + Repeat Output) enclosing a sub-graph that executes N times within a single frame. Unlike Simulation Zone (which steps once per timeline frame), Repeat Zone runs its body an arbitrary number of times at every evaluation. Use it for recursive subdivision, L-system growth, iterative displacement, or building up geometry in layers.",
+          "how": "Add via Shift+A → Utilities → Repeat Zone — two nodes appear as a pair (Repeat Input on left, Repeat Output on right). 1. Connect incoming data (geometry, float, vector, etc.) into the Repeat Input's body sockets — these become iteration variables. 2. Inside the zone, modify the data however you want (Extrude Mesh, Scale Elements, Set Position, etc.). 3. Connect the zone's internal outputs to Repeat Output — they flow back to Repeat Input for the next iteration. 4. Set the Iterations integer on Repeat Input. 5. Repeat Output's sockets emit the final-iteration result downstream. Accumulator pattern: each socket on Repeat Input/Output carries a value forward — the geometry from iteration N is the input to iteration N+1. You can also feed external (non-iterated) values into interior nodes from outside the zone as constants. Example — growing a pipe rack: Repeat Input (Geometry) → Extrude Mesh → Scale Elements → Repeat Output (Geometry), Iterations = 6: produces 6 progressively extruded rings.",
+          "blender_version": "4.0+ (new in 4.0)",
+          "gotchas": "High iteration counts are fully evaluated every frame — computationally expensive; bake with the Bake Node (4.1+) if static. Repeat Zone cannot carry simulation state across frames — that is Simulation Zone's role. In 4.3+, a For Each Element zone was added for per-element iteration without manually wiring counts; it coexists with Repeat Zone (Repeat = N times; For Each = once per element).",
+          "studio_use": "Procedural prop detailing: iterative extrusion for tech-corridor panels, recursive subdivision of a base shape for organic rocks, stacking elements to build a multi-floor ruin wall section. Art-direct iteration count as a modifier input for LOD-lite control.",
+          "currency": "solid",
+          "verify_note": "Confirmed new in 4.0 from multiple release note summaries. Accumulator pattern and socket mechanics confirmed via mipmap.substack.com fetch and b3d.interplanety.org source. For Each zone as 4.3 addition confirmed via 80.lv article fetch. | cross-family (deepseek-v3.1): confirmed — Accurate description of Repeat Zone introduced in 4.0 with proper accumulator pattern explanation.",
+          "sources": [
+            {
+              "title": "Using Loops & Logic In Geometry Nodes — Mipmap Substack",
+              "url": "https://mipmap.substack.com/p/using-loops-and-logic-in-geometry",
+              "claim": "Repeat Zone mechanics: accumulator pattern, reconnecting output to input for iteration, simultaneous output (not frame-by-frame), comparison to Simulation Zone."
+            },
+            {
+              "title": "Repeat Zone — Blender Manual 4.0",
+              "url": "https://docs.blender.org/manual/en/4.0/modeling/geometry_nodes/utilities/repeat_zone.html",
+              "claim": "Official node reference: Repeat Input/Output pair, Iterations input, body socket data flow."
+            },
+            {
+              "title": "Check Out New Geometry Nodes Coming To Blender 4.3 — 80.lv",
+              "url": "https://80.lv/articles/blender-4-3-s-for-each-element-node-zone-upgrade",
+              "claim": "For Each Element zone arrives in 4.3; Integer Math and Hash Value nodes added alongside it."
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "simulation-zone",
+          "name": "Simulation Zone (3.6/4.x) — Frame-Persistent State",
+          "what": "A pair of boundary nodes (Simulation Input + Simulation Output) whose body executes once per timeline frame, with the previous frame's output fed back as this frame's input. Enables true particle systems, growth animations, erosion, and any effect where state accumulates over time. Requires stepping through frames in order (no random access).",
+          "how": "Add via Shift+A → Simulation → Simulation Zone. Structure: Simulation Input ← previous frame state sockets ← Simulation Output body. 1. Connect your initial geometry into Simulation Input. 2. Inside the zone: apply per-frame operations (move points by velocity field, increment an 'age' attribute via Math node + Named Attribute, delete old points with Delete Geometry). 3. Connect results to Simulation Output. 4. On frame 1 the Input reads the initial state; on frame 2+ it reads Simulation Output's result from the prior frame. 5. In Blender 4.1+, add a Bake Node immediately after Simulation Output to cache the simulation to disk — press Bake in the modifier panel to write frames, then the simulation plays back without re-evaluation. 6. In 4.2+, a bake overlay appears in the node editor showing which frames are cached. Combining with Repeat Zone: use Repeat Zone inside Simulation Zone for sub-frame physics steps (physics timestep << 1/24s).",
+          "blender_version": "3.6 (introduced); 4.0+ (stable); 4.1 Bake Node; 4.2 bake overlay",
+          "gotchas": "Simulation Zones require sequential frame evaluation — scrubbing backwards forces re-evaluation from frame 1 unless baked. Heavy simulations must be baked (Bake Node, 4.1+) before they are usable in production. Unlike Repeat Zone, Simulation Zone cannot be evaluated multiple times per frame without nesting inside Repeat Zone. The Simulation Zone stores state per-frame in memory; very long simulations with many attributes exhaust RAM.",
+          "studio_use": "Environmental storytelling props: dripping water that accumulates, smoke that lingers in a ventilation shaft, particles that settle on a surface frame-by-frame. Mostly useful for pre-baked FX elements that get exported as vertex-animated meshes or rendered to a flipbook sheet for the Godot 2.5D pipeline. Not suited for real-time in-engine — bake and export.",
+          "currency": "solid",
+          "verify_note": "Introduction in 3.6 confirmed by multiple sources. Bake Node 4.1 and overlay 4.2 confirmed via 4.2 release notes summary. Sub-frame step pattern (Repeat inside Simulation) confirmed via digitalproduction.com article and search result summary. | cross-family (deepseek-v3.1): confirmed — Correct simulation zone workflow with proper 4.x bake features and frame-by-frame evaluation.",
+          "sources": [
+            {
+              "title": "Simulation Zone — Blender Manual (4.5 LTS)",
+              "url": "https://docs.blender.org/manual/en/4.5/modeling/geometry_nodes/simulation/simulation_zone.html",
+              "claim": "Canonical node reference; frame-by-frame evaluation, state persistence, bake workflow."
+            },
+            {
+              "title": "Your Own Particle System With Simulation Nodes — Digital Production",
+              "url": "https://digitalproduction.com/2023/08/10/your-own-particle-system-with-simulation-nodes/",
+              "claim": "Particle emitter setup inside Simulation Zone, 'age' attribute increment per frame, combining Repeat Zone for sub-frame steps."
+            },
+            {
+              "title": "Everything New in Blender 4.0 — CG Cookie",
+              "url": "https://cgcookie.com/posts/everything-new-in-blender-4-0",
+              "claim": "Simulation Zone (3.6) vs Repeat Zone (4.0) distinction; Repeat runs any number of times per frame, Simulation steps once per timeline frame."
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "greebles-procedural-detail",
+          "name": "Greebles / Procedural Surface Detailing",
+          "what": "Add sci-fi or industrial micro-detail to a flat or low-poly surface by scattering pre-made greeble meshes (panels, bolts, vents, pipes) procedurally. Combine Distribute Points on Faces, Instance on Points, and Repeat Zone to build layered geometry variation without duplicating topology manually.",
+          "how": "Pattern A — Scatter greebles on a surface: Build a small library Collection of detail meshes (panel_A, bolt_ring, vent_slot). Use Collection Info (Separate Children = true, Reset Children = true) → Instance on Points. Drive Instance on Points 'Pick Instance' socket with a Hash Value node (4.3+) or a Random Value (Integer) node seeded per-point — each point gets a different greeble. Add Align Rotation to Vector node (4.2+, replaces deprecated Align Euler to Vector) to orient each instance to the surface normal (Surface Normal field from Distribute Points on Faces Normal output). Expose Density, Seed, Scale Min/Max to Group Input. Pattern B — Repeat Zone for layered paneling: start with a flat mesh → Repeat Zone (body: Extrude Mesh individual faces, then Scale Elements to shrink slightly per iteration, Iterations = 3) → produces stepped panel rings. Combine via Join Geometry (scatter result + base mesh). Pattern C — Noise-driven height variation: Named Attribute (position) → Noise Texture → Map Range → Set Position Offset to push surface geometry up/down for organic micro-bumps without a displacement modifier.",
+          "blender_version": "4.0+ (4.2 for Align Rotation to Vector; 4.3 for Hash Value node)",
+          "gotchas": "Align Euler to Vector is deprecated as of 4.2 — use Align Rotation to Vector instead (faster, cleaner socket types). Hash Value node for stable per-element randomness is 4.3+; for 4.0–4.2 use Random Value (Integer) seeded with an Index node. High-density greeble scatter is expensive — realize and bake for hero props, keep instance count under ~5K for interactive viewport.",
+          "studio_use": "Core tool for the 2.5D RPG city tileset: industrial building facades, underground corridor walls, and tech-prop surfaces all get a GN greeble pass before texture bake. One GN group per surface type (metal_panel, concrete_worn, pipe_cluster) stored as modifier assets in the project library.",
+          "currency": "solid",
+          "verify_note": "Align Rotation to Vector replacing Align Euler to Vector confirmed in 4.2 release notes summary. Hash Value node confirmed as 4.3 addition via 80.lv fetch. Scatter pattern confirmed solid from multiple sources. Noise-driven Set Position is a well-established 3.x/4.x pattern. | cross-family (deepseek-v3.1): confirmed — Valid greeble workflow using proper 4.x nodes including Align Rotation to Vector (4.2) and Hash Value (4.3).",
+          "sources": [
+            {
+              "title": "Sci-Fi Greebles with Blender Geometry Nodes — YouTube (Dec 2024)",
+              "url": "https://www.youtube.com/watch?v=Gj4sJp4FLX0",
+              "claim": "Procedural sci-fi greeble system using GN scatter + instancing pattern; released December 2024 confirming 4.x currency."
+            },
+            {
+              "title": "Geometry Nodes 4.2 LTS Release Notes — Blender Developer Docs",
+              "url": "https://developer.blender.org/docs/release_notes/4.2/geometry_nodes/",
+              "claim": "Align Rotation to Vector replaces deprecated Align Euler to Vector; Scale Elements 4-10x faster."
+            },
+            {
+              "title": "Check Out New Geometry Nodes Coming To Blender 4.3 — 80.lv",
+              "url": "https://80.lv/articles/blender-4-3-s-for-each-element-node-zone-upgrade",
+              "claim": "Hash Value node added in 4.3 for stable per-element randomness."
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "realize-instances-export",
+          "name": "Realize Instances + Apply Modifier for Game Engine Export",
+          "what": "GN instances are virtual — they share geometry data and are invisible to FBX/glTF exporters. Before exporting to Godot or any game engine you must collapse instances to real mesh data, then apply the modifier. Two methods: in-graph (Realize Instances node) or operator-based (Ctrl+A → Apply).",
+          "how": "Method 1 — In-graph (preferred for pipelines): at the end of your GN tree, before Group Output, insert Realize Instances node. Its Geometry input comes from your last Instance on Points or Join Geometry; its output goes to Group Output. The modifier now evaluates to a real mesh. Then: in Object Mode, Ctrl+A → Apply → Geometry Nodes Modifier — mesh is baked to object data. Now export as FBX or glTF normally. Method 2 — Operator only (no node change): skip Realize Instances in-graph; instead use Object → Apply → Make Instances Real, then Object → Apply → Visual Geometry to Mesh (merges everything). Method 3 — UV prep: before Realize Instances, insert Store Named Attribute (Domain = Face Corner, Data Type = 2D Vector, Name = 'UVMap') to ensure procedurally-generated UVs survive. glTF exporter note: glTF has a known limitation — GN instances are not exported by the glTF exporter at all; Realize Instances in-graph is mandatory for glTF. FBX handles instances better but still benefits from Realize for clean import. Apply scale (Ctrl+A → Scale) before export since Blender uses meters and Godot/UE5 use different unit bases.",
+          "blender_version": "4.0+ (Realize Instances existed earlier but glTF limitation and Store Named Attribute UV pattern are 4.x-confirmed practice)",
+          "gotchas": "Realizing instances on a dense scatter (100K+ instances) can produce a very large mesh — budget poly count before realizing for game assets. The glTF exporter limitation (no unrealized GN instances) is a hard stop. Apply modifier is irreversible — always work on a copy or from a linked asset. Applying scale before export is essential — missing this causes scale=100 issues in Godot when Blender units ≠ engine units.",
+          "studio_use": "Required final step for every GN-generated prop in the 2.5D RPG pipeline before handoff to Godot. Realize → Apply → Export FBX → Godot import. UVMap attribute store ensures baked textures align. Named attribute 'variant_id' can be carried through Realize Instances as a vertex color for shader-side variation.",
+          "currency": "solid",
+          "verify_note": "glTF 'no unrealized instances' limitation confirmed via James Roha Medium article and Blender Artists community thread. Store Named Attribute for UV export confirmed via same Medium source and search results. Apply scale guidance is widely confirmed. | cross-family (deepseek-v3.1): confirmed — Correct export pipeline with proper UV attribute storage and realization methods for game engines.",
+          "sources": [
+            {
+              "title": "Blender Geometry Nodes to UE5 — James Roha on Medium",
+              "url": "https://medium.com/@Jamesroha/blender-geometry-nodes-to-unreal-engine-5-the-procedural-environment-art-guide-05cf8d8b4701",
+              "claim": "Full export pipeline: Realize Instances → Apply modifier (Ctrl+A) → Store Named Attribute for UVs → FBX export; glTF cannot export unrealized GN instances."
+            },
+            {
+              "title": "How to Export Geometry Nodes Instances in a Game — Blender Artists",
+              "url": "https://blenderartists.org/t/how-to-export-geometry-nodes-instances-in-a-game/1419992",
+              "claim": "Community-confirmed: Make Instances Real + Visual Geometry to Mesh as operator-based alternative to in-graph Realize Instances."
+            },
+            {
+              "title": "Geometry Nodes 4.0 Release Notes — Blender Developer Docs",
+              "url": "https://developer.blender.org/docs/release_notes/4.0/geometry_nodes/",
+              "claim": "Node group tool assets introduced — apply-immediately pattern (add modifier + apply) for GN tool assets."
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "procedural-asset-variation",
+          "name": "Procedural Asset Variation via Menu Switch + Seed",
+          "what": "A single GN node group that produces multiple visually distinct outputs — different prop configurations, damage states, or style variants — controlled by a dropdown enum in the modifier panel. Eliminates maintaining separate meshes for each variant; one GN group, N variants, art-direction via modifier UI.",
+          "how": "1. Build each variant as a sub-graph branch (e.g. 'intact_crate', 'dented_crate', 'broken_crate') each producing a Geometry output. 2. Connect all branches into a Menu Switch node (Shift+A → Utilities → Menu Switch). Add menu items named per variant in the sidebar. 3. Expose the Menu Switch 'Menu' socket to Group Input — this becomes a dropdown in the modifier panel. 4. Additionally expose a Seed integer input wired to any Random Value nodes inside each branch — a different seed produces geometric variation within the same variant. 5. For scale/rotation variation: Random Value (Vector, seeded by Seed + Index) → Combine XYZ → Set Position Offset or Instance on Points Scale. 6. Result: one modifier, dropdown selects crate state, Seed slider shuffles geometry within that state. Mark the node group as an asset ('Is Modifier') for library reuse. Optional: use Hash Value (4.3+) instead of Random Value for stable per-element randomness that doesn't shift when other nodes change.",
+          "blender_version": "4.1+ (Menu Switch added 4.1; 'extend' socket added 4.2; Hash Value 4.3+)",
+          "gotchas": "Menu Switch is only available from 4.1 — pre-4.1 you must use an Index Switch node or Math Compare chain instead. Menu Socket items are defined per node group and are not data-driven at runtime (you can't procedurally populate them from attributes). Hash Value for stable randomness is 4.3+; use seeded Random Value + Index for 4.1–4.2.",
+          "studio_use": "Prop library workflow for a 2.5D RPG: each prop category (crate, barrel, console, column) gets one GN group with 3–5 Menu Switch variants + Seed. Level designers drop the modifier on any mesh, pick the state, and randomize — no extra meshes in the scene file. Combined with Realize Instances + export, each resolved variant bakes to a clean static mesh.",
+          "currency": "solid",
+          "verify_note": "Menu Switch node introduction at 4.1 confirmed from release notes summary and manual URL. 'extend' socket in 4.2 confirmed. Hash Value 4.3 confirmed. Dropdown in modifier panel from Menu Switch confirmed by search result extract. | cross-family (deepseek-v3.1): confirmed — Accurate Menu Switch workflow with proper 4.1+ features and variant control pattern.",
+          "sources": [
+            {
+              "title": "Menu Switch Node — Blender 4.1 Manual",
+              "url": "https://docs.blender.org/manual/en/4.1/modeling/geometry_nodes/utilities/menu_switch.html",
+              "claim": "Menu Switch outputs one of N inputs by dropdown; items defined in sidebar; only the active branch is computed."
+            },
+            {
+              "title": "Geometry Nodes 4.2 LTS Release Notes — Blender Developer Docs",
+              "url": "https://developer.blender.org/docs/release_notes/4.2/geometry_nodes/",
+              "claim": "Menu Switch 'extend' socket added; sockets in Repeat and Simulation zones now aligned; Scale Elements rewritten 4-10x faster."
+            },
+            {
+              "title": "Everything New in Blender 4.0 — CG Cookie",
+              "url": "https://cgcookie.com/posts/everything-new-in-blender-4-0",
+              "claim": "GN node groups marked as modifier assets appear in Add Modifier menu; inputs forced to single values clean up the modifier panel."
+            }
+          ],
+          "research_currency": "solid"
+        }
+      ],
+      "cloud_verify": {
+        "model": "deepseek-v3.1:671b",
+        "verdicts": [
+          {
+            "recipe": "GN Modifier + Node Group Inputs/Outputs",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Correct description of GN modifier workflow with parameter exposure and 4.0+ asset modifier features."
+          },
+          {
+            "recipe": "Scatter/Instancing — Distribute Points on Faces → Instance on Points",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Accurate description of canonical scatter pattern with proper 4.x node usage and parameter controls."
+          },
+          {
+            "recipe": "Named Attributes — Store / Capture / Retrieve",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Correct explanation of attribute workflow with proper 4.x features including multi-capture in 4.2."
+          },
+          {
+            "recipe": "Repeat Zone (4.0) — Single-Frame Iteration",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Accurate description of Repeat Zone introduced in 4.0 with proper accumulator pattern explanation."
+          },
+          {
+            "recipe": "Simulation Zone (3.6/4.x) — Frame-Persistent State",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Correct simulation zone workflow with proper 4.x bake features and frame-by-frame evaluation."
+          },
+          {
+            "recipe": "Greebles / Procedural Surface Detailing",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Valid greeble workflow using proper 4.x nodes including Align Rotation to Vector (4.2) and Hash Value (4.3)."
+          },
+          {
+            "recipe": "Realize Instances + Apply Modifier for Game Engine Export",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Correct export pipeline with proper UV attribute storage and realization methods for game engines."
+          },
+          {
+            "recipe": "Procedural Asset Variation via Menu Switch + Seed",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Accurate Menu Switch workflow with proper 4.1+ features and variant control pattern."
+          }
+        ],
+        "tally": {
+          "confirmed": 8,
+          "confirmed-with-fixes": 0,
+          "unverified": 0,
+          "refuted": 0,
+          "no-verdict": 0
+        }
+      }
+    },
+    {
+      "laneSlug": "materials-baking",
+      "title": "Materials & texture baking",
+      "recipes": [
+        {
+          "slug": "principled-bsdf-v2-inputs",
+          "name": "Principled BSDF v2 — Blender 4.0 input reference",
+          "what": "Blender 4.0 completely reorganized the Principled BSDF inputs. Pre-4.0 tutorials, add-on scripts, and Python automation that reference old socket names by string will silently break or wire to wrong slots.",
+          "how": "Current 4.0+ input order and names (collapsed sockets hidden by default — click the chevron to expose each group): BASE LAYER: • Base Color (was: same) • Metallic (was: same) • Roughness (was: same) • IOR (Index of Refraction, used by both dielectric specular AND transmission) • Alpha • Normal SPECULAR: • Specular IOR Level [NEW NAME — was 'Specular' in ≤3.6; same 0–1 range but now scales IOR-derived reflectance; neutral/default = 0.5] • Specular Tint (now accepts a color, not just a float) • Anisotropic • Anisotropic Rotation • Tangent SUBSURFACE: • Subsurface Weight [NEW NAME — was 'Subsurface' (float) in ≤3.6] • Subsurface Radius (RGB mm — unchanged) • Subsurface Scale [NEW — global radius multiplier, replaces old 'Subsurface' amount idiom] • Subsurface Anisotropy ✗ Subsurface Color — REMOVED; subsurface now uses Base Color ✗ Subsurface IOR — REMOVED TRANSMISSION: • Transmission Weight [NEW NAME — was 'Transmission'] COAT: • Coat Weight [NEW NAME — was 'Clearcoat'] • Coat Roughness [was 'Clearcoat Roughness'] • Coat IOR [NEW] • Coat Tint [NEW — tinted coat; default white = clear] • Coat Normal [was 'Clearcoat Normal'] SHEEN: • Sheen Weight [NEW NAME — was 'Sheen'] • Sheen Roughness [NEW] • Sheen Tint EMISSION: • Emission Color [NEW NAME — was single 'Emission' color socket in ≤3.6] • Emission Strength [always existed as a value; now a distinct labeled socket] MISC: • Thin Film Thickness [NEW] • Thin Film IOR [NEW]",
+          "blender_version": "4.0+",
+          "gotchas": [
+            "Any script using node.inputs['Specular'] by name will fail silently (no error, socket not found) — use 'Specular IOR Level' instead.",
+            "node.inputs['Transmission'] → renamed to 'Transmission Weight'. Same for 'Subsurface' → 'Subsurface Weight', 'Sheen' → 'Sheen Weight', 'Clearcoat' → 'Coat Weight', 'Clearcoat Roughness' → 'Coat Roughness'.",
+            "Old .blend files with Principled BSDF auto-upgrade socket names on open, but Python scripts that pass socket names as strings do NOT auto-upgrade.",
+            "Subsurface Color texture connections are silently dropped on upgrade — re-route into Base Color if you need a separate SSS color.",
+            "Transmission Roughness was removed; IOR + Roughness now unifies it.",
+            "Sockets are collapsed by default in the 4.0 node UI — use the group chevrons to expand Coat, Sheen, Subsurface, etc."
+          ],
+          "studio_use": "When scripting headless Blender to apply materials to TRELLIS GLB meshes, all socket lookups must use the 4.0 names. A one-time name-migration pass on any existing material-builder scripts is required before 4.x batch renders.",
+          "currency": "solid",
+          "verify_note": "Cross-checked against Blender 4.0 release notes (developer.blender.org/docs/release_notes/4.0/shading/), developer forum thread on collapsed sockets, and BlenderArtists 4.0 Principled BSDF thread confirming all renames. | cross-family (deepseek-v3.1): confirmed — Accurately documents the Blender 4.0 Principled BSDF reorganization with correct socket names and structure.",
+          "sources": [
+            {
+              "title": "Blender 4.0: Shading & Texturing — developer.blender.org release notes",
+              "url": "https://developer.blender.org/docs/release_notes/4.0/shading/",
+              "claim": "Documents Specular→Specular IOR Level rename, Subsurface Color removal, Subsurface Scale addition, Coat IOR/Tint additions, new Sheen microfiber model, Emission layer reordering"
+            },
+            {
+              "title": "Principled BSDF — Blender Manual 4.0",
+              "url": "https://docs.blender.org/manual/en/4.0/render/shader_nodes/shader/principled.html",
+              "claim": "Authoritative socket names and order for Blender 4.0 Principled BSDF"
+            },
+            {
+              "title": "#112552 — Change Specular input to affect IOR — Blender Projects",
+              "url": "https://projects.blender.org/blender/blender/pulls/112552",
+              "claim": "Developer PR confirming the Specular rename rationale: old name implied 0=off/1=full but neutral is 0.5; new name matches OpenPBR convention"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "pbr-material-setup",
+          "name": "PBR material setup with Principled BSDF 4.x",
+          "what": "Standard physically-based material wiring for a TRELLIS-generated GLB mesh in Blender 4.x — Base Color, Metallic, Roughness, Normal, and optional AO mix.",
+          "how": "1. Select the mesh → Properties → Material → New.\n2. In Shader Editor: Principled BSDF is auto-added → Material Output.\n3. TEXTURE NODES — Add → Texture → Image Texture for each map: • Base Color map: Image Texture (Color Space = sRGB) → 'Base Color' socket. • Metallic map: Image Texture (Color Space = Non-Color) → 'Metallic' socket. • Roughness map: Image Texture (Color Space = Non-Color) → 'Roughness' socket. • Normal map: Image Texture (Color Space = Non-Color) → Normal Map node → 'Normal' socket. The Normal Map node is under Add → Vector → Normal Map; set Space = Tangent.\n4. For TRELLIS GLBs that export with a single ORM (Occlusion-Roughness-Metallic) packed texture: • Image Texture (Non-Color) → Separate RGB node: R → [AO mix, see below], G → Roughness, B → Metallic.\n5. AO optional mix: Math (Multiply) node, factor controlled by AO strength, multiply into Base Color before routing to Principled.\n6. IOR: default 1.45 is correct for most opaque non-metals; adjust only for glass/transparent surfaces.\n7. Specular IOR Level: leave at 0.5 (default) unless matching a specific dielectric; setting to 0 kills all specular.",
+          "blender_version": "4.0+",
+          "gotchas": [
+            "Normal map textures MUST be Non-Color space — leaving sRGB on a normal map produces incorrect lighting and messed normals.",
+            "Roughness and Metallic maps: also Non-Color. Only Base Color / Albedo is sRGB.",
+            "TRELLIS GLBs typically use glTF PBR convention (ORM packed, normal in tangent space) which matches this workflow directly.",
+            "In 4.0 the old 'Specular' slider default of 0.5 is now 'Specular IOR Level' at 0.5 — same visual result, different name.",
+            "EEVEE and Cycles both render Principled BSDF, but EEVEE approximates subsurface and coat — use Cycles for final bake passes."
+          ],
+          "studio_use": "Primary material setup for every TRELLIS mesh before turnaround bake — wire the GLB's embedded textures (Base Color, Normal, Roughness, Metallic) into Principled BSDF so Cycles bakes a clean flat sprite sheet with correct surface response.",
+          "currency": "solid",
+          "verify_note": "Standard Cycles/EEVEE PBR wiring that has not changed mechanically in 4.x; confirmed color-space requirements from graphics-programming.org baking guide and katsbits Principled BSDF reference. | cross-family (deepseek-v3.1): confirmed — Correct standard PBR workflow with proper color space assignments for Blender 4.x.",
+          "sources": [
+            {
+              "title": "The one true guide to baking materials in Blender — Graphics Programming Discord",
+              "url": "https://graphics-programming.org/blog/blender-baking",
+              "claim": "Confirms albedo=sRGB, Normal/Roughness=Non-Color, and the Diffuse bake type Direct+Indirect=off for pure color capture"
+            },
+            {
+              "title": "Principled BSDF — Blender 4.0 Manual",
+              "url": "https://docs.blender.org/manual/en/4.0/render/shader_nodes/shader/principled.html",
+              "claim": "Authoritative input socket names and defaults for 4.0"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "bake-panel-workflow",
+          "name": "Cycles Bake panel — complete workflow",
+          "what": "The Bake panel lives in Render Properties (camera icon) and is only available when Cycles is the active render engine. EEVEE has no bake panel — switching engine is step 0.",
+          "how": "STEP-BY-STEP: 0. Render Properties → Render Engine = Cycles (GPU Compute if RTX 5090 is the device). 1. SET UP BAKE TARGET (do this BEFORE hitting Bake): • In Shader Editor, add an Image Texture node to every material that will be baked. • Create a new image (Image Editor → New, set resolution, e.g. 2048×2048). • Assign that image to the Image Texture node. • The node must NOT be connected to any other shader socket — it just needs to exist. • Click the Image Texture node to make it the ACTIVE node (blue highlight). This is the bake target. • If multiple materials share the same mesh, each material needs its own Image Texture node pointing at the same target image, and each must be the active node in its material. 2. SELECT THE OBJECT (single-object bake): • Object mode → select the mesh. 3. BAKE PANEL (Render Properties → Bake section): • Bake Type: choose from the list (see recipe 'bake-types'). • Margin Type: 'Adjacent Faces' (default since 3.1, better seam blending) or 'Extend' (legacy pixel push-out). • Margin: 16 px is default; reduce if UV islands are close together. • Selected to Active: OFF for single-object bakes. • Save Mode: Internal (saves to the Blender image datablock — must manually save to disk after). 4. CLICK BAKE — wait for progress bar. 5. SAVE IMAGE IMMEDIATELY: • UV Editor → Image → Save As (or Alt+S). • The baked image lives only in RAM until saved — closing Blender without saving loses it. • Use PNG (lossless, 8-bit) for Base Color / AO; use PNG 16-bit or EXR for Normal maps to preserve precision.",
+          "blender_version": "4.0–4.3",
+          "gotchas": [
+            "EEVEE does not have a Bake panel — must switch to Cycles. EEVEE Next (4.2 LTS onwards) still has no baking.",
+            "Image Texture node must be the ACTIVE (selected, highlighted blue) node — just existing in the tree is not enough.",
+            "If the node is connected to the material output, you get circular dependency errors or black results.",
+            "Adjacent Faces margin type can fail with highly rotated UV islands — fall back to Extend in that case.",
+            "Blender uses Cycles render samples for baking, so sample count affects quality and speed. Lower samples for iteration, raise for final.",
+            "Save Mode 'Internal' = saves into .blend only; 'External' = saves directly to a file path without a separate save step."
+          ],
+          "studio_use": "The core bake driver for flattening TRELLIS mesh shading to a 2D sprite-ready texture. Run per-mesh before rendering the turnaround sprite sheet — output is a flat Base Color or Combined map the sprite renderer reads directly.",
+          "currency": "solid",
+          "verify_note": "Confirmed against official Blender 4.0 Render Baking manual page (URL confirmed in search results), katsbits Texture Bake Basics, and blenderbasics.com baking guide. | cross-family (deepseek-v3.1): confirmed — Accurate description of Cycles bake workflow including engine requirement and active node selection.",
+          "sources": [
+            {
+              "title": "Render Baking — Blender 4.0 Manual",
+              "url": "https://docs.blender.org/manual/en/4.0/render/cycles/baking.html",
+              "claim": "Official Blender 4.0 documentation for the Bake panel, bake types, margin, and Selected-to-Active"
+            },
+            {
+              "title": "Baking Texture Maps (Texture Bake Basics) — Katsbits",
+              "url": "https://www.katsbits.com/codex/texture-bake/",
+              "claim": "Confirms Image Texture node must be active but unconnected; save workflow and margin settings"
+            },
+            {
+              "title": "Baking Texture Maps from Your Mesh — blenderbasics.com",
+              "url": "https://www.blenderbasics.com/blog/baking_textures/",
+              "claim": "Confirms 12 bake types, 16px margin default, and that baked images exist only in RAM until explicitly saved"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "bake-types",
+          "name": "Cycles bake types — complete list and when to use each",
+          "what": "Cycles exposes 12 bake types. Picking the wrong type (e.g. Combined when you want flat color) bakes lighting into the texture permanently.",
+          "how": "Available bake types in Render Properties → Bake → Bake Type: DIFFUSE — Surface albedo. Sub-options: Direct (bakes direct light), Indirect (bakes indirect/GI), Color (bakes flat material color, no lighting). For a clean base-color texture, select ONLY Color (uncheck Direct + Indirect). GLOSSY — Glossy/reflection pass. Same Direct/Indirect/Color sub-options. TRANSMISSION — Light passing through transparent materials. COMBINED — Everything: diffuse + glossy + transmission + AO + shadows. Use only when you want a fully-lit pre-baked scene texture. Dangerous: lighting is baked in permanently. AMBIENT OCCLUSION (AO) — Approximated occlusion. Good for adding cheap depth to a sprite or mixing into Base Color. SHADOW — Grayscale shadow map. NORMAL — Tangent-space normal map (default and correct for most game/sprite use). Result is a RGB image encoding surface normals. Use Non-Color image color space. UV — Renders UV coordinate data as RGB color — used for UV debugging. ROUGHNESS — Bakes the Roughness socket value to a grayscale texture. Non-Color image. EMIT — Bakes the Emission Color. Useful for baking ANY shader output: connect any shader node to an Emission shader → Material Output, then bake Emit to capture it. Standard trick for baking Metallic maps (which have no dedicated bake type). ENVIRONMENT — Environment/reflection map, for non-raytraced engines. SUBSURFACE — Subsurface scattering color/influence pass.",
+          "blender_version": "4.0–4.3",
+          "gotchas": [
+            "There is NO dedicated 'Metallic' bake type. Standard workaround: create a temporary material, route the Metallic texture through an Emission Color node, bake as 'Emit'. This captures the metallic grayscale correctly.",
+            "Combined bakes lighting — if your scene lights change later, the baked texture is stale. Prefer Diffuse (Color only) + AO + Normal as separate maps.",
+            "AO bake uses Cycles render samples and scene geometry, not the AO post-process approximation from EEVEE.",
+            "Normal bake output: must save to Non-Color PNG or EXR. Saving as sRGB will corrupt the normals when re-imported.",
+            "Roughness bake output: Non-Color. Saving as sRGB applies gamma that will make surfaces look more rough than they are."
+          ],
+          "studio_use": "For the sprite turnaround pipeline: bake Diffuse (Color only) to get a clean albedo, Normal for normal-map-based lighting in-engine, AO to layer into albedo for depth, and Emit trick for Metallic if the engine needs it. Combined is generally avoided — the 2D sprite renderer controls lighting independently.",
+          "currency": "solid",
+          "verify_note": "Bake type list confirmed against blenderbasics.com (12 types enumerated), graphics-programming.org guide (Emit trick for Metallic explicitly documented), and official 4.0 Render Baking manual. | cross-family (deepseek-v3.1): confirmed — Correct listing and explanation of all 12 bake types available in Cycles.",
+          "sources": [
+            {
+              "title": "Baking Texture Maps from Your Mesh — blenderbasics.com",
+              "url": "https://www.blenderbasics.com/blog/baking_textures/",
+              "claim": "Lists all 12 bake types including Combined, AO, Shadow, UV, Roughness, Emit, Environment, Subsurface"
+            },
+            {
+              "title": "The one true guide to baking materials in Blender — Graphics Programming Discord",
+              "url": "https://graphics-programming.org/blog/blender-baking",
+              "claim": "Documents Emit bake type as the workaround for Metallic and custom shader output capture; confirms Diffuse Direct+Indirect=off for clean color bake"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "selected-to-active-high-low",
+          "name": "Selected-to-Active: high-poly → low-poly bake transfer",
+          "what": "Bakes detail from a high-poly mesh (e.g. sculpted TRELLIS output) onto the UVs of a low-poly game-ready mesh. Normal maps, AO, and Diffuse detail are the most common targets.",
+          "how": "SETUP:\n1. Have both meshes in scene. Low-poly must be UV-unwrapped (high-poly need not be).\n2. Add Image Texture node to low-poly's material (this is the bake target — make it active, unconnected).\n3. Object Mode: select HIGH-POLY first (Shift+click), then ACTIVE-select LOW-POLY last. • In Blender 4.x, the ACTIVE object (last selected, brighter orange outline) receives the bake. • Selection order is critical — wrong order = 'No valid active object found' error. BAKE PANEL:\n4. Render Properties → Bake → enable 'Selected to Active' checkbox.\n5. Extrusion: sets how far rays cast from the low-poly surface INWARD toward the high-poly. • Start small (e.g. 0.01 m) and increase until green normal-map artifacts disappear.\n6. Max Ray Distance: how far the ray travels before giving up. Set ≈ 1.5–2× Extrusion.\n7. (Optional) Cage: if 'Use Cage' is enabled, point 'Cage Object' to a slightly inflated copy of the low-poly — gives more precise projection control for complex shapes, prevents back-face hits on concave areas.\n8. Choose Bake Type (Normal, Diffuse, AO, etc.) → Bake. WORKFLOW NOTE:\n• Apply scale on both meshes before baking (Ctrl+A → Scale) — mismatched scales cause ray distance confusion.\n• The high-poly must be visible (not hidden) during the bake.",
+          "blender_version": "4.0–4.3",
+          "gotchas": [
+            "Selection order is the #1 error cause: high-poly selected (white outline), low-poly ACTIVE (bright orange) — if reversed, Blender bakes the high-poly onto itself.",
+            "Extrusion too high = cage leaks through thin surfaces and bakes incorrect back faces. Too low = rays miss the high-poly and you get flat/black spots in the normal map.",
+            "Cage object must be a manifold (no open edges) version of the low-poly slightly scaled outward — the Mirror modifier cage workflow requires applying the mirror first.",
+            "When using Cage, Max Ray Distance has no effect — the cage geometry defines the projection volume entirely.",
+            "katsbits (4.3) note: only the low-poly needs material/image data — the high-poly has no bake target requirement."
+          ],
+          "studio_use": "Core workflow for TRELLIS mesh cleanup: TRELLIS produces a mid-high poly GLB; for game-ready sprite assets, bake its normal detail and albedo onto a hand-retopologized low-poly (or decimated version) that has clean non-overlapping UVs.",
+          "currency": "solid",
+          "verify_note": "Confirmed from katsbits Blender 4.3 bake guide, graphics-programming.org baking guide (Extrusion vs Max Ray Distance), and blenderbasecamp.com normal baking tutorial. | cross-family (deepseek-v3.1): confirmed — Accurate workflow for high-to-low poly baking with correct selection order and extrusion settings.",
+          "sources": [
+            {
+              "title": "Texture Bake and Blender 4.3 — Katsbits",
+              "url": "https://www.katsbits.com/codex/texture-bake-blender-4-3/",
+              "claim": "Confirms selection order (high-poly first, low-poly active last), and that only the low-poly needs material/image data for Selected-to-Active bakes"
+            },
+            {
+              "title": "The one true guide to baking materials in Blender — Graphics Programming Discord",
+              "url": "https://graphics-programming.org/blog/blender-baking",
+              "claim": "Documents Extrusion vs Max Ray Distance calibration, cage workflow, and apply-scale requirement"
+            },
+            {
+              "title": "Texture Baking in Blender: Normals & Beyond — Blender Base Camp",
+              "url": "https://www.blenderbasecamp.com/texture-baking-in-blender-normals-beyond/",
+              "claim": "Selected-to-Active workflow with ray distance and cage notes"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "uv-unwrap-for-baking",
+          "name": "UV unwrap essentials for baking",
+          "what": "Baking requires a non-overlapping UV map. The Image Texture bake target only works when UVs exist; the pixel-to-surface correspondence is the whole mechanism.",
+          "how": "METHODS (Tab into Edit Mode → select all with A → U to open UV Mapping menu): SMART UV PROJECT — Best for imported GLB meshes with no hand-marked seams. Cut based on angle threshold (default 66°). Fast and automatic. Settings: Angle Limit (66° default), Island Margin (0.02 for padding between islands to avoid bleed). UNWRAP (Mark Seams) — Best for organic / character meshes. Mark seams (Edge Select mode → Ctrl+E → Mark Seam), then U → Unwrap. LIGHTMAP PACK — UV islands packed into a square, best for baking AO/lightmaps. KEY REQUIREMENTS:\n• No overlapping UV islands — overlaps cause one surface to bake into another's pixel space.\n• All islands within the [0,1] UV square — parts outside won't receive baked pixels.\n• UV islands should use as much UV space as possible — small islands = fewer pixels = blurry bake.\n• If using a Mirror modifier: apply before unwrapping, then offset one side's UVs to U+1 to avoid mirror overlap (or use the 'Correct Face Attributes' toggle during apply). MULTIPLE UV CHANNELS:\n• Blender supports multiple UV maps per mesh. Use a dedicated 'BakeUV' channel that is non-overlapping even if the rendering UV (channel 0) has mirrored/overlapping islands for texture economy.\n• In the Bake panel, Blender bakes to the ACTIVE UV map. Set the BakeUV channel active before baking.\n• In the Image Texture node used as bake target, add a UV Map node pointing to 'BakeUV' to be explicit.",
+          "blender_version": "4.0–4.3",
+          "gotchas": [
+            "Smart UV Project default Island Margin of 0 causes islands to touch — set to 0.02–0.03 to guarantee margin between islands.",
+            "Mirror modifier UVs overlap by default — either apply the modifier before unwrapping, or use offset UV coordinates and a second UV channel.",
+            "Scale must be applied (Ctrl+A → Scale) before unwrapping — unapplied scale produces distorted UV islands that don't match real surface proportions.",
+            "Active UV map in mesh properties and active UV Map node in shader must agree — mismatch causes wrong UV used for bake.",
+            "TRELLIS GLBs often come with UV0 (render UVs, potentially mirrored). Add a UV1 'BakeUV' channel with non-overlapping Smart UV Project before baking."
+          ],
+          "studio_use": "TRELLIS generates GLBs with embedded UV0. Before baking sprites, add a second UV channel (BakeUV) via Smart UV Project with Island Margin = 0.02 and use it as the explicit bake target — preserves the original render UV while providing a clean bake UV.",
+          "currency": "solid",
+          "verify_note": "UV requirements confirmed from artisticrender.com baking guide, graphics-programming.org baking guide (non-overlapping requirement, multiple UV channels), and blenderartists Smart UV Project thread. | cross-family (deepseek-v3.1): confirmed — Correct UV unwrapping methods and requirements for baking in Blender 4.x.",
+          "sources": [
+            {
+              "title": "The one true guide to baking materials in Blender — Graphics Programming Discord",
+              "url": "https://graphics-programming.org/blog/blender-baking",
+              "claim": "Non-overlapping UVs required; apply scale before unwrap; UV Map node for multiple UV channel explicitness"
+            },
+            {
+              "title": "How to bake textures in Blender — Artisticrender.com",
+              "url": "https://artisticrender.com/how-to-bake-textures-in-blender/",
+              "claim": "UV map must be non-overlapping; dedicated 'baker' UV map naming convention; power-of-two image resolution"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "normal-map-baking",
+          "name": "Normal map baking — color space, format, and DirectX vs OpenGL",
+          "what": "Normal maps must be baked with specific color space and format settings or the normals will be corrupt. This is the most commonly broken step in beginner bake setups.",
+          "how": "1. Create bake target image: Image Editor → New → uncheck 'Alpha', set color to (0.5, 0.5, 1.0, 1.0) (flat normal blue), resolution 2048–4096. CRITICAL: set Color Space to 'Non-Color'. Do NOT use sRGB for normal maps. 2. Add Image Texture node, load the new image, confirm color space = Non-Color in the node. 3. Bake panel → Bake Type = Normal → Space = Tangent (default and correct for game use). Object space normals are available but only useful for static engine imports where object rotation never changes. 4. Bake → Image Editor → Save As → PNG 16-bit or EXR for maximum precision. PNG 8-bit is acceptable for low-frequency normal detail (rocks, armor); insufficient for fine detail (skin pores, fabric weave). 5. DirectX vs OpenGL convention: • Blender outputs OpenGL-convention normals (G channel = +Y = up). • If the target engine uses DirectX normals (Unreal Engine, many older DCC tools), invert the Green channel: — In Blender: Image Editor → Image → Invert → uncheck R and B, invert only G → Save As. — Or in bake: Properties panel shows a '-Y' option for the G channel for normal bakes. 6. Re-import verification: create a new material, add Image Texture (Non-Color) → Normal Map node → Principled 'Normal' socket. The mesh should look identical to the high-poly shading under the same light.",
+          "blender_version": "4.0–4.3",
+          "gotchas": [
+            "If the bake target image was created as sRGB and you switch to Non-Color after the fact, Blender respects the new setting — but the display appearance changes. Always create the image as Non-Color from the start.",
+            "Baking with the Normal Map node already in the material (connecting a normal map to 'Normal' socket) bakes a flat result — this is intentional and correct (baking converts applied normals back to geometry). If you want to bake the applied normal map as a new texture, use the Image Texture node as target without the Normal Map node in the chain during bake.",
+            "Tangent space normals require the UV map used for baking to match the UV map the engine will use for rendering — use the same UV channel for both.",
+            "Green channel inversion (OpenGL → DirectX) is a one-time destructive operation on the image — keep the OpenGL original and maintain the DX version separately."
+          ],
+          "studio_use": "Bake the TRELLIS high-poly surface detail onto the decimated low-poly's normal map. Use Tangent space + PNG 16-bit. If exporting to Godot 4 (OpenGL): use as-is. If exporting to UE5: invert G channel for DirectX compatibility.",
+          "currency": "solid",
+          "verify_note": "Non-Color requirement and G-channel inversion confirmed from graphics-programming.org baking guide and blenderbasecamp.com. DirectX vs OpenGL convention is well-established cross-engine knowledge. | cross-family (deepseek-v3.1): confirmed — Accurate normal map baking workflow with correct color space and format recommendations.",
+          "sources": [
+            {
+              "title": "The one true guide to baking materials in Blender — Graphics Programming Discord",
+              "url": "https://graphics-programming.org/blog/blender-baking",
+              "claim": "Non-Color color space requirement, DirectX G-channel inversion, Normal bake type = Tangent, 16-bit PNG recommendation"
+            },
+            {
+              "title": "Texture Baking in Blender: Normals & Beyond — Blender Base Camp",
+              "url": "https://www.blenderbasecamp.com/texture-baking-in-blender-normals-beyond/",
+              "claim": "Normal map bake workflow, Extrusion and ray distance settings for Selected-to-Active normals"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "vertex-colors-to-texture",
+          "name": "Vertex colors → texture bake",
+          "what": "TRELLIS or hand-painted vertex colors can be baked to a UV-space texture for engine use, since many engines prefer texture maps over vertex color attributes at runtime.",
+          "how": "1. Ensure the mesh has a vertex color layer (Color Attribute). In Blender 4.x these are accessed via: Mesh Properties → Attributes panel (or → Vertex Colors in older UI). The datablock is named 'Attribute' by default in 4.x (was 'Col' in 2.9x). 2. In Shader Editor for the mesh's material: • Add → Input → Color Attribute • Set the Color Attribute node to reference your vertex color layer by name. • Connect: Color Attribute → Principled BSDF 'Base Color'. (This makes the vertex color the material color for the bake.) 3. Add bake target Image Texture node (Non-connected, active/selected, sRGB image for color data). 4. UV-unwrap the mesh (Smart UV Project works fine — vertex color baking only needs UVs for the OUTPUT texture, not for the painting itself). 5. Bake panel: • Bake Type = Diffuse • Contributions: uncheck Direct, uncheck Indirect, check Color ONLY. This bakes only the flat vertex color, no lighting. 6. Bake → Save As PNG. 7. In the final material: swap Color Attribute node for the baked Image Texture node. Now the mesh uses a conventional UV texture.",
+          "blender_version": "4.0–4.3",
+          "gotchas": [
+            "Blender 4.x names the default vertex color attribute 'Attribute', not 'Col' (which was the 2.9x default). Scripts or Color Attribute nodes referencing 'Col' will fall back to no data.",
+            "Direct and Indirect must BOTH be unchecked under Diffuse contributions — leaving either on bakes scene lighting into the vertex color, which is almost never wanted.",
+            "The Color Attribute node must be connected to the material during the bake (providing the color source); but the Image Texture bake TARGET must NOT be connected to the material.",
+            "For meshes with multiple materials, each material must have the Color Attribute node → Principled Base Color setup, and each needs its own Image Texture bake target node."
+          ],
+          "studio_use": "TRELLIS meshes sometimes carry vertex color data from the 3D reconstruction. Bake these to UV textures so the resulting sprite assets use standard texture maps compatible with any game engine material system without vertex color support overhead.",
+          "currency": "solid",
+          "verify_note": "Confirmed from katsbits Bake Vertex Color guide (Color Attribute node setup, Diffuse bake type, Direct+Indirect off) and Render Baking manual stating Color Attribute is a valid bake target. | cross-family (deepseek-v3.1): confirmed — Correct workflow for baking vertex colors to textures using Color Attribute nodes.",
+          "sources": [
+            {
+              "title": "Bake Vertex Color — Katsbits Blender Knowledgebase",
+              "url": "https://www.katsbits.com/codex/bake-vertex-color/",
+              "claim": "Complete workflow: Color Attribute → Principled Base Color, Diffuse bake with Color-only contributions, UV requirement for bake output"
+            },
+            {
+              "title": "Render Baking — Blender 5.1 Manual",
+              "url": "https://docs.blender.org/manual/en/latest/render/cycles/baking.html",
+              "claim": "Confirms Color Attribute is a valid bake target alongside Image Texture nodes in Blender 4.x"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "export-baked-maps",
+          "name": "Export baked maps — save, format, and engine handoff",
+          "what": "Baked images in Blender exist only in memory (the.blend image datablock) until explicitly saved to disk. Closing Blender before saving loses the bake. This recipe covers the save/export path and format decisions for sprite pipeline handoff.",
+          "how": "SAVING FROM WITHIN BLENDER:\n• UV Editor or Image Editor → Image menu → 'Save As' (Shift+S in image editor, or Image → Save As in the header menu).\n• For images created with 'New' (not loaded from disk), 'Save' has no target — always use 'Save As' to pick a file path.\n• Alt+S is the shortcut in the UV Editor. FORMAT SELECTION:\n• Base Color / Albedo: PNG 8-bit sRGB — smallest lossless format, broad engine support.\n• Normal Map: PNG 16-bit Non-Color (or EXR half float) — 8-bit loses precision in flat/gradient regions causing banding in-engine.\n• Roughness / Metallic / AO: PNG 8-bit Non-Color — grayscale data, 8-bit is sufficient for most game uses.\n• Combined HDR bake: EXR 16-bit — preserves full dynamic range. BATCH SAVE (scripted pipeline): import bpy for img in bpy.data.images: if img.is_dirty: # modified since last save img.filepath_raw = \"//textures/\" + img.name + \".png\" img.file_format = 'PNG' img.save() PACK INTO.BLEND vs EXTERNAL:\n• Image Editor → Image → Pack: embeds in the.blend file. Useful for transport but inflates file size.\n• External paths (//textures/…) are preferred for iterative pipelines — re-bakes overwrite the file on disk. GLB/FBX HANDOFF:\n• When exporting a GLB with baked textures: File → Export → glTF 2.0 → 'Include → Textures' must be enabled.\n• Assign baked Image Texture nodes into the correct Principled BSDF slots BEFORE export so the GLB exporter picks them up and embeds them in the glTF material.\n• glTF expects: Base Color (sRGB), Normal Map (OpenGL tangent, Non-Color), ORM or separate Roughness/Metallic (Non-Color).",
+          "blender_version": "4.0–4.3",
+          "gotchas": [
+            "Saving .blend does NOT save baked images if they are 'dirty' (unsaved image datablocks) — always explicitly Image → Save As after baking.",
+            "PNG 8-bit for normal maps causes visible banding on subtle normals — use 16-bit PNG or EXR.",
+            "External file paths starting with // are relative to the .blend file location. If you move the .blend without the textures folder, paths break.",
+            "GLB export with 'Textures' enabled only picks up images that are connected to the material output chain — unconnected bake target nodes won't be embedded. Connect the baked maps into Principled BSDF sockets before export.",
+            "Blender's glTF exporter (4.x) automatically splits a combined Principled material into the glTF PBR structure — it does NOT auto-detect a Cycles Bake Combined pass. Set up the materials correctly with baked maps in the right sockets."
+          ],
+          "studio_use": "Final step in the TRELLIS → sprite pipeline: save Normal (16-bit PNG), Base Color (8-bit PNG), and Roughness (8-bit PNG) to //textures/, re-connect into Principled BSDF sockets, then export the low-poly as GLB for the sprite renderer or game engine import.",
+          "currency": "solid",
+          "verify_note": "Save workflow confirmed from multiple sources; format recommendations (16-bit normal, 8-bit diffuse/roughness) from graphics-programming.org guide; GLB material connection requirement from Blender glTF export documentation behavior. | cross-family (deepseek-v3.1): confirmed — Accurate export workflow with appropriate format recommendations for different map types.",
+          "sources": [
+            {
+              "title": "How to Export Textures From Blender — ShiftyChevre",
+              "url": "https://shiftychevre.com/how-to-export-textures-from-blender/",
+              "claim": "Save As workflow, format options (PNG, EXR), pack vs external path trade-offs"
+            },
+            {
+              "title": "The one true guide to baking materials in Blender — Graphics Programming Discord",
+              "url": "https://graphics-programming.org/blog/blender-baking",
+              "claim": "16-bit PNG for normal maps, format by map type, and the bake-save-reconnect workflow"
+            },
+            {
+              "title": "Baking Texture Maps from Your Mesh — blenderbasics.com",
+              "url": "https://www.blenderbasics.com/blog/baking_textures/",
+              "claim": "Explicitly warns that saving.blend is not enough — must save baked images separately"
+            }
+          ],
+          "research_currency": "solid"
+        }
+      ],
+      "cloud_verify": {
+        "model": "deepseek-v3.1:671b",
+        "verdicts": [
+          {
+            "recipe": "Principled BSDF v2 — Blender 4.0 input reference",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Accurately documents the Blender 4.0 Principled BSDF reorganization with correct socket names and structure."
+          },
+          {
+            "recipe": "PBR material setup with Principled BSDF 4.x",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Correct standard PBR workflow with proper color space assignments for Blender 4.x."
+          },
+          {
+            "recipe": "Cycles Bake panel — complete workflow",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Accurate description of Cycles bake workflow including engine requirement and active node selection."
+          },
+          {
+            "recipe": "Cycles bake types — complete list and when to use each",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Correct listing and explanation of all 12 bake types available in Cycles."
+          },
+          {
+            "recipe": "Selected-to-Active: high-poly → low-poly bake transfer",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Accurate workflow for high-to-low poly baking with correct selection order and extrusion settings."
+          },
+          {
+            "recipe": "UV unwrap essentials for baking",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Correct UV unwrapping methods and requirements for baking in Blender 4.x."
+          },
+          {
+            "recipe": "Normal map baking — color space, format, and DirectX vs OpenGL",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Accurate normal map baking workflow with correct color space and format recommendations."
+          },
+          {
+            "recipe": "Vertex colors → texture bake",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Correct workflow for baking vertex colors to textures using Color Attribute nodes."
+          },
+          {
+            "recipe": "Export baked maps — save, format, and engine handoff",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Accurate export workflow with appropriate format recommendations for different map types."
+          }
+        ],
+        "tally": {
+          "confirmed": 9,
+          "confirmed-with-fixes": 0,
+          "unverified": 0,
+          "refuted": 0,
+          "no-verdict": 0
+        }
+      }
+    },
+    {
+      "laneSlug": "mesh-ops",
+      "title": "Mesh editing & cleanup",
+      "recipes": [
+        {
+          "slug": "decimate-collapse",
+          "name": "Decimate modifier — Collapse mode (ratio-based poly reduction)",
+          "what": "Reduce triangle/polygon count by collapsing edges. The primary tool for lowering TRELLIS mesh density before game export. Produces a triangulated result by default; use_collapse_triangulate=False preserves quads where possible.",
+          "how": "import bpy, math obj = bpy.context.active_object # must be a MESH object # Add Decimate modifier\ndec = obj.modifiers.new(name='Decimate', type='DECIMATE')\ndec.decimate_type = 'COLLAPSE' # enum: COLLAPSE | UNSUBDIV | DISSOLVE\ndec.ratio = 0.25 # 0.0–1.0; 0.25 = keep 25% of faces\ndec.use_collapse_triangulate = True # True = all-tris output (safe for game export)\n# Optional: limit to a vertex group\n# dec.vertex_group = 'MyGroup'\n# dec.invert_vertex_group = False # Apply (required for export to see changes)\nbpy.ops.object.modifier_apply(modifier='Decimate') # Read final face count:\nprint('Faces after decimate:', len(obj.data.polygons))",
+          "blender_version": "4.x",
+          "gotchas": "Collapse is destructive — it discards normals and can create non-manifold edges at high reduction ratios (>0.75 reduction). TRELLIS meshes are already all-tris so triangulate=True has no overhead. The 'ratio' property is 0–1 where 1.0 = no change; the modifier shows the resulting face count in the UI as 'Face Count'. Applying via bpy.ops.object.modifier_apply() requires the modifier name string to match exactly.",
+          "studio_use": "First pass on every imported TRELLIS GLB: ratio 0.3–0.5 before normals fixup. Brings a 150k-tri scan mesh to ~40–75k for sprite rendering without visible silhouette loss at 256×256 sprite res.",
+          "currency": "solid",
+          "verify_note": "Confirmed: docs.blender.org/api/4.0/bpy.types.DecimateModifier.html (search result) lists decimate_type enum COLLAPSE/UNSUBDIV/DISSOLVE plus ratio, iterations, angle_limit properties — consistent through 4.x. bpy.ops.object.modifier_apply pattern confirmed across multiple pipeline examples. | cross-family (deepseek-v3.1): confirmed — All properties and methods are correct for Blender 4.x, including use_collapse_triangulate and proper modifier application.",
+          "sources": [
+            {
+              "title": "DecimateModifier — Blender Python API (4.0/current)",
+              "url": "https://docs.blender.org/api/current/bpy.types.DecimateModifier.html",
+              "claim": "decimate_type enum is COLLAPSE/UNSUBDIV/DISSOLVE; ratio, use_collapse_triangulate, vertex_group are the key COLLAPSE-mode properties"
+            },
+            {
+              "title": "Mesh Operators — Blender Python API 4.2",
+              "url": "https://docs.blender.org/api/4.2/bpy.ops.mesh.html",
+              "claim": "bpy.ops.object.modifier_apply is the correct operator for applying a modifier by name in 4.x"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "decimate-planar",
+          "name": "Decimate modifier — Planar (Dissolve) mode for flat-face cleanup",
+          "what": "Dissolve edges between co-planar faces, collapsing triangle fans on flat surfaces into single ngons. More topology-aware than Collapse for architectural or hard-surface meshes that have many tiny triangles on flat regions.",
+          "how": "import bpy, math obj = bpy.context.active_object dec = obj.modifiers.new(name='DecimatePlanar', type='DECIMATE')\ndec.decimate_type = 'DISSOLVE' # Planar mode\ndec.angle_limit = math.radians(5.0) # dissolve edges where face angle < 5 degrees\ndec.use_dissolve_boundaries = False # True can dissolve UV seam edges too # Check face count before apply\nprint('Before:', len(obj.data.polygons))\nbpy.ops.object.modifier_apply(modifier='DecimatePlanar')\nprint('After:', len(obj.data.polygons))",
+          "blender_version": "4.x",
+          "gotchas": "DISSOLVE outputs ngons — downstream exporters or game engines that require tris must triangulate after. use_dissolve_boundaries=True is aggressive and can break UV islands. angle_limit is in radians in the API, degrees in the UI. Very effective on scan meshes with flat floors/walls but does nothing on organic rounded surfaces.",
+          "studio_use": "Secondary pass on TRELLIS meshes that have flat base planes (pedestal, ground contact) where Collapse would distort silhouette but Planar can dissolve thousands of co-planar micro-triangles into clean ngons.",
+          "currency": "solid",
+          "verify_note": "API property names confirmed from docs.blender.org/api/4.0/bpy.types.DecimateModifier.html search result. angle_limit + use_dissolve_boundaries are the DISSOLVE-mode specific properties. | cross-family (deepseek-v3.1): confirmed — DISSOLVE mode with angle_limit in radians and use_dissolve_boundaries are correctly implemented for Blender 4.x.",
+          "sources": [
+            {
+              "title": "DecimateModifier — Blender Python API (current)",
+              "url": "https://docs.blender.org/api/current/bpy.types.DecimateModifier.html",
+              "claim": "angle_limit and use_dissolve_boundaries are DISSOLVE mode properties; value is in radians"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "remesh-voxel",
+          "name": "Remesh modifier — Voxel mode for topology reconstruction",
+          "what": "Rebuild mesh topology from scratch using a volumetric voxel grid. Produces a clean, evenly-spaced triangle mesh that follows the original shape. Best for heavily broken TRELLIS output (non-manifold, inside-out shells, internal geometry) where cleanup ops alone can't rescue the mesh.",
+          "how": "import bpy obj = bpy.context.active_object # Method 1: Modifier (non-destructive, apply when ready)\nrm = obj.modifiers.new(name='Remesh', type='REMESH')\nrm.mode = 'VOXEL' # enum: BLOCKS | SMOOTH | SHARP | VOXEL\nrm.voxel_size = 0.005 # smaller = more detail; world-space units\nrm.adaptivity = 0.0 # 0.0 = uniform; higher = fewer polys on flat areas\nrm.use_smooth_shade = False # keep False; handle shading via Smooth by Angle modifier\nbpy.ops.object.modifier_apply(modifier='Remesh') # Method 2: Direct operator (destructive, applies immediately)\n# bpy.ops.object.voxel_remesh() # uses object.data.remesh_voxel_size\n# obj.data.remesh_voxel_size = 0.005\n# bpy.ops.object.voxel_remesh() print('Faces after voxel remesh:', len(obj.data.polygons))",
+          "blender_version": "4.x",
+          "gotchas": "Voxel remesh DESTROYS UV maps, custom normals, and vertex colors — run before any UV unwrap. voxel_size is in world-space: a 1m tall character with voxel_size=0.01 gives 100 voxels of height. All-tris output. Does not preserve sharp edges unless you use SHARP mode (which uses an octree, not voxels). adaptivity > 0 can cause stretched triangles on curved surfaces. Internal geometry is removed, which is usually desirable for TRELLIS output.",
+          "studio_use": "Nuclear option for TRELLIS meshes with severe inside-out faces, internal walls (known TRELLIS.2 issue per GitHub #140), or non-manifold geometry that blocks Boolean operations downstream.",
+          "currency": "solid",
+          "verify_note": "RemeshModifier API confirmed from search: docs.blender.org/api/current/bpy.types.RemeshModifier.html lists mode (BLOCKS/SMOOTH/SHARP/VOXEL), voxel_size, adaptivity, use_smooth_shade. TRELLIS internal mesh walls confirmed as known issue in microsoft/TRELLIS.2 #140. | cross-family (deepseek-v3.1): confirmed — VOXEL mode with voxel_size, adaptivity, and use_smooth_shade properties are correct for Blender 4.x remeshing.",
+          "sources": [
+            {
+              "title": "RemeshModifier — Blender Python API (current)",
+              "url": "https://docs.blender.org/api/current/bpy.types.RemeshModifier.html",
+              "claim": "Mode enum is BLOCKS/SMOOTH/SHARP/VOXEL; voxel_size and adaptivity are the VOXEL-mode control properties"
+            },
+            {
+              "title": "TRELLIS generating duplicate inner mesh walls · Issue #140",
+              "url": "https://github.com/microsoft/TRELLIS.2/issues/140",
+              "claim": "TRELLIS outputs internal geometry (duplicate inner walls) — voxel remesh is the reliable fix because it fills the volume from outside"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "boolean-exact-vs-fast",
+          "name": "Boolean modifier — Exact vs Fast (vs Manifold in 4.5) solver",
+          "what": "Perform CSG Boolean operations (Union/Difference/Intersect) between two meshes. The solver choice determines accuracy and speed.",
+          "how": "import bpy # Setup: obj_a is the base, obj_b is the cutter\nobj_a = bpy.data.objects['Base']\nobj_b = bpy.data.objects['Cutter'] bpy.context.view_layer.objects.active = obj_a bool_mod = obj_a.modifiers.new(name='Boolean', type='BOOLEAN')\nbool_mod.operation = 'DIFFERENCE' # UNION | DIFFERENCE | INTERSECT\nbool_mod.solver = 'EXACT' # FAST | EXACT | (MANIFOLD in 4.5+)\nbool_mod.object = obj_b # Exact-solver extras:\nbool_mod.use_self = False # True if obj_a self-intersects\nbool_mod.use_hole_tolerant = True # better results on meshes with holes bpy.ops.object.modifier_apply(modifier='Boolean') # Remove the cutter object after apply\nbpy.data.objects.remove(obj_b, do_unlink=True) # In Blender 4.5+ MANIFOLD solver (fastest, requires manifold inputs):\n# bool_mod.solver = 'MANIFOLD'",
+          "blender_version": "4.x (Manifold solver added in 4.5)",
+          "gotchas": "FAST (BMesh solver): works only on manifold meshes; much faster but fails silently on non-manifold input by producing garbled output. EXACT: uses multi-precision arithmetic (Zhou et al. Mesh Arrangements algorithm); handles coplanar faces and non-manifold geometry correctly but is slower. MANIFOLD (4.5 LTS, 2025-07-15): fastest solver, based on the Manifold library, but requires ALL inputs to be strictly manifold (every edge adjacent to exactly two faces) — TRELLIS meshes often fail this requirement. TRELLIS GLBs should default to EXACT. Always remove or hide the cutter object after applying to avoid export issues.",
+          "studio_use": "Cutting sprite-silhouette masks or holes in props exported from TRELLIS. Use EXACT by default for TRELLIS input since it handles the mesh quality variation typical of AI-generated geometry.",
+          "currency": "solid",
+          "verify_note": "Solver differences confirmed via blenderbasecamp.com fetch (Fast vs Exact) and developer.blender.org 4.5 release notes (Manifold solver, released 2025-07-15). Exact solver attribution: Zhou, Grinspun, Zorin, and Jacobson algorithm confirmed in Blender 2.91 release notes. | cross-family (deepseek-v3.1): confirmed — Correctly describes EXACT/FAST solvers and mentions MANIFOLD solver addition in 4.5 with proper use_self and use_hole_tolerant properties.",
+          "sources": [
+            {
+              "title": "Boolean Tool Fast vs Exact Solver — Blender Base Camp",
+              "url": "https://www.blenderbasecamp.com/boolean-tool-fast-vs-exact-solver-when-and-why-to-use-them/",
+              "claim": "Fast solver uses BMesh (manifold-only, fastest); Exact solver uses multi-precision arithmetic and handles coplanar/non-manifold meshes accurately but is slower"
+            },
+            {
+              "title": "Blender 4.5 LTS — Modeling & UV release notes",
+              "url": "https://developer.blender.org/docs/release_notes/4.5/modeling/",
+              "claim": "New Manifold solver added to Boolean modifier in 4.5; based on Manifold library; fastest but requires strictly manifold inputs"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "smooth-by-angle-4x-normals",
+          "name": "Shade Smooth by Angle — Blender 4.1+ (Auto Smooth removed)",
+          "what": "Apply angle-threshold smoothing to mesh normals. In Blender 4.1 the 'Auto Smooth' checkbox in Object Data Properties was removed. It is now a Geometry Nodes modifier node group called 'Smooth by Angle' bundled with Blender, or accessible via the 'Shade Auto Smooth' operator.",
+          "how": "import bpy, math obj = bpy.context.active_object # ------------------------------------------------------------------\n# METHOD A: Operator (simplest — adds the modifier automatically)\n# Works in Object Mode; available in 4.1+\n# ------------------------------------------------------------------\nbpy.context.view_layer.objects.active = obj\nbpy.ops.object.shade_smooth_by_angle(angle=math.radians(30.0), keep_sharp_edges=True)\n# This adds the 'Smooth by Angle' GN modifier AND sets shade-smooth on the mesh. # ------------------------------------------------------------------\n# METHOD B: Manual modifier approach (for headless scripts where\n# the asset library may not be auto-loaded)\n# ------------------------------------------------------------------\n# Step 1: Load the node group from Blender's bundled assets\nimport os, bpy\nblender_path = bpy.utils.resource_path('LOCAL') # e.g. C:/Program Files/Blender Foundation/Blender 4.2\nasset_blend = os.path.join(blender_path, 'datafiles', 'assets', 'geometry_nodes', 'smooth_by_angle.blend') if 'Smooth by Angle' not in bpy.data.node_groups: with bpy.data.libraries.load(asset_blend, link=False) as (data_from, data_to): data_to.node_groups = ['Smooth by Angle'] # Step 2: Add a Geometry Nodes modifier and assign the node group\nmod = obj.modifiers.new(name='SmoothByAngle', type='NODES')\nmod.node_group = bpy.data.node_groups['Smooth by Angle'] # Step 3: Set the angle (Input_1 = angle in radians)\nmod['Input_1'] = math.radians(30.0) # 30 degrees # Note: Input_1_use_attribute is 0 (use value, not attribute) # ------------------------------------------------------------------\n# Shade Flat / Shade Smooth (no angle)\n# ------------------------------------------------------------------\n# bpy.ops.object.shade_flat() # flat shading\n# bpy.ops.object.shade_smooth() # smooth shading (180deg, no angle threshold)",
+          "blender_version": "4.1+ (breaking change from 4.0)",
+          "gotchas": "CRITICAL BREAKING CHANGE IN 4.1: The 'Auto Smooth' toggle in Object Data Properties > Normals was removed. Scripts or add-ons that set obj.data.auto_smooth_angle or obj.data.use_auto_smooth will break in 4.1+. The new system uses a Geometry Nodes modifier ('Smooth by Angle') from the bundled 'Essentials' asset library. In headless/background mode the asset library may not be initialized — use Method B (bpy.data.libraries.load from the bundled.blend path) rather than the asset browser API. The operator bpy.ops.object.shade_smooth_by_angle() is the cleanest single-line solution when the asset library is available. Input_1 key accesses the angle socket by index — may change between Blender minor versions; verify with mod.node_group.inputs['Angle'].identifier if needed.",
+          "studio_use": "Applied after Decimate in the TRELLIS GLB cleanup pipeline to restore clean shading across low-poly sprite meshes. 30° threshold is a good default for organic character meshes; hard-surface props may want 45–60°.",
+          "currency": "solid",
+          "verify_note": "Breaking change confirmed: multiple community sources (blenderartists.org, gamedev.tv) confirm Auto Smooth checkbox removed in 4.1. Operator name bpy.ops.object.shade_smooth_by_angle confirmed in Blender 4.1 docs search result. Modifier['Input_1'] = angle_radians pattern confirmed from Bforartists GitHub issue #4189 (fetched) with working code. Asset path via bpy.data.libraries.load workaround confirmed as fix in Blender bug #117399. | cross-family (deepseek-v3.1): confirmed — Accurately describes the 4.1+ change from Auto Smooth checkbox to Smooth by Angle modifier and provides correct implementation methods.",
+          "sources": [
+            {
+              "title": "Blender 4.1 Auto Smooth is now a modifier ONLY — Blender Artists",
+              "url": "https://blenderartists.org/t/blender-4-1-auto-smooth-is-now-a-modifier-only/1488922",
+              "claim": "Auto Smooth checkbox removed in 4.1; replaced by Smooth by Angle GN modifier node group; modifier['Input_1'] = radians is the Python angle-setting pattern"
+            },
+            {
+              "title": "#117399 Adding assets (Smooth by Angle) not working in background Python script — Blender Projects",
+              "url": "https://projects.blender.org/blender/blender/issues/117399",
+              "claim": "In headless mode the asset list may not be loaded; workaround is bpy.data.libraries.load() from the bundled geometry_nodes/smooth_by_angle.blend path"
+            },
+            {
+              "title": "Add Adjust Smooth by Angle Modifier operator · Issue #4189 — Bforartists",
+              "url": "https://github.com/Bforartists/Bforartists/issues/4189",
+              "claim": "Working Python code: detect NODES modifier with node_group == bpy.data.node_groups['Smooth by Angle'], set modifier['Input_1'] = math.radians(angle)"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "recalculate-outside-normals",
+          "name": "Recalculate Outside / flip normals & clear custom split normals",
+          "what": "Fix inverted face normals on imported meshes (a common TRELLIS artifact). Recalculate Outside makes all face normals point outward consistently. Also covers how to clear any baked Custom Split Normals Data that can override smooth shading.",
+          "how": "import bpy obj = bpy.context.active_object\nbpy.context.view_layer.objects.active = obj # Enter Edit Mode\nbpy.ops.object.mode_set(mode='EDIT') # Select all geometry\nbpy.ops.mesh.select_all(action='SELECT') # Recalculate normals to point outward (Shift+N in UI)\nbpy.ops.mesh.normals_make_consistent(inside=False)\n# inside=True would flip to point inward (Shift+Ctrl+N) # Return to Object Mode\nbpy.ops.object.mode_set(mode='OBJECT') # ---------------------------------------------------------\n# Clear Custom Split Normals (if mesh was imported with\n# baked custom normals that are fighting your shade smooth):\n# ---------------------------------------------------------\nif obj.data.has_custom_normals: bpy.ops.mesh.customdata_custom_splitnormals_clear() # Equivalent UI: Object Data Properties > Geometry Data > # Clear Custom Split Normals Data",
+          "blender_version": "4.x",
+          "gotchas": "normals_make_consistent requires EDIT mode and selected geometry — call after mode_set(mode='EDIT') and select_all. GLB/glTF imports from TRELLIS often carry baked custom split normals (has_custom_normals == True); these override Shade Smooth/Smooth by Angle completely and must be cleared before normal smoothing has any visible effect. customdata_custom_splitnormals_clear() was available before 4.1 and is still present in 4.x — it predates and is separate from the Auto Smooth removal.",
+          "studio_use": "Step 2 in the TRELLIS GLB cleanup recipe after import: clear custom normals first, then recalculate outside, then apply Smooth by Angle. Without this step, Shade Smooth by Angle has no visible effect on GLTF-imported meshes.",
+          "currency": "solid",
+          "verify_note": "normals_make_consistent(inside=False) for 'Recalculate Outside' confirmed via multiple Blender normals guides and API search results. has_custom_normals and customdata_custom_splitnormals_clear confirmed in bpy.types.Mesh API and mentioned in Blender manual/community sources as the required step before normal re-smoothing. | cross-family (deepseek-v3.1): confirmed — Correct normals_make_consistent operation with inside=False and proper handling of custom split normals for Blender 4.x.",
+          "sources": [
+            {
+              "title": "How to Fix Normals in Blender — 3DModels.org",
+              "url": "https://3dmodels.org/blog/how-to-fix-normals-in-blender/",
+              "claim": "Recalculate Outside is bpy.ops.mesh.normals_make_consistent(inside=False); clear custom split normals via Object Data Properties > Geometry Data to un-bake imported normals"
+            },
+            {
+              "title": "Blender Normal Fixer // Clear Custom Normals Script",
+              "url": "https://danielvesterbaek.gumroad.com/l/uXKAX",
+              "claim": "Custom split normals must be cleared before Shade Smooth takes effect on imported meshes"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "merge-by-distance",
+          "name": "Merge by Distance (remove_doubles) — weld coincident vertices",
+          "what": "Merge vertices that are within a distance threshold of each other. Essential for TRELLIS meshes that may have zero-length edges, duplicate verts at seams, or disconnected shells that share coordinates.",
+          "how": "import bpy obj = bpy.context.active_object\nbpy.context.view_layer.objects.active = obj\nbpy.ops.object.mode_set(mode='EDIT')\nbpy.ops.mesh.select_all(action='SELECT') # Merge vertices closer than threshold (world-space distance)\nbpy.ops.mesh.remove_doubles(threshold=0.0001, use_unselected=False)\n# threshold: 0.0001 (0.1mm) is a conservative safe default\n# use_unselected=True also merges into unselected verts (useful for partial selections) bpy.ops.object.mode_set(mode='OBJECT')\nprint('Vertex count after merge:', len(obj.data.vertices))",
+          "blender_version": "4.x",
+          "gotchas": "The UI label is 'Merge by Distance' (since ~2.82) but the bpy operator is still bpy.ops.mesh.remove_doubles() — the legacy name is preserved in the API and works in 4.x. threshold is in world-space units: a mesh scaled to 2m tall should use a small value like 0.0001; a mesh at 0.01m scale may need 0.000001. Run BEFORE fill_holes and after initial import to ensure topology is coherent. Do NOT use with use_unselected=True in headless pipelines unless you've verified what 'unselected' geometry exists.",
+          "studio_use": "Always run as the first cleanup op on a TRELLIS GLB in the pipeline. Collapses any micro-gaps left by the mesh extraction step, which can otherwise cause shading seams and Boolean failures.",
+          "currency": "solid",
+          "verify_note": "Operator name remove_doubles confirmed in Blender 4.2 mesh ops API search result (docs.blender.org/api/4.2/bpy.ops.mesh.html). Threshold behavior confirmed across multiple Blender scripting guides. UI renamed to 'Merge by Distance' in 2.82 but API name unchanged. | cross-family (deepseek-v3.1): confirmed — remove_doubles operator with threshold parameter is correctly implemented for vertex welding in Blender 4.x.",
+          "sources": [
+            {
+              "title": "Mesh Operators — Blender Python API 4.2",
+              "url": "https://docs.blender.org/api/4.2/bpy.ops.mesh.html",
+              "claim": "bpy.ops.mesh.remove_doubles(threshold, use_unselected) is the 4.2 API; UI label is 'Merge by Distance' but operator name is preserved"
+            },
+            {
+              "title": "Clean meshes automatically in Blender with Python",
+              "url": "https://thinkmoult.com/clean-meshes-automatically-blender-python.html",
+              "claim": "bpy.ops.mesh.remove_doubles() confirmed as the correct cleanup operator for welding verts in headless scripts"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "fill-holes-delete-loose-degenerate",
+          "name": "Fill Holes, Delete Loose, Degenerate Dissolve — structural cleanup trio",
+          "what": "Three mesh cleanup operators that address common TRELLIS mesh defects: open holes in the surface, floating disconnected vertices/edges, and zero-area degenerate faces/edges.",
+          "how": "import bpy obj = bpy.context.active_object\nbpy.context.view_layer.objects.active = obj\nbpy.ops.object.mode_set(mode='EDIT')\nbpy.ops.mesh.select_all(action='SELECT') # 1. Delete Loose — remove disconnected verts, edges, or faces\nbpy.ops.mesh.delete_loose( use_verts=True, use_edges=True, use_faces=False # keep floating face patches (they may be intentional)\n) # 2. Degenerate Dissolve — collapse zero-area faces and zero-length edges\nbpy.ops.mesh.dissolve_degenerate( threshold=0.0001 # edges/faces smaller than this are removed\n) # 3. Fill Holes — fill open boundary loops up to N sides\nbpy.ops.mesh.fill_holes(sides=4) # sides=0 means any hole size\n# fill_holes detects boundary edges and fills them;\n# sides=4 limits filling to holes with <= 4 boundary edges (quads only)\n# sides=0 fills all holes regardless of size bpy.ops.object.mode_set(mode='OBJECT')",
+          "blender_version": "4.x",
+          "gotchas": "Run in this order: delete_loose FIRST (removes garbage verts that confuse hole detection), THEN dissolve_degenerate, THEN fill_holes. fill_holes with sides=0 on complex organic meshes can fill large concave holes with unpredictable ngons — prefer sides=4 or sides=8 for controlled filling. dissolve_degenerate with too large a threshold can accidentally remove thin legitimate geometry (fins on characters, etc.) — use 0.0001 as a conservative default. These three ops are stable and unchanged across 4.x.",
+          "studio_use": "Run after merge_by_distance and before Decimate in the TRELLIS GLB cleanup pipeline. Removes the floating vert debris and micro-face artifacts that the volumetric TRELLIS extraction step leaves behind.",
+          "currency": "solid",
+          "verify_note": "All three operators confirmed in Blender 4.2 mesh ops API (docs.blender.org/api/4.2/bpy.ops.mesh.html) via search result. Parameter names (use_verts, use_edges, use_faces for delete_loose; threshold for dissolve_degenerate; sides for fill_holes) confirmed across multiple Blender scripting references and consistent since 2.x. | cross-family (deepseek-v3.1): confirmed — All three cleanup operators (delete_loose, dissolve_degenerate, fill_holes) are correctly implemented with proper parameters for Blender 4.x.",
+          "sources": [
+            {
+              "title": "Mesh Operators — Blender Python API 4.2",
+              "url": "https://docs.blender.org/api/4.2/bpy.ops.mesh.html",
+              "claim": "delete_loose(use_verts, use_edges, use_faces), dissolve_degenerate(threshold), fill_holes(sides) all present and documented in 4.2"
+            },
+            {
+              "title": "Clean Up — Blender Manual 4.0",
+              "url": "https://docs.blender.org/manual/en/4.0/modeling/meshes/editing/mesh/cleanup.html",
+              "claim": "Fill Holes, Delete Loose, and Degenerate Dissolve are all under Mesh > Clean Up; Fill Holes uses a 'sides' parameter to limit hole size"
+            },
+            {
+              "title": "TRELLIS GLB import and cleanup workflow — 3D AI Studio",
+              "url": "https://www.3daistudio.com/3d-generator-ai-comparison-alternatives-guide/how-to-import-optimize-ai-models-in-blender",
+              "claim": "fill_holes(), delete_loose(), dissolve_degenerate(), and normals_make_consistent() are the canonical cleanup sequence for AI-generated mesh imports"
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "trellis-glb-cleanup-recipe",
+          "name": "Full TRELLIS GLB cleanup recipe — import to game-export-ready",
+          "what": "End-to-end headless bpy pipeline for cleaning a raw TRELLIS-generated GLB mesh: import → structural cleanup → poly reduction → normals → export. Combines all mesh-ops lane recipes into a single callable script.",
+          "how": "import bpy, math, os, sys def clean_trellis_glb(glb_path: str, out_path: str, decimate_ratio: float = 0.35): \"\"\" Import a TRELLIS GLB, clean it, and export a game-ready GLB. Designed for Blender 4.1+. \"\"\" # 0. Clean scene bpy.ops.wm.read_factory_settings(use_empty=True) # 1. Import GLB bpy.ops.import_scene.gltf(filepath=glb_path) # 2. Gather mesh objects mesh_objs = [o for o in bpy.context.scene.objects if o.type == 'MESH'] if not mesh_objs: raise RuntimeError('No mesh objects found after import') for obj in mesh_objs: bpy.context.view_layer.objects.active = obj obj.select_set(True) # 3. Enter Edit Mode for cleanup ops bpy.ops.object.mode_set(mode='EDIT') bpy.ops.mesh.select_all(action='SELECT') # 3a. Merge by distance — weld micro-seams bpy.ops.mesh.remove_doubles(threshold=0.0001) # 3b. Delete loose geometry bpy.ops.mesh.delete_loose(use_verts=True, use_edges=True, use_faces=False) # 3c. Dissolve degenerate elements bpy.ops.mesh.dissolve_degenerate(threshold=0.0001) # 3d. Recalculate normals outward bpy.ops.mesh.normals_make_consistent(inside=False) bpy.ops.object.mode_set(mode='OBJECT') # 3e. Clear any baked custom split normals if obj.data.has_custom_normals: bpy.ops.mesh.customdata_custom_splitnormals_clear() # 4. Decimate (Collapse) dec = obj.modifiers.new(name='Decimate', type='DECIMATE') dec.decimate_type = 'COLLAPSE' dec.ratio = decimate_ratio dec.use_collapse_triangulate = True bpy.ops.object.modifier_apply(modifier='Decimate') # 5. Apply Smooth by Angle (Blender 4.1+ modifier approach) blender_local = bpy.utils.resource_path('LOCAL') smooth_blend = os.path.join( blender_local, 'datafiles', 'assets', 'geometry_nodes', 'smooth_by_angle.blend' ) if 'Smooth by Angle' not in bpy.data.node_groups: with bpy.data.libraries.load(smooth_blend, link=False) as (src, dst): dst.node_groups = ['Smooth by Angle'] sba = obj.modifiers.new(name='SmoothByAngle', type='NODES') sba.node_group = bpy.data.node_groups['Smooth by Angle'] sba['Input_1'] = math.radians(30.0) # Note: leave modifier UNAPPLIED so it's live/adjustable; # apply only if exporting to a format that doesn't support GN modifiers obj.select_set(False) # 6. Export cleaned GLB bpy.ops.export_scene.gltf( filepath=out_path, export_format='GLB', use_selection=False, export_apply=True # bakes all modifiers including Smooth by Angle ) print(f'Exported to {out_path}') # --- Entry point when run headlessly ---\nif __name__ == '__main__': argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [] import argparse p = argparse.ArgumentParser() p.add_argument('--glb', required=True) p.add_argument('--out', required=True) p.add_argument('--ratio', type=float, default=0.35) args = p.parse_args(argv) clean_trellis_glb(args.glb, args.out, args.ratio) # Invocation:\n# blender --background --python clean_trellis.py -- --glb input.glb --out clean.glb --ratio 0.35",
+          "blender_version": "4.1+",
+          "gotchas": "export_apply=True in export_scene.gltf is REQUIRED to bake the Smooth by Angle GN modifier into the output mesh normals — without it, the exported GLB reverts to flat normals. The Smooth by Angle.blend asset path (via bpy.utils.resource_path('LOCAL')) assumes the standard Blender installation layout; verify on your install with: python -c \"import bpy; import os; print(os.path.join(bpy.utils.resource_path('LOCAL'), 'datafiles', 'assets', 'geometry_nodes', 'smooth_by_angle.blend'))\". customdata_custom_splitnormals_clear() must be called while in Object Mode (not Edit Mode). Fill Holes is intentionally omitted from this recipe — it can produce large unexpected ngon fills on organic meshes; add it back with sides=4 only if the mesh has known specific holes.",
+          "studio_use": "Production script for the TRELLIS GLB → 2.5D sprite pipeline. Run as: blender --background --python clean_trellis.py -- --glb trellis_output.glb --out cleaned.glb --ratio 0.35. Feed output to the camera-orbit render script.",
+          "currency": "plausible",
+          "verify_note": "Each individual op in this recipe is confirmed solid from its own recipe entry. The full end-to-end script is synthesized — the Smooth by Angle asset path may vary by OS and Blender version. Marked plausible (not solid) because the complete script has not been run end-to-end against a live Blender 4.x install. Verify the smooth_by_angle.blend path on your install before production use. | cross-family (deepseek-v3.1): unverified — While the individual components appear correct, the complete end-to-end pipeline cannot be fully verified without testing the specific GLB import/export workflow.",
+          "sources": [
+            {
+              "title": "Blender Python script: converting mesh to GLB (gist by ryanfb)",
+              "url": "https://gist.github.com/ryanfb/f7caff4f08b1afa2960a40f63b39434b",
+              "claim": "bpy.ops.import_scene.gltf + export_scene.gltf with export_apply=True is the correct headless GLB round-trip pattern"
+            },
+            {
+              "title": "#117399 Adding assets (Smooth by Angle) not working in background Python script",
+              "url": "https://projects.blender.org/blender/blender/issues/117399",
+              "claim": "bpy.data.libraries.load(smooth_by_angle.blend) is the correct workaround for loading the Smooth by Angle node group in headless mode"
+            },
+            {
+              "title": "TRELLIS mesh cleanup pipeline — AI import workflow guide",
+              "url": "https://www.3daistudio.com/3d-generator-ai-comparison-alternatives-guide/how-to-import-optimize-ai-models-in-blender",
+              "claim": "Decimate at ratio 0.5 + normals fix is the recommended standard workflow for TRELLIS/AI-generated GLB imports into Blender"
+            }
+          ],
+          "research_currency": "plausible"
+        }
+      ],
+      "cloud_verify": {
+        "model": "deepseek-v3.1:671b",
+        "verdicts": [
+          {
+            "recipe": "Decimate modifier — Collapse mode (ratio-based poly reduction)",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "All properties and methods are correct for Blender 4.x, including use_collapse_triangulate and proper modifier application."
+          },
+          {
+            "recipe": "Decimate modifier — Planar (Dissolve) mode for flat-face cleanup",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "DISSOLVE mode with angle_limit in radians and use_dissolve_boundaries are correctly implemented for Blender 4.x."
+          },
+          {
+            "recipe": "Remesh modifier — Voxel mode for topology reconstruction",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "VOXEL mode with voxel_size, adaptivity, and use_smooth_shade properties are correct for Blender 4.x remeshing."
+          },
+          {
+            "recipe": "Boolean modifier — Exact vs Fast (vs Manifold in 4.5) solver",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Correctly describes EXACT/FAST solvers and mentions MANIFOLD solver addition in 4.5 with proper use_self and use_hole_tolerant properties."
+          },
+          {
+            "recipe": "Shade Smooth by Angle — Blender 4.1+ (Auto Smooth removed)",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Accurately describes the 4.1+ change from Auto Smooth checkbox to Smooth by Angle modifier and provides correct implementation methods."
+          },
+          {
+            "recipe": "Recalculate Outside / flip normals & clear custom split normals",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Correct normals_make_consistent operation with inside=False and proper handling of custom split normals for Blender 4.x."
+          },
+          {
+            "recipe": "Merge by Distance (remove_doubles) — weld coincident vertices",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "remove_doubles operator with threshold parameter is correctly implemented for vertex welding in Blender 4.x."
+          },
+          {
+            "recipe": "Fill Holes, Delete Loose, Degenerate Dissolve — structural cleanup trio",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "All three cleanup operators (delete_loose, dissolve_degenerate, fill_holes) are correctly implemented with proper parameters for Blender 4.x."
+          },
+          {
+            "recipe": "Full TRELLIS GLB cleanup recipe — import to game-export-ready",
+            "overall": "unverified",
+            "currency_check": "unknown",
+            "fixes": "",
+            "note": "While the individual components appear correct, the complete end-to-end pipeline cannot be fully verified without testing the specific GLB import/export workflow."
+          }
+        ],
+        "tally": {
+          "confirmed": 8,
+          "confirmed-with-fixes": 0,
+          "unverified": 1,
+          "refuted": 0,
+          "no-verdict": 0
+        }
+      }
+    },
+    {
+      "laneSlug": "rigging-animation",
+      "title": "Rigging & animation",
+      "recipes": [
+        {
+          "slug": "armature-bone-collections-4x",
+          "name": "Bone Collections (Blender 4.0+) — replace bone layers",
+          "what": "Blender 4.0 replaced the old 32-layer system and Bone Groups with named Bone Collections owned by the Armature. Collections support nesting (4.1+), show/hide per-collection, solo visibility, and per-bone custom colors. This is the current organization system; tutorials referencing 'armature layers' or 'layer buttons' are pre-4.0 and stale.",
+          "how": "1. In Edit or Pose mode, select bones, press M to open the Assign to Collection menu or create a new collection on the spot. 2. Shift+M assigns a bone to multiple collections simultaneously. 3. Manage collections in the Armature Properties → Bone Collections panel: rename by double-clicking, reorder by drag. 4. Eye icon = toggle visibility; star icon = solo that collection. 5. Nest a collection by right-clicking → 'Add Child Collection', or drag the name onto another collection (Blender 4.1+). 6. Bone colors: select bone(s) → Bone tab → Viewport Display → Bone Color (Edit mode) or Pose Bone Color (Pose mode); pick a palette color or set a custom color. Colors replace the deprecated Bone Groups color system. 7. Old.blend files opened in 4.0+ auto-convert layers to collections named 'Layer 1' … 'Layer 32'.",
+          "blender_version": "4.0+ (nested collections: 4.1+)",
+          "gotchas": [
+            "Any Python script or addon that calls armature.layers or bone.layers will break in 4.0+; the API moved to armature.collections and bone.collections.",
+            "Bone Groups are removed; their per-group colors are replaced by per-bone Bone Colors. If you open a 3.x file, Bone Groups are silently dropped — re-apply colors after upgrade.",
+            "Collections are visible in all modes (Edit, Pose, Object) unlike old layers which had separate visibility states per mode in some addons.",
+            "The show-only-selected-collection feature is the Eye icon per row; there is no longer a single 'all-layers visible' toggle — use the armature header visibility instead."
+          ],
+          "studio_use": "Organize a game character rig: collections for DEF (deform), CTR (controls), IK targets, face bones, root. Toggle visibility during weight painting to isolate deform bones. Use bone colors to color-code limb sides (left=blue, right=red) for fast pose-mode selection.",
+          "currency": "solid",
+          "verify_note": "Confirmed from CGDive Blender 4 rigging article (fetched), cross-checked against Blender Projects issue #116795 on nested collections and multiple search result summaries. | cross-family (deepseek-v3.1): confirmed — Bone Collections correctly replaced the legacy 32-layer system in Blender 4.0, with nesting added in 4.1, and the described workflow matches current documentation.",
+          "sources": [
+            {
+              "title": "Bone Collections — Blender 5.1 Manual",
+              "url": "https://docs.blender.org/manual/en/latest/animation/armatures/properties/bone_collections.html",
+              "claim": "Official reference for Bone Collections introduced in 4.0, including assignment, visibility, nesting, and bone colors."
+            },
+            {
+              "title": "Blender 4 Updates: What's New in Rigging and Animation — CGDive",
+              "url": "https://cgdive.com/blender-4-updates-rigging-and-animation/",
+              "claim": "Covers bone collections replacing 32-layer system, M/Shift+M shortcuts, bone colors replacing Bone Groups, and keymap changes."
+            },
+            {
+              "title": "Bone Collections & Colors: Upgrading to 4.0 — Blender Developer Docs",
+              "url": "https://developer.blender.org/docs/release_notes/4.0/upgrading/bone_collections/",
+              "claim": "Official upgrade guide documenting what changed from bone layers/groups to bone collections and how old files are auto-converted."
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "armature-setup-and-parenting",
+          "name": "Armature setup — adding bones and structuring a character rig",
+          "what": "An Armature object holds bones; bones define the skeleton hierarchy. In Edit mode you add, extrude, and parent bones. Bone roll, head/tail position, and the Connected flag control how bones chain. Rest pose is set in Edit mode; Pose mode is where animation and constraints live.",
+          "how": "1. Add → Armature (single bone) in Object mode; Tab into Edit mode to shape it. 2. Select bone tip, E to extrude a child bone; bones auto-connect (Connected). 3. Name each bone in the Bone properties panel. 4. Use Ctrl+R to roll a bone so its local Y aligns with the limb axis. 5. Mirror-edit with X-Axis Mirror enabled (Armature header toggle) — bones named Bone.L are mirrored as Bone.R. 6. Parent without Connect (uncheck Connected) for floating control bones (IK targets, root). 7. In Object mode Ctrl+A → Apply All Transforms on the armature and mesh BEFORE skinning so rest-pose transform is clean. 8. In Pose mode Alt+G / Alt+R / Alt+S clears pose back to rest; Ctrl+A applies pose as new rest pose if needed.",
+          "blender_version": "4.x (stable across 4.0–4.4+)",
+          "gotchas": [
+            "Do NOT apply scale or rotation after skinning — vertex weights are bound to the rest pose; applying transforms post-skinning shifts the mesh.",
+            "Bone naming convention Bone.L / Bone.R enables symmetry operations and correct glTF left/right bone recognition in some engines.",
+            "Connected bones cannot be freely repositioned at the head; uncheck Connected if the bone needs to be a floating target.",
+            "Always build the rig in a neutral T-pose or A-pose; Automatic Weights fails badly if bones overlap or are inside geometry."
+          ],
+          "studio_use": "Build a humanoid rig for a 2.5D RPG character: spine chain, limbs with IK, face bones. The clean armature hierarchy is what glTF exports as the skeleton — naming and hierarchy here determines bone names in Godot/UE5.",
+          "currency": "solid",
+          "verify_note": "Standard Blender armature fundamentals; consistent across all 4.x release notes and official manual. No breaking changes to core bone editing workflow in 4.x. | cross-family (deepseek-v3.1): confirmed — Core armature editing workflow remains stable across Blender 4.x with correct shortcuts and hierarchy management practices.",
+          "sources": [
+            {
+              "title": "Armature Deform Parent — Blender 5.1 Manual",
+              "url": "https://docs.blender.org/manual/en/latest/animation/armatures/skinning/parenting.html",
+              "claim": "Official reference for armature parenting modes including With Automatic Weights."
+            },
+            {
+              "title": "Rigging isn't Scary: Learn Rigging in Blender 2025/2026 — CGDive",
+              "url": "https://cgdive.com/48-hours-early-access-learn-rigging-in-blender-2024-2025/",
+              "claim": "Current-year rigging course covering Blender 4.x armature workflow for game characters."
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "skinning-automatic-weights-and-weight-painting",
+          "name": "Skinning: Automatic Weights + weight painting cleanup",
+          "what": "Skinning binds a mesh to an armature so bones deform it. 'Parent With Automatic Weights' (Ctrl+P) runs Blender's bone heat algorithm to assign vertex weights to vertex groups named after bones. Weight painting then cleans up bad influences. This is the standard game-character skinning path.",
+          "how": "1. In Object mode select the MESH first, then Shift-click the ARMATURE (armature must be active/orange). 2. Ctrl+P → 'With Automatic Weights'. Blender creates one vertex group per bone and fills weights automatically. 3. If you get 'Bone Heat Weighting: failed to find solution for one or more bones': scale the mesh/armature up (models that are too small or have interior overlapping geo cause this), fix ngons/non-manifold edges, or manually assign those bones. 4. Enter Weight Paint mode (Tab from object mode with mesh selected, or switch from header). 5. In Blender 4.0+: select bones with Alt+Click (changed from Ctrl+Click in 3.x); Ctrl+Click now removes weight; Shift+Click blurs. 6. Paint with Draw brush to add weight, Ctrl+draw to remove. Enable Auto Normalize (sidebar → Options → Auto Normalize) so weights always sum to 1. 7. Useful cleanup operators in Weight Paint mode: Weights → Smooth (blur across surface), Normalize All, Clean (remove near-zero weights). 8. For a game character, keep max 4 bone influences per vertex (Weights → Limit Total, set to 4). glTF supports max 4 influences per vertex by default.",
+          "blender_version": "4.0+ (keymap changed from 3.x)",
+          "gotchas": [
+            "Blender 4.0 changed weight paint bone selection from Ctrl+Click to Alt+Click. Old tutorials using Ctrl+Click workflow will confuse newcomers on 4.x.",
+            "Auto Normalize must be ON during painting for glTF skinning; engines expect weights summing to 1.0 per vertex.",
+            "Automatic Weights creates groups for ALL bones including IK targets and pole targets. These get empty weights but if you export with 'Export Deformation Bones Only' you can strip them at export time rather than manually deleting groups.",
+            "The Armature modifier must be above the Subdivision Surface modifier in the stack, otherwise subdivision changes the vertex count after weighting."
+          ],
+          "studio_use": "Standard path for all game characters: auto-weight provides 80% of the work; weight paint cleans up elbow/shoulder collapsing, hip bleed, and finger separation. The Limit Total step enforces the 4-bone-per-vertex cap required for most game engines.",
+          "currency": "solid",
+          "verify_note": "Confirmed from CGDive 4.x rigging article (fetched), Automatic Weights search results, and cross-checked glTF max-4-influence requirement from multiple export guides. | cross-family (deepseek-v3.1): confirmed — Automatic weights workflow is correct, including the 4.0 keymap change from Ctrl+Click to Alt+Click for bone selection in weight paint mode.",
+          "sources": [
+            {
+              "title": "Weight Painting — Blender Fundamentals 4.5 LTS — Blender Studio",
+              "url": "https://studio.blender.org/training/blender-fundamentals-45-lts/blender_4-5_lts_rigging_weight-painting/",
+              "claim": "Official Blender Studio training covering weight painting in current LTS; includes Auto Normalize and brush behavior."
+            },
+            {
+              "title": "Blender 4 Updates: What's New in Rigging and Animation — CGDive",
+              "url": "https://cgdive.com/blender-4-updates-rigging-and-animation/",
+              "claim": "Documents the 4.0 weight paint keymap change (Alt+Click replaces Ctrl+Click for bone selection)."
+            },
+            {
+              "title": "Automatic Weights in Blender — Engeenee",
+              "url": "https://engeenee.com/guides/models/body/automatic/",
+              "claim": "Step-by-step current workflow for Ctrl+P with automatic weights and common failure mode fixes."
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "ik-constraints-and-rig-constraints",
+          "name": "Rig constraints: IK, Copy Rotation/Location, Track To, Child Of",
+          "what": "Constraints drive bone behavior procedurally in Pose mode. IK (Inverse Kinematics) is the core constraint for limb rigs — it rotates a chain of bones to reach a target point. Copy Rotation/Location, Track To, and Child Of handle control hierarchies, look-at rigs, and dynamic parent relationships. All live on the Bone Constraint Properties panel in Pose mode.",
+          "how": "IK SETUP: 1. Create a chain of bones (e.g. thigh → shin → foot). Slightly bend the chain in the knee direction in Edit mode — a perfectly straight chain causes IK solver ambiguity. 2. Add a separate IK target bone (a non-connected, non-deforming CTR bone) positioned at the foot. 3. In Pose mode select the shin bone (last bone before the end effector), Bone Constraint Properties → Add Constraint → Inverse Kinematics. Set Target = the armature, Bone = the IK target bone. Set Chain Length = 2 (thigh + shin). 4. Add a Pole Target bone at the knee front position; in the IK constraint set Pole Target = armature, Pole Bone = that bone. Adjust Pole Angle (usually -90° or 90°) until the knee points the right direction. COPY ROTATION: Select the bone that should follow, Add Constraint → Copy Rotation, target the driver bone. Use Space = Pose Space for predictable local-relative behavior. TRACK TO: Used for look-at rigs (eyes). Select eye bone, Track To constraint, Target Object = pupil target, Track Axis = -Z (or Y depending on bone orientation), Up = X. CHILD OF: Creates a dynamic parent switch; useful for held objects. Add Child Of on the prop bone, set Influence to 0 (not parented) or 1 (parented). Set Inverse button bakes the current offset as the 'rest' relationship.",
+          "blender_version": "4.x (stable API; no breaking changes to these constraints in 4.0–4.4)",
+          "gotchas": [
+            "IK chains with a length of 0 run the solver up the ENTIRE parent chain to the root — almost never what you want for limbs. Always set Chain Length explicitly.",
+            "Pole Target Pole Angle is in degrees; common values are 0, 90, -90, 180. If the knee/elbow flips on the wrong side, flip the Pole Angle by 180.",
+            "IK constraints do NOT export directly to glTF — the game engine handles IK internally. You must bake the IK animation to FK keyframes before glTF export (Object → Animation → Bake Action, or enable 'Export Deformation Bones Only' + sampling in the glTF exporter).",
+            "Child Of constraint requires clicking 'Set Inverse' after setting the target to correctly offset the parent relationship, otherwise the bone jumps to the target's origin."
+          ],
+          "studio_use": "All humanoid game characters need IK legs and arms. Copy Rotation is used for foot roll setups. Track To handles eye rigs. Child Of allows a sword to snap to a hand bone vs. a scabbard bone via driver-controlled influence.",
+          "currency": "solid",
+          "verify_note": "IK setup steps confirmed from Starcube Labs IK quickguide (fetched) and Blender Artists community. The IK-does-not-export-to-glTF-natively point is confirmed by multiple glTF export issue threads on GitHub. | cross-family (deepseek-v3.1): confirmed — Constraint system remains stable in Blender 4.x with accurate IK setup workflow including pole targets and chain length.",
+          "sources": [
+            {
+              "title": "Inverse Kinematics Constraint — Blender 5.1 Manual",
+              "url": "https://docs.blender.org/manual/en/latest/animation/constraints/tracking/ik_solver.html",
+              "claim": "Official documentation for IK constraint parameters including Chain Length, Pole Target, and Pole Angle."
+            },
+            {
+              "title": "Blender Quickguide: Inverse Kinematics for Characters — Starcube Labs",
+              "url": "https://www.starcubelabs.com/quickguide-blender-inverse-kinematics/",
+              "claim": "Practical setup guide for limb IK with target and pole target bones; pre-bend tip for solver stability."
+            },
+            {
+              "title": "Constraints — Blender Fundamentals 4.5 LTS — Blender Studio",
+              "url": "https://studio.blender.org/training/blender-fundamentals-45-lts/blender_4-5_lts_rigging_constraints/",
+              "claim": "Official training for Copy Rotation, Track To, Child Of and other rig constraints in current Blender."
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "drivers-basics-bone-to-shapekey",
+          "name": "Drivers — basics and bone-rotation-to-shape-key example",
+          "what": "Drivers attach an F-Curve expression to any property, making one value automatically control another. The canonical game-rig use case is a bone rotation controlling a shape key (corrective morph for elbows/shoulders, or facial expression). Drivers live in Graph Editor → Drivers mode and can reference bone transforms, object properties, or custom properties.",
+          "how": "BASIC DRIVER SETUP: 1. Right-click any property in the Properties panel → Add Driver (or Ctrl+D on compatible fields). The property turns purple. 2. In the Driver Editor (Graph Editor header → switch to Drivers), select the driven property. In the sidebar Driver tab: set Type = 'Averaged Value'; add a Variable. 3. Variable Type = 'Transform Channel'; Object = your armature; Bone = the controlling bone; Type = 'X Rotation'; Space = Local Space. 4. The driver expression `var` now passes the raw bone rotation value (in radians) to the driven property. BONE-TO-SHAPE-KEY EXAMPLE: Drive a shape key value from a forearm bone X rotation. Target property = shape key value (0.0–1.0). Driver variable = forearm bone local X rotation. Set expression = `var / (pi/2)` to map 0°→0 and 90°→1. Or add a modifier curve in the Driver Editor to remap the range non-linearly for corrective shapes. CUSTOM PROPERTIES: In Pose mode, select a bone, Object Data Properties → Custom Properties → New. Name it 'ik_fk_switch' (float 0–1). Then use this property as a driver variable to blend constraint influences — a common IK/FK switch pattern.",
+          "blender_version": "4.x (drivers API stable; no breaking changes in 4.0–4.4)",
+          "gotchas": [
+            "Rotation values in drivers are always in RADIANS, not degrees. 90 degrees = pi/2 ≈ 1.5708. Use the constant `pi` in driver expressions or use Scripted Expression type to import math.",
+            "Drivers that reference bone local rotation must set Space = 'Local Space'; 'World Space' includes the armature's object transform and gives wrong values if the armature is moved.",
+            "Shape key drivers referencing a bone from a DIFFERENT object (e.g. mesh drives from armature) need the variable Object set to the armature object, not the mesh.",
+            "Cyclic drivers (A drives B drives A) cause a red 'Cyclic Dependency' warning and break. IK + driver combinations can trigger this; reorganize the dependency chain."
+          ],
+          "studio_use": "Corrective shape keys (elbow and shoulder collapse fixes) are critical for game characters visible in close-up. Bone-to-shape-key drivers make these automatic during animation. Custom property sliders on control bones give animators IK/FK blend and face pose controls inside a single rig.",
+          "currency": "solid",
+          "verify_note": "Confirmed from Blender Manual Workflow & Examples page (search confirmed URL exists), plus Blender 4.5 shape key driver tutorial (Japanese source, fetched summary confirms bone-rotation driver pattern is current). | cross-family (deepseek-v3.1): confirmed — Driver system is stable in 4.x with correct workflow for bone-driven shape keys using transform channel variables.",
+          "sources": [
+            {
+              "title": "Workflow & Examples — Blender 5.1 Manual (Drivers)",
+              "url": "https://docs.blender.org/manual/en/latest/animation/drivers/workflow_examples.html",
+              "claim": "Official driver workflow examples including bone transform driving shape key values with curve remapping."
+            },
+            {
+              "title": "Control Shape Keys with Drivers in Blender — Michael Gold",
+              "url": "https://mike.gold/notes/x-bookmarks/blender/control-shape-keys-with-drivers-in-blender",
+              "claim": "Practical guide for bone-rotation → shape key driver using local X rotation variable."
+            },
+            {
+              "title": "Creating a panel to control shape keys using bones and drivers — Blender 4.5 (note.com)",
+              "url": "https://note.com/chlora/n/naf0cb2072c25",
+              "claim": "Blender 4.5 tutorial confirming the bone-drives-shape-key driver pattern is current in 4.x."
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "animation-keyframes-action-editor-nla",
+          "name": "Animation system: keyframes, Action Editor, NLA editor",
+          "what": "Blender's animation system centers on Actions (collections of F-Curves). You create keyframes in Pose mode; they are stored in the active Action. The Action Editor (Dope Sheet → Action) shows timing. The NLA (Non-Linear Animation) editor lets you layer and blend multiple actions, and is the mechanism by which glTF exports multiple named clips from one armature.",
+          "how": "KEYFRAMING: In Pose mode, pose the character; press I → Rotation (or Location/Scale/LocRotScale) to insert keyframes on selected bones. Keyframes appear as yellow diamonds in the timeline. Alt+I removes a keyframe on the current frame. Auto-keying (the red dot in the timeline header) automatically keys any changed property when playback is stopped. ACTION EDITOR: Open a Dope Sheet editor, switch to Action mode from the header. The current action is shown in the action name field. Click the + to create a new action, or the datablock dropdown to switch. Each named action = one animation clip (Idle, Walk, Attack, etc.). Push Down button moves the current action to an NLA strip and frees the action slot (so you can start a new one). NLA EDITOR: Each action pushed down appears as a strip on a track. Strips can be scaled (length), offset (start frame), blended. For glTF multi-animation export: push down ALL actions to NLA tracks via Action Editor → Push Down (or Stash). The glTF exporter exports each NLA track as a separate named glTF animation. Rename NLA tracks to control exported clip names. CLIP ORGANIZATION: Use start/end frame ranges per action; keep actions on clean frame ranges starting at 0 or 1.",
+          "blender_version": "4.0–4.3 (pre-slotted-actions; see recipe 'slotted-actions-4-4' for 4.4 changes)",
+          "gotchas": [
+            "An action that is NOT pushed down to an NLA track and is NOT the active action will NOT be exported by the glTF exporter. Always push down or stash every action you want in the export.",
+            "NLA track names become the glTF animation names. Default names are 'NLATrack' or '[Action Stash]'; rename them to 'Idle', 'Walk', etc. before export.",
+            "Muting an NLA track (M key in NLA editor) prevents it from playing in Blender but it still exports. To exclude from export, delete the strip.",
+            "The Action Editor 'Fake User' button (shield icon) prevents an unused action from being deleted on file save — use it for actions not yet pushed to NLA."
+          ],
+          "studio_use": "Workflow for a game character with 10 animations: create each action (Idle, Walk, Run, Attack_01 etc.) in the Action Editor, push each to NLA, rename tracks. Single glTF export outputs all 10 animations by name — Godot AnimationTree or UE5 AnimBP imports them as separate named clips.",
+          "currency": "plausible",
+          "verify_note": "Push Down / Stash for glTF export confirmed from multiple KhronosGroup glTF-Blender-IO GitHub issues and the ezEngine Blender export guide (fetched). NLA track rename = glTF animation name is a documented feature. | cross-family (deepseek-v3.1): confirmed-with-fixes — Describes the pre-4.4 animation system accurately but should clarify this is the legacy system before Slotted Actions. [fix: Update version reference to 'pre-4.4' rather than '4.0-4.3' since Slotted Actions were introduced in 4.4]",
+          "sources": [
+            {
+              "title": "glTF 2.0 — Blender 5.1 Manual (Animation export)",
+              "url": "https://docs.blender.org/manual/en/latest/addons/import_export/scene_gltf2.html",
+              "claim": "Documents that stashed NLA tracks are exported as named glTF animations; NLA track name controls exported animation name."
+            },
+            {
+              "title": "Authoring and Exporting Animations with Blender — ezEngine",
+              "url": "https://ezengine.net/pages/docs/animation/skeletal-animation/blender-export.html",
+              "claim": "Practical guide for multiple animation export via Stash/Push Down workflow and frame-0 animation start requirement."
+            },
+            {
+              "title": "blender-pushdownall — GitHub (TokisanGames)",
+              "url": "https://github.com/TokisanGames/blender-pushdownall",
+              "claim": "Addon confirming Push Down All pattern for multi-animation glTF export; supports Blender 2.8–4.0+."
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "slotted-actions-blender-4-4",
+          "name": "Slotted Actions (Blender 4.4) — new animation data model",
+          "what": "Blender 4.4 introduced Slotted Actions, a fundamental change to how animation data is stored. Previously one Action stored F-Curves for exactly one data-block (one armature, one object). In 4.4, a single Action can hold multiple 'slots' — each slot is an independent bag of F-Curves — so one Action can simultaneously animate an armature, its object transform, and a material. Old files are auto-migrated to 'Legacy Slots'. This is the current animation data model in 4.4+.",
+          "how": "WHAT CHANGED: In 4.4 the Action Editor shows a Slots panel (usually a small header area). Every animatable data-block that references an action is assigned to a specific slot within it. When you key a bone, the F-curves go into the slot assigned to that armature data-block. WORKFLOW FOR A CHARACTER: For typical character animation (just animating bones), you get one slot per armature — the experience is nearly identical to pre-4.4 except there's a visible slot name. No workflow change is required for single-armature single-action animations. MULTI-OBJECT ACTIONS: New capability: assign multiple objects to different slots of the same Action via the Action Editor → Action → Merge Animation (merges selected objects' active actions into one). Or manually: in the Action Editor, select an action in one object, then assign the same action to another object and choose a different slot. SEPARATING SLOTS: Action Editor → Action → Separate Slots splits all slots of an Action into individual Actions. Useful if you accidentally merged or want to split a combined action back out. LEGACY FILES: Opening a 3.x or 4.3.blend in 4.4+ auto-creates a 'Legacy Slot' per action. These work identically to old actions.",
+          "blender_version": "4.4+ (this feature does NOT exist in 4.3 or earlier)",
+          "gotchas": [
+            "CRITICAL BACKWARD COMPAT: Saving a file with multiple-slot Actions in 4.4 and opening it in Blender 4.3 or earlier: only the FIRST slot is visible; all other slots and their F-curves are LOST when the older Blender saves the file. Do not round-trip multi-slot Actions through Blender < 4.4.",
+            "Slotted Actions change some Python API paths — addon code that directly manipulates action.fcurves may need updates if it was written for pre-4.4.",
+            "For glTF export in 4.4: slots within a single action are NOT exported as separate glTF animations. The glTF exporter still operates at the NLA-track/action level. If you want separate glTF clips, you still need separate Actions (or separate NLA tracks), same as before.",
+            "The automatic migration to Legacy Slots is lossless — legacy-slot actions behave exactly as old-style actions. No manual intervention required when upgrading projects."
+          ],
+          "studio_use": "For a game studio: the practical impact is minimal for single-armature character animation. Most value comes when animating a character + their equipment (sword, shield) in one Action using separate slots. Be aware of the Blender-version lock: any collaborators must use 4.4+ once multi-slot Actions are used.",
+          "currency": "solid",
+          "verify_note": "Confirmed from Blender 4.4 release announcement (alternativeto.net fetch), developer forum thread summaries, and multiple search result excerpts citing the Blender developer docs. Backward-compat data loss confirmed in official upgrade notes. | cross-family (deepseek-v3.1): confirmed — Accurately describes the Slotted Actions system introduced in Blender 4.4 with correct version specificity.",
+          "sources": [
+            {
+              "title": "Animation & Rigging — Slotted Actions — Blender Developer Docs (4.4)",
+              "url": "https://developer.blender.org/docs/release_notes/4.4/animation_rigging/",
+              "claim": "Official 4.4 release notes documenting Slotted Actions: slot concept, Action Editor changes, multi-object workflow."
+            },
+            {
+              "title": "Slotted Actions: Upgrading to 4.4 — Blender Developer Docs",
+              "url": "https://developer.blender.org/docs/release_notes/4.4/upgrading/slotted_actions/",
+              "claim": "Upgrade guide covering legacy slot migration, backward compatibility warning (4.3 loses non-first slots), and API changes."
+            },
+            {
+              "title": "Blender 4.4 launches with a new slotted actions system — AlternativeTo",
+              "url": "https://alternativeto.net/news/2025/3/blender-4-4-launches-with-a-new-slotted-actions-system-vulkan-improvements-and-more",
+              "claim": "News coverage confirming Slotted Actions as the headline 4.4 animation feature; describes multi-object-in-one-action capability."
+            }
+          ],
+          "research_currency": "solid"
+        },
+        {
+          "slug": "gltf-export-rigged-animated-character",
+          "name": "Exporting a rigged + animated character to glTF for a game engine",
+          "what": "The built-in glTF 2.0 exporter (File → Export → glTF 2.0) handles skinned meshes and skeletal animations. Correct settings are essential: skinning, animations, and sampling must all be enabled; IK must be baked; deformation-only bones should be filtered. The result is a.glb (binary, preferred) or.gltf +.bin + textures.",
+          "how": "PRE-EXPORT CHECKLIST: 1. Apply All Transforms to mesh and armature (Ctrl+A → All Transforms) — unexplained root-level scaling/rotation causes misalignment in engines. 2. Check Armature modifier stack: Armature modifier must be FIRST (above Subdivision Surface etc.). 3. Uncheck 'Preserve Volume' on the Armature modifier — game engines use linear blend skinning, not dual quaternion; Preserve Volume causes visible mesh divergence. 4. Every vertex must be assigned to at least one bone vertex group. Run Weights → Clean to remove near-zero weights; run Weights → Limit Total (4) for the 4-bone-per-vertex max. 5. Push all animation Actions to NLA tracks; rename tracks to desired clip names. EXPORT SETTINGS (File → Export → glTF 2.0 →.glb): Include section: check 'Skinning'. Animation section: check 'Animations'; sampling: leave 'Always Sample Animations' ON (converts IK/drivers to baked keyframes per frame — required if you use IK constraints); set Sampling Rate (default 1 = every frame; set to 2 for 30fps animations exported from 60fps projects). Check 'Export Deformation Bones Only' to strip IK targets and pole-target bones from the skeleton. Choose 'Export' mode = 'Scene' or per-object depending on your pipeline. POST-EXPORT VERIFY: Import the.glb into Godot 4 or UE5 and check bone names, animation clip list, and skinning deformation. Animation clip names in the engine should match your NLA track names.",
+          "blender_version": "4.x (exporter is built-in; settings have been stable across 4.0–4.4)",
+          "gotchas": [
+            "Objects parented to bones via 'Object offset' (not vertex skinning) have their rotation/scale offset dropped in glTF. Use vertex-group skinning for all deforming meshes.",
+            "Drivers that control bone positions are NOT automatically baked by 'Always Sample Animations' in all cases — test export and verify driven bones animate correctly. May need a manual Bake Action step first.",
+            "glTF stores animation at 1000 ticks/second internally, but Blender re-samples from your scene frame rate. If the engine shows slightly off-timing, check that your scene FPS matches the engine target (24, 30, or 60).",
+            "Multiple NLA tracks on the SAME armature are each exported as separate named glTF animations. Muted tracks still export; delete strips you do not want in the final file.",
+            "The 'Export Deformation Bones Only' option bakes the IK at export time, so the game engine receives pure FK data — no IK runtime needed in the engine."
+          ],
+          "studio_use": "Final step in the RPG character pipeline: Blender.blend →.glb → Godot 4 AnimationTree or UE5 AnimBP. A clean export has: one.glb per character, named animation clips (Idle, Walk_N, Walk_S, Attack_Melee, Hit_Flinch, Death), deform-only skeleton (~40–60 bones for humanoid), and a 4-influence-max skin.",
+          "currency": "solid",
+          "verify_note": "Confirmed from ezEngine Blender export guide (fetched in detail), KhronosGroup glTF-Blender-IO GitHub issues, and Blender Studio weight painting training reference. Preserve Volume = dual quaternion point confirmed by multiple game engine export guides. | cross-family (deepseek-v3.1): confirmed — glTF export workflow and settings are correct and stable across Blender 4.x, including deformation bones filtering and animation baking.",
+          "sources": [
+            {
+              "title": "Authoring and Exporting Animations with Blender — ezEngine",
+              "url": "https://ezengine.net/pages/docs/animation/skeletal-animation/blender-export.html",
+              "claim": "Comprehensive export checklist: deformation bones, animation sampling, keyframe start at 0, cycle loop frames, coordinate system."
+            },
+            {
+              "title": "glTF 2.0 — Blender 5.1 Manual",
+              "url": "https://docs.blender.org/manual/en/latest/addons/import_export/scene_gltf2.html",
+              "claim": "Official exporter documentation for all export settings including skinning, animation modes, sampling rate, deformation bones only."
+            },
+            {
+              "title": "Export deforming bones only without exporting animations — KhronosGroup/glTF-Blender-IO Issue #1668",
+              "url": "https://github.com/KhronosGroup/glTF-Blender-IO/issues/1668",
+              "claim": "'Export Deformation Bones Only' option discussion confirming it strips IK targets and bakes animation at export."
+            }
+          ],
+          "research_currency": "solid"
+        }
+      ],
+      "cloud_verify": {
+        "model": "deepseek-v3.1:671b",
+        "verdicts": [
+          {
+            "recipe": "Bone Collections (Blender 4.0+) — replace bone layers",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Bone Collections correctly replaced the legacy 32-layer system in Blender 4.0, with nesting added in 4.1, and the described workflow matches current documentation."
+          },
+          {
+            "recipe": "Armature setup — adding bones and structuring a character rig",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Core armature editing workflow remains stable across Blender 4.x with correct shortcuts and hierarchy management practices."
+          },
+          {
+            "recipe": "Skinning: Automatic Weights + weight painting cleanup",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Automatic weights workflow is correct, including the 4.0 keymap change from Ctrl+Click to Alt+Click for bone selection in weight paint mode."
+          },
+          {
+            "recipe": "Rig constraints: IK, Copy Rotation/Location, Track To, Child Of",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Constraint system remains stable in Blender 4.x with accurate IK setup workflow including pole targets and chain length."
+          },
+          {
+            "recipe": "Drivers — basics and bone-rotation-to-shape-key example",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Driver system is stable in 4.x with correct workflow for bone-driven shape keys using transform channel variables."
+          },
+          {
+            "recipe": "Animation system: keyframes, Action Editor, NLA editor",
+            "overall": "confirmed-with-fixes",
+            "currency_check": "stale",
+            "fixes": "Update version reference to 'pre-4.4' rather than '4.0-4.3' since Slotted Actions were introduced in 4.4",
+            "note": "Describes the pre-4.4 animation system accurately but should clarify this is the legacy system before Slotted Actions."
+          },
+          {
+            "recipe": "Slotted Actions (Blender 4.4) — new animation data model",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "Accurately describes the Slotted Actions system introduced in Blender 4.4 with correct version specificity."
+          },
+          {
+            "recipe": "Exporting a rigged + animated character to glTF for a game engine",
+            "overall": "confirmed",
+            "currency_check": "current",
+            "fixes": "",
+            "note": "glTF export workflow and settings are correct and stable across Blender 4.x, including deformation bones filtering and animation baking."
+          }
+        ],
+        "tally": {
+          "confirmed": 7,
+          "confirmed-with-fixes": 1,
+          "unverified": 0,
+          "refuted": 0,
+          "no-verdict": 0
+        }
+      }
+    }
+  ]
+}

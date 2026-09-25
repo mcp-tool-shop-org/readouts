@@ -1,0 +1,190 @@
+{
+  "bucket": "testing-tooling",
+  "verifier_note": "Checked every warrant source by retrieval (WebFetch plus raw GitHub blob fetches when WebFetch's line-counting proved unreliable), every engine_note claim against si-rpg-engine's actual main branch (Cargo.toml, rust-toolchain.toml, lib.rs, rapier_law.rs, build.mjs, Cargo.lock via gh api), and ran the lane's own compile_oracle.py against the real pinned rustc 1.98.1 toolchain (33/33 checks pass, re-confirmed after the input file was regenerated mid-task with additional no_warnings/wasm_no_imports gates). I hand-reproduced two things beyond what checks[] covers: the entire crate-type cdylib-vs-rlib/tests/doctest mechanism in a toy crate (every claimed error code, warning, and exit code matched verbatim), and the canon_quat edge-case arithmetic, whose source proved byte-identical to GitHub main. Nothing was refuted. The one systemic weakness: recipe 2's headline claim (adding rlib changed the solver's actual wasm SHA-256) is an unreproduced empirical measurement on the real solver at a historical commit — I verified the mechanism is plausible and every surrounding claim reproduces exactly, but I could not re-derive that specific hash pair without checking out solver/ at e5fbcb9 outside the permitted scope, so it is marked plausible rather than solid. A second, minor weakness: that same recipe carries zero checks[] entries, meaning the non-model oracle has no automated coverage of it at all and every future edit to it will go unchecked unless someone adds checks by hand.",
+  "verdicts": [
+    {
+      "slug": "unit-test-the-cdylib-in-cfg-test-modules-at-the-end-of-each-file-so-the-wasm-bytes-stay-put",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle 3/3 checks pass on rustc 1.98.1. All 8 sources confirmed verbatim incl. PR#139224 (merged 2025-04-28, 1.88.0). Engine: lib.rs/rapier_law.rs confirmed untested; js_min/js_max/canon/canon_quat/mix_f64 all present as named.",
+      "evidence_url": "https://doc.rust-lang.org/rustc/tests/index.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/book/ch11-03-test-organization.html", "supported": true, "note": "confirms cfg(test) excluded from artifact; integration tests use public API only"},
+        {"url": "https://doc.rust-lang.org/rustc/tests/index.html", "supported": true, "note": "confirms unwind requirement + all 8 libtest flags incl. --no-capture/--nocapture alias"},
+        {"url": "https://doc.rust-lang.org/reference/attributes/testing.html", "supported": true, "note": "confirms #[ignore] reason string, should_panic(expected) substring match, () return"},
+        {"url": "https://doc.rust-lang.org/book/ch11-02-running-tests.html", "supported": true, "note": "confirms parallel-by-default threads + --test-threads=1 serialises"},
+        {"url": "https://doc.rust-lang.org/cargo/commands/cargo-test.html", "supported": true, "note": "confirms lib target wording, --release uses release profile, -- passthrough"},
+        {"url": "https://github.com/rust-lang/rust/pull/139224", "supported": true, "note": "merged 2025-04-28, 1.88.0 milestone, --nocapture deprecated for --no-capture"},
+        {"url": "https://nexte.st/docs/design/how-it-works/", "supported": true, "note": "confirms nextest executes each test in its own process, in parallel"},
+        {"url": "https://nexte.st/docs/design/why-process-per-test/", "supported": true, "note": "confirms no global-state coordination needed / shared state moves out of process"}
+      ]
+    },
+    {
+      "slug": "expect-tests-and-doc-tests-to-need-an-rlib-adding-rlib-to-the-solver-s-crate-type-changed-its-wasm-bytes",
+      "verdict": "confirmed",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "checks[] is empty; hand-reproduced in a toy cdylib crate on 1.98.1: E0433, silent doctest skip, --doc warn+exit101, rlib fix (all sections pass), E0603 private fn, RUSTDOCFLAGS escalation - all matched. Solver hash pair not re-derived.",
+      "evidence_url": "https://doc.rust-lang.org/rustdoc/write-documentation/documentation-tests.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/cargo/commands/cargo-test.html", "supported": true, "note": "confirms lib target link wording"},
+        {"url": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html", "supported": true, "note": "confirms crate-type value list and integration-tests-use-public-API"},
+        {"url": "https://doc.rust-lang.org/rustdoc/write-documentation/documentation-tests.html", "supported": true, "note": "confirms extern crate injection, public-only linking, 2024 merged doctests"},
+        {"url": "https://doc.rust-lang.org/rustdoc/write-documentation/linking-to-items-by-name.html", "supported": true, "note": "confirms module-scope resolution and fn@/! disambiguators"},
+        {"url": "https://doc.rust-lang.org/rustdoc/lints.html", "supported": true, "note": "confirms broken_intra_doc_links/private_intra_doc_links warn, private_doc_tests allow"},
+        {"url": "https://doc.rust-lang.org/book/ch11-03-test-organization.html", "supported": true, "note": "confirms cfg(test) excluded from artifact; integration tests use public API only"},
+        {"url": "https://nexte.st/docs/running/", "supported": true, "note": "confirms nextest skips doctests, run cargo test --doc separately"},
+        {"url": "https://github.com/rust-lang/cargo/issues/6659", "supported": true, "note": "opened 2019-02-13, still open, shows E0463 verbatim - matches as background context"},
+        {"url": "https://github.com/rust-lang/cargo/issues/4717", "supported": true, "note": "opened 2017-11-13, closed, silent cargo test --doc skip confirmed"}
+      ]
+    },
+    {
+      "slug": "run-cargo-test-and-cargo-test-release-the-release-run-wraps-integer-overflow-that-the-debug-run-panics-on",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle 4/4 checks pass on rustc 1.98.1: overflow panics at opt-level 0, wraps under -C overflow-checks=off and under bare -O, and --test -C panic=abort is refused verbatim. All 4 sources confirmed incl. exact codegen-options wording.",
+      "evidence_url": "https://doc.rust-lang.org/cargo/reference/profiles.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/cargo/reference/profiles.html", "supported": true, "note": "confirms test profile inherits dev, --release=--profile=release, panic ignored in tests"},
+        {"url": "https://doc.rust-lang.org/cargo/commands/cargo-test.html", "supported": true, "note": "confirms release profile testing wording"},
+        {"url": "https://doc.rust-lang.org/rustc/codegen-options/index.html", "supported": true, "note": "confirms overflow-checks follows debug-assertions, on only at opt-level 0"},
+        {"url": "https://doc.rust-lang.org/rustc/tests/index.html", "supported": true, "note": "confirms unwind-strategy requirement for tests"}
+      ]
+    },
+    {
+      "slug": "keep-wasm-evidence-in-the-js-harness-wasm32-unknown-unknown-libtest-prints-nothing-and-skips-should-panic",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle 2/2 pass incl. wasm_no_imports gate. Raw GitHub fetch at 1.98.1 confirms should_panic-ignored-on-wasm logic at exactly lines 642-651 (WebFetch first miscounted; raw source corrected it). Engine build.mjs confirmed wasm-bindgen-free.",
+      "evidence_url": "https://github.com/rust-lang/rust/blob/1.98.1/library/test/src/lib.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/cargo/reference/config.html", "supported": true, "note": "confirms target.<triple>.runner behavior for run/test/bench"},
+        {"url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html", "supported": true, "note": "confirms untested-in-CI, println! no-op, wasip1 recommended, panic=abort default"},
+        {"url": "https://github.com/rust-lang/rust/blob/1.98.1/library/test/src/lib.rs", "supported": true, "note": "raw source: comment+logic at exactly lines 642-651, matches claim precisely"},
+        {"url": "https://wasm-bindgen.github.io/wasm-bindgen/wasm-bindgen-test/usage.html", "supported": true, "note": "confirms dev-dependency, #[wasm_bindgen_test], runner key, Node default, pub mod rule"},
+        {"url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-wasip1.html", "supported": true, "note": "confirms tested in CI and renamed from wasm32-wasi before March 2024"},
+        {"url": "https://github.com/bytecodealliance/wasmtime", "supported": true, "note": "confirms wasm32-wasip2 quickstart producing Hello, world!"}
+      ]
+    },
+    {
+      "slug": "rely-on-rustc-for-constant-overflow-and-nan-and-on-clippy-s-pedantic-float-cmp-and-cast-lints-for-the-rest",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle 3/3 pass incl. no_warnings gate. Clippy source at 1.98.1 confirms FLOAT_CMP=pedantic/FLOAT_CMP_CONST=restriction/CAST_*=pedantic; float_cmp.rs's is_allowed() proves the zero/inf exemption covers canon's own x==0.0. Consts confirmed.",
+      "evidence_url": "https://github.com/rust-lang/rust/blob/1.98.1/src/tools/clippy/clippy_lints/src/operators/mod.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html", "supported": true, "note": "confirms arithmetic_overflow, overflowing_literals, unconditional_panic all deny-by-default"},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html", "supported": true, "note": "confirms invalid_nan_comparisons warns on == f64::NAN"},
+        {"url": "https://doc.rust-lang.org/reference/attributes/diagnostics.html", "supported": true, "note": "confirms tool lints only checked when the tool is active"},
+        {"url": "https://github.com/rust-lang/rust/blob/1.98.1/src/tools/clippy/clippy_lints/src/operators/mod.rs", "supported": true, "note": "raw source: FLOAT_CMP pedantic (line 421), FLOAT_CMP_CONST restriction (line 484)"},
+        {"url": "https://github.com/rust-lang/rust/blob/1.98.1/src/tools/clippy/clippy_lints/src/casts/mod.rs", "supported": true, "note": "raw source: all three cast lints declared pedantic, confirmed exactly"},
+        {"url": "https://github.com/rust-lang/rust/blob/1.98.1/src/tools/clippy/clippy_lints/src/undocumented_unsafe_blocks.rs", "supported": true, "note": "raw source: restriction, version 1.58.0, SAFETY-comment-preceding wording confirmed"},
+        {"url": "https://github.com/rust-lang/rust-clippy", "supported": true, "note": "confirms group defaults, install command, -D warnings vs CARGO_BUILD_WARNINGS, restriction warning"}
+      ]
+    },
+    {
+      "slug": "give-lint-groups-priority-1-in-cargo-s-lints-table-add-clippy-and-rustfmt-to-the-pinned-toolchain-file",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle 2/2 pass. Reproduced on this rig: cargo +1.98.1 clippy/fmt fail 'not installed for the toolchain' verbatim. All 7 static_mut_refs line numbers match main; static_mut_refs+rust_2024_compatibility at edition 2021 reproduced.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/main/solver/src/lib.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/cargo/reference/manifest.html", "supported": true, "note": "confirms priority is signed int, current-package-only, respected as of 1.74"},
+        {"url": "https://blog.rust-lang.org/2023/11/16/Rust-1.74.0/", "supported": true, "note": "confirms [lints] table announcement and workspace.lints inheritance"},
+        {"url": "https://github.com/rust-lang/rust/blob/1.98.1/src/tools/clippy/clippy_lints/src/cargo/mod.rs", "supported": true, "note": "raw source: LINT_GROUPS_PRIORITY correctness/1.78.0, example matches exactly"},
+        {"url": "https://rust-lang.github.io/rustup/overrides.html", "supported": true, "note": "confirms rust-toolchain.toml keys channel/components/targets/profile"},
+        {"url": "https://rust-lang.github.io/rustup/concepts/profiles.html", "supported": true, "note": "confirms minimal=rustc+rust-std+cargo, default adds rust-docs+rustfmt+clippy"},
+        {"url": "https://github.com/rust-lang/rustfmt", "supported": true, "note": "confirms install command, --check exit 0/1, rustfmt.toml/.rustfmt.toml"},
+        {"url": "https://doc.rust-lang.org/cargo/reference/config.html", "supported": true, "note": "confirms build.warnings warn/allow/deny, local-packages-only, respected as of 1.97"},
+        {"url": "https://rust-analyzer.github.io/book/configuration.html", "supported": true, "note": "confirms cargo.target=null, check.command=check, cargo.cfgs defaults"},
+        {"url": "https://github.com/rust-lang/rust-analyzer/blob/master/crates/rust-analyzer/src/config.rs", "supported": true, "note": "raw source: cargo_cfgs/cargo_target/check_command defaults match exactly"}
+      ]
+    },
+    {
+      "slug": "suppress-lints-with-expect-lint-reason-1-81-instead-of-allow-so-a-stale-suppression-warns",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle 7/7 pass incl. no_warnings gates on every silent/clean claim, host and wasm32 targets. Both sources confirmed verbatim, incl. the exact #[expect(clippy::undocumented_unsafe_blocks)] migration example from the 1.81 announcement.",
+      "evidence_url": "https://blog.rust-lang.org/2024/09/05/Rust-1.81.0/",
+      "corrections": null,
+      "sources": [
+        {"url": "https://blog.rust-lang.org/2024/09/05/Rust-1.81.0/", "supported": true, "note": "confirms expect lint level + reason field stabilized, exact migration example"},
+        {"url": "https://doc.rust-lang.org/reference/attributes/diagnostics.html", "supported": true, "note": "confirms unfulfilled_lint_expectations semantics, group-one-member rule, reason support"}
+      ]
+    },
+    {
+      "slug": "property-test-the-solver-s-float-helpers-with-proptest-over-prop-num-f64-any-not-only-hand-picked-values",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "canon_quat source is byte-identical to si-rpg-engine main (GitHub-verified). Independently re-ran its exact edge-case arithmetic via the oracle and got the identical claimed stdout. Oracle 7/7 pass. All 5 proptest sources confirmed.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/main/solver/src/rapier_law.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/proptest/1.11.0/proptest/test_runner/struct.Config.html", "supported": true, "note": "confirms cases=256, SourceParallel default, random rng_seed default"},
+        {"url": "https://docs.rs/proptest/1.11.0/proptest/num/f64/index.html", "supported": true, "note": "confirms ANY incl. infinities/quiet NaN, and all 7 named class strategies"},
+        {"url": "https://docs.rs/proptest/1.11.0/proptest/test_runner/enum.RngSeed.html", "supported": true, "note": "confirms Random (default) and Fixed(u64) variants"},
+        {"url": "https://proptest-rs.github.io/proptest/proptest/failure-persistence.html", "supported": true, "note": "confirms seed-file persistence, replay-before-novel, source-control recommendation"},
+        {"url": "https://proptest-rs.github.io/proptest/proptest/tutorial/shrinking-basics.html", "supported": true, "note": "confirms binary-search shrinking and the 100..1000 stops-at-100 example"}
+      ]
+    },
+    {
+      "slug": "prove-each-rust-harness-can-go-red-cargo-mutants-on-unit-tests-insta-goldens-that-ci-cannot-auto-accept",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle 4/4 pass (hand-applied mutants of canon behave exactly as claimed). Confirmed on this rig: cargo-mutants/cargo-insta genuinely absent ('no such command'). All 9 sources confirmed verbatim.",
+      "evidence_url": "https://mutants.rs/mutants.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f64.html", "supported": true, "note": "confirms to_bits transmutation, is_sign_negative true for -0.0, min/max -0.0==0.0 note"},
+        {"url": "https://docs.rs/insta/1.48.0/insta/", "supported": true, "note": "confirms INSTA_UPDATE modes and snapshots-folder .snap storage"},
+        {"url": "https://mutants.rs/mutants.html", "supported": true, "note": "confirms float/==!=/comparison/arith/unary mutation patterns exactly"},
+        {"url": "https://mutants.rs/using-results.html", "supported": true, "note": "confirms caught/missed/unviable/timeout definitions"},
+        {"url": "https://mutants.rs/exit-codes.html", "supported": true, "note": "confirms exit codes 0-4 exactly"},
+        {"url": "https://mutants.rs/how-it-works.html", "supported": true, "note": "confirms scratch-dir copy, baseline test, --no-run then full test per mutant"},
+        {"url": "https://mutants.rs/mutants-out.html", "supported": true, "note": "confirms mutants.out contents and mutants.out.old rotation"},
+        {"url": "https://insta.rs/docs/advanced/", "supported": true, "note": "confirms default-fail behavior and INSTA_FORCE_PASS=1"},
+        {"url": "https://insta.rs/docs/cli/", "supported": true, "note": "confirms cargo insta test force-pass + --no-force-pass, review/accept/reject"}
+      ]
+    },
+    {
+      "slug": "add-what-rustc-cannot-check-miri-on-native-tests-nightly-only-cargo-deny-and-cargo-audit-on-dependencies",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Oracle 1/1 passes. Confirmed on this rig: cargo +1.98.1 miri/deny/audit/nextest all absent, miri's error text matches verbatim. All 5 sources confirmed; 'configured by deny.toml' not literally seen on the two fetched pages (minor).",
+      "evidence_url": "https://github.com/rust-lang/rust/blob/1.98.1/src/tools/miri/README.md",
+      "corrections": null,
+      "sources": [
+        {"url": "https://github.com/rust-lang/rust/blob/1.98.1/src/tools/miri/README.md", "supported": true, "note": "confirms detected issues, install/run commands, FFI limits, --target advice, cfg_attr skip"},
+        {"url": "https://rust-lang.github.io/rustup/concepts/profiles.html", "supported": true, "note": "confirms minimal profile has no miri, default adds rustfmt+clippy only"},
+        {"url": "https://embarkstudios.github.io/cargo-deny/", "supported": true, "note": "confirms dependency-graph linting and exact quick-start command sequence"},
+        {"url": "https://embarkstudios.github.io/cargo-deny/checks/index.html", "supported": true, "note": "confirms licenses/bans/advisories/sources check categories; deny.toml not literally shown"},
+        {"url": "https://github.com/rustsec/rustsec/tree/main/cargo-audit", "supported": true, "note": "confirms RustSec DB audit, install command, --ignore/audit.toml, cargo audit bin"}
+      ]
+    }
+  ]
+}

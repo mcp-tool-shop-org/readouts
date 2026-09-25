@@ -1,0 +1,754 @@
+{
+  "bucket": "cargo-modules",
+  "title": "Cargo, crates, modules & editions",
+  "tier": "essentials",
+  "count": 10,
+  "recipes": [
+    {
+      "slug": "split-a-crate-into-file-modules-with-mod-name-and-share-internals-via-pub-crate-pub-super-not-pub",
+      "name": "Split a crate into file modules with `mod name;` and share internals via pub(crate) / pub(super), not pub",
+      "what": "A package holds at most one library crate plus any number of binaries; each crate is a module tree in which `mod name;` loads name.rs (or name/mod.rs, never both), and privacy is per module, so pub(crate) and pub(super) say exactly who may use an item.",
+      "how": "Crate roots: src/lib.rs (the library, named after the package) and src/main.rs or src/bin/*.rs (binaries). In lib.rs, `mod rapier_law;` loads src/rapier_law.rs; inside that non-mod-rs file, `mod name;` loads src/rapier_law/name.rs. A private item is visible to its module and that module's descendants; `pub(super)` widens it to the parent module, `pub(crate)` to the whole crate, `pub(in crate::a)` to a named ancestor (from 2018 on the path must start with crate, self or super), and `pub(self)` is the same as private. Other files reach an item with `use crate::path::Item`. Compiler proof on 1.98.1: calling a pub(super) fn from the crate root is E0603 `function only_outer is private`; `mod rapier_law;` with no file is E0583 `file not found for module rapier_law`, whose help names both rapier_law.rs and rapier_law\\mod.rs.",
+      "rust_version": "any; pub(in path) path rules as of edition 2018; measured on rustc 1.98.1",
+      "gotchas": "A module is declared once with `mod`; writing `mod x;` a second time in another file is the mistake E0583's note points at (import it with `use crate::...` instead). Having both util.rs and util/mod.rs is an error; the mod.rs form was the only nested layout before rustc 1.30 and is still accepted, but the Reference encourages name.rs. `pub` does not export anything from a wasm cdylib (measured: a module with a plain `pub fn` and a `pub(crate) fn` beside a `#[no_mangle] pub extern \"C\" fn api` exported only `memory` and `api`), so in a crate nobody links as Rust, bare `pub` only blurs intent; pub(crate) says it. A `pub` item inside a private module is still unreachable from outside, because every ancestor module must be accessible too.",
+      "engine_note": "solver/src/lib.rs declares `mod rapier_law;` (solver/src/rapier_law.rs) and shares its ABI constants (`pub(crate) const BODY_STRIDE = 17`, HX..DRIVEN, `COLLIDER_STRIDE = 10`) and `pub(crate) static mut BODIES / COLLIDERS`, which rapier_law.rs imports with `use crate::{BODIES, BODY_STRIDE, COLLIDERS, ...}`; rapier_law.rs keeps its own `pub(crate) static mut HEIGHTS`. That is the right shape for a cdylib with no Rust consumers. T2's `restore_ptr` input buffer and `solver_restore` fit beside the snapshot code in rapier_law.rs with the same pub(crate) scope; if that file is split, `mod snapshot;` inside it loads solver/src/rapier_law/snapshot.rs.",
+      "checks": [
+        {
+          "label": "pub(super) is callable from the parent module and pub(crate) from anywhere in the crate",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "1 2",
+          "source": "mod outer {\n    pub mod inner {\n        pub(super) fn only_outer() -> u32 {\n            1\n        }\n        pub(crate) fn whole_crate() -> u32 {\n            2\n        }\n    }\n    pub fn via_outer() -> u32 {\n        inner::only_outer()\n    }\n}\n\nfn main() {\n    println!(\"{} {}\", outer::via_outer(), outer::inner::whole_crate());\n}\n"
+        },
+        {
+          "label": "a pub(super) item named from the crate root is E0603 (private)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0603"
+          ],
+          "stderr_contains": [
+            "function `only_outer` is private"
+          ],
+          "source": "mod outer {\n    pub mod inner {\n        pub(super) fn only_outer() -> u32 {\n            1\n        }\n    }\n    pub fn via_outer() -> u32 {\n        inner::only_outer()\n    }\n}\n\nfn main() {\n    let _ = outer::via_outer();\n    // pub(super) reaches `outer`, not the crate root.\n    let _ = outer::inner::only_outer();\n}\n"
+        },
+        {
+          "label": "`mod rapier_law;` with no rapier_law.rs is E0583 (file not found for module)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0583"
+          ],
+          "stderr_contains": [
+            "file not found for module `rapier_law`"
+          ],
+          "source": "// `mod name;` without a body loads name.rs (or name/mod.rs) next to this file.\nmod rapier_law;\n\nfn main() {}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference: Visibility and privacy",
+          "url": "https://doc.rust-lang.org/reference/visibility-and-privacy.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Private items are visible to the current module and its descendants; pub(crate), pub(super), pub(self) and pub(in path) narrow visibility, and from 2018 pub(in path) must start with crate, self or super."
+        },
+        {
+          "title": "The Rust Reference: Modules (module source filenames)",
+          "url": "https://doc.rust-lang.org/reference/items/modules.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "A module without a body is loaded from a file mirroring the module path (util.rs or util/mod.rs), and having both is not allowed."
+        },
+        {
+          "title": "The Rust Programming Language, ch. 7.1: Packages and Crates",
+          "url": "https://doc.rust-lang.org/book/ch07-01-packages-and-crates.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "A crate is the smallest unit the compiler considers; a package contains at most one library crate and any number of binary crates, with src/lib.rs and src/main.rs as crate roots."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "choose-lib-crate-type-by-who-loads-it-cdylib-for-the-wasm-module-rlib-for-rust-callers-staticlib-for-c",
+      "name": "Choose [lib] crate-type by who loads it: cdylib for the wasm module, rlib for Rust callers, staticlib for C",
+      "what": "crate-type belongs to the library target (default \"lib\", the compiler-recommended Rust library); cdylib produces a system dynamic library for another language to load, which on wasm32-unknown-unknown is the .wasm module, while library dependencies are still compiled as Rust libraries whatever the root chooses.",
+      "how": "`[lib] crate-type = [\"cdylib\"]` (an array; list several to get several outputs). Measured with cargo 1.98.1 on a scratch copy of the solver manifest and lock: si_solver compiled with `--crate-type cdylib` into target/wasm32-unknown-unknown/release/si_solver.wasm, while rapier3d_f64 compiled with `--crate-type lib --emit=dep-info,metadata,link` into deps/librapier3d_f64-<hash>.rlib plus .rmeta; across the whole graph the verbose log shows 45 `--crate-type lib` units, 4 proc-macro, 8 build-script bins and the one cdylib. A stub cdylib exported exactly `memory` and its one `#[no_mangle] pub extern \"C\"` function and imported nothing. Per the Reference: cdylib gives .so / .dylib / .dll on native hosts; staticlib bundles the crate and all upstream dependencies into .a (Linux, macOS, MinGW) or .lib (MSVC) and rustc never links to it; rlib is the intermediate that the compiler reads in later linkage. Measured: a package whose only crate-type is cdylib runs an in-crate `#[cfg(test)] mod tests` unit test (`1 passed`) but fails a tests/ integration test with E0433 `cannot find module or crate cdy`; `crate-type = [\"cdylib\", \"rlib\"]` makes that integration test pass (test-side details are the testing lane's).",
+      "rust_version": "any; measured on cargo/rustc 1.98.1",
+      "gotchas": "\"lib\" is compiler-defined and may change; write \"rlib\" when the Rust-library form is what you need. crate-type can only be set for libraries and examples; bins, tests and benches are always bin. A package has at most one library target, so a second output shape is another entry in the same crate-type array or another package. Adding \"rlib\" is not free for a pinned artifact: on a scratch copy of the real solver source, `crate-type = [\"cdylib\", \"rlib\"]` (rustc gets `--crate-type cdylib --crate-type rlib`) changed si_solver.wasm's SHA-256 and size (1,524,412 -> 1,524,440 bytes) with the same flags on the same host. Choosing cdylib does not decide exports: only the unmangled extern functions (and memory) appear in the module.",
+      "engine_note": "solver/Cargo.toml's `[lib] crate-type = [\"cdylib\"]` is why solver/build.mjs reads solver/target/wasm32-unknown-unknown/release/si_solver.wasm, with rapier3d-f64 and its tree linked in as rlibs. The pure helpers (js_min / js_max in lib.rs; canon, canon_quat, mix_f64 in rapier_law.rs) are private fns, so their native tests belong in in-crate #[cfg(test)] modules, which run under the cdylib-only crate-type (measured); a tests/ directory would need \"rlib\" plus pub helpers, and adding \"rlib\" moved the wasm digest in a measured build, so it would re-pin fixtures/solver.sha256 once. The host-binding phase (the law inside Godot, then Unreal) makes this choice again for a native triple: the same export compiles as a host cdylib (a .dll on this Windows rig) and as a staticlib (checks below).",
+      "checks": [
+        {
+          "label": "a wasm32 cdylib exports memory + the no_mangle fn, imports nothing, and the export runs",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_exports": [
+            "memory",
+            "step"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "step",
+            "args": [
+              3,
+              5
+            ]
+          },
+          "source": "// The export shape of an engine call: a C-ABI function under an unmangled name.\n#[no_mangle]\npub extern \"C\" fn step(n_bodies: u32, n_colliders: u32) -> u32 {\n    (n_bodies <= 64 && n_colliders <= 64) as u32\n}\n"
+        },
+        {
+          "label": "the same source builds as a native cdylib for the host",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "cdylib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "// The export shape of an engine call: a C-ABI function under an unmangled name.\n#[no_mangle]\npub extern \"C\" fn step(n_bodies: u32, n_colliders: u32) -> u32 {\n    (n_bodies <= 64 && n_colliders <= 64) as u32\n}\n"
+        },
+        {
+          "label": "the same source builds as a staticlib for a C/C++ linker",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "staticlib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "// The export shape of an engine call: a C-ABI function under an unmangled name.\n#[no_mangle]\npub extern \"C\" fn step(n_bodies: u32, n_colliders: u32) -> u32 {\n    (n_bodies <= 64 && n_colliders <= 64) as u32\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Cargo Book: Cargo Targets (the crate-type field)",
+          "url": "https://doc.rust-lang.org/cargo/reference/cargo-targets.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "crate-type is an array settable only for libraries and examples; the library default is \"lib\"; options are bin, lib, rlib, dylib, cdylib, staticlib and proc-macro."
+        },
+        {
+          "title": "The Rust Reference: Linkage",
+          "url": "https://doc.rust-lang.org/reference/linkage.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "lib is the compiler-recommended library form; cdylib is a dynamic system library to be loaded from another language; staticlib bundles all upstream dependencies and is never linked by rustc; rlib is read by the compiler in later linkage."
+        },
+        {
+          "title": "The Rust Programming Language, ch. 7.1: Packages and Crates",
+          "url": "https://doc.rust-lang.org/book/ch07-01-packages-and-crates.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "A package can contain at most one library crate."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "read-a-bare-0-35-3-requirement-as-0-35-3-0-36-commit-cargo-lock-and-build-the-artifact-with-locked",
+      "name": "Read a bare `\"0.35.3\"` requirement as >=0.35.3, <0.36: commit Cargo.lock and build the artifact with --locked",
+      "what": "A bare version requirement is a caret range (the left-most non-zero component is fixed), Cargo.lock holds the exact versions and wins while it can, and only --locked turns a lockfile that would change into an error; without it Cargo rewrites Cargo.lock and keeps building.",
+      "how": "Syntax: \"0.35.3\" is \"^0.35.3\" := >=0.35.3, <0.36.0; \"1.2.3\" := >=1.2.3, <2.0.0; \"0.0.3\" := >=0.0.3, <0.0.4; \"=0.35.3\" is exact. Measured on cargo 1.98.1 with a dependency `foo = { path = \"foo\", version = \"0.35.3\" }` (Cargo checks a path dependency's version against the requirement): foo 0.35.9 locked; foo 0.36.0 failed `failed to select a version for the requirement foo = \"^0.35.3\"` / `candidate versions found which didn't match: 0.36.0`; with \"=0.35.3\", foo 0.35.9 failed the same way. After foo moved 0.35.9 -> 0.35.10: `cargo build --locked` stopped with `cannot update the lock file ... because --locked was passed to prevent this`; plain `cargo build` printed `Updating foo v0.35.9 (...) -> v0.35.10`, rewrote Cargo.lock and built; with Cargo.lock deleted, --locked failed `cannot create the lock file`. --offline restricts Cargo to crates already downloaded and may resolve differently; --frozen is --locked plus --offline (a --frozen release build of a scratch copy of the solver succeeded from the local cache).",
+      "rust_version": "any; measured on cargo 1.98.1",
+      "gotchas": "The lock pins only while the manifest agrees with it: edit Cargo.toml and a plain build re-resolves the changed part without asking. `cargo update` (or `cargo update rapier3d-f64`) moves requirements to the newest compatible versions, here any 0.35.x at or above 0.35.3. The old advice (commit Cargo.lock for binaries, not libraries) was replaced in August 2023 by 'do what is best for your project', and cargo new stopped ignoring the lockfile; the Cargo Book now says to commit it when in doubt. For a crate whose output bytes are pinned by a digest there is no doubt.",
+      "engine_note": "solver/Cargo.toml's `rapier3d-f64 = { version = \"0.35.3\", ... }` admits any 0.35.x at or above 0.35.3; the committed solver/Cargo.lock (lockfile version 4, 61 packages) is what pins rapier3d-f64 0.35.3 and parry3d-f64 0.30.2, each with a checksum. solver/build.mjs spawns `cargo build --release --target wasm32-unknown-unknown` with no --locked, so CI's `node solver/build.mjs --check` would quietly re-resolve after a manifest edit and only a digest mismatch could notice. Add '--locked' to that argument list; write \"=0.35.3\" as well if even a deliberate `cargo update` must not move the physics crate.",
+      "checks": [],
+      "sources": [
+        {
+          "title": "The Cargo Book: Specifying Dependencies",
+          "url": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Default requirements are caret requirements (0.2.3 := >=0.2.3, <0.3.0), = is an exact comparison requirement, and a path dependency's version is checked against the version key."
+        },
+        {
+          "title": "The Cargo Book: cargo build (manifest options)",
+          "url": "https://doc.rust-lang.org/cargo/commands/cargo-build.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "--locked errors when the lock file is missing or Cargo would change it; --offline restricts Cargo to locally downloaded crates and may resolve differently; --frozen equals --locked plus --offline."
+        },
+        {
+          "title": "The Cargo Book: Dependency Resolution",
+          "url": "https://doc.rust-lang.org/cargo/reference/resolver.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Cargo gives the highest priority to versions in Cargo.lock and keeps dependencies locked to them if it can."
+        },
+        {
+          "title": "The Cargo Book: Cargo.toml vs Cargo.lock",
+          "url": "https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Cargo.lock holds exact dependency information maintained by Cargo; when in doubt, check it into version control."
+        },
+        {
+          "title": "Change in Guidance on Committing Lockfiles",
+          "url": "https://blog.rust-lang.org/2023/08/29/committing-lockfiles/",
+          "year": 2023,
+          "kind": "blog",
+          "identifier": "",
+          "claim": "The Cargo team replaced 'commit Cargo.lock for binaries, not libraries' with 'do what is best for your project', and cargo new no longer ignores Cargo.lock."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "assume-a-cargo-feature-enabled-by-any-dependent-is-on-for-all-audit-with-cargo-tree-e-features-i-crate",
+      "name": "Assume a Cargo feature enabled by any dependent is on for all; audit with `cargo tree -e features -i <crate>`",
+      "what": "Cargo compiles a dependency with the union of the features that every package selected for the build asks for (resolver 2 keeps build-dependencies, proc-macros and dev-dependencies apart), each passed to rustc as `--cfg feature=\"name\"`, so `default-features = false` in one manifest does not keep defaults off when another dependent enables them.",
+      "how": "Measured (cargo 1.98.1, resolver 2 workspace): core_c has `default = [\"std\"]`, `std`, `parallel`; member a depends on it with default-features = false, member b with features = [\"parallel\", \"std\"], and app uses both. `cargo run -p app` printed `a sees core_c mode=parallel std=true`; the verbose whole-workspace build compiled core_c once with `--cfg 'feature=\"default\"' --cfg 'feature=\"parallel\"' --cfg 'feature=\"std\"'` (default is on because core_c is itself a selected member), while `cargo build -p a` compiled it with no feature cfgs. `cargo tree -p app -e features -i core_c` names the enabler (`core_c feature \"parallel\"` <- `b v0.1.0`). Optional deps: `extra = { path = \"../extra\", optional = true }` with `fast = [\"dep:extra\"]` removes the implicit feature, and `--features extra` failed `package a ... does not have feature extra` with a help line naming the dep: syntax; `\"pkg?/feat\"` turns a feature on only if something else enabled the optional dep. Resolver 2 (edition 2021 default) does not unify features into build-dependencies and proc-macros, into dev-dependencies unless a target needs them, or from platform-specific dependencies of targets not being built.",
+      "rust_version": "any; dep: and ?/ syntax 1.60+; resolver 2 is the edition-2021 default; measured on cargo 1.98.1",
+      "gotchas": "Features must be additive: offer a `std` feature, never a `no_std` one. The set of packages built together changes the features (a whole-workspace build versus -p a). Every dependent must write default-features = false for the defaults to stay off. Resolver 2 may build one crate twice with different features; `cargo tree --duplicates` lists it.",
+      "engine_note": "Measured on a scratch copy of solver/Cargo.toml and solver/Cargo.lock: `cargo tree -e features -i rapier3d-f64 --target wasm32-unknown-unknown --frozen` lists alloc, block-solver, default, dim3, enhanced-determinism, f64 and std (enhanced-determinism from si-solver, the rest through default) and no `parallel`; rapier3d_f64's rustc line carries exactly those seven `--cfg feature=` flags. Any crate later built in one graph with the solver (a host-binding crate in a shared workspace) that enables rapier's `parallel` turns it on for the solver's build as well, so that tree command is the guard whose output must never show `feature \"parallel\"` (wiring it into CI is the ci lane's).",
+      "checks": [
+        {
+          "label": "with --cfg feature=\"parallel\" (an enabled feature) the one build takes the parallel path",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "--cfg",
+            "feature=\"parallel\""
+          ],
+          "expect": "runs",
+          "stdout": "parallel",
+          "source": "// One compilation of a crate sees one feature set. Cargo passes every enabled\n// feature as `--cfg feature=\"...\"`, and every dependent links that one build.\nfn mode() -> &'static str {\n    if cfg!(feature = \"parallel\") { \"parallel\" } else { \"serial\" }\n}\n\nfn main() {\n    println!(\"{}\", mode());\n}\n"
+        },
+        {
+          "label": "without that cfg the same source takes the serial path",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "serial",
+          "source": "// One compilation of a crate sees one feature set. Cargo passes every enabled\n// feature as `--cfg feature=\"...\"`, and every dependent links that one build.\nfn mode() -> &'static str {\n    if cfg!(feature = \"parallel\") { \"parallel\" } else { \"serial\" }\n}\n\nfn main() {\n    println!(\"{}\", mode());\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Cargo Book: Features",
+          "url": "https://doc.rust-lang.org/cargo/reference/features.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Cargo builds a dependency with the union of all features enabled on it, so features should be additive; default-features = false can be undone by another dependent; dep: disables the implicit feature; resolver 2 stops unifying across build-deps, proc-macros, dev-deps and inactive platform deps; cargo tree -e features -i shows who enabled what."
+        },
+        {
+          "title": "The Cargo Book: Dependency Resolution (Features)",
+          "url": "https://doc.rust-lang.org/cargo/reference/resolver.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Dependencies are resolved with the union of all features enabled on them, and a second pass decides the features used when compiling."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "set-profile-only-in-the-root-manifest-and-remember-config-files-and-cargo-profile-env-vars-override-it",
+      "name": "Set [profile.*] only in the root manifest, and remember config files and CARGO_PROFILE_* env vars override it",
+      "what": "Cargo reads profiles only from the workspace root's Cargo.toml and applies them to every crate in the graph (per-package overrides aside), emits a rustc -C flag only where a setting differs from rustc's own default, and lets a [profile] table in .cargo/config.toml or a CARGO_PROFILE_<NAME>_<KEY> variable override the manifest.",
+      "how": "Measured on cargo 1.98.1 (`cargo build -v`): the default release profile emits `-C opt-level=3 -C strip=debuginfo` (debug assertions and overflow checks are already off in rustc at opt-level above 0; lto = false emits nothing); release plus debug-assertions = true emits `-C debug-assertions=on -C overflow-checks=off`, because rustc otherwise derives overflow checks from debug assertions; release plus debug = true emits `-C debuginfo=2` and drops the strip; dev emits `-C debuginfo=2` only. A path dependency's own [profile.release] overflow-checks = true was ignored without a word (its `x + 1` wrapped); a workspace member's [profile] warns `profiles for the non root package will be ignored, specify profiles at the workspace root`. With the manifest at overflow-checks = false, both `CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS=true cargo run --release` and `[profile.release] overflow-checks = true` in .cargo/config.toml panicked `attempt to add with overflow` (exit 101). `[profile.release.package.dep1] panic = \"abort\"` is a manifest error, `panic may not be specified in a package profile` (lto and rpath are refused too). Override order: [profile.X.package.<name>] > [profile.X.package.\"*\"] > [profile.X.build-override] > [profile.X] > built-in defaults.",
+      "rust_version": "any; strip = \"debuginfo\" by default when no debuginfo is emitted since 1.77; measured on cargo 1.98.1",
+      "gotchas": "The profiles page still lists the strip default as \"none\", but since 1.77 a profile that emits no debuginfo gets strip = \"debuginfo\" (release announcement; measured `-C strip=debuginfo`): a default that changed once can change again. lto = false means thin local LTO, which rustc disables when codegen-units = 1 or opt-level = 0. panic is ignored by tests, benches, build scripts and proc macros, a test build forces dependencies to unwind, and if any crate in the graph uses abort, the final binary must use abort too. Incremental applies only to workspace members and path dependencies, and CARGO_INCREMENTAL overrides it.",
+      "engine_note": "Measured on a scratch copy of the solver: si_solver compiles with `--crate-type cdylib -C opt-level=3 -C panic=abort -C embed-bitcode=no -C codegen-units=1 ... -C strip=debuginfo`, and rapier3d_f64 gets the same opt-level, panic and codegen-units, so solver/Cargo.toml's [profile.release] governs the whole law. Of its five keys only panic = \"abort\" and codegen-units = 1 change what Cargo emits; opt-level = 3, lto = false and overflow-checks = false restate defaults (useful as a record, silent on the command line). The unpinned settings that decide bytes are strip and debug; writing `debug = false` and `strip = \"debuginfo\"` would record today's choice (a suggestion, not measured). A [profile.release] in a builder's ~/.cargo/config.toml or a CARGO_PROFILE_RELEASE_* variable changes local bytes, which only the Linux CI digest catches.",
+      "checks": [
+        {
+          "label": "opt-level=3 alone (the release profile's flags): overflow wraps and debug_assertions is off",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "opt-level=3"
+          ],
+          "expect": "runs",
+          "stdout": "0 debug_assertions=false",
+          "source": "fn main() {\n    let x: u8 = std::hint::black_box(255);\n    let y = x + 1;\n    println!(\"{} debug_assertions={}\", y, cfg!(debug_assertions));\n}\n"
+        },
+        {
+          "label": "opt-level=3 plus overflow-checks=on (what the env or config override adds) panics, exit 101",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "opt-level=3",
+            "-C",
+            "overflow-checks=on"
+          ],
+          "expect": "runs",
+          "exit_code": 101,
+          "source": "fn main() {\n    let x: u8 = std::hint::black_box(255);\n    let y = x + 1;\n    println!(\"{} debug_assertions={}\", y, cfg!(debug_assertions));\n}\n"
+        },
+        {
+          "label": "debug-assertions=on with overflow-checks unset turns overflow checks on too (exit 101)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "opt-level=3",
+            "-C",
+            "debug-assertions=on"
+          ],
+          "expect": "runs",
+          "exit_code": 101,
+          "source": "fn main() {\n    let x: u8 = std::hint::black_box(255);\n    let y = x + 1;\n    println!(\"{} debug_assertions={}\", y, cfg!(debug_assertions));\n}\n"
+        },
+        {
+          "label": "Cargo's pair for release + debug-assertions = true: assertions on, overflow wraps",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "opt-level=3",
+            "-C",
+            "debug-assertions=on",
+            "-C",
+            "overflow-checks=off"
+          ],
+          "expect": "runs",
+          "stdout": "0 debug_assertions=true",
+          "source": "fn main() {\n    let x: u8 = std::hint::black_box(255);\n    let y = x + 1;\n    println!(\"{} debug_assertions={}\", y, cfg!(debug_assertions));\n}\n"
+        },
+        {
+          "label": "panic = \"abort\" arrives as -C panic=abort, visible as cfg(panic = \"abort\")",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "panic=abort",
+            "-C",
+            "opt-level=3"
+          ],
+          "expect": "runs",
+          "stdout": "panic=abort: true",
+          "source": "fn main() {\n    println!(\"panic=abort: {}\", cfg!(panic = \"abort\"));\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Cargo Book: Profiles",
+          "url": "https://doc.rust-lang.org/cargo/reference/profiles.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Only the workspace root's profile settings are used; lists dev/release defaults, the per-package override syntax and precedence, that overrides cannot set panic, lto or rpath, and that config files or environment variables override Cargo.toml profiles."
+        },
+        {
+          "title": "The Cargo Book: Configuration ([profile])",
+          "url": "https://doc.rust-lang.org/cargo/reference/config.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The config [profile] table overrides settings specified in Cargo.toml; package tables accept every key except panic, lto and rpath."
+        },
+        {
+          "title": "The rustc Book: Codegen options",
+          "url": "https://doc.rust-lang.org/rustc/codegen-options/index.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Unspecified debug-assertions are on only at opt-level 0, unspecified overflow-checks follow debug-assertions, and an unspecified -C lto means thin local LTO, disabled at codegen-units=1 or opt-level=0."
+        },
+        {
+          "title": "Announcing Rust 1.77.0",
+          "url": "https://blog.rust-lang.org/2024/03/21/Rust-1.77.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Cargo profiles that do not enable debuginfo now enable strip = \"debuginfo\" by default."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "share-lock-target-dir-and-lints-across-crates-with-workspace-dependencies-and-workspace-lints",
+      "name": "Share lock, target dir and lints across crates with [workspace.dependencies] and [workspace.lints]",
+      "what": "Workspace members share one Cargo.lock and one target/ at the root, [profile], [patch] and [replace] count only in the root manifest, [workspace.dependencies] and [workspace.lints] are inherited with `workspace = true`, and a virtual workspace must name its resolver or it falls back to resolver 1.",
+      "how": "Root: `[workspace] members = [...]`, `resolver = \"2\"` (or \"3\"), `[workspace.dependencies] core_c = { path = \"core_c\", default-features = false }`, `[workspace.lints.rust] unsafe_code = \"forbid\"`. Member: `core_c.workspace = true`, or `core_c = { workspace = true, features = [\"parallel\"] }` (features add to the workspace entry's), and `[lints] workspace = true`; [workspace.package] can share edition and rust-version. Measured on cargo 1.98.1: one Cargo.lock and one target/ at the root and none in members; a virtual root without resolver warned `virtual workspace defaulting to resolver = \"1\" despite one or more workspace members being on edition 2021 which implies resolver = \"2\"`; the inherited lint reached rustc as `--forbid=unsafe_code` and failed `usage of an unsafe block`. Registry dependencies compile with `--cap-lints allow` (seen on rapier3d_f64's rustc line), so [lints] polices only your own packages.",
+      "rust_version": "workspace inheritance 1.64+; [lints] respected as of 1.74; measured on cargo 1.98.1",
+      "gotchas": "forbid cannot be relaxed in source: `#[allow(unsafe_code)]` under it is E0453 `allow(unsafe_code) incompatible with previous forbid`, while deny can be allowed item by item. A virtual workspace ignores its members' editions when picking the resolver. Members' [profile] tables are ignored with a warning. Invoked from the workspace root, Cargo does not read .cargo/config.toml files inside member directories.",
+      "engine_note": "solver/ is a standalone package today, with its own Cargo.lock, target/ and .cargo/config.toml. If host-binding crates join it under a root workspace, three things move together: the lock and target/ go to the root (so build.mjs's solver/target/wasm32-unknown-unknown/release/si_solver.wasm path changes), solver/Cargo.toml's [profile.release] is ignored until it moves to the root manifest, and solver/.cargo/config.toml stops being read when cargo runs from the root, which leaves the relaxed-SIMD pin living only in build.mjs's RUSTFLAGS. The solver cannot take unsafe_code = \"forbid\" (its exports reach static mut buffers inside unsafe blocks, and forbid admits no local allow); deny with a local allow, or narrower lints, fit it.",
+      "checks": [
+        {
+          "label": "-F unsafe_code (what [workspace.lints] forbid passes) rejects an unsafe block",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "rustc_flags": [
+            "-F",
+            "unsafe_code"
+          ],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "usage of an `unsafe` block",
+            "requested on the command line with `-F unsafe-code`"
+          ],
+          "source": "// `[workspace.lints.rust] unsafe_code = \"forbid\"` reaches each member as\n// `--forbid=unsafe_code`; `-F unsafe_code` is the same flag.\npub fn first(p: *const f64) -> f64 {\n    unsafe { *p }\n}\n"
+        },
+        {
+          "label": "under forbid, #[allow(unsafe_code)] is itself an error, E0453",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "rustc_flags": [
+            "-F",
+            "unsafe_code"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0453"
+          ],
+          "stderr_contains": [
+            "incompatible with previous forbid"
+          ],
+          "source": "#[allow(unsafe_code)]\npub fn first(p: *const f64) -> f64 {\n    unsafe { *p }\n}\n"
+        },
+        {
+          "label": "under deny, #[allow(unsafe_code)] on the item is accepted without a warning",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "rustc_flags": [
+            "-D",
+            "unsafe_code"
+          ],
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "#[allow(unsafe_code)]\npub fn first(p: *const f64) -> f64 {\n    unsafe { *p }\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Cargo Book: Workspaces",
+          "url": "https://doc.rust-lang.org/cargo/reference/workspaces.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Members share one Cargo.lock and output directory at the root; [patch], [replace] and [profile.*] are recognised only in the root manifest; a virtual workspace must set resolver explicitly; [workspace.dependencies] features are additive; [workspace.lints] is inherited with [lints] workspace = true."
+        },
+        {
+          "title": "The Cargo Book: The Manifest Format ([lints])",
+          "url": "https://doc.rust-lang.org/cargo/reference/manifest.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "[lints] levels are forbid, deny, warn and allow, apply only to the current package and not to dependencies, and are respected as of 1.74."
+        },
+        {
+          "title": "The Cargo Book: Configuration (hierarchical structure)",
+          "url": "https://doc.rust-lang.org/cargo/reference/config.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "When invoked from a workspace, Cargo does not read config files from crates within the workspace."
+        },
+        {
+          "title": "Announcing Rust 1.74.0",
+          "url": "https://blog.rust-lang.org/2023/11/16/Rust-1.74.0/",
+          "year": 2023,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Lint levels can be configured in Cargo.toml's [lints] table and inherited from [workspace.lints] with [lints] workspace = true."
+        },
+        {
+          "title": "Announcing Rust 1.64.0",
+          "url": "https://blog.rust-lang.org/2022/09/22/Rust-1.64.0/",
+          "year": 2022,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Workspace inheritance lets members share values through workspace.package and workspace.dependencies."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "migrate-a-crate-s-edition-with-cargo-fix-edition-then-edit-edition-yourself-then-rebuild-and-test",
+      "name": "Migrate a crate's edition with `cargo fix --edition`, then edit `edition` yourself, then rebuild and test",
+      "what": "The edition is chosen per package (absent means 2015), crates of every edition link into one binary, and `cargo fix --edition` rewrites code toward the next edition but never changes the edition field and cannot fix everything.",
+      "how": "Measured (cargo 1.98.1): a 2024 package using a 2015 dependency (no edition key) and a 2021 dependency built and ran, calling `old::r#async()` and `mid::r#gen()` through raw identifiers; `cargo build -v` showed `--edition=2024`, `--edition=2015`, `--edition=2021`. Built as the root, the package without an edition key warned `package.edition is unspecified, defaulting to 2015 while the latest is 2024`. Migrating a 2021 cdylib shaped like the solver's exports with `cargo fix --edition --allow-no-vcs --target wasm32-unknown-unknown` printed `Migrating src\\lib.rs from 2021 edition to 2024` and made 3 fixes: `#[no_mangle]` -> `#[unsafe(no_mangle)]` twice and `extern \"C\" {` -> `unsafe extern \"C\" {`. It left `edition = \"2021\"` as it was and left `unsafe { BUF.as_mut_ptr() }` on a static mut as a warning (`creating a mutable reference to mutable static`) for hand work. Then: set edition = \"2024\", build, run the tests, and run `cargo fix` again without --edition for new warnings. Use --all-features, and one pass per --target that has cfg-gated code.",
+      "rust_version": "edition 2024 needs Rust 1.85+; measured on cargo/rustc 1.98.1",
+      "gotchas": "Code behind inactive features or cfgs is not migrated. The same run also printed `Migrating Cargo.toml from 2021 edition to 2024`, yet the edition key stayed 2021 (measured), so read the manifest, not the log. A rust-version below the edition's first release is a manifest error (measured: `rust-version 1.80 is incompatible with the version (1.85.0) required by the specified edition (2024)`). The edition also picks the default resolver (2021 -> \"2\", 2024 -> \"3\"). Raw identifiers (r#gen, r#async) are how a crate on a newer edition calls an item named after a newer keyword.",
+      "engine_note": "solver/Cargo.toml is edition 2021 and every export in lib.rs and rapier_law.rs is written `#[no_mangle] pub extern \"C\" fn`, which 2021 accepts and 2024 rejects (checks below); `#[unsafe(no_mangle)]` already compiles under 2021 on 1.98.1, so the attribute half of a migration can land before the edition changes. The solver's own graph mixes all four editions (rapier3d-f64 0.35.3 is edition 2024 under the 2021 root, measured), so staying on 2021 costs nothing. The full list of what `cargo fix --edition` would change in the solver, and whether it moves the bytes, is the rust-currency lane's.",
+      "checks": [
+        {
+          "label": "edition 2024 rejects a bare #[no_mangle]: unsafe attribute used without unsafe",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "unsafe attribute used without unsafe"
+          ],
+          "source": "#[no_mangle]\npub extern \"C\" fn snapshot_len() -> u32 {\n    0\n}\n"
+        },
+        {
+          "label": "edition 2021 accepts the solver's bare #[no_mangle] export (wasm cdylib, callable)",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "0",
+          "wasm_exports": [
+            "memory",
+            "snapshot_len"
+          ],
+          "wasm_call": {
+            "export": "snapshot_len",
+            "args": []
+          },
+          "source": "#[no_mangle]\npub extern \"C\" fn snapshot_len() -> u32 {\n    0\n}\n"
+        },
+        {
+          "label": "#[unsafe(no_mangle)] already compiles under edition 2021 (migrate attributes first)",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "0",
+          "wasm_exports": [
+            "memory",
+            "snapshot_len"
+          ],
+          "wasm_call": {
+            "export": "snapshot_len",
+            "args": []
+          },
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn snapshot_len() -> u32 {\n    0\n}\n"
+        },
+        {
+          "label": "edition 2024 exports the same symbol with #[unsafe(no_mangle)]",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "0",
+          "wasm_exports": [
+            "memory",
+            "snapshot_len"
+          ],
+          "wasm_call": {
+            "export": "snapshot_len",
+            "args": []
+          },
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn snapshot_len() -> u32 {\n    0\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Edition Guide: What are editions?",
+          "url": "https://doc.rust-lang.org/edition-guide/editions/index.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Each crate chooses its edition in Cargo.toml and crates of one edition must interoperate seamlessly with crates compiled in other editions."
+        },
+        {
+          "title": "The Cargo Book: The Manifest Format (the edition field)",
+          "url": "https://doc.rust-lang.org/cargo/reference/manifest.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The edition key applies to every target of the package, and when it is absent the 2015 edition is assumed."
+        },
+        {
+          "title": "The Cargo Book: cargo fix (edition migration)",
+          "url": "https://doc.rust-lang.org/cargo/commands/cargo-fix.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "cargo fix --edition applies changes toward the next edition but does not update the edition in Cargo.toml; inactive features and cfg code are not migrated and some cases need manual changes."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "declare-rust-version-and-choose-the-resolver-edition-2024-makes-resolver-3-lock-msrv-compatible-versions",
+      "name": "Declare rust-version and choose the resolver: edition 2024 makes resolver \"3\" lock MSRV-compatible versions",
+      "what": "rust-version makes Cargo refuse an older toolchain, and resolver \"3\" (the edition-2024 default, Rust 1.84+) prefers dependency versions whose own rust-version fits when it writes Cargo.lock; resolver \"2\" (the edition-2021 default) ignores rust-version when it picks versions.",
+      "how": "Format: a bare version such as \"1.86\"; no operators, no pre-release. Measured on cargo 1.98.1: rust-version = \"1.99\" failed `rustc 1.98.1 is not supported by the following package: msrv@0.1.0 requires rustc 1.99`; `--ignore-rust-version` built it (and `env!(\"CARGO_PKG_RUST_VERSION\")` read 1.99). Locking messages: edition 2021 -> `Locking 1 package to latest compatible version`; edition 2024 with rust-version 1.85 -> `Locking 1 package to latest Rust 1.85 compatible version`; edition 2024 with no rust-version -> `... to latest Rust 1.98.1 compatible version` (the running rustc); edition 2021 plus `[resolver] incompatible-rust-versions = \"fallback\"` in .cargo/config.toml -> `... to latest Rust 1.80 compatible version` (an opt-in without changing edition). To see the newest versions regardless, `CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS=allow cargo update`.",
+      "rust_version": "rust-version respected as of 1.56; resolver \"3\" requires 1.84+; measured on cargo 1.98.1",
+      "gotchas": "MSRV-aware resolution acts only when Cargo writes the lockfile; a committed lock is used as it stands. \"fallback\" prefers compatible versions, it does not forbid others. The resolver is workspace-global: a dependency's resolver setting is ignored and a virtual workspace must set one. rust-version cannot sit below the edition's first release (2024 -> 1.85).",
+      "engine_note": "The solver declares no rust-version and is edition 2021, so solver/Cargo.lock was written by resolver 2 without regard to rust-version. The real floor comes from the graph: rapier3d-f64 0.35.3's own Cargo.toml declares edition = \"2024\" and rust-version = \"1.86\" (read in the local registry copy), while solver/rust-toolchain.toml pins the compiler that makes the bytes, 1.98.1. Declaring rust-version in solver/Cargo.toml would turn a too-old toolchain into Cargo's clear refusal; whether that touches the digest was not measured.",
+      "checks": [],
+      "sources": [
+        {
+          "title": "The Cargo Book: Rust version",
+          "url": "https://doc.rust-lang.org/cargo/reference/rust-version.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "rust-version is a bare version; Cargo reports an error on an older toolchain unless --ignore-rust-version is passed; the resolver's incompatible-rust-versions fallback, cargo add and clippy read it; respected as of 1.56."
+        },
+        {
+          "title": "The Cargo Book: Dependency Resolution (resolver versions, Rust version)",
+          "url": "https://doc.rust-lang.org/cargo/reference/resolver.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Resolver \"2\" is the edition-2021 default and \"3\" the edition-2024 default (Rust 1.84+), which changes incompatible-rust-versions from allow to fallback; the resolver is a global option and a virtual workspace should set it in [workspace]."
+        },
+        {
+          "title": "Announcing Rust 1.84.0",
+          "url": "https://blog.rust-lang.org/2025/01/09/Rust-1.84.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilises the MSRV-aware resolver, opt-in through [resolver] incompatible-rust-versions = \"fallback\" or package.resolver = \"3\", enabled by default for the 2024 edition; CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS=allow overrides it."
+        },
+        {
+          "title": "The Cargo Book: Workspaces (virtual workspace)",
+          "url": "https://doc.rust-lang.org/cargo/reference/workspaces.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "In a virtual workspace the resolver must be set explicitly because there is no package.edition to infer it from."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "pin-the-compiler-with-rust-toolchain-toml-and-run-cargo-from-that-directory-rustup-finds-it-from-the-cwd",
+      "name": "Pin the compiler with rust-toolchain.toml and run cargo from that directory: rustup finds it from the cwd",
+      "what": "rust-toolchain.toml's [toolchain] table (channel, targets, components, profile) selects the toolchain for commands run in its directory or below, but `cargo +name`, RUSTUP_TOOLCHAIN and `rustup override` all outrank it, and it is found from the current directory, not from --manifest-path.",
+      "how": "Keys: channel (\"stable\", \"nightly-YYYY-MM-DD\", or a version such as \"1.98.1\"; or `path` for a custom toolchain instead), targets (e.g. [\"wasm32-unknown-unknown\"]), components (beyond the profile) and profile (minimal = rustc, rust-std, cargo; default adds rust-docs, rustfmt, clippy; a profile only affects newly installed toolchains). Precedence: `+toolchain` > RUSTUP_TOOLCHAIN > directory override > rust-toolchain.toml > the default toolchain; the file and directory overrides are found by walking up from the current directory. Measured with rustup 1.29.1 on a scratch copy of solver/: `rustup show active-toolchain` -> `1.98.1-x86_64-pc-windows-msvc (overridden by '<scratch>\\solvercopy\\rust-toolchain.toml')`; with RUSTUP_TOOLCHAIN=stable -> `stable-x86_64-pc-windows-msvc (overridden by environment variable RUSTUP_TOOLCHAIN)`. From the parent directory, `cargo build -v --manifest-path solvercopy/Cargo.toml --release --target wasm32-unknown-unknown --frozen` ran `...\\toolchains\\stable-x86_64-pc-windows-msvc\\bin\\rustc.exe`, and its si_solver line had no `-C target-feature=-relaxed-simd`: neither the toolchain file nor the copy's .cargo/config.toml applied.",
+      "rust_version": "rustup 1.29.1 and cargo 1.98.1 (measured)",
+      "gotchas": "A pin that holds only when the cwd is right fails without a sound: stable is also 1.98.1 today, so the wrong toolchain yields the right compiler by coincidence until stable moves. A version channel pins exactly; \"stable\" floats. An exported RUSTUP_TOOLCHAIN (or a `cargo +x` in a script) overrides the file. The minimal profile has no rustfmt or clippy, so jobs that need them must list them in components. What rustup does when the pinned toolchain is not installed is the ci lane's topic.",
+      "engine_note": "solver/rust-toolchain.toml (channel \"1.98.1\", targets [\"wasm32-unknown-unknown\"], profile \"minimal\") applies because solver/build.mjs spawns cargo with `cwd: solver`, and that same cwd is what makes solver/.cargo/config.toml apply. `cargo build --manifest-path solver/Cargo.toml` from the repo root gets the default toolchain and no config rustflags (measured on a copy), so builds should go through build.mjs or `cd solver`. A Rust-side clippy or rustfmt job for the solver needs `components = [\"rustfmt\", \"clippy\"]` in this file or an explicit install.",
+      "checks": [],
+      "sources": [
+        {
+          "title": "The rustup book: Overrides",
+          "url": "https://rust-lang.github.io/rustup/overrides.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Toolchain precedence is +toolchain, RUSTUP_TOOLCHAIN, directory override, rust-toolchain.toml, default; overrides are discovered walking up the directory tree; the file's [toolchain] table takes channel or path, components, targets and profile."
+        },
+        {
+          "title": "The rustup book: Profiles",
+          "url": "https://rust-lang.github.io/rustup/concepts/profiles.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "minimal installs rustc, rust-std and cargo; default adds rust-docs, rustfmt and clippy; profiles only affect newly installed toolchains."
+        },
+        {
+          "title": "The Cargo Book: Configuration (hierarchical structure)",
+          "url": "https://doc.rust-lang.org/cargo/reference/config.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Cargo looks for configuration files in the current directory and all parent directories, then $CARGO_HOME/config.toml."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "treat-cargo-s-rustflags-sources-as-exclusive-any-rustflags-even-empty-drops-cargo-config-toml-rustflags",
+      "name": "Treat Cargo's rustflags sources as exclusive: any RUSTFLAGS, even empty, drops .cargo/config.toml rustflags",
+      "what": "Cargo uses only the first of CARGO_ENCODED_RUSTFLAGS, RUSTFLAGS, all matching [target.<triple>] / [target.<cfg>] rustflags (joined), or [build] rustflags, so exporting RUSTFLAGS to add one flag silently discards a pin kept in .cargo/config.toml.",
+      "how": "Measured on cargo 1.98.1 with `[build] rustflags = [\"--cfg\", \"from_build\"]` and `[target.x86_64-pc-windows-msvc] rustflags = [\"--cfg\", \"from_target\"]`: plain build -> from_target only (a matching target entry silences [build]); RUSTFLAGS=\"--cfg from_env\" -> from_env only; CARGO_ENCODED_RUSTFLAGS beside RUSTFLAGS -> from_encoded only; RUSTFLAGS=\"\" or CARGO_ENCODED_RUSTFLAGS=\"\" -> no flags at all. The config-key forms join instead: CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS -> from_target,from_target_env; `--config 'target.x86_64-pc-windows-msvc.rustflags=[...]'` -> from_target,from_cli; CARGO_BUILD_RUSTFLAGS -> from_build,from_env. On a scratch copy of the solver, the config alone put `-C target-feature=-relaxed-simd` on every crate's rustc line; with RUSTFLAGS holding one --remap-path-prefix, the verbose log contained `relaxed-simd` zero times. RUSTFLAGS splits on whitespace: `--remap-path-prefix=C:\\A B\\.cargo=/cargo` became two arguments and rustc failed `--remap-path-prefix must contain '=' between FROM and TO`, while the same flag in CARGO_ENCODED_RUSTFLAGS (separator 0x1f) or in a TOML-literal --config array arrived intact. With --target, rustflags reach only target compilations, not build scripts or proc macros.",
+      "rust_version": "measured on cargo 1.98.1 / rustc 1.98.1",
+      "gotchas": "Exporting RUSTFLAGS for one extra flag removes everything the config held, and a CI step that exports an empty RUSTFLAGS does the same. [build] rustflags stops applying the moment any [target.<triple>] or [target.<cfg>] rustflags entry matches. Flags that profiles manage (opt-level, panic) belong in profiles. wasm32-unknown-unknown's default features track LLVM and have changed (bulk-memory and nontrapping-fptoint became default in 1.87), so an explicit -feature is the durable pin; relaxed-simd is off by default on 1.98.1 (check below).",
+      "engine_note": "solver/.cargo/config.toml pins `[target.wasm32-unknown-unknown] rustflags = [\"-C\", \"target-feature=-relaxed-simd\"]`, and solver/build.mjs sets RUSTFLAGS for its three --remap-path-prefix flags, which replaces that config; that is why build.mjs repeats `-C target-feature=-relaxed-simd`. Measured on a scratch copy of the real solver source on this rig: dropping the repeat rebuilt to the identical SHA-256 (on 1.98.1 the pin guards a default that could change, it does not move today's bytes), while `+relaxed-simd` produced a different digest; the same flags passed as CARGO_ENCODED_RUSTFLAGS left all 50 units Fresh (no rebuild, same bytes). Two holes remain in build.mjs: an inherited CARGO_ENCODED_RUSTFLAGS outranks its RUSTFLAGS and would drop the pin and the remaps, and a cargo-home or checkout path with a space breaks the RUSTFLAGS split. Setting CARGO_ENCODED_RUSTFLAGS to the flags joined by '\\x1f' closes both.",
+      "checks": [
+        {
+          "label": "on 1.98.1 wasm32-unknown-unknown compiles with relaxed-simd off by default",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "0",
+          "wasm_call": {
+            "export": "relaxed_simd_enabled",
+            "args": []
+          },
+          "source": "// Reports whether this compilation had the relaxed-simd target feature on.\n#[no_mangle]\npub extern \"C\" fn relaxed_simd_enabled() -> u32 {\n    cfg!(target_feature = \"relaxed-simd\") as u32\n}\n"
+        },
+        {
+          "label": "-C target-feature=-relaxed-simd (the solver's config pin) keeps it off",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "target-feature=-relaxed-simd"
+          ],
+          "expect": "runs",
+          "stdout": "0",
+          "wasm_call": {
+            "export": "relaxed_simd_enabled",
+            "args": []
+          },
+          "source": "// Reports whether this compilation had the relaxed-simd target feature on.\n#[no_mangle]\npub extern \"C\" fn relaxed_simd_enabled() -> u32 {\n    cfg!(target_feature = \"relaxed-simd\") as u32\n}\n"
+        },
+        {
+          "label": "-C target-feature=+relaxed-simd turns it on: the rustflags that reach rustc decide",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "target-feature=+relaxed-simd"
+          ],
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_call": {
+            "export": "relaxed_simd_enabled",
+            "args": []
+          },
+          "source": "// Reports whether this compilation had the relaxed-simd target feature on.\n#[no_mangle]\npub extern \"C\" fn relaxed_simd_enabled() -> u32 {\n    cfg!(target_feature = \"relaxed-simd\") as u32\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Cargo Book: Configuration (build.rustflags, target.<triple>.rustflags)",
+          "url": "https://doc.rust-lang.org/cargo/reference/config.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "There are four mutually exclusive sources of extra flags, checked in order CARGO_ENCODED_RUSTFLAGS, RUSTFLAGS, joined target rustflags, build.rustflags; with --target, build scripts and proc macros do not receive them."
+        },
+        {
+          "title": "The Cargo Book: Environment Variables",
+          "url": "https://doc.rust-lang.org/cargo/reference/environment-variables.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "RUSTFLAGS is split by whitespace; CARGO_ENCODED_RUSTFLAGS separates flags with 0x1f for a more robust encoding."
+        },
+        {
+          "title": "The rustc Book: wasm32-unknown-unknown",
+          "url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The target's default features follow LLVM's generic CPU and have changed over releases (nontrapping-fptoint and bulk-memory from Rust 1.87); individual features are disabled with -Ctarget-feature=-foo."
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

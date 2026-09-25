@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>readouts — Rl Measurement Methodology</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#0a0f1f; --panel:#111a30; --panel2:#0d1526; --border:#22304f;
+    --fg:#e8edf6; --muted:#93a1bd; --faint:#62719440;
+    --blue:#5aa6e8; --blue-deep:#2f6fb0; --sky:#8fc4e8;
+    --accent:var(--blue); --grad:linear-gradient(90deg,#2f6fb0,#8fc4e8);
+    --ok:#46c98b; --warn:#e6b450; --bad:#ef6b6b; --cond:#7da6d9;
+    --radius:10px; --mono:ui-monospace,"Cascadia Mono",Consolas,monospace; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  }
+  [data-theme="light"]{--bg:#f7f8fb;--panel:#fff;--panel2:#eef2f8;--border:#dbe2ee;--fg:#13203a;--muted:#56648a;--faint:#8492ad33;--accent:#2f6fb0;--grad:linear-gradient(90deg,#1f4f86,#5aa6e8)}
+  body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+  header{border-bottom:1px solid var(--border);background:linear-gradient(180deg,var(--panel),transparent)}
+  .head{display:flex;align-items:center;gap:16px;padding:20px 0 18px}
+  .brand{display:flex;align-items:center;gap:12px}.brand img{height:42px;display:block}
+  .brand .wm{font-weight:800;letter-spacing:.12em;font-size:13px;color:var(--muted);text-transform:uppercase}
+  .sweep{height:3px;width:64px;border-radius:2px;background:var(--grad)}.head .spacer{flex:1}
+  .pill{font:600 12px var(--sans);padding:7px 11px;border:1px solid var(--border);border-radius:999px;color:var(--muted);background:var(--panel);cursor:pointer}
+  .pill:hover{border-color:var(--accent);color:var(--fg)}
+  .titlebar{padding:6px 0 22px;display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap}
+  .titlebar h1{font-size:30px;font-weight:750;letter-spacing:-.02em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .titlebar .desc{color:var(--muted);font-size:14px;max-width:600px}
+  .crumb{font:600 12px var(--mono);color:var(--faint);margin-bottom:4px}.crumb a{color:var(--muted)}
+  .stamps{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .stamp{font:600 11px var(--mono);padding:6px 9px;border-radius:7px;background:var(--panel);border:1px solid var(--border);color:var(--muted)}.stamp b{color:var(--fg)}.stamp .v{color:var(--ok)}
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px 0;position:sticky;top:0;background:var(--bg);z-index:5;border-bottom:1px solid var(--border)}
+  .search{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 12px}
+  .search input{flex:1;background:none;border:0;color:var(--fg);font:14px var(--sans);outline:none}.search kbd{font:600 11px var(--mono);color:var(--faint);border:1px solid var(--border);border-radius:4px;padding:1px 5px}
+  select,.toggle{font:600 12px var(--sans);background:var(--panel);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:8px 10px;cursor:pointer}
+  .toggle.on{color:var(--bg);background:var(--accent);border-color:var(--accent)}
+  .count{color:var(--faint);font:600 12px var(--mono);margin-left:auto}
+  table{width:100%;border-collapse:collapse;margin-top:6px}
+  th{text-align:left;font:700 11px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:12px 12px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap}
+  th:hover{color:var(--fg)}th .ar{opacity:.5;font-size:10px}
+  td{padding:13px 12px;border-bottom:1px solid var(--border);font-size:14px;vertical-align:middle}
+  tr.row{cursor:pointer}tr.row:hover td{background:var(--panel2)}
+  tr.row td.rk{color:var(--faint);font:700 12px var(--mono);width:34px}
+  .nm{font-weight:650}.ty{color:var(--muted);font-size:12px;margin-top:2px}
+  .chip{display:inline-block;font:700 11px var(--mono);padding:3px 8px;border-radius:6px;border:1px solid var(--border)}
+  .c-yes{color:var(--ok);border-color:#46c98b44;background:#46c98b14}.c-conditional{color:var(--cond);border-color:#7da6d944;background:#7da6d914}.c-no{color:var(--bad);border-color:#ef6b6b44;background:#ef6b6b14}
+  .c-flag{color:var(--sky);border-color:#8fc4e844;background:#8fc4e814}
+  .tick{color:var(--ok);font-weight:800}.tickno{color:var(--faint)}
+  .meter{display:inline-flex;gap:2px;vertical-align:middle}.meter i{width:7px;height:12px;border-radius:1px;background:var(--border)}.meter i.f{background:var(--grad)}
+  .st{font:700 10px var(--mono);text-transform:uppercase;letter-spacing:.04em}
+  .st-recommended{color:var(--ok)}.st-runner-up{color:var(--sky)}.st-situational{color:var(--warn)}.st-legacy,.st-avoid{color:var(--bad)}
+  tr.detail>td{padding:0;background:var(--panel2);border-bottom:1px solid var(--border)}
+  .det{display:grid;grid-template-columns:1.5fr 1fr;gap:24px;padding:20px 14px 26px}
+  .det h3{font:700 11px var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+  .det .sum{font-size:14.5px;color:var(--fg);margin-bottom:18px}
+  .bf{display:flex;flex-direction:column;gap:9px;margin-bottom:18px}.bf .row2{display:flex;align-items:center;gap:10px;font-size:13px}.bf .pn{flex:1}.bf .rk{font:700 11px var(--mono);color:var(--accent)}.bf .note{color:var(--muted);font-size:12px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px}.kv .k{color:var(--muted)}.kv .v{color:var(--fg);font-family:var(--mono);font-size:12px;text-align:right}
+  .verify{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px}.vbadge{font:700 10px var(--mono);text-transform:uppercase;padding:3px 8px;border-radius:6px;color:var(--ok);background:#46c98b14;border:1px solid #46c98b44}
+  .src{border-top:1px solid var(--border);padding-top:9px;margin-top:9px;font-size:13px}.src:first-child{border:0;padding:0;margin:0}.src .t{font-weight:600}.src .cl{color:var(--muted);font-size:12px;margin-top:3px}.src .meta{font:600 10px var(--mono);color:var(--faint);text-transform:uppercase;margin-top:4px;display:flex;gap:8px;align-items:center}
+  .repo{display:inline-block;margin-top:6px;font:700 12px var(--sans);padding:8px 12px;border-radius:8px;border:1px solid var(--accent);color:var(--accent)}.repo:hover{background:var(--accent);color:var(--bg);text-decoration:none}
+  footer{border-top:1px solid var(--border);margin-top:30px;padding:22px 0 40px;color:var(--muted);font-size:13px}.prov{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  @media(max-width:760px){.det{grid-template-columns:1fr}.titlebar h1{font-size:24px}th.hideS,td.hideS{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="head"><a class="brand" href="index.html" title="all readouts"><img src="" alt="readouts"><span class="sweep"></span></a><div class="spacer"></div><button class="pill" id="dl">↓ data.json</button><button class="pill" id="theme">◐ theme</button></div>
+  <div class="titlebar"><div>
+    <h1>Rl Measurement Methodology</h1>
+    <div class="stamps"><span class="stamp">KB <b>training-knowledge</b></span><span class="stamp"><b id="s-noun"></b> <b id="s-tot"></b></span><span class="stamp">verified <span class="v" id="s-ver"></span></span><span class="stamp">waves <b>16</b></span><span class="stamp">generated <b>2026-09-25</b></span></div>
+  </div><div class="spacer"></div><p class="desc">auto-created from wave lane</p></div>
+</div></header>
+<div class="wrap">
+  <div class="controls">
+    <label class="search">🔎<input id="q" placeholder="search…"><kbd>/</kbd></label>
+    <select id="f-comm"><option value="">license: all</option><option value="yes">commercial ✓</option><option value="conditional">conditional</option><option value="no">non-commercial</option></select>
+    <select id="f-stat"><option value="">status: all</option><option>recommended</option><option>runner-up</option><option>situational</option><option>legacy</option><option>avoid</option></select>
+    <button class="toggle" id="f-ver">verified only</button>
+    <span class="count" id="count"></span>
+  </div>
+  <table><thead><tr id="head"></tr></thead><tbody id="body"></tbody></table>
+</div>
+<footer><div class="wrap"><div class="prov"><span class="sweep"></span><span>Every fact carries a <b>wave id</b> and a <b>verified</b> flag; sources are retrieval-checked by a different-family verifier.</span></div><div>training-knowledge · 16 waves · generated 2026-09-25 · JSON-driven (↓ data.json) — one artifact for humans and agents.</div></div></footer>
+<script id="readout-data" type="application/json">{"readout_type": "catalog", "kb": "training-knowledge", "noun": "techniques", "waves": 16, "generated": "2026-09-25", "domain": {"slug": "rl-measurement-methodology", "name": "Rl Measurement Methodology", "description": "auto-created from wave lane"}, "totals": {"items": 204, "verified": 101}, "columns": [{"key": "rank", "label": "#", "type": "rank"}, {"key": "name", "label": "technique", "type": "name", "sub": "method_family"}, {"key": "applicable_to", "label": "for", "type": "text", "cls": "hideS"}, {"key": "commercial_use", "label": "license", "type": "license"}, {"key": "evidence_strength", "label": "evidence", "type": "text", "cls": "hideS"}, {"key": "rig_fit", "label": "rig fit", "type": "meter"}, {"key": "status", "label": "status", "type": "status"}, {"key": "verified", "label": "✓", "type": "tick"}], "detail_spec": [["method_family", "method"], ["applicable_to", "applies to"], ["base_model_family", "base"], ["kind", "kind"], ["evidence_strength", "evidence"], ["engine_recipe_ref", "measured receipt"], ["seed", "seed"], ["num_runs", "runs"], ["tuning_budget", "tuning budget"], ["measured_conditions", "validated under"]], "items": [{"id": 201, "slug": "eval-generations-dominate-power", "name": "Generations per item, not items, is usually the cheap lever on eval power", "category_id": 12, "kind": "methodology", "method_family": "eval", "applicable_to": "both", "base_model_family": "general", "claim": "At G=16 completions per item, 80% of the per-item paired-lift variance was binomial sampling noise rather than genuine item heterogeneity — and sampling noise is purchasable with generation.", "summary": "Measured decomposition: total paired sd 7.42pp = 6.64pp measurement + 3.31pp heterogeneity floor. Raising G 16 -> 64 took the decision rule's power from 42% to 98.4%. Base is the highest-leverage seat because one base eval is shared by every arm, so its noise never averages away across arms or seeds — and base generates faster than an adapter arm.", "design_implication": "Decompose eval variance before adding items. Spend generation on the shared baseline first. Note the heterogeneity floor is what no amount of generation removes.", "evidence_strength": "measured-on-rig", "seed": null, "num_runs": null, "variance_note": null, "tuning_budget": null, "search_method": null, "measured_conditions": null, "engine_recipe_ref": null, "base_model_slug": null, "predecessor_technique_id": null, "stage_order": null, "commercial_use": "yes", "commercial_notes": "Methodology.", "rig_fit": 5, "studio_fit": 5, "download_priority": 1, "status": "recommended", "verified": 1, "verify_note": "verdict=confirmed | currency=2026-09-13 | Measured on rig, not literature: verified against committed receipts in mcp-tool-shop-org/ai-jam-sessions experiments/rollout-arc/p4 (run logs, run.json receipts, and scripts that reproduce the published figures as a method check).", "superseded_by": null, "wave_id": 16, "created_date": "2026-09-13", "difficulty_signal": null, "mixing_law_coefficients": null, "calibration_params": null, "calibration_tokens": null, "replay_fraction": null, "measured_forgetting": null, "task_embedding_ref": null, "task_vector_ref": null, "best_for": [], "sources": [{"kind": "source", "title": "ai-jam-sessions p4/scripts/gate-variance.mts, gate-allocation.mts, base-g16-vs-g64.mts", "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions", "claim": "Variance decomposition and the measured G=16 vs G=64 comparison on one model and pool.", "verified": 0, "finding_supported": null}, {"kind": "paper", "title": "Maximizing the Coefficient of Generalizability in Multi-Facet Decision Studies", "url": "https://doi.org/10.1007/BF02291112", "claim": "Optimal allocation of conditions per facet under a fixed number of observations per subject — the items x generations problem, solved in 1973.", "verified": 0, "finding_supported": null}], "rank": 1}, {"id": 200, "slug": "itemwise-not-pooled-eval-statistics", "name": "Pooled eval statistics measure the item mix as well as the behaviour", "category_id": 12, "kind": "methodology", "method_family": "eval", "applicable_to": "both", "base_model_family": "general", "claim": "A metric averaged over every completion in a pool moves when an intervention changes WHICH items contribute, without any per-item behaviour changing. Simpson's paradox in an eval metric.", "summary": "It pointed the wrong way three times in one day on one arc: a pooled concentration figure of 0.735 was 0.933 item-wise; a headline 9pp effect halved item-wise and its passing-only variant vanished (survivorship confound on top); and a prompting intervention's apparent 43pp diversity gain decomposed into an UNCHANGED first choice plus enumeration in list positions 2-5.", "design_implication": "Compute the item-wise form (per item, then mean over items, equal weight each) and report both. Compare at MATCHED n — modal-share statistics are biased upward at small sample size (measured: 0.17pp at concentration ~0.93, 0.7pp at ~0.5), and the bias always flatters the new thing. Before any comparison, name the two sets and check membership mechanically.", "evidence_strength": "measured-on-rig", "seed": null, "num_runs": null, "variance_note": null, "tuning_budget": null, "search_method": null, "measured_conditions": null, "engine_recipe_ref": null, "base_model_slug": null, "predecessor_technique_id": null, "stage_order": null, "commercial_use": "yes", "commercial_notes": "Methodology.", "rig_fit": 5, "studio_fit": 5, "download_priority": 1, "status": "recommended", "verified": 1, "verify_note": "verdict=confirmed | currency=2026-09-13 | Measured on rig, not literature: verified against committed receipts in mcp-tool-shop-org/ai-jam-sessions experiments/rollout-arc/p4 (run logs, run.json receipts, and scripts that reproduce the published figures as a method check).", "superseded_by": null, "wave_id": 16, "created_date": "2026-09-13", "difficulty_signal": null, "mixing_law_coefficients": null, "calibration_params": null, "calibration_tokens": null, "replay_fraction": null, "measured_forgetting": null, "task_embedding_ref": null, "task_vector_ref": null, "best_for": [], "sources": [{"kind": "source", "title": "ai-jam-sessions p4/scripts/opening-per-item.mts, opening-2x2.mts, vs-fileorder-check.mts", "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions", "claim": "Pooled vs item-wise decomposition reversed three readings; scripts reproduce the published pooled figures as a method check.", "verified": 0, "finding_supported": null}, {"kind": "paper", "title": "Adding Error Bars to Evals: A Statistical Approach to Language Model Evaluations", "url": "https://arxiv.org/abs/2411.00640", "claim": "Eval variance decomposes into immutable between-item variance and within-item sampling variance; conduct inference on question-level paired differences.", "verified": 0, "finding_supported": null}], "rank": 2}, {"id": 198, "slug": "rl-run-variance-exceeds-effect-size", "name": "Run-to-run variance can exceed the effect being measured", "category_id": 12, "kind": "methodology", "method_family": "rl", "applicable_to": "text", "base_model_family": "general", "claim": "On one deterministic-verifier substrate, three runs of an IDENTICAL configuration differing only in seed produced held-out lifts of +0.60pp, +10.08pp and +3.44pp, and opening-concentration changes spanning 12.3pp.", "summary": "Same cell, same 200 steps, same data, differing only in a seed that does not even control adapter initialisation. Effective gradient updates ranged 48-77 of 200 because 62-76% of groups had zero within-group reward variance. Training accuracy did NOT reliably predict held-out lift: the run with the MOST effective updates landed mid-pack.", "design_implication": "Never publish a single-run RL result. Use n>=3 runs and an across-run estimator; a two-point trend is not a trend (a clean-looking correlation over two runs was broken by the third).", "evidence_strength": "measured-on-rig", "seed": null, "num_runs": null, "variance_note": null, "tuning_budget": null, "search_method": null, "measured_conditions": null, "engine_recipe_ref": null, "base_model_slug": null, "predecessor_technique_id": null, "stage_order": null, "commercial_use": "yes", "commercial_notes": "Methodology.", "rig_fit": 5, "studio_fit": 5, "download_priority": 1, "status": "recommended", "verified": 1, "verify_note": "verdict=confirmed | currency=2026-09-13 | Measured on rig, not literature: verified against committed receipts in mcp-tool-shop-org/ai-jam-sessions experiments/rollout-arc/p4 (run logs, run.json receipts, and scripts that reproduce the published figures as a method check).", "superseded_by": null, "wave_id": 16, "created_date": "2026-09-13", "difficulty_signal": null, "mixing_law_coefficients": null, "calibration_params": null, "calibration_tokens": null, "replay_fraction": null, "measured_forgetting": null, "task_embedding_ref": null, "task_vector_ref": null, "best_for": [], "sources": [{"kind": "source", "title": "ai-jam-sessions experiments/rollout-arc/p4/GATE-RESULTS.md", "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions", "claim": "Three seeds, identical config: +0.60 / +10.08 / +3.44pp held-out lift.", "verified": 0, "finding_supported": null}, {"kind": "paper", "title": "A Sober Look at Progress in Language Model Reasoning: Pitfalls and Paths to Reproducibility", "url": "https://arxiv.org/abs/2504.07086", "claim": "Pass@1 standard deviation across seeds is large enough that many reported RL gains sit inside the base model's seed-variance band.", "verified": 0, "finding_supported": null}], "rank": 3}, {"id": 199, "slug": "across-run-interval-not-per-run-significance", "name": "Aggregate an interval over runs; do not require each run to clear significance", "category_id": 12, "kind": "methodology", "method_family": "rl", "applicable_to": "both", "base_model_family": "general", "claim": "A decision rule of the form 'every seed's interval must exclude zero' is the Gelman & Stern error — it compares significance across conditions instead of estimating the quantity. It is also badly underpowered.", "summary": "A live preregistration used that conjunction rule; computed against its own point estimate it had 42% power, i.e. it would vote DOES-NOT-REPLICATE on a real effect more often than confirm it. Replaced by an across-run mean with a bootstrap resampling BOTH runs and items. At K=2 the two bootstraps disagreed in verdict (items-only excluded zero, runs-and-items did not); the wider one was preregistered and is the honest reading.", "design_implication": "Report a stratified-bootstrap interval aggregated over the run dimension. Always print the items-only and runs-and-items intervals side by side — when they disagree, the narrow one is the trap.", "evidence_strength": "paper+measured", "seed": null, "num_runs": null, "variance_note": null, "tuning_budget": null, "search_method": null, "measured_conditions": null, "engine_recipe_ref": null, "base_model_slug": null, "predecessor_technique_id": null, "stage_order": null, "commercial_use": "yes", "commercial_notes": "Methodology.", "rig_fit": 5, "studio_fit": 5, "download_priority": 5, "status": "recommended", "verified": 1, "verify_note": "verdict=confirmed | currency=2026-09-13 | Retrieval oracle (arXiv+Semantic Scholar+Crossref, deterministic, no LLM) resolved every citation; groundedness rated SUPPORTED by two lenses from families outside the synthesiser's (qwen3:14b, mistral-small:24b), reasoning stripped. Lens saw abstracts only. Power figure computed from measured per-item variance.", "superseded_by": null, "wave_id": 16, "created_date": "2026-09-13", "difficulty_signal": null, "mixing_law_coefficients": null, "calibration_params": null, "calibration_tokens": null, "replay_fraction": null, "measured_forgetting": null, "task_embedding_ref": null, "task_vector_ref": null, "best_for": [], "sources": [{"kind": "paper", "title": "The Difference Between 'Significant' and 'Not Significant' is not Itself Statistically Significant", "url": "https://doi.org/10.1198/000313006X152649", "claim": "Comparing significance across conditions is not the same as estimating the difference.", "verified": 0, "finding_supported": null}, {"kind": "paper", "title": "Deep Reinforcement Learning at the Edge of the Statistical Precipice", "url": "https://arxiv.org/abs/2108.13264", "claim": "In the few-run regime report stratified-bootstrap interval estimates aggregated over runs and robust aggregates, not per-run point estimates or thresholds.", "verified": 0, "finding_supported": null}], "rank": 4}]}</script>
+<script>
+(function(){
+  const D = JSON.parse(document.getElementById('readout-data').textContent);
+  const items = D.items, COLS = D.columns, SPEC = D.detail_spec || [];
+  const STATUS_ORDER={recommended:0,'runner-up':1,situational:2,legacy:3,avoid:4};
+  let sortKey='rank', sortDir=1, open=new Set();
+  document.getElementById('s-noun').textContent = D.noun || 'items';
+  document.getElementById('s-tot').textContent = items.length;
+  document.getElementById('s-ver').textContent = items.filter(x=>x.verified).length+'/'+items.length;
+
+  function esc(s){return (s==null?'':String(s)).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+  function meter(n){let h='<span class="meter">';for(let i=0;i<5;i++)h+=`<i class="${i<(n||0)?'f':''}"></i>`;return h+'</span>'}
+  function commChip(v){const m={yes:['c-yes','commercial'],conditional:['c-conditional','conditional'],no:['c-no','non-comm']}[v]||['','—'];return `<span class="chip ${m[0]}">${m[1]}</span>`}
+
+  const head=document.getElementById('head');
+  head.innerHTML=COLS.map(c=>`<th data-k="${c.key}" class="${c.cls||''}">${esc(c.label)}<span class="ar"> </span></th>`).join('');
+  head.querySelectorAll('th').forEach(th=>{th.onclick=()=>{const k=th.dataset.k;if(sortKey===k)sortDir=-sortDir;else{sortKey=k;sortDir=1}render()}});
+
+  function cell(col,x){
+    const v=x[col.key];
+    switch(col.type){
+      case 'rank': return `<td class="rk">${v}</td>`;
+      case 'name': return `<td><div class="nm">${esc(v)}</div>${col.sub&&x[col.sub]?`<div class="ty">${esc(x[col.sub])}</div>`:''}</td>`;
+      case 'license': return `<td>${commChip(v)}</td>`;
+      case 'flag': return `<td class="${col.cls||''}">${v?`<span class="chip c-flag">${esc(col.on_label||'✓')}</span>`:'<span class="ty">—</span>'}</td>`;
+      case 'meter': return `<td>${meter(v)}</td>`;
+      case 'status': return `<td><span class="st st-${v}">${esc(v||'')}</span></td>`;
+      case 'tick': return `<td>${v?'<span class="tick">✓</span>':'<span class="tickno">○</span>'}</td>`;
+      default: return `<td class="${col.cls||''}"><span class="ty">${esc(v||'')}</span></td>`;
+    }
+  }
+  function detail(x){
+    const bf=(x.best_for||[]).map(b=>`<div class="row2"><span class="rk">#${b.rank||'·'}</span><span class="pn">${esc(b.purpose)}</span>${meter(b.fitness||0)}</div>${b.note?`<div class="note">${esc(b.note)}</div>`:''}`).join('');
+    const srcs=(x.sources||[]).map(s=>`<div class="src"><div class="t">${s.url?`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title||s.url)}</a>`:esc(s.title)}</div>${s.claim?`<div class="cl">${esc(s.claim)}</div>`:''}<div class="meta"><span>${esc(s.kind||'source')}</span>${s.verified?'<span class="tick">✓ resolves</span>':'<span class="tickno">○ unverified</span>'}${s.finding_supported?'<span class="tick">✓ supports</span>':''}</div></div>`).join('')||'<div class="cl">No sources recorded.</div>';
+    const spec=SPEC.map(r=>[r[1],x[r[0]]]).filter(r=>r[1]!=null&&r[1]!=='').map(r=>`<div class="k">${esc(r[0])}</div><div class="v">${esc(r[1])}</div>`).join('');
+    return `<div class="det"><div>
+      <div class="sum">${esc(x.summary)}</div>
+      ${x.speed_note?`<h3>Speed &amp; notes</h3><div class="sum" style="font-size:13.5px">${esc(x.speed_note)}</div>`:''}
+      <h3>Best for</h3><div class="bf">${bf||'<div class="note">—</div>'}</div>
+      ${x.repo_url?`<a class="repo" href="${esc(x.repo_url)}" target="_blank" rel="noopener">repository ↗</a>`:''}
+    </div><div>
+      <div class="card"><h3>Verification</h3><div class="verify"><span class="vbadge">${x.verified?'confirmed':'unverified'}</span><span style="color:var(--muted);font-size:12px">wave ${x.wave_id||'·'} · ${(x.sources||[]).length} sources</span></div>${x.verify_note?`<div class="cl">${esc(x.verify_note)}</div>`:''}</div>
+      ${spec?`<div class="card"><h3>Spec</h3><div class="kv">${spec}</div></div>`:''}
+      <div class="card"><h3>License</h3><div style="font-size:13px">${commChip(x.commercial_use)} <span style="color:var(--muted)">${esc(x.license||'')}</span>${x.commercial_notes?`<div class="cl" style="margin-top:6px">${esc(x.commercial_notes)}</div>`:''}</div></div>
+      <div class="card"><h3>Sources <span style="color:var(--faint)">(${(x.sources||[]).length})</span></h3>${srcs}</div>
+    </div></div>`;
+  }
+  function render(){
+    const q=document.getElementById('q').value.toLowerCase().trim();
+    const fc=document.getElementById('f-comm').value, fs=document.getElementById('f-stat').value, fv=document.getElementById('f-ver').classList.contains('on');
+    let rows=items.filter(x=>{
+      if(fc&&x.commercial_use!==fc)return false;
+      if(fs&&x.status!==fs)return false;
+      if(fv&&!x.verified)return false;
+      if(q){const hay=(x.name+' '+(x.summary||'')+' '+(x.developer||'')+' '+(x.license||'')).toLowerCase();if(!hay.includes(q))return false}
+      return true;
+    });
+    rows.sort((a,b)=>{let av,bv;if(sortKey==='status'){av=STATUS_ORDER[a.status]??9;bv=STATUS_ORDER[b.status]??9}else{av=a[sortKey];bv=b[sortKey]}if(typeof av==='string')return av.localeCompare(bv)*sortDir;return ((av??0)-(bv??0))*sortDir});
+    document.getElementById('count').textContent=rows.length+' / '+items.length+' '+(D.noun||'items');
+    const tb=document.getElementById('body');tb.innerHTML='';
+    rows.forEach(x=>{
+      const tr=document.createElement('tr');tr.className='row';
+      tr.innerHTML=COLS.map(c=>cell(c,x)).join('');
+      tr.onclick=()=>{open.has(x.slug)?open.delete(x.slug):open.add(x.slug);render()};
+      tb.appendChild(tr);
+      if(open.has(x.slug)){const dr=document.createElement('tr');dr.className='detail';dr.innerHTML=`<td colspan="${COLS.length}">${detail(x)}</td>`;tb.appendChild(dr)}
+    });
+  }
+  document.getElementById('q').oninput=render;
+  document.getElementById('f-comm').onchange=render;
+  document.getElementById('f-stat').onchange=render;
+  document.getElementById('f-ver').onclick=function(){this.classList.toggle('on');render()};
+  document.getElementById('theme').onclick=()=>{const h=document.documentElement;h.dataset.theme=h.dataset.theme==='dark'?'light':'dark'};
+  document.getElementById('dl').onclick=()=>{const b=new Blob([JSON.stringify(D,null,2)],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=(D.domain.slug||'readout')+'.json';a.click();URL.revokeObjectURL(u)};
+  document.addEventListener('keydown',e=>{if(e.key==='/'&&document.activeElement.id!=='q'){e.preventDefault();document.getElementById('q').focus()}});
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+{
+  "bucket": "traits-advanced",
+  "verifier_note": "Checked all 49 warrant sources by direct retrieval (Rust Reference/Book/Nomicon/std docs on doc.rust-lang.org, 6 version-announcement blog posts, RFC 2451, PR rust-lang/rust#133372, lang-team issue #286, and 4 rapier3d-f64 0.35.3 docs.rs source files) and every engine_note claim against the live si-rpg-engine repo (solver/src/lib.rs, solver/src/rapier_law.rs, solver/Cargo.toml, solver/Cargo.lock, docs/dispatch-t2-restore.md) via gh api. I also ran all 77 of the lane's checks myself through scripts/compile_oracle.py against the real pinned rustc 1.98.1 with rapier3d-f64 0.35.3 / parry3d-f64 0.30.2 exactly as locked in Cargo.lock: 77/77 passed, reproducing rustc's exact wording verbatim (\"is not dyn compatible\", \"missing required bound on `Item`\" with no code, the literal `DVec3` name in the E0117 note for Rapier's Vector, \"required for `Log` to implement `MaybeSync`\", \"is a \\\"sealed trait\\\"\", \"the struct `Cell<T>` is invariant...\"). No source misattribution, no stale API, no check/prose mismatch, and no engine-fact error found in any of the 10 recipes. Systemic weakness: several softening \"gotchas\" clauses are asserted but not independently exercised by that recipe's own checks[] — recipe 1 claims associated consts and GATs make a trait dyn-incompatible with no check of its own (only recipe 2's checks demonstrate it), and recipe 9 claims a sealed trait still permits calling its public methods from outside without ever demonstrating that call. A reader who trusted only checks[] as ground truth would not catch a regression in these secondary claims.",
+  "verdicts": [
+    {
+      "slug": "choose-associated-types-for-one-impl-per-type-outputs-enforce-associated-consts-and-gats-at-compile-time",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "10/10 checks pass on live rustc 1.98.1 (oracle run), incl. instantiation-only const-eval (4 variants) and GAT no-code error verbatim. BODY_STRIDE=17/COLLIDER_STRIDE=10/MAX_BODIES=64 confirmed in solver/src/lib.rs.",
+      "evidence_url": "https://blog.rust-lang.org/2022/10/28/gats-stabilization/",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/book/ch20-02-advanced-traits.html", "supported": true, "note": "Confirmed verbatim: 1-impl-per-assoc-type vs many-per-generic; Rhs=Self default shown."},
+        {"url": "https://doc.rust-lang.org/stable/reference/items/associated-items.html", "supported": true, "note": "Confirmed verbatim: const evaluated only when referenced; GAT where-clause rule matches."},
+        {"url": "https://blog.rust-lang.org/2022/11/03/Rust-1.65.0/", "supported": true, "note": "Confirmed: dated 2022-11-03, GATs stabilized, same LendingIterator snippet shown."},
+        {"url": "https://blog.rust-lang.org/2022/10/28/gats-stabilization/", "supported": true, "note": "Confirmed: where Self:'a rule, implied-'static HRTB limit, no-dyn, borrowck false-errors all present."}
+      ]
+    },
+    {
+      "slug": "keep-a-trait-dyn-compatible-or-fence-methods-with-where-self-sized-a-dyn-is-two-words-data-vtable",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "11/11 checks pass on rustc 1.98.1 incl. wasm32 fat-pointer=8 bytes. Live E0038 text is exactly \"is not dyn compatible\" (no hyphen). rapier_law.rs's warm_broadphase passes &(),&() to CollisionPipeline::step verbatim as claimed.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/items/traits.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/reference/items/traits.html", "supported": true, "note": "Confirmed verbatim: full dyn-compatibility rule list + \"formerly object safety\" note."},
+        {"url": "https://doc.rust-lang.org/stable/reference/dynamically-sized-types.html", "supported": true, "note": "Confirmed: DST pointers carry metadata (count for slices, vtable for trait objs)."},
+        {"url": "https://doc.rust-lang.org/stable/reference/types/trait-object.html", "supported": true, "note": "Confirmed verbatim: vtable holds a fn ptr per method of trait AND its supertraits."},
+        {"url": "https://doc.rust-lang.org/stable/reference/lifetime-elision.html", "supported": true, "note": "Confirmed: Box<dyn Foo>==+'static; &'a dyn Foo defaults to &'a(dyn Foo+'a), verbatim."},
+        {"url": "https://github.com/rust-lang/rust/pull/133372", "supported": true, "note": "Confirmed: merged 2025-01-22, milestone 1.86.0, renamed E0038 wording."},
+        {"url": "https://github.com/rust-lang/lang-team/issues/286", "supported": true, "note": "Confirmed: opened 2024-08-04, disposition-merge + finished-FCP labels present."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_world.rs", "supported": true, "note": "Confirmed: step() calls self.step_with_events(&(),&()); hooks/events are &dyn."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/collision_pipeline.rs", "supported": true, "note": "Confirmed: step()'s last 2 params are &dyn PhysicsHooks, &dyn EventHandler."}
+      ]
+    },
+    {
+      "slug": "apply-the-whole-orphan-rule-a-local-type-before-any-uncovered-type-parameter-and-no-overlapping-impls",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "8/8 checks pass on rustc 1.98.1. Real E0117 note names \"`DVec3` is not defined in the current crate\" for Vector, confirming glam::DVec3. Reference orphan-rule text is character-identical to RFC 2451's, though not cited by number there.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/items/implementations.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/reference/items/implementations.html", "supported": true, "note": "Confirmed verbatim (matches RFC 2451 text exactly); overlap = instantiable-with-same-type."},
+        {"url": "https://doc.rust-lang.org/stable/reference/glossary.html", "supported": true, "note": "Confirmed: &, &mut, Box AND Pin all listed as fundamental type constructors."},
+        {"url": "https://rust-lang.github.io/rfcs/2451-re-rebalancing-coherence.html", "supported": true, "note": "Core rule verbatim-identical to current Reference; carried by 3 co-cited 2026 sources."},
+        {"url": "https://doc.rust-lang.org/stable/book/ch10-02-traits.html", "supported": true, "note": "Confirmed: orphan rule + blanket-impl (ToString) example match."}
+      ]
+    },
+    {
+      "slug": "let-auto-traits-follow-the-fields-steer-them-with-phantomdata-and-know-a-drop-impl-drives-drop-check",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "8/8 checks pass on rustc 1.98.1; error text \"required for `Log` to implement `MaybeSync`\" reproduced exactly. solver/Cargo.toml confirmed NOT enabling unsync-callbacks, so EventHandler's Sync requirement is live and accurate.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/utils/mod.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/reference/special-types-and-traits.html", "supported": true, "note": "Confirmed: 5 auto traits, no stable negative impl, PhantomData<T> owns T for 3 purposes."},
+        {"url": "https://doc.rust-lang.org/nomicon/phantom-data.html", "supported": true, "note": "Confirmed verbatim: RFC1238 superfluous-with-Drop text; table matches all 4 phantom forms."},
+        {"url": "https://doc.rust-lang.org/stable/std/marker/struct.PhantomData.html", "supported": true, "note": "Confirmed: size_of=0/align=1 guaranteed; \"may change in future\" dropck caveat present."},
+        {"url": "https://doc.rust-lang.org/nomicon/dropck.html", "supported": true, "note": "Confirmed: Inspector compiles w/o Drop, fails E0597 with Drop; same rule, different scaffold."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/utils/mod.rs", "supported": true, "note": "Confirmed: MaybeSync:Sync gated on #[cfg(not(feature=\"unsync-callbacks\"))] exactly."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/event_handler.rs", "supported": true, "note": "Confirmed: EventHandler: crate::utils::MaybeSync, 2 methods, impl for () present."}
+      ]
+    },
+    {
+      "slug": "choose-variance-on-purpose-a-t-box-and-vec-are-covariant-mut-t-and-cell-invariant-fn-t-contravariant",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "6/6 checks pass on rustc 1.98.1. rustc's text \"the struct `Cell<T>` is invariant over the parameter `T`\" and the Brand<'id> analogue reproduced exactly. No engine_note (general type-theory background, not yet applied).",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/subtyping.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/reference/subtyping.html", "supported": true, "note": "Confirmed: variance table matches exactly incl. dyn Trait<T>+'a; struct variance from fields."},
+        {"url": "https://doc.rust-lang.org/nomicon/subtyping.html", "supported": true, "note": "Confirmed verbatim: assign() example; \"contra...over their arguments\"; Box/Vec/Cell rows."},
+        {"url": "https://doc.rust-lang.org/nomicon/phantom-data.html", "supported": true, "note": "Confirmed (reused): table gives PhantomData<fn(T)> contravariant, <fn(T)->T> invariant."}
+      ]
+    },
+    {
+      "slug": "write-for-a-bounds-when-a-generic-must-accept-a-borrow-that-the-function-creates-itself",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "4/4 checks pass on rustc 1.98.1, incl. E0597 for both the naive fn-level 'a attempt and confirming the for<'a>-bound fix compiles. No engine_note; foundational HRTB knowledge not yet applied in solver code.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/trait-bounds.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/reference/trait-bounds.html", "supported": true, "note": "Confirmed: for<'a> holds for all lifetimes; may precede whole bound or just the trait."},
+        {"url": "https://doc.rust-lang.org/nomicon/hrtb.html", "supported": true, "note": "Confirmed verbatim: \"for all choices of 'a\"; matching for<'a> F: Fn(&'a(u8,u16))->&'a u8 example."},
+        {"url": "https://doc.rust-lang.org/stable/reference/lifetime-elision.html", "supported": true, "note": "Confirmed (reused): dyn Fn(&str)->&str expands to dyn for<'a> Fn(&'a str)->&'a str verbatim."}
+      ]
+    },
+    {
+      "slug": "upcast-trait-objects-to-a-supertrait-1-86-and-downcast-through-dyn-any-instead-of-an-as-any-method",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "6/6 checks pass on rustc 1.98.1, incl. the exact \"false true true\" TypeId gotcha and E0597 \"borrowed for `static`\" for non-'static Any. No engine_note; technique not yet used in solver code.",
+      "evidence_url": "https://blog.rust-lang.org/2025/04/03/Rust-1.86.0/",
+      "corrections": null,
+      "sources": [
+        {"url": "https://blog.rust-lang.org/2025/04/03/Rust-1.86.0/", "supported": true, "note": "Confirmed: dated 2025-04-03; upcasting incl. to dyn Any and Arc/*const, stabilized."},
+        {"url": "https://doc.rust-lang.org/stable/reference/type-coercions.html", "supported": true, "note": "Confirmed verbatim: dyn T to dyn U supertrait coercion, may drop auto traits."},
+        {"url": "https://doc.rust-lang.org/stable/std/any/trait.Any.html", "supported": true, "note": "Confirmed: Any:'static; is/downcast_ref/downcast_mut/Box::downcast present; unchecked=nightly."},
+        {"url": "https://doc.rust-lang.org/stable/std/any/index.html", "supported": true, "note": "Confirmed: Box<dyn Any>.type_id() is the container's id, not the value's; example matches."},
+        {"url": "https://doc.rust-lang.org/stable/reference/items/traits.html", "supported": true, "note": "Confirmed (reused): supertrait items usable in default methods / via trait-object bound."}
+      ]
+    },
+    {
+      "slug": "control-what-impl-trait-captures-rpitit-async-fn-in-traits-1-75-use-1-82-traits-1-87-2024-rules",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "13/13 checks pass on rustc 1.98.1, incl. exact E0700/E0502/E0799 codes and the literal note \"Rust 2024 has adjusted the `impl Trait` lifetime capture rules\". solver/Cargo.toml confirmed edition=\"2021\", matching the migration-risk framing.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/types/impl-trait.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/reference/types/impl-trait.html", "supported": true, "note": "Confirmed: RPIT all-generics capture; pre-2024 free-fn non-capture; use<..> needs Self in traits."},
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/rpit-lifetime-capture.html", "supported": true, "note": "Confirmed: 2024 unconditional capture; overcaptures lint auto-fixes via cargo fix --edition."},
+        {"url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/", "supported": true, "note": "Confirmed: use<..> stabilized; at 1.82 barred from traits/impls, must list all in-scope params."},
+        {"url": "https://blog.rust-lang.org/2025/05/15/Rust-1.87.0/", "supported": true, "note": "Confirmed: dated 2025-05-15; use<..> in trait definitions stabilized, use<Self> example shown."},
+        {"url": "https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits/", "supported": true, "note": "Confirmed: Rust 1.75 stabilizes both; not dyn-compatible; public async fn Send warning."},
+        {"url": "https://blog.rust-lang.org/2025/02/20/Rust-1.85.0/", "supported": true, "note": "Confirmed: dated 2025-02-20; edition 2024 stable incl. RPIT capture-rule change."},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html", "supported": true, "note": "Confirmed: async_fn_in_trait fires on unspecifiable Send; suggested impl Future+Send desugar."},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html", "supported": true, "note": "Confirmed: impl_trait_overcaptures suggests + use<>; redundant_captures flags redundant use<..>."}
+      ]
+    },
+    {
+      "slug": "encode-solver-states-as-zero-sized-type-parameters-seal-traits-privately-and-import-extension-traits",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "7/7 checks pass on rustc 1.98.1, incl. rustc calling it a \"sealed trait\" in the E0277 help text. Live ensure/solver_step/solver_clear_warmstart Option-check boundary and dispatch-t2-restore.md refusals confirmed in the repo.",
+      "evidence_url": "https://rust-lang.github.io/api-guidelines/future-proofing.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/book/ch18-03-oo-design-patterns.html", "supported": true, "note": "Confirmed: DraftPost/PendingReviewPost/Post typestate, self-consuming transitions, verbatim."},
+        {"url": "https://rust-lang.github.io/api-guidelines/future-proofing.html", "supported": true, "note": "Confirmed verbatim: private Sealed supertrait pattern + rustdoc-sealed recommendation."},
+        {"url": "https://doc.rust-lang.org/stable/book/ch10-02-traits.html", "supported": true, "note": "Confirmed (reused): \"must bring the trait into scope\" quoted verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/marker/struct.PhantomData.html", "supported": true, "note": "Confirmed (reused): size_of::<PhantomData<T>>()==0 guaranteed."}
+      ]
+    },
+    {
+      "slug": "put-the-box-and-product-laws-behind-a-law-trait-only-when-rust-code-drives-both-keep-every-export-monomorphic",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "4/4 checks pass on rustc 1.98.1, incl. wasm32 exports. Live lib.rs/rapier_law.rs confirmed: bare #[no_mangle] under edition 2021, step/solver_load/solver_step exports exactly as claimed; no Law trait yet (correctly framed as hypothetical).",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/abi.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/book/ch18-02-trait-objects.html", "supported": true, "note": "Confirmed: static vs dynamic dispatch + inlining-prevention verbatim; defers dyn-compat to Reference."},
+        {"url": "https://doc.rust-lang.org/stable/book/ch10-01-syntax.html", "supported": true, "note": "Confirmed verbatim: generics \"no slower\" via monomorphization."},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html", "supported": true, "note": "Lint listed; prose truncated by fetch, but exact wording reproduced live by rustc 1.98.1."},
+        {"url": "https://doc.rust-lang.org/stable/reference/abi.html", "supported": true, "note": "Confirmed: no_mangle disables mangling+exports; edition 2024 needs #[unsafe(no_mangle)]."}
+      ]
+    }
+  ]
+}

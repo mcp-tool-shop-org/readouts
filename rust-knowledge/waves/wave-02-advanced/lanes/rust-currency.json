@@ -1,0 +1,1444 @@
+{
+  "laneSlug": "rust-currency",
+  "title": "What changed in Rust 1.80 → 1.98 and edition 2024",
+  "tier": "advanced",
+  "recipes": [
+    {
+      "name": "Move si-solver to edition 2024: cargo fix rewrites 10 #[no_mangle], hand-fix 7 static_mut_refs",
+      "what": "On 1.98.1, `cargo fix --edition` on a copy of solver/ changed only the 10 `#[no_mangle]` exports to `#[unsafe(no_mangle)]`, left `edition = \"2021\"` in Cargo.toml, and left 7 `static_mut_refs` sites that fail the build once the edition is 2024; neither rewrite changed a byte of the wasm (measured).",
+      "how": "1) `cargo +1.98.1 fix --edition --release --target wasm32-unknown-unknown` (needs a clean git tree or --allow-dirty): it rewrites 3 attributes in lib.rs and 7 in rapier_law.rs and prints the 7 static_mut_refs warnings it cannot fix. `#[unsafe(no_mangle)]` compiles warning-free on edition 2021 since 1.82, so this step can land on its own. 2) Set `edition = \"2024\"` by hand. 3) Rewrite the 7 sites without moving any line: lib.rs:28/33 and rapier_law.rs:78 `unsafe { X.as_mut_ptr() }` -> `(&raw mut X).cast::<f64>()` (taking `&raw` of a static mut is safe since 1.82, no unsafe block); lib.rs:183/184 `&mut BODIES` / `&COLLIDERS` -> `&mut *(&raw mut BODIES)` / `&*(&raw const COLLIDERS)`; rapier_law.rs:738/743 `SOLVER.snapshot.as_ptr()` / `.len()` -> `(*(&raw const SOLVER)).snapshot.as_ptr()` / `.len()`. Whether those references are sound is the unsafe-ffi lane's question; this recipe states what the compiler now demands (checked: a solver-shaped module written this way builds warning-free under 2024, imports nothing, and its step and snapshot exports work). 4) Rebuild through build.mjs and compare the digest.",
+      "rust_version": "edition 2024 (1.85+); #[unsafe(..)] attributes and &raw 1.82+; measured on 1.98.1",
+      "gotchas": "Under 2024 static_mut_refs is a deny-by-default lint, not a hard error: the compiler reports `#[deny(static_mut_refs)]` (part of rust_2024_compatibility) and `#![allow(static_mut_refs)]` makes the crate build (checked), so an allow is a wrong fix that still compiles. There is no automatic migration for it. Explicit `&X` / `&mut X`, `ref` bindings and autoref method calls such as `.as_mut_ptr()`, `.as_ptr()` and `.len()` are flagged; by-value indexing such as `BODIES[base + k]` and `HEIGHTS[i]` is not (checked). Byte identity holds only while panicking code keeps its line: the module embeds panic locations, and a blank line inserted at the top of rapier_law.rs changed 22 bytes (digest b03c2b70...) while the same shift in lib.rs changed none (measured), so a reflow by `cargo fmt` under style_edition 2024 can move the digest without changing behaviour. Identity was measured on the Windows host (sha256 b21c7f15... for 2021, for 2024 with the lint allowed, and for 2024 with the &raw rewrite), not against the Linux pin.",
+      "engine_note": "The 10 attribute sites are the exports in solver/src/lib.rs (bodies_ptr, colliders_ptr, step) and solver/src/rapier_law.rs (heights_ptr, canon_zero, solver_load, solver_step, snapshot_ptr, snapshot_len, solver_clear_warmstart); the 7 static_mut_refs sites are lib.rs:28, 33, 183, 184 and rapier_law.rs:78, 738, 743 in the local checkout. A line-preserving migration should leave fixtures/solver.sha256 unchanged; write T2's restore exports in the 2024 spelling from the start. The dependencies are already edition-2024 crates (rapier3d-f64 0.35.3: edition 2024, rust-version 1.86; nalgebra 0.35.0: edition 2024, rust-version 1.89.0) and editions are per crate, so the solver's own edition changes nothing inside them.",
+      "checks": [
+        {
+          "label": "edition 2024 rejects a bare #[no_mangle] on an extern \"C\" export",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "unsafe attribute used without unsafe"
+          ],
+          "source": "#[no_mangle]\npub extern \"C\" fn bodies_ptr() -> u32 {\n    1\n}\n"
+        },
+        {
+          "label": "#[unsafe(no_mangle)] already compiles warning-free under edition 2021",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn bodies_ptr() -> u32 {\n    1\n}\n"
+        },
+        {
+          "label": "edition 2021: the solver's static mut shapes build with static_mut_refs warnings",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "lints": [
+            "static_mut_refs"
+          ],
+          "source": "static mut BODIES: [f64; 68] = [0.0; 68];\nstatic mut COLLIDERS: [f64; 40] = [0.0; 40];\n\npub fn bodies_ptr() -> *mut f64 {\n    unsafe { BODIES.as_mut_ptr() }\n}\n\npub fn step() -> f64 {\n    unsafe {\n        let bodies = &mut BODIES;\n        let colliders = &COLLIDERS;\n        bodies[1] += colliders[0];\n        bodies[1]\n    }\n}\n"
+        },
+        {
+          "label": "edition 2024: the same shapes are deny-level static_mut_refs errors",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "lints": [
+            "static_mut_refs"
+          ],
+          "source": "static mut BODIES: [f64; 68] = [0.0; 68];\nstatic mut COLLIDERS: [f64; 40] = [0.0; 40];\n\npub fn bodies_ptr() -> *mut f64 {\n    unsafe { BODIES.as_mut_ptr() }\n}\n\npub fn step() -> f64 {\n    unsafe {\n        let bodies = &mut BODIES;\n        let colliders = &COLLIDERS;\n        bodies[1] += colliders[0];\n        bodies[1]\n    }\n}\n"
+        },
+        {
+          "label": "edition 2024: #![allow(static_mut_refs)] makes them build, so it is a lint",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "#![allow(static_mut_refs)]\nstatic mut BODIES: [f64; 68] = [0.0; 68];\nstatic mut COLLIDERS: [f64; 40] = [0.0; 40];\n\npub fn bodies_ptr() -> *mut f64 {\n    unsafe { BODIES.as_mut_ptr() }\n}\n\npub fn step() -> f64 {\n    unsafe {\n        let bodies = &mut BODIES;\n        let colliders = &COLLIDERS;\n        bodies[1] += colliders[0];\n        bodies[1]\n    }\n}\n"
+        },
+        {
+          "label": "edition 2024: by-value indexing of a static mut array is not flagged",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "1.5",
+          "source": "static mut HEIGHTS: [f64; 4] = [0.0; 4];\n\nfn main() {\n    let h = unsafe {\n        HEIGHTS[2] = 1.5;\n        HEIGHTS[2]\n    };\n    println!(\"{h}\");\n}\n"
+        },
+        {
+          "label": "edition 2024 wasm: the &raw rewrites build warning-free and keep the ABI",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "wasm_exports": [
+            "memory",
+            "bodies_ptr",
+            "step",
+            "snapshot_ptr",
+            "snapshot_len"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "probe",
+            "args": []
+          },
+          "stdout": "544",
+          "source": "const BODY_STRIDE: usize = 17;\nconst MAX_BODIES: usize = 4;\n\nstatic mut BODIES: [f64; MAX_BODIES * BODY_STRIDE] = [0.0; MAX_BODIES * BODY_STRIDE];\n\nstruct Solver {\n    snapshot: Vec<u8>,\n}\n\nstatic mut SOLVER: Solver = Solver { snapshot: Vec::new() };\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn bodies_ptr() -> *mut f64 {\n    (&raw mut BODIES).cast::<f64>()\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn step(n: u32) -> u32 {\n    let bodies = unsafe { &mut *(&raw mut BODIES) };\n    let n = (n as usize).min(MAX_BODIES);\n    for i in 0..n {\n        bodies[i * BODY_STRIDE + 4] += -8.0 / 64.0;\n    }\n    let solver = unsafe { &mut *(&raw mut SOLVER) };\n    solver.snapshot.clear();\n    for v in bodies.iter() {\n        solver.snapshot.extend_from_slice(&v.to_le_bytes());\n    }\n    1\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn snapshot_ptr() -> *const u8 {\n    unsafe { (*(&raw const SOLVER)).snapshot.as_ptr() }\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn snapshot_len() -> u32 {\n    unsafe { (*(&raw const SOLVER)).snapshot.len() as u32 }\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn probe() -> u32 {\n    step(2);\n    snapshot_len()\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Rust Edition Guide: Unsafe attributes",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-attributes.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "In edition 2024 export_name, link_section and no_mangle must be written inside unsafe(..); the unsafe_attr_outside_unsafe lint is in rust-2024-compatibility and cargo fix --edition migrates it.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust Edition Guide: Disallow references to static mut",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "static_mut_refs is deny by default in 2024; &X, &mut X and autoref method calls such as NUMS.len() on a static mut are flagged; there is no automatic migration.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust Edition Guide: Transitioning an existing project to a new edition",
+          "url": "https://doc.rust-lang.org/edition-guide/editions/transitioning-an-existing-project-to-a-new-edition.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The steps are cargo fix --edition, then editing the edition field in Cargo.toml by hand, then build/test and cargo fmt.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.82.0",
+          "url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilized #[unsafe(no_mangle)] (a hard error without unsafe in 2024), &raw const / &raw mut, and taking &raw mut of a static mut without an unsafe block.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Expect edition 2024 to drop if-let scrutinee and tail-expression temporaries earlier",
+      "what": "Edition 2024 drops the temporaries of an `if let` scrutinee before the `else` branch runs and drops a block's tail-expression temporaries before its local variables; both reorder `Drop` side effects (checked), and the first is why let chains (stable 1.88) are 2024-only.",
+      "how": "Rules: in `if let P = e { .. } else { .. }` the temporaries of `e` now drop before `else` (2021: after the whole expression); in a tail expression they now drop before the block's locals (2021: after), so `c.borrow().len()` as the tail of the block that owns `c` compiles (E0597 in 2021). Migration: `if_let_rescope` is auto-fixed by rewriting to `match`, which keeps the 2021 order, so review each rewrite; `tail_expr_drop_order` only warns. After the switch write `if let Some(x) = a && let Ok(y) = f(x) { .. }` instead of nested if-lets. `if let` guards in match arms (`Some(s) if let Some(x) = parse(s) =>`, 1.95) are not tied to the edition: they compile in 2021 as well (checked).",
+      "rust_version": "edition 2024 (1.85+); let chains 1.88 (2024 only); if-let guards 1.95 (every edition)",
+      "gotchas": "The automatic `match` rewrite preserves the old, later drop, so the deadlock the edition fixes (a RwLock read guard kept alive into an `else` that takes the write lock) survives the migration unless the rewrite is undone on purpose. In 2021 a let chain is the error 'let chains are only allowed in Rust 2024 or later' (checked). Tail-expression temporaries are also sometimes no longer extended to the enclosing scope, so a borrow that compiled through extension in 2021 can fail in 2024. 1.91 applied the 2024 if-let rule to temporaries made by pin!, format_args!, write! and writeln! in 2024 scrutinees.",
+      "engine_note": "cargo fix --edition on the solver copy reported no if_let_rescope or tail_expr_drop_order site (measured): `ensure()` in rapier_law.rs uses `if let Some(loaded) = solver.loaded.as_ref()` with no else, and the other matches are let-else. The rules start to matter in the planned host bindings (Godot, then Unreal), where a wrapper may hold a lock guard or RefCell borrow over the solver's static state across an if-let.",
+      "checks": [
+        {
+          "label": "edition 2021: an if-let scrutinee temporary drops after the else branch",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "else\ndrop scrutinee\nafter",
+          "source": "struct Guard(&'static str);\n\nimpl Drop for Guard {\n    fn drop(&mut self) {\n        println!(\"drop {}\", self.0);\n    }\n}\n\nimpl Guard {\n    fn body(&self) -> Option<u32> {\n        None\n    }\n}\n\nfn main() {\n    if let Some(n) = Guard(\"scrutinee\").body() {\n        println!(\"then {n}\");\n    } else {\n        println!(\"else\");\n    }\n    println!(\"after\");\n}\n"
+        },
+        {
+          "label": "edition 2024: the same temporary drops before the else branch runs",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "drop scrutinee\nelse\nafter",
+          "source": "struct Guard(&'static str);\n\nimpl Drop for Guard {\n    fn drop(&mut self) {\n        println!(\"drop {}\", self.0);\n    }\n}\n\nimpl Guard {\n    fn body(&self) -> Option<u32> {\n        None\n    }\n}\n\nfn main() {\n    if let Some(n) = Guard(\"scrutinee\").body() {\n        println!(\"then {n}\");\n    } else {\n        println!(\"else\");\n    }\n    println!(\"after\");\n}\n"
+        },
+        {
+          "label": "edition 2021: a tail-expression borrow of a block's local is E0597",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0597"
+          ],
+          "source": "use std::cell::RefCell;\n\npub fn f() -> usize {\n    let c = RefCell::new(\"..\");\n    c.borrow().len()\n}\n"
+        },
+        {
+          "label": "edition 2024: the same tail expression compiles",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "use std::cell::RefCell;\n\npub fn f() -> usize {\n    let c = RefCell::new(\"..\");\n    c.borrow().len()\n}\n"
+        },
+        {
+          "label": "edition 2021: the tail temporary drops after the block's local",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "drop local\ndrop temporary\n9",
+          "source": "struct Guard(&'static str);\n\nimpl Drop for Guard {\n    fn drop(&mut self) {\n        println!(\"drop {}\", self.0);\n    }\n}\n\nfn len_of(g: &Guard) -> usize {\n    g.0.len()\n}\n\nfn tail() -> usize {\n    let _local = Guard(\"local\");\n    len_of(&Guard(\"temporary\"))\n}\n\nfn main() {\n    let n = tail();\n    println!(\"{n}\");\n}\n"
+        },
+        {
+          "label": "edition 2024: the tail temporary drops before the block's local",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "drop temporary\ndrop local\n9",
+          "source": "struct Guard(&'static str);\n\nimpl Drop for Guard {\n    fn drop(&mut self) {\n        println!(\"drop {}\", self.0);\n    }\n}\n\nfn len_of(g: &Guard) -> usize {\n    g.0.len()\n}\n\nfn tail() -> usize {\n    let _local = Guard(\"local\");\n    len_of(&Guard(\"temporary\"))\n}\n\nfn main() {\n    let n = tail();\n    println!(\"{n}\");\n}\n"
+        },
+        {
+          "label": "edition 2021 rejects a let chain",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "let chains are only allowed in Rust 2024 or later"
+          ],
+          "source": "fn first_positive(v: &[f64]) -> Option<f64> {\n    if let Some(&x) = v.first() && x > 0.0 {\n        Some(x)\n    } else {\n        None\n    }\n}\n\nfn main() {\n    println!(\"{:?}\", first_positive(&[1.5, -2.0]));\n}\n"
+        },
+        {
+          "label": "edition 2024 runs the same let chain",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "Some(1.5)",
+          "source": "fn first_positive(v: &[f64]) -> Option<f64> {\n    if let Some(&x) = v.first() && x > 0.0 {\n        Some(x)\n    } else {\n        None\n    }\n}\n\nfn main() {\n    println!(\"{:?}\", first_positive(&[1.5, -2.0]));\n}\n"
+        },
+        {
+          "label": "edition 2024: an if-let guard in a match arm (stable 1.95)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "2.5",
+          "source": "fn parse(s: &str) -> Option<f64> {\n    s.parse().ok()\n}\n\nfn main() {\n    let v = Some(\"2.5\");\n    match v {\n        Some(s) if let Some(x) = parse(s) => println!(\"{x}\"),\n        _ => println!(\"none\"),\n    }\n}\n"
+        },
+        {
+          "label": "edition 2021: the same if-let guard compiles and runs too",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "2.5",
+          "source": "fn parse(s: &str) -> Option<f64> {\n    s.parse().ok()\n}\n\nfn main() {\n    let v = Some(\"2.5\");\n    match v {\n        Some(s) if let Some(x) = parse(s) => println!(\"{x}\"),\n        _ => println!(\"none\"),\n    }\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Rust Edition Guide: if let temporary scope",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/temporary-if-let-scope.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "In 2024 the temporaries of an if-let scrutinee drop before the else branch; if_let_rescope migrates by rewriting to match, which keeps the old drop point; the RwLock example deadlocks in 2021.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust Edition Guide: Tail expression temporary scope",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/temporary-tail-expr-scope.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "In 2024 tail-expression temporaries may drop before local variables, so the RefCell example that is E0597 in 2021 compiles; tail_expr_drop_order warns but makes no automatic change.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.88.0",
+          "url": "https://blog.rust-lang.org/2025/06/26/Rust-1.88.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Let chains are stabilized for the Rust 2024 edition only, because they rely on the if-let temporary scope change.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.95.0",
+          "url": "https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "if-let guards on match arms are stabilized.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust release notes",
+          "url": "https://doc.rust-lang.org/stable/releases.html",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "1.91.0 restricts the scope of temporaries created by pin!, format_args!, write! and writeln! in if-let scrutinees in Rust 2024.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Know which edition-2024 changes cargo fix --edition migrates and which stay manual",
+      "what": "Of the Edition Guide's 2024 list, `cargo fix --edition` rewrites unsafe attributes, unsafe extern blocks, unsafe_op_in_unsafe_fn, if-let (into match), RPIT over-capture (inserts `use<..>`), `expr` -> `expr_2021`, `gen` -> `r#gen`, `Box<[T]>::into_iter`, prelude collisions, reserved `#\"..\"#` syntax, match-ergonomics patterns, `env::set_var` calls and Cargo.toml key names; it does not migrate static_mut_refs, tail-expression drop order, never-type fallback, missing macro fragment specifiers, combined doctests or the resolver change.",
+      "how": "Run `cargo fix --edition` once per target and feature set that compiles distinct code (it only sees what that configuration compiles), read everything it prints, flip `edition = \"2024\"` by hand, then build, test and `cargo fmt`. What changes meaning: `expr` fragments now also match `const { .. }` and `_`; `-> impl Trait` captures every in-scope lifetime (narrow with `+ use<..>`, available in all editions since 1.82); `Box<[T]>::into_iter()` yields `T`, not `&T`; never-type fallback is `!`, not `()`; `extern` blocks must be `unsafe extern` with per-item `safe` / `unsafe`; unsafe operations inside an `unsafe fn` need their own `unsafe {}` (a warning); `std::env::set_var` / `remove_var` are unsafe; `gen` is reserved; `Future` / `IntoFuture` join the prelude; resolver \"3\" is implied; doctests are combined into one binary (opt out per test with `standalone_crate`); rustfmt's style edition follows the edition unless `style_edition` is configured separately.",
+      "rust_version": "edition 2024, stable since 1.85.0 (2025-02-20)",
+      "gotchas": "Doctests, macros and build-time generated code are not migrated. The expr_2021 rewrite exists to keep old macro matching; undoing it changes which arm matches (checked: a `const { .. }` argument picks the `$e:expr` arm in 2024 and the `const $b:block` arm in 2021). impl_trait_overcaptures cannot always fix argument-position impl Trait. Code that relied on `()` never-type fallback already fails in 2021 on 1.92+ through a deny lint and is a type error (E0277) in 2024. Doctests that assert panic Location lines or type_name output can break once doctests are combined.",
+      "engine_note": "The solver has no extern blocks, unsafe fns, macros, RPIT returns, `gen` identifiers or boxed slices, so of this list only the unsafe attributes touch it (measured: cargo fix changed nothing else). The rustfmt style edition is the one item that can move the digest with no semantic change, because a reformat shifts panic-location line numbers (see the solver migration recipe).",
+      "checks": [
+        {
+          "label": "edition 2021: a const { .. } argument skips the $e:expr arm",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "const block",
+          "source": "macro_rules! which {\n    ($e:expr) => {\n        \"expr\"\n    };\n    (const $b:block) => {\n        \"const block\"\n    };\n}\n\nfn main() {\n    println!(\"{}\", which!(const { 1.0f64 + 0.5 }));\n}\n"
+        },
+        {
+          "label": "edition 2024: the $e:expr arm now matches const { .. }",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "expr",
+          "source": "macro_rules! which {\n    ($e:expr) => {\n        \"expr\"\n    };\n    (const $b:block) => {\n        \"const block\"\n    };\n}\n\nfn main() {\n    println!(\"{}\", which!(const { 1.0f64 + 0.5 }));\n}\n"
+        },
+        {
+          "label": "edition 2021: RPIT does not capture the argument lifetime (E0700)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0700"
+          ],
+          "source": "pub fn doubled(v: &Vec<f64>) -> impl Iterator<Item = f64> {\n    v.iter().map(|x| x * 2.0)\n}\n"
+        },
+        {
+          "label": "edition 2024: the same RPIT captures it and compiles",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "pub fn doubled(v: &Vec<f64>) -> impl Iterator<Item = f64> {\n    v.iter().map(|x| x * 2.0)\n}\n"
+        },
+        {
+          "label": "edition 2021: Box<[f64]>::into_iter yields &f64, so collecting Vec<f64> is E0277",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "source": "pub fn owned(heights: Box<[f64]>) -> Vec<f64> {\n    heights.into_iter().collect()\n}\n"
+        },
+        {
+          "label": "edition 2024: Box<[f64]>::into_iter yields f64 and the collect compiles",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "pub fn owned(heights: Box<[f64]>) -> Vec<f64> {\n    heights.into_iter().collect()\n}\n"
+        },
+        {
+          "label": "edition 2024: gen is a reserved keyword",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "reserved keyword `gen`"
+          ],
+          "source": "pub fn gen(seed: u64) -> u64 {\n    seed.wrapping_mul(6364136223846793005)\n}\n"
+        },
+        {
+          "label": "edition 2024: a plain extern block is rejected",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "extern blocks must be unsafe"
+          ],
+          "source": "extern \"C\" {\n    fn host_sqrt(x: f64) -> f64;\n}\n\npub fn call(x: f64) -> f64 {\n    unsafe { host_sqrt(x) }\n}\n"
+        },
+        {
+          "label": "edition 2024: an unsafe op in an unsafe fn body warns",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "lints": [
+            "unsafe_op_in_unsafe_fn"
+          ],
+          "source": "pub unsafe fn read(p: *const f64) -> f64 {\n    *p\n}\n"
+        },
+        {
+          "label": "edition 2024: std::env::set_var needs an unsafe block (E0133)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0133"
+          ],
+          "source": "fn main() {\n    std::env::set_var(\"SI_SEED\", \"1\");\n}\n"
+        },
+        {
+          "label": "edition 2024: code relying on () never-type fallback is a type error (E0277)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "source": "fn outer<T>(x: T) -> Result<T, ()> {\n    fn f<T: Default>() -> Result<T, ()> {\n        Ok(T::default())\n    }\n    f()?;\n    Ok(x)\n}\n\nfn main() {\n    println!(\"{:?}\", outer(3));\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Announcing Rust 1.85.0",
+          "url": "https://blog.rust-lang.org/2025/02/20/Rust-1.85.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Rust 2024 is stable; the post lists its language, standard library, Cargo, rustdoc and rustfmt changes and says cargo fix can automate many of them.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust Edition Guide: Transitioning an existing project to a new edition",
+          "url": "https://doc.rust-lang.org/edition-guide/editions/transitioning-an-existing-project-to-a-new-edition.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "cargo fix --edition cannot migrate doctests, build-time generated code or macros in every case, and prints what it cannot fix.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust Edition Guide: Macro fragment specifiers",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/macro-fragment-specifiers.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "In 2024 expr also matches const blocks and _; the migration rewrites expr to expr_2021.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust Edition Guide: RPIT lifetime capture rules",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/rpit-lifetime-capture.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "In 2024 all in-scope generic parameters including lifetimes are captured; impl_trait_overcaptures inserts use<..> bounds in most cases; use<..> exists since 1.82.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust Edition Guide: Add IntoIterator for Box<[T]>",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/intoiterator-box-slice.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "boxed_slice.into_iter() yields &T before 2024 and T in 2024; boxed_slice_into_iter is auto-migrated.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust Edition Guide: Never type fallback change",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/never-type-fallback.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Fallback becomes ! in 2024; there is no automatic fix; annotate the type explicitly.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust Edition Guide: Unsafe extern blocks",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-extern.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "extern blocks must be unsafe extern in 2024, items can be marked safe or unsafe, and cargo fix migrates via missing_unsafe_on_extern.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust Edition Guide: Newly unsafe functions",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/newly-unsafe-functions.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "std::env::set_var, remove_var and CommandExt::before_exec are unsafe in 2024; deprecated_safe_2024 wraps calls in unsafe with a TODO comment.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust Edition Guide: Rustdoc combined tests",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/rustdoc-doctests.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "2024 combines doctests into one binary with no automatic migration; standalone_crate opts a test out.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Treat wasm32-unknown-unknown's six default features as byte changes, and -relaxed-simd as no ban",
+      "what": "On 1.98.1 wasm32-unknown-unknown enables sign-ext and mutable-globals (in codegen since 1.70), multivalue and reference-types (default since 1.82, LLVM 19) and bulk-memory and nontrapping-fptoint (since 1.87, LLVM 20); simd128 and relaxed-simd are off. None of the six is float arithmetic: `f64 as i32` saturates the same with nontrapping-fptoint and bulk-memory switched off (checked), while every change to the default set changes module bytes. `-C target-feature=-relaxed-simd` leaves the default set as it is and does not stop a function that enables relaxed-simd itself.",
+      "how": "Read the set with `rustc +1.98.1 --print cfg --target wasm32-unknown-unknown` or `cfg!(target_feature = \"...\")`, and read what a built module used from its `target_features` custom section (the solver copy lists +bulk-memory, +bulk-memory-opt, +call-indirect-overlong, +multivalue, +mutable-globals, +nontrapping-fptoint, +reference-types, +sign-ext). For an MVP-only module on stable use wasm32v1-none (Tier 2 since 1.84; no std, only core and alloc; only mutable-globals); turning features off on wasm32-unknown-unknown does not rebuild the precompiled std, and a full MVP build needs nightly -Zbuild-std. Keep the -relaxed-simd pin in .cargo/config.toml and build.mjs, and add a cheap gate that the module's target_features section lists neither +relaxed-simd nor +simd128, beside T3's opcode lint.",
+      "rust_version": "1.70 (sign-ext, mutable-globals), 1.82 (multivalue, reference-types), 1.84 (wasm32v1-none Tier 2), 1.87 (bulk-memory, nontrapping-fptoint); measured on 1.98.1",
+      "gotchas": "reference-types (1.82) changed call_indirect's table immediate to an over-long 5-byte LEB (the +call-indirect-overlong entry), which decoders without reference-types support reject. Enabling multivalue did not change the extern \"C\" ABI. The relaxed-SIMD intrinsics (e.g. core::arch::wasm32::f64x2_relaxed_madd) are stable since 1.82: a `#[target_feature(enable = \"simd128,relaxed-simd\")]` function compiles under `-C target-feature=-relaxed-simd` (checked) and, in the scratch probe, emitted f64x2.relaxed_madd, recorded +relaxed-simd in target_features, and returned the fused result under node 22 on this x86 host (-8.67e-19 where a separate multiply and add give 0). On wasm such a function is callable without an unsafe block. Switching bulk-memory and nontrapping-fptoint off changed the probe's size (1591014 -> 1591189 bytes) but not its results.",
+      "engine_note": "solver/.cargo/config.toml and solver/build.mjs both pass -C target-feature=-relaxed-simd; on 1.98.1 that flag changes nothing in the default set (checked), so it guards against a future default, while FLAGS.md's 'this build disables' does not cover a dependency function that opts in with #[target_feature] - only inspecting the module (T3's opcode lint, or the target_features section) catches that. A toolchain bump that changes the default set, as 1.82 and 1.87 did, changes the digest in fixtures/solver.sha256; the golden hash should not move for that reason.",
+      "checks": [
+        {
+          "label": "1.98.1 wasm32-unknown-unknown: six defaults on, simd128 and relaxed-simd off (63)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "default_features",
+            "args": []
+          },
+          "stdout": "63",
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn default_features() -> u32 {\n    (cfg!(target_feature = \"sign-ext\") as u32)\n        | (cfg!(target_feature = \"mutable-globals\") as u32) << 1\n        | (cfg!(target_feature = \"multivalue\") as u32) << 2\n        | (cfg!(target_feature = \"reference-types\") as u32) << 3\n        | (cfg!(target_feature = \"bulk-memory\") as u32) << 4\n        | (cfg!(target_feature = \"nontrapping-fptoint\") as u32) << 5\n        | (cfg!(target_feature = \"simd128\") as u32) << 6\n        | (cfg!(target_feature = \"relaxed-simd\") as u32) << 7\n}\n"
+        },
+        {
+          "label": "-C target-feature=-relaxed-simd leaves the default set unchanged",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [
+            "-C",
+            "target-feature=-relaxed-simd"
+          ],
+          "expect": "runs",
+          "wasm_call": {
+            "export": "default_features",
+            "args": []
+          },
+          "stdout": "63",
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn default_features() -> u32 {\n    (cfg!(target_feature = \"sign-ext\") as u32)\n        | (cfg!(target_feature = \"mutable-globals\") as u32) << 1\n        | (cfg!(target_feature = \"multivalue\") as u32) << 2\n        | (cfg!(target_feature = \"reference-types\") as u32) << 3\n        | (cfg!(target_feature = \"bulk-memory\") as u32) << 4\n        | (cfg!(target_feature = \"nontrapping-fptoint\") as u32) << 5\n        | (cfg!(target_feature = \"simd128\") as u32) << 6\n        | (cfg!(target_feature = \"relaxed-simd\") as u32) << 7\n}\n"
+        },
+        {
+          "label": "wasm32v1-none enables only mutable-globals (2)",
+          "edition": "2024",
+          "target": "wasm32v1-none",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "default_features",
+            "args": []
+          },
+          "stdout": "2",
+          "source": "#![no_std]\n\n#[panic_handler]\nfn panic(_: &core::panic::PanicInfo) -> ! {\n    loop {}\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn default_features() -> u32 {\n    (cfg!(target_feature = \"sign-ext\") as u32)\n        | (cfg!(target_feature = \"mutable-globals\") as u32) << 1\n        | (cfg!(target_feature = \"multivalue\") as u32) << 2\n        | (cfg!(target_feature = \"reference-types\") as u32) << 3\n        | (cfg!(target_feature = \"bulk-memory\") as u32) << 4\n        | (cfg!(target_feature = \"nontrapping-fptoint\") as u32) << 5\n        | (cfg!(target_feature = \"simd128\") as u32) << 6\n        | (cfg!(target_feature = \"relaxed-simd\") as u32) << 7\n}\n"
+        },
+        {
+          "label": "f64 as i32 saturates with the default features",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "wasm_call": {
+            "export": "to_i32",
+            "args": [
+              10000000000.0
+            ]
+          },
+          "stdout": "2147483647",
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn to_i32(x: f64) -> i32 {\n    x as i32\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn nan_to_i32() -> i32 {\n    let z = core::hint::black_box(0.0f64);\n    (z / z) as i32\n}\n"
+        },
+        {
+          "label": "... and identically with nontrapping-fptoint and bulk-memory off",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [
+            "-C",
+            "target-feature=-nontrapping-fptoint,-bulk-memory"
+          ],
+          "expect": "runs",
+          "wasm_call": {
+            "export": "to_i32",
+            "args": [
+              10000000000.0
+            ]
+          },
+          "stdout": "2147483647",
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn to_i32(x: f64) -> i32 {\n    x as i32\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn nan_to_i32() -> i32 {\n    let z = core::hint::black_box(0.0f64);\n    (z / z) as i32\n}\n"
+        },
+        {
+          "label": "NaN as i32 is 0 without nontrapping-fptoint too",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [
+            "-C",
+            "target-feature=-nontrapping-fptoint"
+          ],
+          "expect": "runs",
+          "wasm_call": {
+            "export": "nan_to_i32",
+            "args": []
+          },
+          "stdout": "0",
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn to_i32(x: f64) -> i32 {\n    x as i32\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn nan_to_i32() -> i32 {\n    let z = core::hint::black_box(0.0f64);\n    (z / z) as i32\n}\n"
+        },
+        {
+          "label": "a #[target_feature(enable = relaxed-simd)] fn still compiles under -relaxed-simd",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [
+            "-C",
+            "target-feature=-relaxed-simd"
+          ],
+          "expect": "compiles",
+          "no_warnings": true,
+          "wasm_exports": [
+            "fused"
+          ],
+          "source": "use core::arch::wasm32::{f64x2_extract_lane, f64x2_relaxed_madd, f64x2_splat};\n\n#[target_feature(enable = \"simd128,relaxed-simd\")]\nfn madd(a: f64, b: f64, c: f64) -> f64 {\n    f64x2_extract_lane::<0>(f64x2_relaxed_madd(f64x2_splat(a), f64x2_splat(b), f64x2_splat(c)))\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn fused(a: f64, b: f64, c: f64) -> f64 {\n    madd(a, b, c)\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "rustc book: wasm32-unknown-unknown",
+          "url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The generic CPU enables multivalue, mutable-globals, reference-types, sign-ext, and nontrapping-fptoint and bulk-memory (Rust 1.87.0+, LLVM 20+); wasm32v1-none is the stable MVP alternative.",
+          "retrieved": true
+        },
+        {
+          "title": "WebAssembly targets: change in default target-features",
+          "url": "https://blog.rust-lang.org/2024/09/24/webassembly-targets-change-in-default-target-features/",
+          "year": 2024,
+          "kind": "blog",
+          "identifier": "",
+          "claim": "LLVM 19 (Rust 1.82) enables multivalue and reference-types by default; call_indirect now carries an over-long LEB table index; the extern \"C\" ABI does not change.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust 1.70.0 release notes (RELEASES.md at tag 1.70.0)",
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.70.0/RELEASES.md",
+          "year": 2023,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "WebAssembly targets enable sign-ext and mutable-globals features in codegen from 1.70.0.",
+          "retrieved": true
+        },
+        {
+          "title": "rustc book: wasm32v1-none",
+          "url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32v1-none.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Tier 2 target that imports nothing, enables no proposals past WebAssembly Core 1.0 (MVP plus mutable-globals) and supports only core and alloc.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust release notes (1.88.0 edition of the page)",
+          "url": "https://doc.rust-lang.org/1.88.0/releases.html",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "1.84.0 added Tier 2 wasm32v1-none and stabilized the multivalue, reference-types and tail-call target features; 1.87.0 updated to LLVM 20.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.82.0",
+          "url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilized the core::arch::wasm32 relaxed-SIMD intrinsics, including f64x2_relaxed_madd.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Expect wasm32 undefined symbols to fail the link since 1.96 and the standard C ABI since 1.89",
+      "what": "Since 1.96 rustc no longer passes --allow-undefined to wasm-ld, so an extern function with no definition is a link error ('undefined symbol') instead of a silent `env` import; since 1.89 `extern \"C\"` on wasm32-unknown-unknown follows the standard tool-conventions C ABI, which changed how aggregates are passed and left scalars alone; 1.84 removed the wasm32-wasi target name (now wasm32-wasip1) and added wasm32v1-none at Tier 2.",
+      "how": "Declare each intended host import explicitly with `#[link(wasm_import_module = \"env\")]` (or another module name) on its `unsafe extern \"C\"` block; `-C link-arg=--allow-undefined` restores the old behaviour for a whole build. Keep exports scalar and pointer only (u32, f64, *const u8), which both ABIs lower the same way; a #[repr(C)] struct passed by value is passed indirectly under the 1.89+ ABI where the legacy ABI split it into separate parameters. Name WASI targets wasm32-wasip1 or wasm32-wasip2.",
+      "rust_version": "1.84 (wasm32-wasi removed, wasm32v1-none Tier 2), 1.89 (standard C ABI), 1.96 (no --allow-undefined); measured on 1.98.1",
+      "gotchas": "Before 1.96 a misspelt or missing extern fn produced a module importing `env.<name>`, which a loader that instantiates with no import object discovered only at instantiation. 1.86 made the wasm_c_abi future-compatibility warning a hard error (it concerned wasm-bindgen older than 0.2.89). 1.91.0 broke #[link(wasm_import_module)] across crates (same-named imports from different modules could resolve to the wrong function); 1.91.1 fixed it.",
+      "engine_note": "The solver declares no extern block and imports nothing (build.mjs instantiates with `new WebAssembly.Instance(module)` and no import object), so on 1.96+ an accidental undefined symbol fails `cargo build` instead of the JS instantiation. Its ten exports take u32/f64 and return u32/f64/pointers, the class the C ABI post says is unaffected. Keep T3's no-imports check as a second gate, and give T2's restore exports the same scalar/pointer signatures.",
+      "checks": [
+        {
+          "label": "1.96+: an undefined extern fn is a wasm link error, not an env import",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "undefined symbol: host_gravity"
+          ],
+          "source": "unsafe extern \"C\" {\n    fn host_gravity() -> f64;\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn fall(vy: f64) -> f64 {\n    vy + unsafe { host_gravity() } / 64.0\n}\n"
+        },
+        {
+          "label": "#[link(wasm_import_module = \"env\")] makes the import explicit and links",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "no_warnings": true,
+          "wasm_exports": [
+            "fall"
+          ],
+          "source": "#[link(wasm_import_module = \"env\")]\nunsafe extern \"C\" {\n    fn host_gravity() -> f64;\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn fall(vy: f64) -> f64 {\n    vy + unsafe { host_gravity() } / 64.0\n}\n"
+        },
+        {
+          "label": "-C link-arg=--allow-undefined restores the pre-1.96 behaviour",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [
+            "-C",
+            "link-arg=--allow-undefined"
+          ],
+          "expect": "compiles",
+          "wasm_exports": [
+            "fall"
+          ],
+          "source": "unsafe extern \"C\" {\n    fn host_gravity() -> f64;\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn fall(vy: f64) -> f64 {\n    vy + unsafe { host_gravity() } / 64.0\n}\n"
+        },
+        {
+          "label": "scalar-only exports pass u32 and f64 directly",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "mix",
+            "args": [
+              3,
+              1.5
+            ]
+          },
+          "stdout": "4.5",
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn mix(n_bodies: u32, dt: f64) -> f64 {\n    n_bodies as f64 * dt\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Changes to WebAssembly targets and handling undefined symbols",
+          "url": "https://blog.rust-lang.org/2026/04/04/changes-to-webassembly-targets-and-handling-undefined-symbols/",
+          "year": 2026,
+          "kind": "blog",
+          "identifier": "",
+          "claim": "Rust 1.96 stops linking wasm targets with --allow-undefined; #[link(wasm_import_module = \"env\")] or -Clink-arg=--allow-undefined restore the old import behaviour.",
+          "retrieved": true
+        },
+        {
+          "title": "C ABI Changes for wasm32-unknown-unknown",
+          "url": "https://blog.rust-lang.org/2025/04/04/c-abi-changes-for-wasm32-unknown-unknown/",
+          "year": 2025,
+          "kind": "blog",
+          "identifier": "",
+          "claim": "The legacy ABI splatted structs into separate arguments while the standard ABI passes them indirectly; scalars such as u32 and f64 are unaffected.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.96.0",
+          "url": "https://blog.rust-lang.org/2026/05/28/Rust-1.96.0/",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Undefined symbols when linking wasm are now a linker error instead of becoming WebAssembly imports.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.89.0",
+          "url": "https://blog.rust-lang.org/2025/08/07/Rust-1.89.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "extern \"C\" functions on wasm32-unknown-unknown now use the standards-compliant C ABI.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.91.1",
+          "url": "https://blog.rust-lang.org/2025/11/10/Rust-1.91.1/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Fixes #[link(wasm_import_module)] broken in 1.91.0, which could pick the wrong imported function.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust release notes (1.88.0 edition of the page)",
+          "url": "https://doc.rust-lang.org/1.88.0/releases.html",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "1.84.0 removed the wasm32-wasi target (renamed wasm32-wasip1); 1.86.0 made wasm_c_abi a hard error.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Replace flat-buffer index math with 1.86-1.93 std APIs: as_chunks_mut, get_disjoint_mut, as_array",
+      "what": "Stable std now covers what the solver does by hand: `<[T]>::as_chunks_mut::<N>()` (1.88) views a flat f64 buffer as `[[f64; N]]`, `get_disjoint_mut([i, j])` (1.86) hands out two records mutably and reports overlap as an `Err`, `<[T]>::as_array::<N>()` (1.93) turns a sub-slice into `&[T; N]`, `strict_add` and the other `strict_*` methods (1.91) panic on overflow even with overflow-checks off, `f64::midpoint` (1.85) and `next_up` / `next_down` (1.86) avoid overflow and epsilon tricks, `cfg_select!` (1.95) replaces cfg-if, and `floor` / `round` / `trunc` (const since 1.90) and `mul_add` (const since 1.94) work in constants.",
+      "how": "Write `let (records, rest) = buf.as_chunks_mut::<BODY_STRIDE>(); debug_assert!(rest.is_empty());` and index `records[i][HX]`; take a pair with `let [a, b] = records.get_disjoint_mut([i, j])?;`; take a quaternion as `b[6..10].as_array::<4>()`; use `strict_*` where overflow is a bug (counts, offsets) and keep `wrapping_*` where wrap-around is intended (hash mixing); use `cfg_select!` for wasm-versus-native constants. Keep midpoint and mul_add out of law arithmetic: the law must repeat the JS kernel's exact operation sequence.",
+      "rust_version": "1.85-1.95 as listed per API; all present on the 1.98.1 pin",
+      "gotchas": "`strict_*` ignores `overflow-checks = false` (checked: exit 101 under -C overflow-checks=off), so in the solver's panic = \"abort\" wasm build it becomes a trap; use it only where aborting is right. `get_disjoint_mut` also returns Err for an out-of-bounds index, and `as_chunks_mut` returns a remainder that must be checked. APIs newer than rust-toolchain.toml's pin fail to compile. Other additions in the period: LazyCell / LazyLock (1.80), Vec::extract_if (1.87), array_windows (1.94), Box::new_zeroed (1.92), core::hint::cold_path (1.95), assert_matches! (1.96, not in the prelude).",
+      "engine_note": "lib.rs `body_at` / `field` and `resolve_pair(bodies, i, j)` (two bodies mutated through index arithmetic), rapier_law.rs `body_at` / `collider_at` copy loops and `quat_from_body(&b)` are the index-arithmetic sites; `mix_u64`'s wrapping_mul / wrapping_add must stay wrapping. Any such rewrite changes the digest (code and panic locations move) but should leave the golden hash unchanged; prove that with the three-engine golden run.",
+      "checks": [
+        {
+          "label": "as_chunks_mut, get_disjoint_mut, as_array, midpoint and next_up on stable",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "4 2.5 true true\n4\n1.7976931348623157e308 inf\ntrue",
+          "source": "const BODY_STRIDE: usize = 17;\nconst MAX_BODIES: usize = 4;\n\nfn main() {\n    let mut bodies = [0.0f64; MAX_BODIES * BODY_STRIDE];\n    // 1.88: view the flat ABI buffer as fixed-size records, no index arithmetic\n    let (records, rest) = bodies.as_chunks_mut::<BODY_STRIDE>();\n    assert!(rest.is_empty());\n    records[2][1] = 3.5;\n    // 1.86: two records mutably at once; overlapping indices are an Err, not a panic\n    let [a, b] = records.get_disjoint_mut([0, 2]).unwrap();\n    a[1] = b[1] - 1.0;\n    let overlap = records.get_disjoint_mut([1, 1]).is_err();\n    let out_of_bounds = records.get_disjoint_mut([0, 9]).is_err();\n    println!(\"{} {} {} {}\", records.len(), records[0][1], overlap, out_of_bounds);\n    // 1.93: a fixed-size view of a sub-slice (the quaternion slots 6..10)\n    let q: &[f64; 4] = bodies[6..10].as_array().unwrap();\n    println!(\"{}\", q.len());\n    // 1.85 / 1.86: midpoint without overflow, next representable value\n    println!(\"{:e} {:e}\", f64::MAX.midpoint(f64::MAX), (f64::MAX + f64::MAX) / 2.0);\n    println!(\"{}\", 1.0f64.next_up() == 1.0 + f64::EPSILON);\n}\n"
+        },
+        {
+          "label": "strict_add panics on overflow even with overflow checks off",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=off"
+          ],
+          "expect": "runs",
+          "exit_code": 101,
+          "stdout": "0",
+          "source": "use std::hint::black_box;\n\nfn main() {\n    let n: u32 = black_box(u32::MAX);\n    println!(\"{}\", n.wrapping_add(1));\n    println!(\"{}\", n.strict_add(1));\n}\n"
+        },
+        {
+          "label": "f64 floor and mul_add evaluate in const items",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "2 6.5",
+          "source": "// 1.90: floor/round/trunc are const; 1.94: mul_add is const\nconst CELL_FLOOR: f64 = 2.75f64.floor();\nconst FMA: f64 = 2.0f64.mul_add(3.0, 0.5);\n\nfn main() {\n    println!(\"{CELL_FLOOR} {FMA}\");\n}\n"
+        },
+        {
+          "label": "cfg_select! picks the first matching arm on stable",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "native",
+          "source": "cfg_select! {\n    target_family = \"wasm\" => { const HOST: &str = \"wasm\"; }\n    _ => { const HOST: &str = \"native\"; }\n}\n\nfn main() {\n    println!(\"{HOST}\");\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Announcing Rust 1.86.0",
+          "url": "https://blog.rust-lang.org/2025/04/03/Rust-1.86.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilized <[_]>::get_disjoint_mut (disjoint mutable indexing) and {float}::next_up / next_down.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.88.0",
+          "url": "https://blog.rust-lang.org/2025/06/26/Rust-1.88.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilized <[T]>::as_chunks, as_chunks_mut and the rchunks variants.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.91.0",
+          "url": "https://blog.rust-lang.org/2025/10/30/Rust-1.91.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilized the strict_* integer arithmetic methods such as strict_add.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.93.0",
+          "url": "https://blog.rust-lang.org/2026/01/22/Rust-1.93.0/",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilized <[T]>::as_array and as_mut_array.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.95.0",
+          "url": "https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilized the cfg_select! macro and core::hint::cold_path.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust standard library: primitive f64",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f64.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "f64::midpoint is stable since 1.85.0, next_up since 1.86.0; floor is const since 1.90.0 and mul_add since 1.94.0.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Keep 1.98's f64::algebraic_* methods out of the law: the std docs allow different results per run",
+      "what": "1.98 stabilized `algebraic_add`, `_sub`, `_mul`, `_div` and `_rem` on f32 and f64, which let the compiler combine and reorder operations, swap division for reciprocal multiplication and ignore the sign of zero; the core docs say the same inputs may produce different results even within one program run. They compile on stable with no feature gate and no warning (checked).",
+      "how": "Keep the law to + - * / and sqrt, as lib.rs's header comment says, and keep algebraic_* (and mul_add) out of solver/src by review plus a CI grep for `algebraic_`. Constants may be computed by const fn since 1.82: `const SLIDE_ANGLE: f64 = radians(50.0)` has the same bits as the runtime call for this non-NaN expression (checked). Never hash a NaN's bits: f64::NAN is guaranteed quiet since 1.88, but its payload and sign may change across Rust versions and targets, and a NaN produced at compile time need not match the one produced at run time - reject or canonicalize first.",
+      "rust_version": "algebraic_* 1.98; const-fn float arithmetic 1.82; NAN quiet guarantee 1.88",
+      "gotchas": "A model trained before 1.98 calls these nightly-only; on 1.98.1 they are plain stable methods and nothing in rustc warns about them. The 1.82 announcement warns that `(0.0 / 0.0).is_sign_positive()` can differ between compile time and run time and across hardware, optimization level and surrounding code, and advises fully portable code to avoid to_bits and to test `f.signum() == 1.0` rather than `f.is_sign_positive()` (the advice concerns NaN results). No `algebraic_` appears in the pinned rapier3d-f64 0.35.3, parry3d-f64 0.30.2, nalgebra 0.35.0, simba 0.10.2, glam 0.33.10 or libm 0.2.16 sources (grep of the local cargo registry), so a dependency bump is where they could enter.",
+      "engine_note": "rapier_law.rs computes CLIMB_ANGLE and SLIDE_ANGLE as consts; `bad` rejects NaN before `mix_f64` hashes `to_bits()`, and `canon_zero` passes NaN through untouched - the discipline the NaN notes require. Add `algebraic_` to the source lints that accompany T3's relaxed-SIMD opcode lint, and grep the Cargo.lock diff's crates for it on every dependency bump.",
+      "checks": [
+        {
+          "label": "algebraic_add is stable on 1.98.1: no feature gate, no warning",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "pub fn sum4(a: f64, b: f64, c: f64, d: f64) -> f64 {\n    a.algebraic_add(b).algebraic_add(c).algebraic_add(d)\n}\n"
+        },
+        {
+          "label": "algebraic_add also compiles for wasm32-unknown-unknown",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "no_warnings": true,
+          "wasm_exports": [
+            "sum4"
+          ],
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn sum4(a: f64, b: f64, c: f64, d: f64) -> f64 {\n    a.algebraic_add(b).algebraic_add(c).algebraic_add(d)\n}\n"
+        },
+        {
+          "label": "f64::NAN has the quiet bit set (guaranteed since 1.88)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "true",
+          "source": "fn main() {\n    // bit 51 is the quiet bit of an f64 NaN\n    println!(\"{}\", f64::NAN.to_bits() & (1u64 << 51) != 0);\n}\n"
+        },
+        {
+          "label": "a const fn float constant matches the runtime bits (50 deg to rad)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "true",
+          "source": "use std::f64::consts::PI;\nuse std::hint::black_box;\n\nconst fn radians(deg: f64) -> f64 {\n    deg * PI / 180.0\n}\n\nconst SLIDE_ANGLE: f64 = radians(50.0);\n\nfn main() {\n    println!(\"{}\", SLIDE_ANGLE.to_bits() == radians(black_box(50.0)).to_bits());\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Announcing Rust 1.98.0",
+          "url": "https://blog.rust-lang.org/2026/08/20/Rust-1.98.0/",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilized the algebraic floating-point methods; the compiler may reorder a chain of algebraic_add calls; they are non-deterministic but never undefined behaviour.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust core library: primitive f32 (Algebraic operators; NaN bit patterns)",
+          "url": "https://doc.rust-lang.org/stable/core/primitive.f32.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Algebraic operators may combine and rearrange operations, use reciprocals and ignore the sign of zero, and the same inputs may produce different results even within a single program run; const-evaluated NaN bit patterns need not match runtime ones.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust standard library: primitive f64 (NAN)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f64.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "f64::NAN is guaranteed to be a quiet NaN, but its payload and sign are arbitrary and may change across Rust versions and targets.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.82.0",
+          "url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Floating-point arithmetic is allowed in const fn, and NaN results such as (0.0 / 0.0).is_sign_positive() can differ between compile time and run time.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust release notes (1.88.0 edition of the page)",
+          "url": "https://doc.rust-lang.org/1.88.0/releases.html",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "1.88.0 guarantees that {float}::NAN is a quiet NaN; 1.82.0 stabilized floating-point arithmetic in const fn and documented NaN bit-pattern guarantees.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Stop sorting floats with partial_cmp().unwrap_or(Equal): 1.81+ sorts panic on a non-total order",
+      "what": "1.81 replaced the slice sorts with driftsort (stable) and ipnsort (unstable), which may panic when the comparison is not a total order; the old 'NaN-tolerant' idiom `sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))` panics on 1.98.1 with 'user-provided comparison function does not correctly implement a total order' once a NaN is in a 64-element slice (checked), where older sorts silently returned some order.",
+      "how": "Sort f64 keys with `total_cmp` (`v.sort_by(|a, b| a.total_cmp(b))`), which puts -0.0 before 0.0 and a positive NaN last (checked); better, reject NaN before sorting and sort by integer keys where they exist; keep PartialOrd and Ord consistent; never depend on which of several equal elements binary_search returns (1.82 changed it).",
+      "rust_version": "1.81+ (new sorts); binary_search change 1.82; BTreeMap::append 1.96; derive(PartialOrd) fast path 1.98",
+      "gotchas": "The release note says 'may panic': detection is best-effort - a comparator that never returns Equal did not panic on a 200-element probe, so a passing test proves nothing. In the solver's panic = \"abort\" wasm build a sort panic is a trap. 1.96 made BTreeMap::append able to panic on incorrect Ord impls, and 1.98's derive(PartialOrd) fast path breaks types whose PartialOrd and Ord disagree.",
+      "engine_note": "rapier_law.rs `rebuild_snapshot` sorts contact pairs by `(collider1.into_raw_parts(), collider2.into_raw_parts())` - integer tuples, a total order, safe. Future sorts by f64 (T6 reachability sweep, T5 replay corpus ordering) should use total_cmp or integer keys, after NaN rejection.",
+      "checks": [
+        {
+          "label": "partial_cmp().unwrap_or(Equal) with a NaN panics in the 1.81+ sort",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "exit_code": 101,
+          "stdout": "",
+          "source": "use std::cmp::Ordering;\n\nfn main() {\n    let mut v: Vec<f64> = (0..64).map(|i| ((i * 37) % 11) as f64).collect();\n    v[10] = f64::NAN;\n    v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));\n    println!(\"{:?}\", &v[..12]);\n}\n"
+        },
+        {
+          "label": "total_cmp sorts the same kind of data without panicking",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "[-1.5, -0.0, 0.0, 2.0, NaN]",
+          "source": "fn main() {\n    let mut v = vec![2.0f64, -0.0, f64::NAN, 0.0, -1.5];\n    v.sort_by(|a, b| a.total_cmp(b));\n    println!(\"{:?}\", v);\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Announcing Rust 1.81.0",
+          "url": "https://blog.rust-lang.org/2024/09/05/Rust-1.81.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "New stable and unstable sort implementations detect incorrect Ord implementations and panic instead of returning effectively random order.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust release notes (1.88.0 edition of the page)",
+          "url": "https://doc.rust-lang.org/1.88.0/releases.html",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "1.81.0: the new sorts may panic if Ord or the comparison function is not a total order; 1.82.0: the new binary_search may select a different element among equal ones.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust release notes",
+          "url": "https://doc.rust-lang.org/stable/releases.html",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "1.96.0: BTreeMap::append may now panic for incorrect Ord impls; 1.98.0: derive(PartialOrd) fast path can break types whose PartialOrd and Ord are inconsistent.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Expect 1.86-1.98 lint escalations to break old unsafe and macro code on a toolchain bump",
+      "what": "Lints tightened in the period, in every edition: dangerous_implicit_autorefs (added 1.88, deny 1.89), missing_fragment_specifier (hard error 1.89), semicolon_in_expressions_from_macros (deny 1.91), never_type_fallback_flowing_into_unsafe and dependency_on_unit_never_type_fallback (deny 1.92), deref_nullptr (deny 1.93), invalid_runtime_symbol_definitions (new, deny 1.98); new warn-by-default lints include missing_abi (1.86), mismatched_lifetime_syntaxes (1.89), dangling_pointers_from_locals (1.91) and linker_messages (1.97, outside the `warnings` group).",
+      "how": "Treat each toolchain bump as a lint audit: build with the new pin and read every new warning and error. Write `&mut *ptr` / `&*ptr` explicitly before indexing or calling methods through a raw pointer; annotate `f::<()>()?` where code relied on `()` never-type fallback; always spell `extern \"C\"`; no trailing `;` in a macro used as an expression; never define `memcmp` / `memset` / `strlen`-named symbols with another signature (no_std wasm crates sometimes do); never return a pointer to a local.",
+      "rust_version": "per lint as listed (1.86-1.98); measured on 1.98.1",
+      "gotchas": "The never-type lints fire only when the affected crate itself is built (1.92 announcement), so a dependency with the pattern keeps building while a copied snippet fails. linker_messages is not affected by the warnings lint group (1.97 announcement). The wasm_c_abi future-compatibility warning became a hard error in 1.86.",
+      "engine_note": "On 1.98.1 the solver builds with its 7 static_mut_refs warnings and no other lint (measured), and rapier_law.rs's `unsafe { &mut *core::ptr::addr_of_mut!(SOLVER) }` is already the explicit form these lints accept. Build the next bump with CARGO_BUILD_WARNINGS=deny (see the Cargo recipe) so a newly escalated lint stops CI instead of scrolling past.",
+      "checks": [
+        {
+          "label": "deref_nullptr is deny-by-default (1.93)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "lints": [
+            "deref_nullptr"
+          ],
+          "source": "pub fn read_null() -> f64 {\n    unsafe { *std::ptr::null::<f64>() }\n}\n"
+        },
+        {
+          "label": "indexing through (*ptr) is a deny-level implicit autoref (1.89)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "lints": [
+            "dangerous_implicit_autorefs"
+          ],
+          "source": "pub unsafe fn first_record(ptr: *mut [f64]) -> *mut [f64] {\n    unsafe { &raw mut (*ptr)[..17] }\n}\n"
+        },
+        {
+          "label": "an explicit &mut *ptr reborrow compiles cleanly",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "pub unsafe fn first_record(ptr: *mut [f64]) -> *mut [f64] {\n    unsafe { &raw mut (&mut *ptr)[..17] }\n}\n"
+        },
+        {
+          "label": "relying on () never-type fallback fails even in edition 2021 (1.92)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "lints": [
+            "dependency_on_unit_never_type_fallback"
+          ],
+          "source": "fn outer<T>(x: T) -> Result<T, ()> {\n    fn f<T: Default>() -> Result<T, ()> {\n        Ok(T::default())\n    }\n    f()?;\n    Ok(x)\n}\n\nfn main() {\n    println!(\"{:?}\", outer(3));\n}\n"
+        },
+        {
+          "label": "a trailing semicolon in an expression macro is deny (1.91)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "lints": [
+            "semicolon_in_expressions_from_macros"
+          ],
+          "source": "macro_rules! half {\n    ($e:expr) => {\n        $e * 0.5;\n    };\n}\n\npub fn f(x: f64) -> f64 {\n    half!(x)\n}\n"
+        },
+        {
+          "label": "a memset symbol with the wrong signature is deny (1.98)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "lints": [
+            "invalid_runtime_symbol_definitions"
+          ],
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn memset(dst: *mut u8) -> *mut u8 {\n    dst\n}\n"
+        },
+        {
+          "label": "extern without an ABI string warns (1.86)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "lints": [
+            "missing_abi"
+          ],
+          "source": "pub extern fn tick() -> u32 {\n    1\n}\n"
+        },
+        {
+          "label": "returning a pointer to a local warns (1.91)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "lints": [
+            "dangling_pointers_from_locals"
+          ],
+          "source": "pub fn dangling() -> *const f64 {\n    let x = 1.5f64;\n    &x\n}\n"
+        },
+        {
+          "label": "a hidden elided lifetime in the return type warns (1.89)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "lints": [
+            "mismatched_lifetime_syntaxes"
+          ],
+          "source": "pub fn items(scores: &[u8]) -> std::slice::Iter<u8> {\n    scores.iter()\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "rustc book: Deny-by-default lints",
+          "url": "https://doc.rust-lang.org/stable/rustc/lints/listing/deny-by-default.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "dangerous_implicit_autorefs, deref_nullptr, invalid_runtime_symbol_definitions, dependency_on_unit_never_type_fallback, never_type_fallback_flowing_into_unsafe and semicolon_in_expressions_from_macros are deny-by-default, with their example code.",
+          "retrieved": true
+        },
+        {
+          "title": "rustc book: Warn-by-default lints",
+          "url": "https://doc.rust-lang.org/stable/rustc/lints/listing/warn-by-default.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "missing_abi, mismatched_lifetime_syntaxes, dangling_pointers_from_locals and linker_messages are warn-by-default.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.92.0",
+          "url": "https://blog.rust-lang.org/2025/12/11/Rust-1.92.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "never_type_fallback_flowing_into_unsafe and dependency_on_unit_never_type_fallback are deny-by-default and fire only when building the affected crates directly.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust release notes",
+          "url": "https://doc.rust-lang.org/stable/releases.html",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "dangerous_implicit_autorefs deny and missing_fragment_specifier an error (1.89), semicolon_in_expressions_from_macros deny (1.91), deref_nullptr deny (1.93), invalid_runtime_symbol_definitions deny (1.98).",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.86.0",
+          "url": "https://blog.rust-lang.org/2025/04/03/Rust-1.86.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "The missing_abi lint now warns by default.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.97.0",
+          "url": "https://blog.rust-lang.org/2026/07/09/Rust-1.97.0/",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "linker_messages shows linker output as warnings by default and is not affected by the warnings lint group.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Gate solver CI with Cargo's build.warnings (1.97), not RUSTFLAGS, and keep --locked across resolver 3",
+      "what": "Cargo 1.80-1.98 added knobs the solver build should use: `build.warnings` / CARGO_BUILD_WARNINGS (1.97) denies local lint warnings without touching RUSTFLAGS; resolver \"3\" (1.84, implied by edition 2024) makes resolution MSRV-aware; check-cfg is always on (1.80); and cargo info (1.82), automatic cache GC (1.88), cargo fix using the build commands' target selection (1.89), publish --workspace (1.90), build.build-dir and `--target host-tuple` (1.91), config `include` and TOML 1.1 manifests (1.94) and resolver.lockfile-path (1.97).",
+      "how": "In CI run the solver build as `CARGO_BUILD_WARNINGS=deny node solver/build.mjs --check` (or set `[build] warnings = \"deny\"` in solver/.cargo/config.toml). RUSTFLAGS outranks every config rustflags entry (order: CARGO_ENCODED_RUSTFLAGS, RUSTFLAGS, target.<triple>/<cfg>.rustflags, build.rustflags), so a -Dwarnings placed in config is dropped whenever build.mjs sets RUSTFLAGS, while build.warnings is not a rustflag (measured: with build.mjs's RUSTFLAGS it failed the edition-2021 copy on its 7 warnings: 'warnings are denied by `build.warnings` configuration'). Keep building with --locked so an edition bump's resolver 3 cannot move Cargo.lock (measured: the edition-2024 copy built with --locked --offline and an unchanged lock). Declare any custom cfg in `[lints.rust] unexpected_cfgs` check-cfg so the 1.80 lint stays quiet.",
+      "rust_version": "Cargo 1.80-1.98 per knob as listed; measured with cargo 1.98.1",
+      "gotchas": "build.warnings covers only lint warnings from local packages, not dependency or non-lint warnings. Config `include` accepts only paths ending in .toml. Automatic GC deletes downloaded crates unused for about three months and does not run under --offline or --frozen, so an offline rebuild of an old commit may need a fetch first. TOML 1.1 syntax in Cargo.toml raises the development MSRV (Cargo parses TOML 1.1 from 1.94), though published manifests stay readable by older parsers. With incompatible-rust-versions = \"fallback\" the resolver only prefers compatible versions; with none available it still picks one.",
+      "engine_note": "solver/Cargo.toml (edition 2021, so resolver 2), solver/.cargo/config.toml (target rustflags that build.mjs's RUSTFLAGS replaces - the reason build.mjs repeats -relaxed-simd), solver/build.mjs, and the digest job in .github/workflows/ci.yml.",
+      "checks": [],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Cargo Book: Configuration",
+          "url": "https://doc.rust-lang.org/cargo/reference/config.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "build.warnings (default warn, env CARGO_BUILD_WARNINGS) sets the level of lint warnings for local packages; rustflags precedence is CARGO_ENCODED_RUSTFLAGS, RUSTFLAGS, target rustflags, build.rustflags; include loads extra .toml files; build.build-dir holds intermediate artifacts.",
+          "retrieved": true
+        },
+        {
+          "title": "The Cargo Book: Dependency Resolution",
+          "url": "https://doc.rust-lang.org/cargo/reference/resolver.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Resolver \"3\" is the edition-2024 default, requires Rust 1.84+, and changes incompatible-rust-versions from allow to fallback; without a compatible version the resolver still picks one.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.97.0",
+          "url": "https://blog.rust-lang.org/2026/07/09/Rust-1.97.0/",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "CARGO_BUILD_WARNINGS controls warning behaviour (allow/warn/deny) without invalidating the build cache.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.84.0",
+          "url": "https://blog.rust-lang.org/2025/01/09/Rust-1.84.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "MSRV-aware resolution via incompatible-rust-versions = \"fallback\" or package.resolver = \"3\".",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.80.0",
+          "url": "https://blog.rust-lang.org/2024/07/25/Rust-1.80.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Cargo enables check-cfg for known cfg names and values; unexpected_cfgs warns; custom cfgs go in [lints.rust].",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.94.0",
+          "url": "https://blog.rust-lang.org/2026/03/05/Rust-1.94.0/",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilized the config include key and TOML 1.1 parsing in Cargo.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.88.0",
+          "url": "https://blog.rust-lang.org/2025/06/26/Rust-1.88.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Automatic cache GC removes downloaded files unused for 3 months and does not run offline.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

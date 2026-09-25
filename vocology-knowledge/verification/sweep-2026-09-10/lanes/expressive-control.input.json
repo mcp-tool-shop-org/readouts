@@ -1,0 +1,139 @@
+{
+  "bucket": "expressive-control",
+  "domains": [
+    "expressive-control"
+  ],
+  "count": 13,
+  "findings": [
+    {
+      "slug": "10-synthesizer-v-studio-user-manual-note-properties-panel-parameter-panel",
+      "name": "Synthesizer V Studio User Manual — Note Properties Panel / Parameter Panel",
+      "claim": "The shipping commercial neural SVS exposes exactly the parametric surface this lane is about, but only in Manual pitch mode. Vibrato: Start 0-1 s (default 0.25 s onset delay), left/right fade 0.02-0.5 s (default 0.2 s), Depth 0-2 semitones peak-to-peak (default 1 semitone = ±50 cents), Freq 1-10 Hz (default 5.5 Hz), Phase -1..+1, Jitter 0-2. Pitch Transition (portamento): Offset ±0.5 s, Duration Left 0-0.5 s (default 0.1 s), Duration Right 0-0.5 s (default 0.07 s), Depth Left/Right ±6 semitones (default 0.15 st). Note Offset ±0.1 s for rubato against the grid. Parameter Panel adds Pitch Deviation ±1200 cents, Vibrato Envelope 0x-2x (default 1x), Loudness -inf to +24 dB, Tension -2..+2, Breathiness -2..+2, Voicing (max = normal, lower = whisper), Gender ±2, Tone Shift ±800 cents, Vocal Mode 0-150%. In the DEFAULT AI 'Sing' mode the entire vibrato surface collapses to one knob, Vibrato Modulation 0.00-2.00 (default 1.00), and switching Manual mode on moves the AI-generated pitch curve out into Pitch Deviation.",
+      "design_implication": "This is the reference control surface to copy — its defaults (5.5 Hz, ±50 cents, 0.25 s vibrato delay, 100/70 ms portamento) sit just inside Prame's measured 6.0 Hz and ±71 cents — but note the architecture: the neural pitch model and the parametric surface are mutually exclusive modes, so a score-locked pipeline gets either learned expression OR numeric control of it, never both at once.",
+      "citation_id": "https://sv1.docs.dreamtonics.com/en/synthv/advanced-usage/note-properties",
+      "authors": "Dreamtonics",
+      "year": "2024",
+      "domain": "expressive-control"
+    },
+    {
+      "slug": "11-diffsinger-v2-3-0-release-notes-new-voicing-and-tension-parameters-openutau-d",
+      "name": "DiffSinger v2.3.0 release notes (new voicing and tension parameters) + OpenUtau DiffSinger support wiki",
+      "claim": "The open-source variance-model line names its control surface explicitly. v2.3.0 (11 March 2024) added VOICING, defined as the RMS curve of the harmonic part in dB (successor to the deprecated energy parameter, allowing harmonic power to be raised or lowered in vowels and voiced consonants), and TENSION, tied to the ratio of the base harmonic to full harmonics. Both must be switched on in the model config (`use_voicing_embed: true`, `use_tension_embed: true`) and require the variance model to have been TRAINED with them — they cannot be added to an existing voicebank. The OpenUtau host surfaces these as drawable curves: PITD (pitch), DYN (dynamics), GENC (gender/formant, ±12 semitones over a -100..+100 curve), VELC (vowel head/tail speed, +100 doubles it), ENE, BREC (breathiness), TENC (tension), VOIC (voicing), PEXP (pitch expressiveness, default 100 = maximum), SHFC (tone shift), plus Voice Color. Notably absent from the whole list: any vibrato rate or vibrato extent parameter — vibrato lives inside PITD/PEXP as pitch-curve content.",
+      "design_implication": "The open route gives real per-frame control of TIMBRE and DYNAMICS (voicing in dB, tension, breathiness) but hands you vibrato only as raw pitch-curve drawing or as a single 0-100 'expressiveness' dial, so honouring a MIDI line with specified vibrato means synthesising the F0 contour yourself and feeding it as PITD with PEXP turned down.",
+      "citation_id": "github:openvpi/DiffSinger",
+      "authors": "OpenVPI / stakira (OpenUtau)",
+      "year": "2024",
+      "domain": "expressive-control"
+    },
+    {
+      "slug": "12-controllable-singing-voice-synthesis-using-phoneme-level-energy-sequence",
+      "name": "Controllable Singing Voice Synthesis using Phoneme-Level Energy Sequence",
+      "claim": "The authors state that recent SVS systems reach high audio quality but 'most rely on probabilistic modeling, limiting precise control over attributes such as dynamics', and position their phoneme-level energy conditioning as 'the first attempt enabling user-driven dynamics control in SVS'. Conditioning on a phoneme-level energy sequence (rather than requiring frame-level annotation) cut mean absolute error on the realised energy sequence by over 50% against both the baseline and an energy-predictor model, with no degradation in synthesis quality.",
+      "design_implication": "As of late 2025 dynamics — the single most basic expressive axis after pitch — was still a research problem in neural SVS rather than a shipped input, which is the strongest available evidence that a score-locked pipeline needing crescendo/diminuendo control has to either use a system with an explicit energy/voicing input (DiffSinger variance, Synthesizer V Loudness) or post-process.",
+      "citation_id": "arXiv:2509.07038",
+      "authors": "Ryu, Shin, Kim",
+      "year": "2025",
+      "domain": "expressive-control"
+    },
+    {
+      "slug": "13-tcsinger-zero-shot-singing-voice-synthesis-with-style-transfer-and-multi-leve",
+      "name": "TCSinger: Zero-Shot Singing Voice Synthesis with Style Transfer and Multi-Level Style Control",
+      "claim": "State-of-the-art multi-level style control exposes exactly six singing techniques — mixed voice, falsetto, breathy, vibrato, glissando, pharyngeal — as CATEGORICAL phoneme-level labels; the system does NOT accept a numeric vibrato rate or extent. Trained on ~294 h (GTSinger 36 h / 5 singers, M4Singer 30 h, OpenSinger 85 h, AISHELL-3 85 h speech, PopBuTFy subset 18 h) with 40 unseen singers held out. Technique-control accuracy reached 76.1%, singing-method accuracy 76.1%, emotion 79.9%; MOS-Q 4.05 ± 0.10 and MOS-C (controllability) 4.18 ± 0.08. The underlying GTSinger corpus (Zhang et al., NeurIPS 2024 Spotlight, arXiv:2409.13832) supplies 80.59 h from 20 professional singers in nine languages with phoneme-level annotation of those same six techniques.",
+      "design_implication": "A negative result for a MIDI-honouring engine: the best open technique control is a boolean 'vibrato here' tag that lands correctly about three times in four, so a score that specifies 5.8 Hz at ±60 cents from bar 12 beat 3 cannot be expressed to these models at all — technique labels are a style hint, not a control surface.",
+      "citation_id": "arXiv:2409.15977",
+      "authors": "Zhang, Jiang, Li, Pan, He, Huang, Wang, Zhao",
+      "year": "2025",
+      "domain": "expressive-control"
+    },
+    {
+      "slug": "14-vibrato-expression-control-for-singing-voice-conversion-with-improving-indepe",
+      "name": "Vibrato Expression Control for Singing Voice Conversion with Improving Independent Control (VibE-SVC2)",
+      "claim": "Accepted to IEEE Trans. Audio, Speech and Language Processing; submitted 15 June 2026. The system adds independent vibrato RATE control on top of the previous VibE-SVC, which the authors note was 'limited to vibrato extent scaling'. Both controls are dimensionless SCALERS, not acoustic units: extent alpha usable to about 0.0-3.0 (style accuracy degrades beyond ~3.0), rate beta usable 0.1-2.0 (beyond 2.0 the result is 'mechanical vibration rather than a musical expression'), against a stated typical singing vibrato range of 3-9 Hz. An Energy Style Converter is required because conventional conversion 'fails to explicitly decouple' pitch-energy entanglement, leaking residual style into the target speaker representation. Measured: average pitch-style accuracy 0.736 (vibrato-to-straight 0.725, straight-to-vibrato 0.747), zero-shot 0.614, nMOS 4.000 ± 0.077, sMOS 2.932 ± 0.069, SECS 0.785.",
+      "design_implication": "Even the 2026 state of the art in independent vibrato control multiplies an existing vibrato rather than specifying one — there is still no inference-time input of the form 'rate = 5.8 Hz, extent = ±60 cents', so any pipeline that must honour a notated vibrato has to generate the F0 contour parametrically (per finding 10/11) and use the neural model only as a timbre renderer.",
+      "citation_id": "arXiv:2606.17126",
+      "authors": "Choi, Byun, Lee",
+      "year": "2026",
+      "domain": "expressive-control"
+    },
+    {
+      "slug": "2-vibrato-extent-and-intonation-in-professional-western-lyric-singing",
+      "name": "Vibrato extent and intonation in professional Western lyric singing",
+      "claim": "Twenty-five tones taken from ten commercial CD recordings of Schubert's Ave Maria, F0 read at every vibrato turning point via a high overtone: mean vibrato extent per tone ranged from ±34 to ±123 cents, with the grand mean across tones and singers at ±71 cents. Extent correlated NEGATIVELY with tone duration and positively with intonation (sharpness); informal measurement of Verdi opera arias gave much higher figures than the Schubert set. J. Acoust. Soc. Am. 102, 616-621.",
+      "design_implication": "±71 cents is the realistic default extent for lyric repertoire — nearly 1.5 semitones peak-to-peak — so a score-locked engine that clamps F0 to ±25 cents of the MIDI note is not conservatively 'in tune', it is structurally incapable of classical vibrato, and a practice tool must widen its pitch-accuracy tolerance in proportion to measured vibrato extent or it will fail every well-trained singer.",
+      "citation_id": "DOI:10.1121/1.419735",
+      "authors": "Prame",
+      "year": "1997",
+      "domain": "expressive-control"
+    },
+    {
+      "slug": "3-vibrato-rate-and-extent-in-soprano-voice-a-survey-on-one-century-of-singing",
+      "name": "Vibrato rate and extent in soprano voice: a survey on one century of singing",
+      "claim": "More than one hundred recordings of the same tone sung by 75 soprano artists spanning the twentieth century: mean vibrato rate fell by -1.8 ± 0.3 Hz per century while extent rose by 56.4 ± 0.3 cents per century; rate and extent are significantly negatively correlated (r = -0.62); rate increase near the end of the tone was reproduced, along with a mean rise in tone pitch, and note duration correlates weakly positively with extent. J. Acoust. Soc. Am. 130, 1683-1688.",
+      "design_implication": "Vibrato rate and extent are not independent axes and are not era-neutral — a synthesis control surface that exposes them as two free sliders will let a user dial physically implausible combinations, and any 'correct vibrato' target in a practice tool is period-specific (a 1910 target and a 2010 target differ by roughly 1.8 Hz and half a semitone).",
+      "citation_id": "DOI:10.1121/1.3621017",
+      "authors": "Ferrante",
+      "year": "2011",
+      "domain": "expressive-control"
+    },
+    {
+      "slug": "4-does-vibrato-define-genre-or-vice-versa-a-novel-parametric-approach-to-vocal-v",
+      "name": "Does Vibrato Define Genre or Vice Versa? A Novel Parametric Approach to Vocal Vibrato Analysis",
+      "claim": "Fifteen professional operatic, musical-theatre and jazz mezzo-sopranos and sopranos each recorded two cross-genre songs plus a vocal exercise; sixteen pitch segments per singer were analysed in Praat (sinusoidal extraction, F0 band-pass, LTAS FFT). The COEFFICIENT OF VARIATION of mean vibrato half-extent — not mean rate or mean extent — was what predictably separated genres, and it was higher for musical-theatre and jazz singers; seven pedagogue judges then classified genre from the samples most representative of each group's average CV, confirming the acoustic result perceptually. The authors state explicitly that averaged vibrato metrics are valid only when vibrato is uniform, consistent, persistent and omnipresent, which is a Western classical opera property.",
+      "design_implication": "A practice tool that judges vibrato by mean rate and mean extent is implementing an operatic aesthetic as if it were physiology — variability (CV over the note) has to be a first-class measured parameter with genre-dependent targets, otherwise musical-theatre and jazz students get marked down for correct style.",
+      "citation_id": "DOI:10.1016/j.jvoice.2025.02.046",
+      "authors": "Nestorova, Nestorov, Gilbert, Howell",
+      "year": "2025",
+      "domain": "expressive-control"
+    },
+    {
+      "slug": "5-acoustic-characteristics-of-vibrato-onset-in-singing",
+      "name": "Acoustic characteristics of vibrato onset in singing",
+      "claim": "First five vibrato cycles analysed for five male singers ranging from a 40-year professional opera baritone to an untrained actor, on held D3 and A3 at mf: vibrato onset excursion RISES into the mean in 81% of productions (Seashore's claim that rising onset is a physiological necessity is only mostly true). First-five-cycle rate ran 4.41-4.86 Hz for the professional versus 7.12 Hz and 7.20 Hz on A3 for the two least-trained voices — the untrained voices had the FASTEST vibrato. The professional's onset excursion on A3 averaged 33.57 Hz of rise into the mean, versus 12.47-19.55 Hz for the trained-student and choral voices, and the time taken for vibrato to settle into a steady cycle was more variable in the less-trained singers.",
+      "design_implication": "Vibrato must be synthesised with a rising, settling onset rather than switched on at steady state; and a practice tool cannot treat 'faster vibrato' as 'better vibrato' — in this cohort rate ran inversely to training, so onset shape and settling regularity are the trainable signals, not speed.",
+      "citation_id": "ICPhS 1999 proceedings, San Francisco, p. 981",
+      "authors": "Bell, Dobrovolsky",
+      "year": "1999",
+      "domain": "expressive-control"
+    },
+    {
+      "slug": "6-sound-pressure-level-and-spectral-balance-linearity-and-symmetry-in-the-messa-",
+      "name": "Sound pressure level and spectral balance linearity and symmetry in the messa di voce of female classical singers",
+      "claim": "Five trained female classical singers performed 318 messe di voce across their musical F0 range. Change in SPL through the exercise was PREDOMINANTLY NONLINEAR, and the shape of the SPL trace differed greatly between the crescendo and the decrescendo half; SPL range was generally greater during crescendo at higher F0 and during decrescendo at lower F0. Spectral balance (0-2 kHz vs 2-4 kHz) plotted against SPL showed markedly more symmetry than linearity, i.e. the phonation-mode change tracked SPL regardless of direction. The pedagogical assumptions of linearity and symmetry are therefore only half right: symmetric in timbre, not linear in level. J. Acoust. Soc. Am. 121, 1728-1736.",
+      "design_implication": "A messa di voce rendered as a linear dB ramp up and its mirror down is measurably not the gesture — the level trajectory is nonlinear and direction-asymmetric while the timbre trajectory is symmetric in SPL, so a dynamics control surface needs an independent level curve and a level-driven (not time-driven) timbre mapping.",
+      "citation_id": "DOI:10.1121/1.2436639",
+      "authors": "Collyer, Davis, Thorpe, Callaghan",
+      "year": "2007",
+      "domain": "expressive-control"
+    },
+    {
+      "slug": "7-the-rise-of-fixed-pitch-systems-and-the-slide-of-continuous-pitch-a-note-for-e",
+      "name": "The rise of fixed pitch systems and the slide of continuous pitch: A note for emotion in music research about portamento",
+      "claim": "The legato/portamento boundary is a quantified psychoacoustic threshold, not a stylistic label: the glissando threshold of Hart, Collier & Cohen (1990) is G_thr = 0.16/T^2 semitones per second, where T is slide duration. Citing d'Alessandro, Rosset & Rossi (1998) on a 220 Hz complex tone, a 1.5-semitone (150 cent) slide over 50 ms is NOT heard as portamento while a 6-semitone slide over the same 50 ms is, and the same 1.5-semitone slide becomes portamento once the traversal is stretched to 200 ms. Their own F0 analysis of Ella Fitzgerald's c.1958 'Blue Skies' scat measured slides of 25 ST/s over 80 ms, 17 ST/s over 250 ms, -21 ST/s over 200 ms, 12 ST/s over 84 ms and 2.2 ST/s over 490 ms, of which only three cross the threshold; the shortest legato transition measured 30 ms. They also quote Hart et al. that a 10-20 dB amplitude drop over tens of milliseconds — routine at vowel-to-consonant transitions — can entirely obscure F0 changes of up to half an octave.",
+      "design_implication": "A pipeline can decide legato versus portamento deterministically from slide duration and interval via G_thr = 0.16/T^2 instead of exposing a vague 'portamento amount' knob, and a practice tool must not flag a fast wide slide as a pitch error — above the threshold it is an intended gesture, and below it the listener cannot hear it at all.",
+      "citation_id": "DOI:10.4407/jims.2014.06.001",
+      "authors": "Schubert, Wolfe",
+      "year": "2014",
+      "domain": "expressive-control"
+    },
+    {
+      "slug": "8-investigating-automatic-vocal-rise-time-measurement-parameters-and-multi-corpu",
+      "name": "Investigating Automatic Vocal Rise Time Measurement Parameters and Multi-Corpus Vowel Onset Behavior with the Voice Onset Analysis Tool (VOAT)",
+      "claim": "Four corpora, 146 adult Australian-English-speaking females, manual and automatic vocal rise time (VRT — vibration onset to first peak steady amplitude) per onset type: hard onsets 57.7 ± 48.0 ms and 73.2 ± 40.5 ms; modal onsets 97.6 ± 24.4 ms (n=100 speakers), 61.0 ms and 166.1 ± 59.4 ms across corpora; soft onsets 218.7 ± 120.0 ms and 261.8 ± 70.5 ms. Cross-corpus norms summarise as hard <60 ms, modal 60-160 ms, soft >160 ms. Automatic measurement (Hilbert envelope, 400 ms segment, low smoothing) reached 15.5 ms and 21.3 ms mean absolute error on modal and soft onsets but degraded to 71.0 ms MAE on hard onsets. These are speech onsets, not sung onsets.",
+      "design_implication": "Attack type is a time constant with an order of magnitude between hard and soft (roughly 60 ms vs 250 ms), so a singing engine can implement glottal/balanced/aspirated onsets as an explicit amplitude rise-time parameter — but a practice tool that auto-classifies a student's onset must expect ~70 ms of measurement error exactly on the hard onsets that matter clinically.",
+      "citation_id": "DOI:10.3390/bioengineering13080950",
+      "authors": "Stasak, Holik, Nguyen, Arias-Vergara, Döllinger, Madill",
+      "year": "2026",
+      "domain": "expressive-control"
+    },
+    {
+      "slug": "9-modelling-note-s-pitch-and-duration-in-trained-professional-singers",
+      "name": "Modelling note's pitch and duration in trained professional singers",
+      "claim": "Bayesian hierarchical model over the Annotated-VocalSet corpus — 2688 solo files from 20 professional singers (11 male, 9 female, ~7 h, scales, arpeggios, long tones, and 'Row Row Row Your Boat' / 'Dona Nobis Pacem' / 'Caro Mio Ben' sung to a metronome and reference pitch). The average 80% posterior prediction interval was 0.8977 semitones wide for pitch deviation (≈ ±45 cents about the modelled mean) and 0.5698 s wide for duration deviation (≈ ±0.285 s). Named effects: a note's second or later appearance in a piece is sung 11.58 cents FLATTER (95% CrI -16.79 to -6.32 cents); a rest BEFORE a note shifts its pitch 13.56 cents versus only 4.99 cents for a rest after; straight tone deviates -6.25 cents versus molto vibrato -14.82 cents, i.e. straight tone is 8.6 cents more accurate; pitch effect grows 0.61 cents per MIDI number, so ~24 cents at E2 and ~49 cents at G#5; a two-octave interval shifts duration by -12 ms (to next note) and +36 ms (from previous).",
+      "design_implication": "These are the tolerance bands a practice tool must ship with: professionals themselves occupy a ~90-cent-wide pitch window and a ~0.57-s-wide duration window against the score, the window is context-dependent (rest-before, repeat, register, technique), and a fixed ±20-cent / ±50-ms grader would fail the reference population it is supposed to model.",
+      "citation_id": "DOI:10.1186/s13636-024-00380-4",
+      "authors": "Faghih, Shoari Nejad, Timoney",
+      "year": "2024",
+      "domain": "expressive-control"
+    }
+  ]
+}

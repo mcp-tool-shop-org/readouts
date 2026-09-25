@@ -1,0 +1,180 @@
+{
+  "bucket": "rapier-core",
+  "verifier_note": "Checked against: the pinned rapier3d-f64 0.35.3 source on disk (cross-referenced live against docs.rs), the rapier.rs Rust-0.36 guide, the raw dimforge/rapier CHANGELOG.md fetched directly at both the v0.35.3 and v0.36.0 tags (not the summarized WebFetch version, which mis-split two 0.35.0 vs 0.35.0-beta.0 entries on a first pass), crates.io's versions API, GitHub issue #1008, two Cargo-book pages, and the si-rpg-engine repo at main (rapier_law.rs, FLAGS.md, Cargo.toml/.lock, rust-toolchain.toml, ci.yml, and the T1-T4/rust-kb-requests dispatch docs). I ran every one of the lane's 23 checks through the real pinned compiler via compile_oracle.py and independently hand-wrote and ran the two mandated high-stakes counter-examples (thin-slab CCD, wake_up-vs-iter_mut re-admission) myself: all 23 checks passed, and my two reproductions matched the recipe's predicted stdout byte-for-byte, including deliberately surprising results (a 0.35.3 doc comment stale at 0.002m/0.001x while its own Default impl already reads 0.02/0.005; PhysicsWorld::wake_up failing to re-admit a body that plain iter_mut() fixes; a debug_assert literally on island_manager/manager.rs line 140; commit 39687d9's message matching the recipe's E3 account word for word). What failed: two of ten recipes cite si-rpg-engine dispatch docs (T4 pin 2 in the IntegrationParameters-defaults lane, T3 pin 6 in the collision-events lane) as still holding an open question or a wrong assumption that the live document on main has already closed or corrected; both are marked corrected rather than refuted, since every Rust/crate claim in those two recipes is independently solid. Recipe 1's step-order prose also over-compresses one detail (joint 'joins' drain after quarantine/user-changes, not alongside wake-ups as written). The one systemic weakness: this lane's Rust/rapier sourcing is exceptionally disciplined -- of roughly 40 external sources and 20-odd direct source-file claims I checked, none were wrong -- but its engine_notes are perishable, because they cross-reference the coordinating T-dispatch docs' state as of authoring time and this repo amends those same-day (T4 pin 2 carries an explicit 'Amended 2026-09-25' note); an engine_note is only as fresh as its last re-check against main, and this sweep found it had already drifted out from under two of the ten recipes.",
+  "verdicts": [
+    {
+      "slug": "call-physicspipeline-step-at-0-35-3-with-its-12-arguments-and-read-contacts-as-start-of-step-state",
+      "verdict": "corrected",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Compile-oracle: all 4 checks pass verbatim (12-arg step, 13-arg guide fails E0433/E0061, contact-timing + quarantine stdout exact). Minor: step_inner drains to_join AFTER quarantine/modifications, not alongside wake-ups.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_pipeline/substep.rs",
+      "corrections": {
+        "claim": "'drain joint wake-ups and joins' (how) implies both precede quarantine. In substep.rs, to_wake_up drains first, then quarantine.detect_user_changes, then user changes apply to colliders/bodies; to_join and island-join events drain only afterward, not alongside wake-ups."
+      },
+      "sources": [
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/struct.PhysicsPipeline.html", "supported": true, "note": "Live-fetched: 12-param step signature + quarantine() confirmed exactly."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_pipeline/substep.rs", "supported": true, "note": "Read on disk: step_inner order confirmed (see verify_note for one ordering nuance)."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_pipeline/solve.rs", "supported": true, "note": "Read on disk: detect_collisions calls register_pairs/compute_contacts/compute_intersections."},
+        {"url": "https://rapier.rs/docs/user_guides/rust/simulation_structures/", "supported": true, "note": "Live-fetched: labeled Rust (0.36); step() example has 13 args incl. &mut soft_body_set."},
+        {"url": "https://github.com/dimforge/rapier/blob/v0.36.0/CHANGELOG.md", "supported": true, "note": "Raw-fetched: 0.36.0 adds SoftBodySet param; 0.35.0-beta.0 added the quarantine."}
+      ]
+    },
+    {
+      "slug": "read-rapier3d-f64-0-35-3-integrationparameters-defaults-from-code-prediction-0-02-slop-0-005-ccd-on",
+      "verdict": "corrected",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "23/23 oracle checks pass; I reproduced the thin-slab CCD claim myself (x=0.921 vs 4.900, exact). Source/guide/changelog all match. But T4 pin 2 (main, amended today) no longer assumes tunnelling.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/main/docs/dispatch-t4-outcome-tests.md",
+      "corrections": {
+        "claim": "engine_note: 'T4 pin 2 assumes the thin fast body passes through today.' False of current main: pin 2 (amended 2026-09-25) already states the KB's own finding -- it stops at x 0.921, not tunnelling -- and needs no law change."
+      },
+      "sources": [
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.IntegrationParameters.html", "supported": true, "note": "Read on disk: field doc still 0.002m; method doc allowed_linear_error() still 0.001x."},
+        {"url": "https://rapier.rs/docs/user_guides/rust/integration_parameters/", "supported": true, "note": "Live-fetched: prediction 0.02, error 0.005, corrective vel 3.0, max vel 400, ccd 1, all match."},
+        {"url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md", "supported": true, "note": "Raw-fetched: 0.35.0-beta.0 entry has exact 0.002->0.02/10->3/0.001->0.005 wording."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_pipeline/substep.rs", "supported": true, "note": "Read on disk: max_ccd_substeps==0 -> (ccd_is_enabled=false, 1 substep), verbatim."}
+      ]
+    },
+    {
+      "slug": "expect-rapier-0-35-3-body-types-to-gate-contacts-kinematic-fixed-off-kinematic-pushes-dynamic-one-way",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle check passes verbatim (4 sub-cases). RigidBodyType discriminants, ActiveCollisionTypes::default(), the guide, and the 0.30.1 changelog entry all confirmed live/on-disk exactly as stated.",
+      "evidence_url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ActiveCollisionTypes.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/enum.RigidBodyType.html", "supported": true, "note": "Live-fetched + source: Dynamic=0/Fixed=1/KinematicPositionBased=2/KinematicVelocityBased=3 exact."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ActiveCollisionTypes.html", "supported": true, "note": "Live-fetched: default() = DYNAMIC_DYNAMIC|DYNAMIC_KINEMATIC|DYNAMIC_FIXED only, exact."},
+        {"url": "https://rapier.rs/docs/user_guides/rust/colliders/", "supported": true, "note": "Live-fetched: confirms disabled-by-default non-dynamic pairs and the KINEMATIC_FIXED opt-in."},
+        {"url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md", "supported": true, "note": "Raw-fetched: 0.30.1 entry matches verbatim (kinematic never sleeps at nonzero velocity)."}
+      ]
+    },
+    {
+      "slug": "count-rapier-0-35-3-sleep-in-quanta-time-until-sleep-32-dt-sleeps-after-quantum-32-33-off-the-origin",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle check passes verbatim (32 vs 33 quanta, drift/angular thresholds). RigidBodyActivation defaults and the 0.35.0-beta.0 changelog entry (0.05/0.5 from 0.4/2.0) confirmed exactly.",
+      "evidence_url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.RigidBodyActivation.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.RigidBodyActivation.html", "supported": true, "note": "Live-fetched: 0.05 u/s, 0.5 rad/s (collider-less only), 0.5s time_until_sleep, all exact."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/rigid_body_components.rs", "supported": true, "note": "Behavior reproduced exactly by the oracle-run check; fields match the claimed mechanics."},
+        {"url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md", "supported": true, "note": "Raw-fetched: 0.35.0-beta.0 entry has the 0.05/0.5 (from 0.4/2.0) wording verbatim."}
+      ]
+    },
+    {
+      "slug": "warm-rapier-s-broad-phase-with-one-collisionpipeline-step-at-load-then-re-mark-bodies-with-iter-mut",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "I reproduced both checks myself: the box-through-rotated-slab case and the wake_up/iter_mut case, stdout byte-identical to the recipe. manager.rs:140 debug_assert and commit 39687d9 both verified exact.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/commit/39687d925ef5171a88d8b3aeb0fdfa4a4738f867",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.BroadPhaseBvh.html", "supported": true, "note": "Live-fetched, near-verbatim: 'only required to generate new events... AddPair already sent'."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/collision_pipeline.rs", "supported": true, "note": "Behavior reproduced exactly by the oracle-run checks (None islands / cleared flags effect)."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/rigid_body_set.rs", "supported": true, "note": "Read on disk: iter_mut clears+repushes modified_bodies; get_mut push_once. Exact."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/island_manager/manager.rs", "supported": true, "note": "Read on disk: the debug_assert! is literally at manager.rs line 140, exact expression."},
+        {"url": "https://github.com/dimforge/rapier/blob/v0.36.0/CHANGELOG.md", "supported": true, "note": "Raw-fetched: 0.35.0 clears modified flags in CollisionPipeline::step; 0.36.0 fixes the assert."},
+        {"url": "https://doc.rust-lang.org/cargo/reference/profiles.html", "supported": true, "note": "Live-fetched: debug-assertions on by default in dev, off in release, confirmed."},
+        {"url": "https://rapier.rs/docs/user_guides/rust/scene_queries/", "supported": true, "note": "Live-fetched: QueryPipeline reuses the broad-phase BVH, positions at end of last timestep."}
+      ]
+    },
+    {
+      "slug": "collect-rapier-0-35-3-collision-events-with-a-sync-eventhandler-and-activeevents-set-on-a-collider",
+      "verdict": "corrected",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Oracle checks pass (Cell rejected E0277/MaybeSync; Started/Stopped counts exact). EventHandler/MaybeSync/guide/changelog confirmed. But T3 pin 6 (main) already says 'No new hash' for event order.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/main/docs/dispatch-t3-platforms.md",
+      "corrections": {
+        "claim": "engine_note: 'T3's plan... so T3 must measure that order before hashing it.' False of current main: docs/dispatch-t3-platforms.md pin 6 already closed this -- single thread + sorted pairs 'is enough... No new hash.'"
+      },
+      "sources": [
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/trait.EventHandler.html", "supported": true, "note": "Live-fetched: 2 required methods, MaybeSync, () and ChannelEventCollector implement it."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/utils/mod.rs", "supported": true, "note": "Read on disk: two MaybeSync impls, cfg-split by unsync-callbacks, matches."},
+        {"url": "https://rapier.rs/docs/user_guides/rust/colliders/", "supported": true, "note": "Live-fetched: ActiveEvents::COLLISION_EVENTS wording confirmed."},
+        {"url": "https://github.com/dimforge/rapier/blob/v0.36.0/CHANGELOG.md", "supported": true, "note": "Raw-fetched: 0.35.0-beta.0 Sync bound change confirmed; 0.36.0 adds handle_soft_body_tear_event."}
+      ]
+    },
+    {
+      "slug": "filter-rapier-pairs-with-collision-groups-no-contact-or-solver-groups-contact-no-force-flag-the-hooks",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Oracle checks pass verbatim (groups/solver_groups/hooks numbers exact; FILTER_CONTACT_PAIR(S) and the 2-arg InteractionGroups::new doc bugs both confirmed live on docs.rs).",
+      "evidence_url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ColliderBuilder.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.InteractionGroups.html", "supported": true, "note": "Live-fetched: new(memberships, filter, test_mode); And/Or semantics exact."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ColliderBuilder.html", "supported": true, "note": "Live-fetched: collision_groups example literally calls new() with 2 args, confirmed."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/trait.PhysicsHooks.html", "supported": true, "note": "Live-fetched: FILTER_CONTACT_PAIRS gate, None/Some(empty) semantics, replaces default filter."},
+        {"url": "https://rapier.rs/docs/user_guides/rust/colliders/", "supported": true, "note": "Live-fetched: guide prose says FILTER_CONTACT_PAIRS (plural) in both code and prose here."},
+        {"url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md", "supported": true, "note": "Raw-fetched: 0.31 InteractionTestMode + 0.35.0 broad-phase group filtering, both verbatim."}
+      ]
+    },
+    {
+      "slug": "pin-rapier3d-f64-0-35-3-features-explicitly-block-solver-is-a-default-and-docs-rs-documents-other-builds",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle checks pass (VERSION, configure_thread_pool E0599, serde E0277). Cargo.toml.orig/lib.rs/contact_constraint_element.rs read on disk; issue #1008 title/state/body confirmed live, exact.",
+      "evidence_url": "https://github.com/dimforge/rapier/issues/1008",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/features", "supported": true, "note": "Live-fetched: 15 features, 5 default (block-solver,dim3,f64,std,alloc); exact match."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/Cargo.toml.orig", "supported": true, "note": "Read on disk: default=[dim3,f64,std,block-solver]; comment says NOT default in 3D; real conflict."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/lib.rs", "supported": true, "note": "Read on disk: compile_error! for simd8+enhanced-determinism, exact wording."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/solver/contact_constraint/contact_constraint_element.rs", "supported": true, "note": "Read on disk: r_mat_elts, solve_mlcp_two_constraints, both solve_pair fns cfg(block-solver)."},
+        {"url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md", "supported": true, "note": "Raw-fetched: simd-stable/nightly removed; 'numeric features (block-solver, f32 vs f64)' verbatim."},
+        {"url": "https://github.com/dimforge/rapier/issues/1008", "supported": true, "note": "Live: exact title, open, body confirms 0.35.1+parallel+enhanced-determinism+2-worker pool."}
+      ]
+    },
+    {
+      "slug": "hold-rapier-to-its-stated-determinism-terms-same-build-and-inputs-enhanced-determinism-same-insertion-order",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle check passes (same-order identical, reversed differs). Crate-root determinism quote, rapier.rs guide terms, and drain(..)/IndexMap cfg-gating on enhanced-determinism all confirmed exactly.",
+      "evidence_url": "https://rapier.rs/docs/user_guides/rust/determinism",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/", "supported": true, "note": "Live-fetched: crate root quote 'IEEE 754-2008 floating point standard' verbatim."},
+        {"url": "https://rapier.rs/docs/user_guides/rust/determinism", "supported": true, "note": "Live-fetched: local/cross-platform terms, simd8 exclusion, parallel-ok, all confirmed."},
+        {"url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md", "supported": true, "note": "Raw-fetched: glam/libm + block-solver/f32-f64 wording verbatim; signed-zero entry confirmed."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_pipeline/substep.rs", "supported": true, "note": "Read on disk: drain(..) vs drain() gated by cfg(feature=\"enhanced-determinism\"), exact."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/utils/mod.rs", "supported": true, "note": "Read on disk: IndexMap under enhanced-determinism vs hashbrown otherwise, matches."}
+      ]
+    },
+    {
+      "slug": "govern-a-rapier3d-f64-bump-pin-0-35-3-read-every-changelog-entry-to-the-target-rerun-course-and-goldens",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Oracle tripwire check compiles. crates.io dates exact (0.36.0=9/25, 0.35.3=8/28). Every changelog version attribution (0.30.1 to 0.36.0) verified against raw CHANGELOG.md text, none misattributed.",
+      "evidence_url": "https://crates.io/api/v1/crates/rapier3d-f64/versions",
+      "corrections": null,
+      "sources": [
+        {"url": "https://github.com/dimforge/rapier/blob/v0.36.0/CHANGELOG.md", "supported": true, "note": "Raw-fetched: SoftBodySet param, new EventHandler method, ContactPair::contacts move, all verbatim."},
+        {"url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md", "supported": true, "note": "Raw-fetched: 0.35.3 frictionloss + 0.35.2 impulse/compliance entries, both verbatim."},
+        {"url": "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html", "supported": true, "note": "Live-fetched: caret default, ^0.2.3 range, = exact requirement, all confirmed."},
+        {"url": "https://crates.io/api/v1/crates/rapier3d-f64/versions", "supported": true, "note": "Queried directly: 0.36.0=2026-09-25, 0.35.3=2026-08-28, 0.35.0/1/2 all August 2026, exact."},
+        {"url": "https://rapier.rs/docs/user_guides/rust/simulation_structures/", "supported": true, "note": "Live-fetched: guide labeled Rust (0.36), step() shows the 13-arg SoftBodySet signature."}
+      ]
+    }
+  ]
+}

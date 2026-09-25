@@ -1,0 +1,1073 @@
+{
+  "bucket": "wasm-raw-abi",
+  "title": "Rust → WebAssembly without bindgen",
+  "tier": "si-rpg-engine",
+  "count": 10,
+  "recipes": [
+    {
+      "slug": "treat-std-on-wasm32-unknown-unknown-as-stubs-files-and-threads-return-unsupported-clocks-trap",
+      "name": "Treat std on wasm32-unknown-unknown as stubs: files and threads return Unsupported, clocks trap",
+      "what": "On 1.98.1 a std cdylib imports nothing because every OS service is a stub that errors, does nothing, or panics (a trap), and the global allocator is dlmalloc built on memory.size / memory.grow.",
+      "how": "Measured on 1.98.1 (cdylib, node 22, a fresh instance per call): std::fs::read -> Err(ErrorKind::Unsupported); std::env::var(\"HOME\") -> Err(NotPresent); env::args() is empty; thread::Builder::new().spawn -> Err(Unsupported) while thread::spawn panics; println!/eprintln! return and print nothing; SystemTime::now(), Instant::now() and process::exit trap (RuntimeError: unreachable); HashMap works. Imports: none. The allocator is std's System = dlmalloc (sys/alloc/wasm.rs) and the linker line rustc prints lists libdlmalloc among std's rlibs; the first 1-byte Box grew memory by one 64 KiB page and landed in that new page, although 63,200 bytes lay free past __heap_base in the initial 17 pages. Keep the law pure computation over its own buffers: take time, seeds and inputs as arguments; never call a clock, thread, file, env or rand API. Gate wasm-only code with #[cfg(all(target_family = \"wasm\", target_os = \"unknown\"))] as the platform page recommends; watch growth from inside with core::arch::wasm32::memory_size::<0>() (pages).",
+      "rust_version": "1.98.1 (wasm32-unknown-unknown)",
+      "gotchas": "Nothing fails at build time: std::time and thread::spawn compile and only trap when called, and the panic text is lost because stderr is a no-op. RandomState keys come from a stack address and a heap address (sys/random/unsupported.rs), so one binary hashes identically in every fresh instance (measured) - an iteration-order dependency that looks deterministic here changes on a native build or after an edit that moves addresses; fill_bytes panics. The platform page lists default features 'as of the time of this writing' - measure them. Which allocator avoids memory.grow, and fixed memory limits, belong to the binary-and-limits lane.",
+      "engine_note": "solver/src/rapier_law.rs allocates through Rapier (Vec, sets, the snapshot Vec<u8>): on a scratch copy of the locally built si_solver.wasm the first solver_load grew memory 18 -> 19 pages, while the box step() in solver/src/lib.rs never grew it. The law calls no clock, thread, file or env API today; keep it so, because such calls would compile and trap. T3's fixed-memory lint must account for dlmalloc calling memory.grow on the first allocation.",
+      "checks": [
+        {
+          "label": "std::fs::read returns ErrorKind::Unsupported and the std module imports nothing",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_exports": [
+            "memory",
+            "fs_read_is_unsupported"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "fs_read_is_unsupported",
+            "args": []
+          },
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn fs_read_is_unsupported() -> u32 {\n    match std::fs::read(\"world.json\") {\n        Ok(_) => 0,\n        Err(e) => (e.kind() == std::io::ErrorKind::Unsupported) as u32,\n    }\n}\n"
+        },
+        {
+          "label": "thread::Builder::spawn returns ErrorKind::Unsupported on this target",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_call": {
+            "export": "spawn_is_unsupported",
+            "args": []
+          },
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn spawn_is_unsupported() -> u32 {\n    match std::thread::Builder::new().spawn(|| ()) {\n        Ok(_) => 0,\n        Err(e) => (e.kind() == std::io::ErrorKind::Unsupported) as u32,\n    }\n}\n"
+        },
+        {
+          "label": "the first 1-byte heap allocation grows linear memory by one page",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_call": {
+            "export": "pages_grown_by_first_alloc",
+            "args": []
+          },
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn pages_grown_by_first_alloc() -> u32 {\n    let before = core::arch::wasm32::memory_size::<0>();\n    let b = Box::new(core::hint::black_box(1u8));\n    core::hint::black_box(&b);\n    (core::arch::wasm32::memory_size::<0>() - before) as u32\n}\n"
+        },
+        {
+          "label": "std's link set on this target includes dlmalloc (shown in the linker line of a failed link)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "libdlmalloc"
+          ],
+          "source": "// An extern the host was supposed to provide, declared without #[link(wasm_import_module)].\nunsafe extern \"C\" {\n    fn host_log(x: f64);\n}\n#[unsafe(no_mangle)]\npub extern \"C\" fn add(a: f64, b: f64) -> f64 {\n    unsafe { host_log(a) };\n    a + b\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "wasm32-unknown-unknown (The rustc book, Platform Support)",
+          "url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The target supports std but many parts return errors (println! does nothing, std::fs errors, thread::spawn panics), imports nothing from the host for std, and uses dlmalloc as the default global allocator."
+        },
+        {
+          "title": "library/std/src/sys/alloc/wasm.rs at tag 1.98.1 (rust-lang/rust)",
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/library/std/src/sys/alloc/wasm.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1.98.1",
+          "claim": "At 1.98.1 std's System allocator on wasm is the dlmalloc crate, built on the two wasm instructions that query and grow memory."
+        },
+        {
+          "title": "library/std/src/sys/random/unsupported.rs at tag 1.98.1 (rust-lang/rust)",
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/library/std/src/sys/random/unsupported.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1.98.1",
+          "claim": "At 1.98.1 fill_bytes panics on this target and hashmap_random_keys derives its keys from the addresses of a stack local and a heap allocation."
+        },
+        {
+          "title": "core::arch::wasm32::memory_size (core docs, stable)",
+          "url": "https://doc.rust-lang.org/stable/core/arch/wasm32/fn.memory_size.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "memory_size returns the current memory size in 64 KiB pages and maps to the memory.size instruction; the MEM index must be 0."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "export-the-law-with-unsafe-no-mangle-extern-c-fns-and-read-each-signature-as-js-sees-it",
+      "name": "Export the law with #[unsafe(no_mangle)] extern \"C\" fns and read each signature as JS sees it",
+      "what": "In a wasm cdylib the no_mangle / export_name attribute (not pub, not extern \"C\") decides what is exported, an undeclared extern is a link error since Rust 1.96, and every argument and result crosses JS as an i32, i64 (BigInt), f32 or f64.",
+      "how": "Write #[unsafe(no_mangle)] pub extern \"C\" fn step(n: u32) -> u32; rename with #[unsafe(export_name = \"law_step\")]. The unsafe(...) form is accepted in every edition since 1.82 and required in 2024. Measured on 1.98.1 with node's WebAssembly.Module.exports: a cdylib exports memory plus exactly the no_mangle/export_name functions - a non-pub #[unsafe(no_mangle)] extern \"C\" fn is exported, a pub extern \"C\" fn without it is not, and __data_end / __heap_base are not exported (pass -C link-arg=--export=__heap_base to get them as globals). Host functions need #[link(wasm_import_module = \"host\")] unsafe extern \"C\" { fn host_log(x: f64); }, which becomes the import host.host_log; without the attribute rust-lld fails with 'undefined symbol: host_log'. JS side (JS API ToJSValue / ToWebAssemblyValue, measured in node): a u32 result comes back signed (u32::MAX is -1; use x >>> 0); u64 is a signed BigInt (u64::MAX is -1n; use BigInt.asUintN(64, x)) and passing a plain number to a u64 parameter throws TypeError; an i32/u32 parameter goes through ToInt32, so 2.9 arrives as 2 and NaN as 0 with no error; bool returns 1/0; an f32 parameter rounds (0.1 -> 0.10000000149011612); f64 passes exactly, including -0. Keep export signatures to u32/i32/f64 and pointers.",
+      "rust_version": "1.96+ for the link-error behaviour; unsafe(no_mangle) 1.82+, required in edition 2024",
+      "gotchas": "pub exports nothing from a cdylib, while a stray #[no_mangle] on a helper does. A count computed in JS from NaN or a division silently arrives as 0 or truncated - validate with Number.isInteger before the call. Tuples and structs by value in an extern \"C\" signature draw improper_ctypes_definitions. Pre-2026 advice that an undeclared extern becomes an env import is out of date since 1.96; -C link-arg=--allow-undefined restores that behaviour on purpose only.",
+      "engine_note": "solver/src/lib.rs and solver/src/rapier_law.rs export ten functions with bare #[no_mangle] under edition 2021; the local build's export list is memory, bodies_ptr, canon_zero, colliders_ptr, heights_ptr, snapshot_len, snapshot_ptr, solver_clear_warmstart, solver_load, solver_step, step, with no imports (node). An edition-2024 bump must rewrite each as #[unsafe(no_mangle)]. T2's solver_restore(world_id, n_bodies, n_colliders, rows, cols, cell, shape, len) takes seven u32 arguments that JS coerces with ToInt32, so the restoreSolver binding in solver/build.mjs should reject non-integers before calling; a NaN len would arrive as 0.",
+      "checks": [
+        {
+          "label": "edition 2024 rejects a bare #[no_mangle] (unsafe attribute used without unsafe)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "unsafe attribute used without unsafe"
+          ],
+          "source": "#[no_mangle]\npub extern \"C\" fn add(a: f64, b: f64) -> f64 {\n    a + b\n}\n"
+        },
+        {
+          "label": "no_mangle/export_name decide exports: a private no_mangle fn is exported, a pub fn is not needed",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "3",
+          "wasm_exports": [
+            "memory",
+            "private_but_exported",
+            "law_step"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "law_step",
+            "args": []
+          },
+          "source": "#[unsafe(no_mangle)]\nextern \"C\" fn private_but_exported() -> u32 {\n    1\n}\npub extern \"C\" fn public_but_not_exported() -> u32 {\n    2\n}\n#[unsafe(export_name = \"law_step\")]\npub extern \"C\" fn step_impl() -> u32 {\n    3\n}\n"
+        },
+        {
+          "label": "a u32 result of u32::MAX reaches JS as the signed number -1",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "-1",
+          "wasm_call": {
+            "export": "u32_max",
+            "args": []
+          },
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn u32_max() -> u32 {\n    u32::MAX\n}\n"
+        },
+        {
+          "label": "a u64 crosses as a signed BigInt: u64::MAX comes back as -1n",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "-1",
+          "wasm_call": {
+            "export": "add_u64",
+            "args": [
+              "18446744073709551615n",
+              "0n"
+            ]
+          },
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn add_u64(a: u64, b: u64) -> u64 {\n    a.wrapping_add(b)\n}\n"
+        },
+        {
+          "label": "an undeclared extern fn is a link error on 1.98.1 (no --allow-undefined)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "undefined symbol: host_log"
+          ],
+          "source": "// An extern the host was supposed to provide, declared without #[link(wasm_import_module)].\nunsafe extern \"C\" {\n    fn host_log(x: f64);\n}\n#[unsafe(no_mangle)]\npub extern \"C\" fn add(a: f64, b: f64) -> f64 {\n    unsafe { host_log(a) };\n    a + b\n}\n"
+        },
+        {
+          "label": "#[link(wasm_import_module)] turns the same extern into a module import and links",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "compiles",
+          "wasm_exports": [
+            "memory",
+            "add"
+          ],
+          "source": "#[link(wasm_import_module = \"host\")]\nunsafe extern \"C\" {\n    fn host_log(x: f64);\n}\n#[unsafe(no_mangle)]\npub extern \"C\" fn add(a: f64, b: f64) -> f64 {\n    unsafe { host_log(a) };\n    a + b\n}\n"
+        },
+        {
+          "label": "a tuple parameter in an extern \"C\" export draws improper_ctypes_definitions",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "compiles",
+          "lints": [
+            "improper_ctypes_definitions"
+          ],
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn pair(p: (f64, f64)) -> f64 {\n    p.0 + p.1\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Application Binary Interface: no_mangle, export_name, link_section (The Rust Reference)",
+          "url": "https://doc.rust-lang.org/reference/abi.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "no_mangle disables mangling and publicly exports the item like `used`; export_name sets the exported symbol name; both are unsafe attributes that may be written bare only before edition 2024."
+        },
+        {
+          "title": "Unsafe attributes (Rust 2024 Edition Guide)",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-attributes.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "In Rust 2024 export_name, link_section and no_mangle must be written unsafe(...); Rust 1.82 added the unsafe(...) form in all editions."
+        },
+        {
+          "title": "Changes to WebAssembly targets and handling undefined symbols (Rust Blog, 2026-04-04)",
+          "url": "https://blog.rust-lang.org/2026/04/04/changes-to-webassembly-targets-and-handling-undefined-symbols/",
+          "year": 2026,
+          "kind": "blog",
+          "identifier": "",
+          "claim": "Rust removes --allow-undefined from all WebAssembly targets, released with Rust 1.96 on 2026-05-28; #[link(wasm_import_module = \"env\")] declares imports explicitly and -Clink-arg=--allow-undefined restores the old behaviour."
+        },
+        {
+          "title": "WebAssembly JavaScript Interface, spec source document/js-api/index.bs (ToJSValue, ToWebAssemblyValue)",
+          "url": "https://raw.githubusercontent.com/WebAssembly/spec/main/document/js-api/index.bs",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "ToJSValue returns i32 as signed_32 and i64 as a signed BigInt; ToWebAssemblyValue converts to i32 with ToInt32, to i64 with ToBigInt64, and rounds f32 to the nearest representable value."
+        },
+        {
+          "title": "WebAssembly lld port (LLVM lld documentation)",
+          "url": "https://lld.llvm.org/WebAssembly.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "wasm-ld exports by default only the entry point and symbols flagged as exported, and --allow-undefined is the legacy flag for importing undefined symbols."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "return-a-status-code-from-every-export-under-the-wasm-abort-default-a-panic-is-an-unreachable-trap",
+      "name": "Return a status code from every export; under the wasm abort default a panic is an unreachable trap",
+      "what": "wasm32 targets default to panic=abort and unwinding cannot be built on stable, so a panic compiles to the unreachable trap, reaches JS as a WebAssembly.RuntimeError without the Rust message, and leaves linear memory as the panic found it.",
+      "how": "Make every refusal a return value (0 refused, 1 done, as solver_step does) and check inputs before touching state (count <= MAX, floats not NaN) so no reachable path panics. Measured with node 22 (V8) and SpiderMonkey 156 on a 1.98.1 cdylib: an out-of-bounds index threw RuntimeError with message 'unreachable' (V8) and 'unreachable executed' (SpiderMonkey), so test err instanceof WebAssembly.RuntimeError, never the text. After the trap the instance still answered, but a counter incremented before the panic stayed incremented, a buffer kept the first of two writes, and a RefCell or Mutex held at the trap stayed held, so every later call that touched it trapped too. On a caught RuntimeError drop the instance, instantiate a new one from the compiled Module, and rebuild state from the last good snapshot. #[cfg(panic = \"abort\")] is true by default on both wasm targets (rustc --print cfg).",
+      "rust_version": "1.98.1 (wasm32-unknown-unknown, wasm32v1-none)",
+      "gotchas": "-C panic=unwind fails on stable with 'the crate panic_unwind does not have the panic strategy unwind'; unwinding needs nightly -Zbuild-std. -C panic=immediate-abort is listed in the codegen docs but needs -Zunstable-options and nightly on 1.98.1. There are no destructors, no lock poisoning and no catch_unwind recovery - the trap is abrupt. A stack overflow also traps (the stack is placed first) instead of corrupting statics.",
+      "engine_note": "solver/build.mjs's instantiate() caches one instance in `cached` for the life of the process. A trap in solver_step (for example the .unwrap() at solver/src/rapier_law.rs:561 in integrate, or a bounds-checked HEIGHTS[i]) would leave SOLVER and the static buffers half-updated inside that cached instance. The binding should set cached = null on a RuntimeError and, once T2 lands, reload through solver_restore from the last saved snapshot instead of stepping on.",
+      "checks": [
+        {
+          "label": "with no -C panic flag the wasm32-unknown-unknown cfg is panic = \"abort\"",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "#[cfg(not(panic = \"abort\"))]\ncompile_error!(\"panic strategy is not abort\");\n#[unsafe(no_mangle)]\npub extern \"C\" fn f() -> u32 {\n    1\n}\n"
+        },
+        {
+          "label": "-C panic=unwind cannot link on stable: the shipped panic_unwind is built for abort",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "panic=unwind"
+          ],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "does not have the panic strategy `unwind`"
+          ],
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn f() -> u32 {\n    1\n}\n"
+        },
+        {
+          "label": "a checked export refuses an out-of-range slot with status 0 instead of trapping",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "0",
+          "wasm_call": {
+            "export": "write_slot",
+            "args": [
+              9,
+              1.5
+            ]
+          },
+          "source": "static mut SLOTS: [f64; 4] = [0.0; 4];\n/// 1 = written, 0 = refused (slot out of range or NaN). Never panics.\n#[unsafe(no_mangle)]\npub extern \"C\" fn write_slot(i: u32, v: f64) -> u32 {\n    if i >= 4 || v.is_nan() {\n        return 0;\n    }\n    let slots = unsafe { &mut *(&raw mut SLOTS) };\n    slots[i as usize] = v;\n    1\n}\n"
+        },
+        {
+          "label": "the same export accepts an in-range slot with status 1",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_call": {
+            "export": "write_slot",
+            "args": [
+              2,
+              1.5
+            ]
+          },
+          "source": "static mut SLOTS: [f64; 4] = [0.0; 4];\n#[unsafe(no_mangle)]\npub extern \"C\" fn write_slot(i: u32, v: f64) -> u32 {\n    if i >= 4 || v.is_nan() {\n        return 0;\n    }\n    let slots = unsafe { &mut *(&raw mut SLOTS) };\n    slots[i as usize] = v;\n    1\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "wasm32-unknown-unknown (The rustc book, Platform Support)",
+          "url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "wasm32-unknown-unknown is compiled with -Cpanic=abort by default and the precompiled std is abort-only; unwinding requires -Zbuild-std."
+        },
+        {
+          "title": "compiler/rustc_target/src/spec/base/wasm.rs at tag 1.98.1 (rust-lang/rust)",
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/compiler/rustc_target/src/spec/base/wasm.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1.98.1",
+          "claim": "At 1.98.1 the wasm base target sets panic_strategy Abort because unwinding does not work, and --stack-first so a stack overflow traps instead of corrupting static data."
+        },
+        {
+          "title": "WebAssembly JavaScript Interface (W3C WebAssembly CG spec, living)",
+          "url": "https://webassembly.github.io/spec/js-api/",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "When a WebAssembly call returns an error (a trap), the JS API throws an exception that should be a WebAssembly RuntimeError."
+        },
+        {
+          "title": "WebAssembly Core Specification: Instructions",
+          "url": "https://webassembly.github.io/spec/core/syntax/instructions.html",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "The unreachable instruction causes an unconditional trap."
+        },
+        {
+          "title": "Codegen options: link-arg, panic, strip, target-feature (The rustc book)",
+          "url": "https://doc.rust-lang.org/rustc/codegen-options/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "-C panic takes abort, immediate-abort or unwind, the default depends on the target, and abort in any crate forces abort in the final cdylib."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "keep-the-law-s-memory-exported-and-know-rustc-s-wasm-layout-a-1-mib-stack-first-then-statics-then-heap",
+      "name": "Keep the law's memory exported and know rustc's wasm layout: a 1 MiB stack first, then statics, then heap",
+      "what": "rustc links every wasm32 module with -z stack-size=1048576 and --stack-first, so __stack_pointer starts at 1 MiB and grows toward 0 with statics and the heap above it; --import-memory trades the memory export for an env.memory import.",
+      "how": "Measured on 1.98.1 by walking the sections in node: the only global is a mutable i32 initialised to 1048576; a stack local sat at 1048571 and the first static at 1048576; a minimal module had 16-17 initial pages and no maximum. -C link-arg=-zstack-size=65536 moved the stack pointer to 65536 and cut initial memory to 2 pages. Read linker symbols from Rust with unsafe extern \"C\" { static __heap_base: u8; } and &raw const __heap_base (no unsafe block needed), or export them with -C link-arg=--export=__heap_base. -C link-arg=--import-memory makes the module import env.memory and drop its memory export (add --export-memory to keep both); new WebAssembly.Instance(module) without an import object then throws TypeError 'Imports argument must be present and must be an object'. For one law module owned by one host, keep the default: the module defines and exports its memory.",
+      "rust_version": "1.98.1 (wasm32 targets)",
+      "gotchas": "LLD's own default stack is one 64 KiB page; rustc overrides it to 1 MiB, so wasm-ld's defaults do not describe rustc output. Resizing the stack moves every static address and therefore the bytes. Deep recursion runs toward address 0 and traps (stack first) instead of corrupting statics, but the trap still leaves earlier writes in place. The initial/maximum memory arguments that make memory fixed are the binary-and-limits lane's.",
+      "engine_note": "The local si_solver.wasm exports memory (initial 18 pages, no maximum), imports nothing, and its only global is __stack_pointer = 1048576 (measured); bodies_ptr() = 1101432 and colliders_ptr() = 1110136 sit above the stack. solver/build.mjs instantiates with new WebAssembly.Instance(module) and no import object, so an --import-memory build would throw there; a Godot or Unreal host could still supply the memory if a later host-binding slice chooses import.",
+      "checks": [
+        {
+          "label": "default layout: a stack local sits just under 1 MiB and statics start at 1 MiB",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_call": {
+            "export": "layout_ok",
+            "args": []
+          },
+          "source": "static mut FIRST: [f64; 2] = [0.0; 2];\n#[unsafe(no_mangle)]\npub extern \"C\" fn layout_ok() -> u32 {\n    let local = 0u8;\n    let sp = core::hint::black_box(&local) as *const u8 as usize;\n    let data = (&raw const FIRST) as usize;\n    (sp < 1_048_576 && sp > 1_048_576 - 4096 && data >= 1_048_576) as u32\n}\n"
+        },
+        {
+          "label": "-C link-arg=-zstack-size=65536 moves the stack top and the statics down to 64 KiB",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "link-arg=-zstack-size=65536"
+          ],
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_call": {
+            "export": "layout_ok",
+            "args": []
+          },
+          "source": "static mut FIRST: [f64; 2] = [0.0; 2];\n#[unsafe(no_mangle)]\npub extern \"C\" fn layout_ok() -> u32 {\n    let local = 0u8;\n    let sp = core::hint::black_box(&local) as *const u8 as usize;\n    let data = (&raw const FIRST) as usize;\n    (sp < 65_536 && sp > 65_536 - 4096 && data >= 65_536 && data < 1_048_576) as u32\n}\n"
+        },
+        {
+          "label": "rustc passes -z stack-size=1048576 and --stack-first to rust-lld (visible in a failed link)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "stack-size=1048576",
+            "--stack-first"
+          ],
+          "source": "// An extern the host was supposed to provide, declared without #[link(wasm_import_module)].\nunsafe extern \"C\" {\n    fn host_log(x: f64);\n}\n#[unsafe(no_mangle)]\npub extern \"C\" fn add(a: f64, b: f64) -> f64 {\n    unsafe { host_log(a) };\n    a + b\n}\n"
+        },
+        {
+          "label": "--export=__heap_base / --export=__data_end expose the linker symbols as exported globals",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "link-arg=--export=__heap_base",
+            "-C",
+            "link-arg=--export=__data_end"
+          ],
+          "expect": "compiles",
+          "wasm_exports": [
+            "memory",
+            "add",
+            "__heap_base",
+            "__data_end"
+          ],
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn add(a: f64, b: f64) -> f64 {\n    a + b\n}\n"
+        },
+        {
+          "label": "-C link-arg=--import-memory links (the module then imports env.memory; see how)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "link-arg=--import-memory"
+          ],
+          "expect": "compiles",
+          "wasm_exports": [
+            "add"
+          ],
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn add(a: f64, b: f64) -> f64 {\n    a + b\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "compiler/rustc_target/src/spec/base/wasm.rs at tag 1.98.1 (rust-lang/rust)",
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/compiler/rustc_target/src/spec/base/wasm.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1.98.1",
+          "claim": "At 1.98.1 rustc passes -z stack-size=1048576 because LLD's default is one 64k page, and --stack-first so the stack sits before static data and an overflow traps."
+        },
+        {
+          "title": "WebAssembly lld port (LLVM lld documentation)",
+          "url": "https://lld.llvm.org/WebAssembly.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "wasm-ld's --import-memory imports memory from the environment and --stack-first places the stack at the start of linear memory rather than after data."
+        },
+        {
+          "title": "WebAssembly JavaScript Interface (W3C WebAssembly CG spec, living)",
+          "url": "https://webassembly.github.io/spec/js-api/",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "The WebAssembly.Instance constructor throws a TypeError if the module has imports and importObject is undefined."
+        },
+        {
+          "title": "Codegen options: link-arg, panic, strip, target-feature (The rustc book)",
+          "url": "https://doc.rust-lang.org/rustc/codegen-options/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "-C link-arg appends one argument to the linker invocation and may be repeated."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "hand-js-pointers-to-8-aligned-static-f64-buffers-made-with-raw-mut-and-index-float64array-only-by-ptr-8",
+      "name": "Hand JS pointers to 8-aligned static f64 buffers made with &raw mut, and index Float64Array only by ptr / 8",
+      "what": "A static [f64; N] is 8-aligned on wasm32 so ptr / 8 is an exact index; a byte buffer is 1-aligned unless raised with repr(align(8)); and a misaligned whole-buffer index is silently ignored by JS.",
+      "how": "Form the pointer without a reference: (&raw mut BODIES).cast::<f64>() (safe code on 1.98.1), and pin the assumption with const _: () = assert!(core::mem::align_of::<f64>() == 8); because the Reference makes f64 alignment platform-specific. For a byte buffer the host may view as f64 use #[repr(C, align(8))] struct Bytes([u8; N]);. Measured in node: new Float64Array(buffer, ptr + 4, 1) throws RangeError 'start offset of Float64Array should be a multiple of 8', but view[(ptr + 4) / 8] = 99 on a whole-buffer view stores nothing and reads back undefined, with no error. Decode byte records with chunks_exact(8) and f64::from_le_bytes, which needs no alignment and fixes the byte order: wasm memory is little-endian, typed arrays use the platform's order (DataView takes an explicit flag). Export a capacity with every input buffer and refuse len > CAP in Rust: JS can write any byte of linear memory, so an overlong copy lands in the neighbouring static without a fault.",
+      "rust_version": "1.98.1 (measured); static_mut_refs is warn before edition 2024, deny in 2024",
+      "gotchas": "BODIES.as_mut_ptr() on a static mut takes a reference: static_mut_refs warns in 2021 and denies in 2024. Vec::new().as_ptr() is dangling - 1 for Vec<u8>, 8 for Vec<f64> (measured) - and taking it from a temporary warns dangling_pointers_from_temporaries. A pointer into a Vec is valid only until it reallocates, so re-read ptr and len after every call. Never slice::from_raw_parts(p as *const f64, n) over a byte buffer: a misaligned f64 read is UB.",
+      "engine_note": "solver/src/lib.rs:28 BODIES.as_mut_ptr(), lib.rs:33 COLLIDERS.as_mut_ptr(), rapier_law.rs:78 HEIGHTS.as_mut_ptr() and rapier_law.rs:738/743 SOLVER.snapshot.as_ptr()/.len() are the static_mut_refs shape (warnings under the crate's edition 2021, confirmed on a replica; errors under 2024). The local build's pointers are 8-aligned (1101432, 1110136) and build.mjs's bodies_ptr() / 8 depends on that. snapshot_ptr() returns 1 before any load, with snapshot_len() 0, which snapshotBytes() handles. T2's restore_ptr() should point at a fixed static with an exported capacity (or reserve before returning), and solver_restore should decode with from_le_bytes to match push_f64's to_le_bytes.",
+      "checks": [
+        {
+          "label": "edition 2021: the engine's BODIES.as_mut_ptr() shape compiles with a static_mut_refs warning",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "compiles",
+          "lints": [
+            "static_mut_refs"
+          ],
+          "source": "static mut BODIES: [f64; 64 * 17] = [0.0; 64 * 17];\n#[no_mangle]\npub extern \"C\" fn bodies_ptr() -> *mut f64 {\n    unsafe { BODIES.as_mut_ptr() }\n}\n"
+        },
+        {
+          "label": "edition 2024: the same shape is denied by static_mut_refs",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "compile_fail",
+          "lints": [
+            "static_mut_refs"
+          ],
+          "source": "static mut BODIES: [f64; 64 * 17] = [0.0; 64 * 17];\n#[unsafe(no_mangle)]\npub extern \"C\" fn bodies_ptr() -> *mut f64 {\n    unsafe { BODIES.as_mut_ptr() }\n}\n"
+        },
+        {
+          "label": "&raw mut pointers to a static f64 array and a repr(align(8)) byte buffer are both 8-aligned",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "0",
+          "wasm_call": {
+            "export": "misaligned",
+            "args": []
+          },
+          "source": "static mut BODIES: [f64; 64 * 17] = [0.0; 64 * 17];\n#[repr(C, align(8))]\nstruct Bytes([u8; 4096]);\nstatic mut RESTORE: Bytes = Bytes([0; 4096]);\nconst _: () = assert!(core::mem::align_of::<f64>() == 8);\n#[unsafe(no_mangle)]\npub extern \"C\" fn bodies_ptr() -> *mut f64 {\n    (&raw mut BODIES).cast::<f64>()\n}\n#[unsafe(no_mangle)]\npub extern \"C\" fn restore_ptr() -> *mut u8 {\n    (&raw mut RESTORE).cast::<u8>()\n}\n#[unsafe(no_mangle)]\npub extern \"C\" fn misaligned() -> u32 {\n    (bodies_ptr() as usize % 8 + restore_ptr() as usize % 8) as u32\n}\n"
+        },
+        {
+          "label": "an empty Vec<u8> static hands out the dangling pointer 1 (as snapshot_ptr does before a load)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_call": {
+            "export": "snapshot_ptr",
+            "args": []
+          },
+          "source": "static mut SNAPSHOT: Vec<u8> = Vec::new();\n#[unsafe(no_mangle)]\npub extern \"C\" fn snapshot_ptr() -> u32 {\n    unsafe { (*(&raw const SNAPSHOT)).as_ptr() as u32 }\n}\n"
+        },
+        {
+          "label": "from_le_bytes decodes f64 words from a byte buffer at an odd offset, no alignment needed",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "[1.5, -0.0, 1e300]",
+          "source": "fn main() {\n    let mut record = Vec::new();\n    for x in [1.5f64, -0.0, 1e300] {\n        record.extend_from_slice(&x.to_le_bytes());\n    }\n    // Place the record at offset 1 so no f64 in it is 8-aligned.\n    let mut buffer = vec![0u8; 1];\n    buffer.extend_from_slice(&record);\n    let words: Vec<f64> = buffer[1..]\n        .chunks_exact(8)\n        .map(|c| f64::from_le_bytes(c.try_into().unwrap()))\n        .collect();\n    println!(\"{:?}\", words);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Type layout (The Rust Reference)",
+          "url": "https://doc.rust-lang.org/reference/type-layout.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Primitive alignment is platform-specific (on many 32-bit platforms f64 is only 4-aligned), an array has its element's alignment, and repr(align(x)) raises alignment."
+        },
+        {
+          "title": "Disallow references to static mut (Rust 2024 Edition Guide)",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "static_mut_refs is deny in the 2024 edition and warn before; it flags implicit references such as method calls, and &raw const / &raw mut are the recommended alternative."
+        },
+        {
+          "title": "TypedArray (MDN Web Docs)",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A typed-array constructor throws RangeError when byteOffset is not a multiple of the element size, indexed access consults only the buffer, and typed arrays use the platform's native byte order (DataView sets it explicitly)."
+        },
+        {
+          "title": "WebAssembly Core Specification: Instructions",
+          "url": "https://webassembly.github.io/spec/core/syntax/instructions.html",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "WebAssembly memory instructions read and write all values in little-endian byte order and trap on out-of-bounds bytes."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "re-create-every-float64array-after-an-export-that-can-allocate-memory-grow-detaches-the-old-arraybuffer",
+      "name": "Re-create every Float64Array after an export that can allocate: memory.grow detaches the old ArrayBuffer",
+      "what": "When the module's allocator executes memory.grow, the JS API detaches the previous ArrayBuffer: old views read undefined and drop writes without throwing.",
+      "how": "Measured in node 22 on a 1.98.1 cdylib: after one export grew memory by 33 pages, memory.buffer !== oldBuf, oldBuf.byteLength === 0, oldBuf.detached === true, the old Float64Array had length 0, view[i] = 42 stored nothing (the module still read 0), and a (buffer, offset, length) view also fell to length 0; a .slice() copy taken earlier stayed intact. The idiom: read exports.memory.buffer and build views after the last call that can allocate, never cache a view across calls, and copy results out with .slice() before the next call. If a view must be cached, guard it: if (view.buffer !== memory.buffer) view = new Float64Array(memory.buffer). Growth happens inside the call, so a view made before solver_step is stale after it.",
+      "rust_version": "any (JS host behaviour); measured with rustc 1.98.1 and node 22",
+      "gotchas": "Nothing marks the stale view: the failure is silent undefined/zero values in the host's copy of state. MDN: every grow detaches, even grow(0). Shared memories (threads) do not detach but also do not report the new length. Making memory fixed (binary-and-limits) turns growth into allocation failure; per-call views stay correct either way.",
+      "engine_note": "solver/build.mjs gets this right in writeInputs, readBodies and snapshotBytes (a new view per call, .slice() on the snapshot), and it matters: on the local build solver_load grew memory 18 -> 19 pages and detached the old buffer (measured). stepBodies keeps one view across instance.exports.step(...), which is safe only because the box step in lib.rs never allocates (measured: no growth); re-create the view there or say so in a comment. T2's restoreSolver must build new Uint8Array(exp.memory.buffer, exp.restore_ptr(), len) immediately before calling solver_restore.",
+      "checks": [
+        {
+          "label": "memory grows inside an export call when the allocator needs pages (33 pages for a 2 MiB block)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "33",
+          "wasm_call": {
+            "export": "grow_by_holding",
+            "args": [
+              2
+            ]
+          },
+          "source": "static mut KEEP: Vec<Vec<u8>> = Vec::new();\n#[unsafe(no_mangle)]\npub extern \"C\" fn grow_by_holding(mib: u32) -> u32 {\n    let before = core::arch::wasm32::memory_size::<0>();\n    let block = vec![1u8; mib as usize * 1024 * 1024];\n    unsafe { (*(&raw mut KEEP)).push(block) };\n    (core::arch::wasm32::memory_size::<0>() - before) as u32\n}\n"
+        },
+        {
+          "label": "an export that only writes a static buffer does not grow memory",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "0",
+          "wasm_call": {
+            "export": "step_no_alloc",
+            "args": [
+              64
+            ]
+          },
+          "source": "static mut BODIES: [f64; 64 * 17] = [0.0; 64 * 17];\n#[unsafe(no_mangle)]\npub extern \"C\" fn step_no_alloc(n: u32) -> u32 {\n    let before = core::arch::wasm32::memory_size::<0>();\n    let bodies = unsafe { &mut *(&raw mut BODIES) };\n    for i in 0..(n as usize).min(64) {\n        bodies[i * 17 + 1] += -8.0 / 64.0;\n    }\n    (core::arch::wasm32::memory_size::<0>() - before) as u32\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "WebAssembly JavaScript Interface (W3C WebAssembly CG spec, living)",
+          "url": "https://webassembly.github.io/spec/js-api/",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "Refreshing the memory buffer detaches a fixed-length ArrayBuffer and creates a new one, and this refresh runs immediately after a memory.grow instruction executes."
+        },
+        {
+          "title": "WebAssembly.Memory.prototype.grow() (MDN Web Docs)",
+          "url": "https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/JavaScript_interface/Memory/grow",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Every call to grow detaches references to the old buffer, even grow(0); detachment makes byteLength zero, and reading buffer again yields the new ArrayBuffer."
+        },
+        {
+          "title": "library/std/src/sys/alloc/wasm.rs at tag 1.98.1 (rust-lang/rust)",
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/library/std/src/sys/alloc/wasm.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1.98.1",
+          "claim": "std's wasm allocator is built on the instruction that grows memory, so an allocation can grow memory inside any export."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "choose-wasm32v1-none-only-for-an-all-no-std-crate-graph-mvp-features-own-panic-handler-and-allocator",
+      "name": "Choose wasm32v1-none only for an all-no_std crate graph: MVP features, own panic handler and allocator",
+      "what": "wasm32v1-none ships core and alloc built for WebAssembly 1.0 (MVP plus mutable-globals) on stable; the crate must be #![no_std] with a #[panic_handler] and needs a #[global_allocator] to use alloc - and the pinned solver graph cannot build for it.",
+      "how": "Measured on 1.98.1: rustc --print cfg --target wasm32v1-none lists only target_feature=\"mutable-globals\" and panic=\"abort\"; a std crate fails with E0463 ('the wasm32v1-none target may not support the standard library'); a #![no_std] cdylib without a handler fails ('#[panic_handler] function required, but not found'); extern crate alloc without an allocator fails ('no global memory allocator found but one is required'). A #![no_std] add() with #[panic_handler] fn on_panic(_: &core::panic::PanicInfo) -> ! { core::arch::wasm32::unreachable() } built to 216 bytes (213 at -C opt-level=3), imports nothing, and its target_features section holds only +mutable-globals (wasm32-unknown-unknown: 8 entries). Pick it when the compiler itself must guarantee that no post-1.0 instruction and no std stub enters; the equivalent on wasm32-unknown-unknown is -Ctarget-cpu=mvp plus nightly -Zbuild-std.",
+      "rust_version": "1.98.1 (target installed via rustup, tier 2)",
+      "gotchas": "It is not a drop-in: every dependency must build without std. Measured: rapier3d-f64 0.35.3 is #![no_std] with std and alloc features, but its enhanced-determinism feature enables parry3d-f64's, which turns on an indexmap dependency declared without default-features = false; indexmap's default std then fails with E0463. A dependency can still enable features per function with #[target_feature]. Which allocator to install is binary-and-limits'.",
+      "engine_note": "The solver (solver/Cargo.toml: rapier3d-f64 0.35.3 with enhanced-determinism) cannot target wasm32v1-none today: a scratch cargo build --target wasm32v1-none with default-features = false and features dim3, f64, alloc, enhanced-determinism stopped at indexmap 2.14.2 with E0463. So T3's refusal of relaxed-SIMD and memory.grow must come from the binary lint (solver/lint.mjs), not a target switch; revisit only if parry's indexmap dependency drops its default features.",
+      "checks": [
+        {
+          "label": "a std crate cannot build for wasm32v1-none (E0463)",
+          "edition": "2024",
+          "target": "wasm32v1-none",
+          "crate_type": "cdylib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0463"
+          ],
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn add(a: f64, b: f64) -> f64 {\n    a + b\n}\n"
+        },
+        {
+          "label": "a no_std cdylib must define #[panic_handler]",
+          "edition": "2024",
+          "target": "wasm32v1-none",
+          "crate_type": "cdylib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "`#[panic_handler]` function required, but not found"
+          ],
+          "source": "#![no_std]\n#[unsafe(no_mangle)]\npub extern \"C\" fn add(a: f64, b: f64) -> f64 {\n    a + b\n}\n"
+        },
+        {
+          "label": "using alloc on wasm32v1-none requires a #[global_allocator]",
+          "edition": "2024",
+          "target": "wasm32v1-none",
+          "crate_type": "cdylib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "no global memory allocator found but one is required"
+          ],
+          "source": "#![no_std]\nextern crate alloc;\nuse alloc::vec::Vec;\n#[panic_handler]\nfn on_panic(_: &core::panic::PanicInfo) -> ! {\n    core::arch::wasm32::unreachable()\n}\n#[unsafe(no_mangle)]\npub extern \"C\" fn sum(n: u32) -> f64 {\n    let v: Vec<f64> = (0..n).map(|i| i as f64).collect();\n    v.iter().sum()\n}\n"
+        },
+        {
+          "label": "a minimal no_std module builds with only mutable-globals, imports nothing and runs",
+          "edition": "2024",
+          "target": "wasm32v1-none",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "3.75",
+          "wasm_exports": [
+            "memory",
+            "add"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "add",
+            "args": [
+              1.5,
+              2.25
+            ]
+          },
+          "source": "#![no_std]\n#[cfg(any(target_feature = \"bulk-memory\", target_feature = \"sign-ext\", target_feature = \"nontrapping-fptoint\",\n          target_feature = \"multivalue\", target_feature = \"reference-types\"))]\ncompile_error!(\"a post-1.0 feature is enabled\");\n#[cfg(not(target_feature = \"mutable-globals\"))]\ncompile_error!(\"mutable-globals is off\");\n#[panic_handler]\nfn on_panic(_: &core::panic::PanicInfo) -> ! {\n    core::arch::wasm32::unreachable()\n}\n#[unsafe(no_mangle)]\npub extern \"C\" fn add(a: f64, b: f64) -> f64 {\n    a + b\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "wasm32v1-none (The rustc book, Platform Support)",
+          "url": "https://doc.rust-lang.org/rustc/platform-support/wasm32v1-none.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "wasm32v1-none imports nothing, enables no proposals past WebAssembly Core 1.0 except mutable-globals, supports only core and alloc, and exists so stable users need not rebuild the standard library."
+        },
+        {
+          "title": "wasm32-unknown-unknown (The rustc book, Platform Support)",
+          "url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The MVP feature set on wasm32-unknown-unknown needs -Ctarget-cpu=mvp and nightly -Zbuild-std, and the page recommends wasm32v1-none for no_std builds targeting Core 1.0."
+        },
+        {
+          "title": "Panic: panic_handler and the abort strategy (The Rust Reference)",
+          "url": "https://doc.rust-lang.org/reference/panic.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "A no_std binary, dylib, cdylib or staticlib must specify its own panic handler, a function with signature fn(&PanicInfo) -> !, exactly one in the graph."
+        },
+        {
+          "title": "The Rust runtime: the global_allocator attribute (The Rust Reference)",
+          "url": "https://doc.rust-lang.org/reference/runtime.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "global_allocator applies to a static whose type implements GlobalAlloc and may be used once in the crate graph."
+        },
+        {
+          "title": "parry3d-f64 0.30.2 Cargo.toml (docs.rs source view)",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "parry3d-f64 0.30.2",
+          "claim": "parry3d-f64 0.30.2's enhanced-determinism feature enables indexmap, declared optional with features [\"serde\"] and no default-features = false."
+        },
+        {
+          "title": "indexmap 2.14.2 Cargo.toml (docs.rs source view)",
+          "url": "https://docs.rs/crate/indexmap/2.14.2/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "indexmap 2.14.2",
+          "claim": "indexmap 2.14.2 has default = [\"std\"]."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 src/lib.rs (docs.rs source view)",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/lib.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "rapier3d-f64 0.35.3",
+          "claim": "rapier3d-f64 0.35.3 is #![no_std] and links std only under feature std and alloc only under feature alloc."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "read-a-wasm-target-s-features-with-rustc-print-cfg-and-pin-them-with-cfg-compile-error-guards",
+      "name": "Read a wasm target's features with rustc --print cfg and pin them with cfg compile_error! guards",
+      "what": "rustc --print cfg --target wasm32-unknown-unknown shows the enabled features (1.98.1: bulk-memory, multivalue, mutable-globals, nontrapping-fptoint, reference-types, sign-ext); -C target-feature=-x removes one for the crates you compile, and a misspelled name only warns.",
+      "how": "Run rustc +1.98.1 --print cfg --target wasm32-unknown-unknown [-C target-feature=...] to see the effective set (the target_feature=\"...\" lines). In the crate root fail on drift: #[cfg(target_feature = \"relaxed-simd\")] compile_error!(\"relaxed-simd is enabled\"); plus a #[cfg(not(all(...)))] guard over the six defaults. Measured: that guard compiles cleanly by default, fails under -C target-feature=+relaxed-simd and under -C target-feature=-bulk-memory. -C target-feature=-relaxed_simd (underscore) still builds: rustc warns 'unknown and unstable feature specified for -Ctarget-feature' and LLVM prints 'not a recognized feature for this target (ignoring feature)'. The shipped std, core and alloc were compiled once with the target defaults; -C target-feature and -C target-cpu=mvp change only the crates you compile, so an MVP-only binary needs nightly -Zbuild-std or wasm32v1-none. The rustc book calls the flag unsafe.",
+      "rust_version": "1.98.1 (bulk-memory and nontrapping-fptoint default since 1.87.0)",
+      "gotchas": "A cfg guard sees only the crate-wide set: a dependency's #[target_feature(enable = \"simd128\")] function still emits those instructions (platform page), so the binary still needs an instruction lint. Defaults move between releases (two were added in 1.87), which is why the guard names the set measured on the pinned compiler rather than trusting a page 'as of the time of this writing'.",
+      "engine_note": "solver/.cargo/config.toml and solver/build.mjs both pass -C target-feature=-relaxed-simd (solver/FLAGS.md); a typo in either would build with only a warning. A guard #[cfg(target_feature = \"relaxed-simd\")] compile_error!(...) at the top of solver/src/lib.rs turns a future default change into a build failure before the digest check in fixtures/solver.sha256; T3's solver/lint.mjs remains the check for instructions a dependency enables per function.",
+      "checks": [
+        {
+          "label": "the guard compiles cleanly under the 1.98.1 defaults (cfg names are known, no warnings)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "// Pins the feature set measured on 1.98.1; drift fails the build.\n#[cfg(target_feature = \"relaxed-simd\")]\ncompile_error!(\"relaxed-simd is enabled\");\n#[cfg(target_feature = \"simd128\")]\ncompile_error!(\"simd128 is enabled\");\n#[cfg(not(all(target_feature = \"bulk-memory\", target_feature = \"multivalue\", target_feature = \"mutable-globals\",\n              target_feature = \"nontrapping-fptoint\", target_feature = \"reference-types\", target_feature = \"sign-ext\")))]\ncompile_error!(\"the default feature set changed\");\n#[unsafe(no_mangle)]\npub extern \"C\" fn ok() -> u32 {\n    1\n}\n"
+        },
+        {
+          "label": "the guard fails the build when relaxed-simd is switched on",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "target-feature=+relaxed-simd"
+          ],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "relaxed-simd is enabled"
+          ],
+          "source": "// Pins the feature set measured on 1.98.1; drift fails the build.\n#[cfg(target_feature = \"relaxed-simd\")]\ncompile_error!(\"relaxed-simd is enabled\");\n#[cfg(target_feature = \"simd128\")]\ncompile_error!(\"simd128 is enabled\");\n#[cfg(not(all(target_feature = \"bulk-memory\", target_feature = \"multivalue\", target_feature = \"mutable-globals\",\n              target_feature = \"nontrapping-fptoint\", target_feature = \"reference-types\", target_feature = \"sign-ext\")))]\ncompile_error!(\"the default feature set changed\");\n#[unsafe(no_mangle)]\npub extern \"C\" fn ok() -> u32 {\n    1\n}\n"
+        },
+        {
+          "label": "the guard fails the build when a default feature (bulk-memory) is switched off",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "target-feature=-bulk-memory"
+          ],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "the default feature set changed"
+          ],
+          "source": "// Pins the feature set measured on 1.98.1; drift fails the build.\n#[cfg(target_feature = \"relaxed-simd\")]\ncompile_error!(\"relaxed-simd is enabled\");\n#[cfg(target_feature = \"simd128\")]\ncompile_error!(\"simd128 is enabled\");\n#[cfg(not(all(target_feature = \"bulk-memory\", target_feature = \"multivalue\", target_feature = \"mutable-globals\",\n              target_feature = \"nontrapping-fptoint\", target_feature = \"reference-types\", target_feature = \"sign-ext\")))]\ncompile_error!(\"the default feature set changed\");\n#[unsafe(no_mangle)]\npub extern \"C\" fn ok() -> u32 {\n    1\n}\n"
+        },
+        {
+          "label": "a misspelled feature (-relaxed_simd) only warns and the build succeeds",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "target-feature=-relaxed_simd"
+          ],
+          "expect": "compiles",
+          "stderr_contains": [
+            "unknown and unstable feature specified for `-Ctarget-feature`: `relaxed_simd`",
+            "is not a recognized feature for this target (ignoring feature)"
+          ],
+          "source": "// Pins the feature set measured on 1.98.1; drift fails the build.\n#[cfg(target_feature = \"relaxed-simd\")]\ncompile_error!(\"relaxed-simd is enabled\");\n#[cfg(target_feature = \"simd128\")]\ncompile_error!(\"simd128 is enabled\");\n#[cfg(not(all(target_feature = \"bulk-memory\", target_feature = \"multivalue\", target_feature = \"mutable-globals\",\n              target_feature = \"nontrapping-fptoint\", target_feature = \"reference-types\", target_feature = \"sign-ext\")))]\ncompile_error!(\"the default feature set changed\");\n#[unsafe(no_mangle)]\npub extern \"C\" fn ok() -> u32 {\n    1\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "wasm32-unknown-unknown (The rustc book, Platform Support)",
+          "url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Lists the default-enabled proposals (multivalue, mutable-globals, reference-types, sign-ext, nontrapping-fptoint and bulk-memory from Rust 1.87.0), says the MVP set needs -Ctarget-cpu=mvp with -Zbuild-std, and that crates can still enable features per function."
+        },
+        {
+          "title": "Print options: cfg, target-features, target-cpus (The rustc book)",
+          "url": "https://doc.rust-lang.org/rustc/command-line-arguments/print-options.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "--print cfg lists cfg values; --print target-features lists the features available for the current target, enabled with the unsafe -C target-feature flag."
+        },
+        {
+          "title": "Codegen options: link-arg, panic, strip, target-feature (The rustc book)",
+          "url": "https://doc.rust-lang.org/rustc/codegen-options/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "-C target-feature takes +feature / -feature (comma-separated, later values override), using it is unsafe, and each target has a default feature set."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "inspect-the-pinned-wasm-with-node-wasmparser-or-wasm-tools-never-wasm-opt-it-unless-that-step-is-pinned-too",
+      "name": "Inspect the pinned .wasm with node, wasmparser or wasm-tools; never wasm-opt it unless that step is pinned too",
+      "what": "The digest pins exactly what cargo emitted; wasm-opt, wasm-pack's default wasm-opt pass and strip settings all rewrite bytes, and wasm-opt's -tnh and -ffm change behaviour, so any post-processing must be pinned in the build and re-pinned in the digest.",
+      "how": "Zero-install inspection in node: WebAssembly.Module.exports(m), .imports(m), .customSections(m, 'producers'). In Rust: wasmparser 0.259 - Parser::new(0).parse_all(bytes) yielding Payload::ExportSection / MemorySection / CustomSection, and Validator::new().validate_all(bytes) (the check below). CLI, per its README (not installed on this rig): wasm-tools validate | print | objdump | strip | metadata show, via cargo install --locked wasm-tools; twiggy, the code-size profiler, was archived read-only on 2026-03-14. Measured bytes for one add() cdylib from plain rustc (no -O): 1,629,285 with -C strip=none (almost all .debug_* sections from the precompiled std), 366 with strip=debuginfo (custom sections name, producers, target_features left), 74 with strip=symbols (no custom sections; exports kept). Cargo release applies strip = \"debuginfo\" when debug is off (since 1.77), which is why si_solver.wasm carries a 182,205-byte name section and a producers section recording 'rustc 1.98.1 (48a229cea 2026-09-01)' but no DWARF. binaryen version_133's wasm-opt: -g is what keeps the name section, -tnh optimises assuming no trap is reached, -ffm ignores NaN, rounding and negative-zero corner cases; wasm-pack runs wasm-opt by default for release.",
+      "rust_version": "1.98.1; cargo strip default 1.77+; wasmparser 0.259.0; binaryen version_133",
+      "gotchas": "The producers section embeds the rustc version string, so a toolchain bump moves the digest even when codegen is identical. wasm-opt output depends on the binaryen release as well as its flags, so running it 'just to shrink' makes the digest unreproducible unless both are pinned; -tnh can delete the trap paths that guard a status-code design. The oracle and plain rustc keep std's debuginfo; compare sizes and bytes only between like builds.",
+      "engine_note": "fixtures/solver.sha256 pins cargo's output from solver/build.mjs (release, implicit strip = \"debuginfo\", name section kept). Do not add wasm-opt or wasm-pack to build.mjs; if size ever matters, strip = \"symbols\" in solver/Cargo.toml [profile.release] is a pinned in-toolchain step that moves the digest once. T3's solver/lint.mjs can cross-check its hand parser against wasmparser's Validator or node's WebAssembly.validate on the same bytes.",
+      "checks": [
+        {
+          "label": "wasmparser 0.259 reads exports, memory limits and a custom section, and rejects a bad export index",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "wasmparser"
+          ],
+          "expect": "runs",
+          "stdout": "memory initial=17 maximum=None shared=false\nexport memory Memory 0\nexport law_version Func 0\ncustom si_law \"si-law-v1\"\nvalidate: true\ncorrupt: unknown function 1: exported function index out of bounds at offset 36",
+          "source": "use wasmparser::{Parser, Payload, Validator};\n\n// 76 bytes: memory (initial 17 pages, no maximum) exported as \"memory\",\n// law_version() -> i32 { 3 }, and a custom section \"si_law\" holding \"si-law-v1\".\nconst MODULE: &[u8] = &[\n    0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 127, 3, 2, 1, 0, 5, 3, 1, 0, 17, 7, 24, 2, 6,\n    109, 101, 109, 111, 114, 121, 2, 0, 11, 108, 97, 119, 95, 118, 101, 114, 115, 105, 111, 110,\n    0, 0, 10, 6, 1, 4, 0, 65, 3, 11, 0, 16, 6, 115, 105, 95, 108, 97, 119, 115, 105, 45, 108,\n    97, 119, 45, 118, 49,\n];\n\nfn main() {\n    for payload in Parser::new(0).parse_all(MODULE) {\n        match payload.expect(\"parse\") {\n            Payload::ExportSection(reader) => {\n                for export in reader {\n                    let export = export.expect(\"export\");\n                    println!(\"export {} {:?} {}\", export.name, export.kind, export.index);\n                }\n            }\n            Payload::MemorySection(reader) => {\n                for memory in reader {\n                    let memory = memory.expect(\"memory\");\n                    println!(\"memory initial={} maximum={:?} shared={}\", memory.initial, memory.maximum, memory.shared);\n                }\n            }\n            Payload::CustomSection(section) => {\n                println!(\"custom {} {:?}\", section.name(), String::from_utf8_lossy(section.data()));\n            }\n            _ => {}\n        }\n    }\n    println!(\"validate: {}\", Validator::new().validate_all(MODULE).is_ok());\n    // Point the \"law_version\" export at function 1, which does not exist.\n    let mut bad = MODULE.to_vec();\n    let code = bad.windows(4).position(|w| w == [10, 6, 1, 4]).expect(\"code section\");\n    bad[code - 1] = 1;\n    match Validator::new().validate_all(&bad) {\n        Ok(_) => println!(\"corrupt: accepted\"),\n        Err(e) => println!(\"corrupt: {} at offset {}\", e.message(), e.offset()),\n    }\n}\n"
+        },
+        {
+          "label": "-C strip=symbols keeps the export names (exports are not a custom section)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "strip=symbols"
+          ],
+          "expect": "runs",
+          "stdout": "3",
+          "wasm_exports": [
+            "memory",
+            "law_version"
+          ],
+          "wasm_call": {
+            "export": "law_version",
+            "args": []
+          },
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn law_version() -> u32 {\n    3\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "wasmparser 0.259.0: struct Parser (docs.rs)",
+          "url": "https://docs.rs/wasmparser/0.259.0/wasmparser/struct.Parser.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "wasmparser 0.259.0",
+          "claim": "wasmparser 0.259.0: Parser::new(offset) and parse_all(self, data) iterate Payloads (ExportSection, MemorySection, CustomSection, CodeSectionEntry, ...) of an in-memory module."
+        },
+        {
+          "title": "wasmparser 0.259.0: struct Validator (docs.rs)",
+          "url": "https://docs.rs/wasmparser/0.259.0/wasmparser/struct.Validator.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "wasmparser 0.259.0",
+          "claim": "wasmparser 0.259.0: Validator::new() and validate_all(&mut self, bytes) validate an entire in-memory module or component."
+        },
+        {
+          "title": "bytecodealliance/wasm-tools README",
+          "url": "https://github.com/bytecodealliance/wasm-tools",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "wasm-tools provides validate, print, objdump, strip (remove custom sections), demangle and metadata show/add, installed with cargo install --locked wasm-tools."
+        },
+        {
+          "title": "binaryen src/tools/optimization-options.h at tag version_133",
+          "url": "https://github.com/WebAssembly/binaryen/blob/version_133/src/tools/optimization-options.h",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "version_133",
+          "claim": "At version_133 wasm-opt's -g emits the names section, -tnh optimises assuming no trap is reached at runtime, and -ffm optimises floats without handling NaN, rounding and negative-zero corner cases."
+        },
+        {
+          "title": "wasm-pack docs: Cargo.toml configuration (wasm-bindgen/wasm-pack)",
+          "url": "https://github.com/wasm-bindgen/wasm-pack/blob/master/docs/src/cargo-toml-configuration.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "wasm-pack runs wasm-opt by default for the release profile unless wasm-opt = false is set."
+        },
+        {
+          "title": "Announcing Rust 1.77.0 (Rust Blog)",
+          "url": "https://blog.rust-lang.org/2024/03/21/Rust-1.77.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "1.77.0",
+          "claim": "Since Rust 1.77 Cargo profiles that do not enable debuginfo default to strip = \"debuginfo\", because the precompiled standard library ships with debuginfo."
+        },
+        {
+          "title": "AlexEne/twiggy repository (archived)",
+          "url": "https://github.com/AlexEne/twiggy",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "twiggy, a code size profiler for Wasm, was archived by its owner on Mar 14, 2026 and is read-only."
+        },
+        {
+          "title": "Sunsetting the rustwasm GitHub org (Inside Rust Blog)",
+          "url": "https://blog.rust-lang.org/inside-rust/2025/07/21/sunsetting-the-rustwasm-github-org/",
+          "year": 2025,
+          "kind": "blog",
+          "identifier": "",
+          "claim": "The rustwasm GitHub org was archived from September 2025, with wasm-bindgen moved to a new org and other repositories archived or transferred."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "stamp-the-law-version-into-the-module-an-exported-law-version-and-a-unsafe-link-section-custom-section",
+      "name": "Stamp the law version into the module: an exported law_version() and a #[unsafe(link_section)] custom section",
+      "what": "An exported law_version() -> u32 lets the host ask a live instance, and a byte-array static under #[unsafe(link_section = \"si_law\")] becomes a custom section the host can read with WebAssembly.Module.customSections before instantiating.",
+      "how": "pub const LAW_VERSION: u32 = 3; #[unsafe(no_mangle)] pub extern \"C\" fn law_version() -> u32 { LAW_VERSION } and #[unsafe(link_section = \"si_law\")] #[used] static LAW_TAG: [u8; 9] = *b\"si-law-v1\";. Measured on 1.98.1 with node: the section appears whether the static is pub, private or #[used] (a private one without #[used] draws a never-used warning but is still emitted), survives -C strip=symbols, and WebAssembly.Module.customSections(m, 'si_law') returns one ArrayBuffer reading 'si-law-v1'; a u32 static is emitted as its 4 little-endian bytes. On wasm the static must be a plain list of bytes: static LAW_TAG: &[u8] = b\"...\" is a hard error. The core spec ignores custom sections for execution, so the stamp cannot change behaviour, and the JS API reads it without instantiating.",
+      "rust_version": "1.98.1; unsafe(link_section) required in edition 2024",
+      "gotchas": "In edition 2024 a bare #[link_section] is 'unsafe attribute used without unsafe'; 2021 accepts both forms. wasm-tools strip removes custom sections, so a stripped artifact loses its stamp (and its digest). A version stamp is a label, not a proof: the golden hash and behaviour numbers stay the law's identity.",
+      "engine_note": "Neither exists in solver/src today. Add law_version() beside canon_zero in solver/src/rapier_law.rs and the si_law section in solver/src/lib.rs; instantiate() in solver/build.mjs can read WebAssembly.Module.customSections(module, 'si_law') and refuse a mismatched law before new WebAssembly.Instance, and T2's snapshot can carry LAW_VERSION so solver_restore refuses bytes written by another law. Either addition moves fixtures/solver.sha256 once.",
+      "checks": [
+        {
+          "label": "a link_section byte-array static builds cleanly and law_version() answers 3",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "3",
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "law_version",
+            "args": []
+          },
+          "source": "pub const LAW_VERSION: u32 = 3;\n#[unsafe(link_section = \"si_law\")]\n#[used]\nstatic LAW_TAG: [u8; 9] = *b\"si-law-v1\";\n#[unsafe(no_mangle)]\npub extern \"C\" fn law_version() -> u32 {\n    LAW_VERSION\n}\n"
+        },
+        {
+          "label": "on wasm a link_section static holding a reference is rejected",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "must be a simple list of bytes on the wasm target"
+          ],
+          "source": "#[unsafe(link_section = \"si_law\")]\n#[used]\nstatic LAW_TAG: &[u8] = b\"si-law-v1\";\n#[unsafe(no_mangle)]\npub extern \"C\" fn law_version() -> u32 {\n    3\n}\n"
+        },
+        {
+          "label": "edition 2024 rejects a bare #[link_section]",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "unsafe attribute used without unsafe"
+          ],
+          "source": "#[link_section = \"si_law\"]\n#[used]\nstatic LAW_TAG: [u8; 9] = *b\"si-law-v1\";\n#[unsafe(no_mangle)]\npub extern \"C\" fn law_version() -> u32 {\n    3\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Application Binary Interface: no_mangle, export_name, link_section (The Rust Reference)",
+          "url": "https://doc.rust-lang.org/reference/abi.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "link_section places a function's or static's content in the named section; it is an unsafe attribute that may be written bare only before the 2024 edition."
+        },
+        {
+          "title": "Unsafe attributes (Rust 2024 Edition Guide)",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-attributes.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "link_section is one of the three attributes that must be written unsafe(...) in Rust 2024."
+        },
+        {
+          "title": "WebAssembly JavaScript Interface (W3C WebAssembly CG spec, living)",
+          "url": "https://webassembly.github.io/spec/js-api/",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "WebAssembly.Module.customSections(moduleObject, sectionName) returns a copy of the bytes of every custom section with that name."
+        },
+        {
+          "title": "WebAssembly Core Specification: Binary format, Modules (custom sections)",
+          "url": "https://webassembly.github.io/spec/core/binary/modules.html",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "Custom sections have id 0, are meant for debugging information or third-party extensions, are ignored by WebAssembly semantics, and errors in them must not invalidate the module."
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

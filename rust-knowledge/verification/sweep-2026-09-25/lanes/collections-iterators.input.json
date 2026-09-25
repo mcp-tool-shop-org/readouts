@@ -1,0 +1,856 @@
+{
+  "bucket": "collections-iterators",
+  "title": "Collections, iterators & closures",
+  "tier": "essentials",
+  "count": 10,
+  "recipes": [
+    {
+      "slug": "delete-from-a-hashed-vec-with-remove-retain-drain-not-swap-remove-pre-size-it-with-with-capacity-reserve",
+      "name": "Delete from a hashed Vec with remove/retain/drain, not swap_remove; pre-size it with with_capacity/reserve",
+      "what": "A Vec's order is its index order: remove, retain and drain keep it, swap_remove moves the last element into the hole, and capacity is only a lower bound whose growth the docs leave unspecified.",
+      "how": "Pre-size with `Vec::with_capacity(n)` (capacity >= n; the method 'is allowed to allocate for more elements than capacity') or `v.reserve(k)` (capacity >= len + k afterwards). Reuse a per-step buffer with `v.clear()`, which 'has no effect on the allocated capacity'. Remove while keeping order: `v.remove(i)` (shifts the tail, O(n)), `v.retain(|x| keep(x))` (visits each element exactly once in the original order and preserves the order of the retained elements), `v.drain(a..b)` (yields the removed run in order; dropping the Drain unconsumed still removes it). Use `v.swap_remove(i)` (O(1)) only where the order never reaches an output, or sort again before hashing. Never serialise or hash `capacity()`.",
+      "rust_version": "any",
+      "gotchas": "`swap_remove(1)` on ['a','b','c','d'] leaves ['a','d','c'] while `remove(1)` leaves ['a','c','d']: same elements, different sequence, different hash. Order-changing removal can also happen inside a dependency: Rapier 0.35.3's graph deletes edges with `edges.swap_remove`, so an iteration order your code never touched still moves. The docs say Vec 'does not guarantee any particular growth strategy when reallocating when full, nor when reserve is called', so `capacity()` after the same pushes is not a portable value. A Drain holds `&mut` on the Vec until it is dropped; leaking it with `mem::forget` may lose elements.",
+      "engine_note": "Rapier 0.35.3 removes contact-graph edges with `self.edges.swap_remove(e.index())` (src/data/graph.rs `remove_edge_adjust_indices`), and `NarrowPhase::contact_pairs()` walks that edges vec in index order (`interactions()` -> `raw_edges().iter()`), so pair order changes whenever a contact ends. That is why `rebuild_snapshot` in solver/src/rapier_law.rs collects the pairs into a Vec and sorts them before hashing; it also reuses the snapshot buffer with `out.clear()`, which keeps its capacity.",
+      "checks": [
+        {
+          "label": "with_capacity/reserve are lower bounds; swap_remove reorders, remove/retain/drain keep order",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "len=0 cap>=10:true\ncap>=len+100:true\nswap_remove:['a', 'd', 'c'] remove:['a', 'c', 'd']\nretain:[2, 4, 6] drained:[2, 3] left:[1, 4, 5]\nclear keeps capacity:true",
+          "source": "fn main() {\n    let mut v: Vec<u32> = Vec::with_capacity(10);\n    println!(\"len={} cap>=10:{}\", v.len(), v.capacity() >= 10);\n    v.extend([1, 2, 3]);\n    v.reserve(100);\n    println!(\"cap>=len+100:{}\", v.capacity() >= v.len() + 100);\n    let mut a = vec!['a', 'b', 'c', 'd'];\n    a.swap_remove(1);\n    let mut b = vec!['a', 'b', 'c', 'd'];\n    b.remove(1);\n    println!(\"swap_remove:{:?} remove:{:?}\", a, b);\n    let mut r = vec![1, 2, 3, 4, 5, 6];\n    r.retain(|x| x % 2 == 0);\n    let mut d = vec![1, 2, 3, 4, 5];\n    let gone: Vec<i32> = d.drain(1..3).collect();\n    println!(\"retain:{:?} drained:{:?} left:{:?}\", r, gone, d);\n    let mut e = vec![0u8; 64];\n    let cap = e.capacity();\n    e.clear();\n    println!(\"clear keeps capacity:{}\", e.capacity() == cap);\n}\n"
+        },
+        {
+          "label": "swap_remove vs remove: same elements, different hash until both are sorted",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "same elements: true\nsame hash before sort: false\nsame hash after sort: true",
+          "source": "fn fnv_fold(xs: &[u32]) -> u64 {\n    xs.iter().fold(0xcbf2_9ce4_8422_2325u64, |h, &x| (h ^ x as u64).wrapping_mul(0x0000_0100_0000_01b3))\n}\nfn main() {\n    let ids = vec![10u32, 11, 12, 13, 14];\n    let mut a = ids.clone();\n    a.swap_remove(1);\n    let mut b = ids.clone();\n    b.remove(1);\n    let (mut sa, mut sb) = (a.clone(), b.clone());\n    sa.sort_unstable();\n    sb.sort_unstable();\n    println!(\"same elements: {}\", sa == sb);\n    println!(\"same hash before sort: {}\", fnv_fold(&a) == fnv_fold(&b));\n    a.sort_unstable();\n    b.sort_unstable();\n    println!(\"same hash after sort: {}\", fnv_fold(&a) == fnv_fold(&b));\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Vec in std::vec (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/vec/struct.Vec.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "with_capacity allocates at least the requested capacity and may allocate more; reserve leaves capacity >= len + additional; Vec does not guarantee any particular growth strategy; clear has no effect on capacity; swap_remove does not preserve ordering; retain visits each element once in original order and preserves the retained order; a Drain dropped unconsumed still drops the removed range."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: src/data/graph.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/data/graph.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Rapier's graph removes an edge by swap_remove, so the last edge adopts the removed edge's index (remove_edge / remove_edge_with docs)."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: src/geometry/interaction_graph.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/interaction_graph.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "InteractionGraph::interactions() iterates raw_edges() in vec order, which is what NarrowPhase::contact_pairs() returns."
+        },
+        {
+          "title": "Module std::collections (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/collections/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "For sequence collections like Vec, iter yields items in increasing order of index starting at 0."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "let-only-vec-vecdeque-or-btreemap-btreeset-order-reach-an-output-hashmap-hashset-order-is-random-per-map",
+      "name": "Let only Vec, VecDeque or BTreeMap/BTreeSet order reach an output; HashMap/HashSet order is random per map",
+      "what": "std defines iteration order for sequences (index 0 upward), VecDeque (front to back) and B-trees (key order); HashMap/HashSet iterate in 'arbitrary order' under a randomly seeded hasher that differs per map and per run, and BinaryHeap::iter/into_vec are arbitrary too.",
+      "how": "When order can reach bytes, a hash, a log line or a golden, iterate a `Vec`/slice/array (index order), a `VecDeque` (front to back) or a `BTreeMap`/`BTreeSet` (key order; keys must be `Ord`). Keep `HashMap`/`HashSet` to lookups, or collect and sort before emitting: `let mut ks: Vec<_> = m.keys().copied().collect(); ks.sort_unstable();` (map keys are unique, so an unstable sort is safe). Empty a `BinaryHeap` with `pop()` or `into_sorted_vec()` (ascending), never `iter()`/`into_vec()`. Map equality `a == b` ignores order and is safe; `a.iter().eq(b.iter())` compares orders and is not.",
+      "rust_version": "any",
+      "gotchas": "Two HashMaps filled by the same inserts in one process iterate differently (measured on 1.98.1), and a second run of the same binary prints yet another order, so a test that compares a run with itself passes. The default hasher is 'currently SipHash 1-3, though this is subject to change at any point in the future': neither std's HashMap order nor its hash values are a persistence contract (fixed-seed hashers, IndexMap and FxHash are covered in float-determinism). `{:?}` of a HashMap follows the same order: the two identical maps printed different Debug text (measured), so never put one in a golden. A BinaryHeap collected from [1, 5, 2, 4, 3] iterates as [5, 4, 2, 1, 3] on 1.98.1: heap array order, not sorted. `BTreeMap<f64, _>` does not compile (E0277, `f64: Ord` is not satisfied).",
+      "engine_note": "solver/src (e5fbcb9 and main 4782a8a) holds no HashMap, HashSet or BTreeMap: bodies and colliders live in fixed `static mut` arrays walked in index order, plus `Vec<Option<RigidBodyHandle>>`. Rapier's `contact_pairs()` is Vec-backed but not canonical (see the swap_remove recipe), which is why the snapshot sorts it. Any map added for mesh collision or host bindings should stay off the snapshot path or be a BTreeMap.",
+      "checks": [
+        {
+          "label": "identical HashMaps iterate and Debug-print differently; BTree, VecDeque, sorted heap are ordered",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "maps equal: true\nsame iteration order: false\nsame Debug text: false\nsorted keys start: [0, 1, 2]\nbtreemap: [10, 20, 30]\nbtreeset: {-1, 2, 3}\nvecdeque: [1, 2, 3]\nheap iter: [5, 4, 2, 1, 3]\nheap into_sorted_vec: [1, 2, 3, 4, 5]",
+          "source": "use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, VecDeque};\nfn main() {\n    let mut a: HashMap<u32, u32> = HashMap::new();\n    let mut b: HashMap<u32, u32> = HashMap::new();\n    for k in 0..1000u32 {\n        a.insert(k, k);\n        b.insert(k, k);\n    }\n    println!(\"maps equal: {}\", a == b);\n    println!(\"same iteration order: {}\", a.keys().eq(b.keys()));\n    println!(\"same Debug text: {}\", format!(\"{:?}\", a) == format!(\"{:?}\", b));\n    let mut ks: Vec<u32> = a.keys().copied().collect();\n    ks.sort_unstable();\n    println!(\"sorted keys start: {:?}\", &ks[..3]);\n    let t: BTreeMap<u32, &str> = [(30, \"c\"), (10, \"a\"), (20, \"b\")].into_iter().collect();\n    println!(\"btreemap: {:?}\", t.keys().collect::<Vec<_>>());\n    let s: BTreeSet<i32> = [3, -1, 2].into_iter().collect();\n    println!(\"btreeset: {:?}\", s);\n    let mut q = VecDeque::new();\n    q.push_back(2);\n    q.push_back(3);\n    q.push_front(1);\n    println!(\"vecdeque: {:?}\", q.iter().collect::<Vec<_>>());\n    let h: BinaryHeap<i32> = [1, 5, 2, 4, 3].into_iter().collect();\n    println!(\"heap iter: {:?}\", h.iter().collect::<Vec<_>>());\n    println!(\"heap into_sorted_vec: {:?}\", h.into_sorted_vec());\n}\n"
+        },
+        {
+          "label": "a BTreeMap keyed by f64 is rejected: f64 is not Ord (E0277)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "the trait bound `f64: Ord` is not satisfied"
+          ],
+          "source": "use std::collections::BTreeMap;\npub fn index_by_depth(depths: &[f64]) -> BTreeMap<f64, usize> {\n    let mut m = BTreeMap::new();\n    for (i, d) in depths.iter().enumerate() {\n        m.insert(*d, i);\n    }\n    m\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Module std::collections (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/collections/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "iter yields Vec items in increasing index order, BTreeMap items in sorted order, and HashMap items in whatever order the internal representation made most convenient."
+        },
+        {
+          "title": "HashMap in std::collections (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/collections/struct.HashMap.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "HashMap's hashing algorithm is randomly seeded, is currently SipHash 1-3 'subject to change at any point in the future', and keys() visits all keys in arbitrary order."
+        },
+        {
+          "title": "RandomState in std::hash (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/hash/struct.RandomState.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "RandomState::new is initialized with random keys, and hashers from two different RandomState instances are unlikely to produce the same result for the same values."
+        },
+        {
+          "title": "BTreeMap in std::collections (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/collections/struct.BTreeMap.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "BTreeMap iter, into_iter, values and keys produce their items in key order; keys must implement Ord."
+        },
+        {
+          "title": "HashSet in std::collections (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/collections/struct.HashSet.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "HashSet::iter is 'an iterator visiting all elements in arbitrary order'."
+        },
+        {
+          "title": "BinaryHeap in std::collections (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/collections/struct.BinaryHeap.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "BinaryHeap::iter and into_vec return values in arbitrary order; into_sorted_vec returns them in ascending order."
+        },
+        {
+          "title": "VecDeque in std::collections (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/collections/struct.VecDeque.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "VecDeque::iter returns a front-to-back iterator, and iterating over a VecDeque goes front to back."
+        },
+        {
+          "title": "The Rust Programming Language, 8.3 Storing Keys with Associated Values in Hash Maps",
+          "url": "https://doc.rust-lang.org/book/ch08-03-hash-maps.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Iterating a HashMap prints each pair in an arbitrary order; HashMap uses SipHash by default."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "use-the-map-entry-api-for-counters-and-get-or-insert-instead-of-get-mut-followed-by-insert",
+      "name": "Use the map entry API for counters and get-or-insert instead of get_mut followed by insert",
+      "what": "`map.entry(k)` searches once and returns an Entry whose `or_insert`, `or_insert_with`, `or_default` and `and_modify` give `&mut V`; the hand-written get_mut / insert / get_mut function that returns the reference is still rejected on 1.98.1 (E0499).",
+      "how": "Counter: `*counts.entry(k).or_insert(0) += 1;`. Get-or-create that returns a reference: `fn slot(m: &mut HashMap<u32, Vec<u32>>, k: u32) -> &mut Vec<u32> { m.entry(k).or_default() }`. Update-or-insert: `m.entry(k).and_modify(|hp| *hp -= 5).or_insert(100);`. Costly default: `or_insert_with(|| build())` runs the closure only when the key is vacant. BTreeMap has the same API (`btree_map::Entry`).",
+      "rust_version": "or_insert / or_insert_with 1.0; and_modify 1.26; or_default 1.28",
+      "gotchas": "The get_mut -> insert -> get_mut shape returning `&mut V` is RFC 2094's 'problem case #3'; the RFC text says its analysis handles it, but the borrow checker shipped in 1.98.1 reports E0499 twice for it, so restructure with `entry` rather than fighting the checker. `or_insert(make())` evaluates `make()` on every call, even when the key exists (3 calls for 3 lookups, measured); use `or_insert_with`. `entry(key)` takes the key by value, so a String key is moved even when it is already present. Filling a HashMap through `entry` does not change its arbitrary iteration order.",
+      "engine_note": "",
+      "checks": [
+        {
+          "label": "get_mut, then insert, then get_mut returning the reference is rejected with E0499",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0499"
+          ],
+          "source": "use std::collections::HashMap;\npub fn slot<'m>(map: &'m mut HashMap<u32, Vec<u32>>, k: u32) -> &'m mut Vec<u32> {\n    match map.get_mut(&k) {\n        Some(v) => v,\n        None => {\n            map.insert(k, Vec::new());\n            map.get_mut(&k).unwrap()\n        }\n    }\n}\n"
+        },
+        {
+          "label": "entry().or_default() returns &mut V; or_insert_with is lazy, or_insert(make()) is eager",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "slot 7: [1, 2]\ncounts: {\"a\": 2, \"b\": 3, \"c\": 1}\nhp: {\"orc\": 95}\nor_insert_with ran 1 time(s)\nor_insert(make()) ran 3 time(s)",
+          "source": "use std::collections::{BTreeMap, HashMap};\nfn slot(m: &mut HashMap<u32, Vec<u32>>, k: u32) -> &mut Vec<u32> {\n    m.entry(k).or_default()\n}\nfn main() {\n    let mut m: HashMap<u32, Vec<u32>> = HashMap::new();\n    slot(&mut m, 7).push(1);\n    slot(&mut m, 7).push(2);\n    println!(\"slot 7: {:?}\", m[&7]);\n    let mut counts: BTreeMap<&str, u32> = BTreeMap::new();\n    for w in \"b a b c b a\".split(' ') {\n        *counts.entry(w).or_insert(0) += 1;\n    }\n    println!(\"counts: {:?}\", counts);\n    let mut hp: BTreeMap<&str, i32> = BTreeMap::new();\n    for _ in 0..2 {\n        hp.entry(\"orc\").and_modify(|h| *h -= 5).or_insert(100);\n    }\n    println!(\"hp: {:?}\", hp);\n    let mut built = 0;\n    let mut lazy: BTreeMap<u32, u32> = BTreeMap::new();\n    for _ in 0..3 {\n        lazy.entry(1).or_insert_with(|| {\n            built += 1;\n            10\n        });\n    }\n    println!(\"or_insert_with ran {} time(s)\", built);\n    let mut calls = 0;\n    let mut make = || {\n        calls += 1;\n        10u32\n    };\n    let mut eager: BTreeMap<u32, u32> = BTreeMap::new();\n    for _ in 0..3 {\n        eager.entry(1).or_insert(make());\n    }\n    println!(\"or_insert(make()) ran {} time(s)\", calls);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Module std::collections (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/collections/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The entry API manipulates a map conditionally on the presence of a key; without it, a find followed by an insert duplicates the search; a Vacant entry converts into a mutable reference to the inserted value."
+        },
+        {
+          "title": "Entry in std::collections::hash_map (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/collections/hash_map/enum.Entry.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "or_insert and or_insert_with are stable since 1.0.0, and_modify since 1.26.0 and or_default since 1.28.0; each ensures a value is present and returns a mutable reference to it."
+        },
+        {
+          "title": "HashMap in std::collections (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/collections/struct.HashMap.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "HashMap::entry(key: K) takes the key by value and gets the key's corresponding entry for in-place manipulation."
+        },
+        {
+          "title": "The Rust Programming Language, 8.3 Storing Keys with Associated Values in Hash Maps",
+          "url": "https://doc.rust-lang.org/book/ch08-03-hash-maps.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Hash maps have a special API called entry that takes the key to check and returns an Entry enum for inserting only when the key is absent."
+        }
+      ],
+      "background_sources": [
+        {
+          "title": "RFC 2094: Non-lexical lifetimes",
+          "url": "https://rust-lang.github.io/rfcs/2094-nll.html",
+          "year": 2017,
+          "kind": "rfc",
+          "identifier": "RFC 2094",
+          "claim": "Names this get_mut / insert / get_mut function 'problem case #3' and says its proposed analysis would handle it; the compiler shipped in 1.98.1 still rejects it (E0499, measured).",
+          "retrieved": true
+        }
+      ]
+    },
+    {
+      "slug": "give-every-hashed-sort-a-unique-total-key-if-keys-can-tie-use-stable-sort-by-not-sort-unstable-by",
+      "name": "Give every hashed sort a unique total key; if keys can tie, use stable sort_by, not sort_unstable_by",
+      "what": "`sort`, `sort_by` and `sort_by_key` preserve the initial order of equal elements; `sort_unstable*` 'may reorder equal elements', and since the 1.81 switch to ipnsort its docs no longer carry the pdqsort-era promise of 'a fixed seed to always provide deterministic behavior'. With a unique key, both produce identical output.",
+      "how": "Make the comparator a total order with no Equal between distinct elements: `v.sort_unstable_by(|a, b| a.key.cmp(&b.key).then(a.id.cmp(&b.id)))`. With such a key the stable and unstable sorts give the same output, so neither an algorithm change nor a toolchain bump can move it. If ties are possible and the key cannot be extended, use stable `sort_by` / `sort_by_key`: equal elements keep their input order, which must itself be canonical. Guard the invariant in tests: `assert!(v.windows(2).all(|w| cmp(&w[0], &w[1]).is_lt()))`.",
+      "rust_version": "1.81+ (driftsort / ipnsort; sorts may panic on a non-total comparator)",
+      "gotchas": "Measured on 1.98.1: `sort_unstable_by_key` kept equal keys in input order for 20 elements and reordered them at 21 and 100, so a small unit test hides the difference. Since 1.81 both sorts 'may panic' when the comparator is not a total order, and 'even if the function exits normally, the resulting order of elements in the slice is unspecified'; a cyclic comparator panicked stable `sort_by` on a 50-element input (measured). The 1.82 release notes say the rewritten binary_search 'may select a different value among the equal ones than the old implementation': results that depend on how std treats ties do move between releases.",
+      "engine_note": "`rebuild_snapshot` (solver/src/rapier_law.rs, the same at e5fbcb9 and main 4782a8a) sorts `Vec<&ContactPair>` with stable `sort_by` on `(collider1.into_raw_parts(), collider2.into_raw_parts())`. That key cannot tie under Rapier 0.35.3: pair_management.rs adds a contact edge only when the undirected `find_edge(gid1, gid2)` finds none, so each collider pair appears once, and stable or unstable would hash the same bytes. If a later snapshot sorts by a key that can tie (manifold points, a float depth), `sort_unstable_by` would let a move of the 1.98.1 pin reorder tied elements and shift the golden, while `sort_by` would fall back to Rapier's own edge order, which swap_remove rewrites. Extend the key until it is unique instead.",
+      "checks": [
+        {
+          "label": "stable keeps tie order; unstable keeps it at n=20, not at 21/100; unique key => identical",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "n=20: stable keeps ties true | unstable keeps ties true\nn=21: stable keeps ties true | unstable keeps ties false\nn=100: stable keeps ties true | unstable keeps ties false\nunique key (key, id): sort == sort_unstable: true",
+          "source": "fn ties_in_input_order(v: &[(u32, u32)]) -> bool {\n    v.windows(2).all(|w| w[0].0 != w[1].0 || w[0].1 < w[1].1)\n}\nfn main() {\n    for n in [20u32, 21, 100] {\n        let input: Vec<(u32, u32)> = (0..n).map(|i| ((i * 7) % 3, i)).collect();\n        let mut s = input.clone();\n        s.sort_by_key(|p| p.0);\n        let mut u = input.clone();\n        u.sort_unstable_by_key(|p| p.0);\n        println!(\n            \"n={n}: stable keeps ties {} | unstable keeps ties {}\",\n            ties_in_input_order(&s),\n            ties_in_input_order(&u)\n        );\n    }\n    let input: Vec<(u32, u32)> = (0..1000u32).map(|i| ((i * 7919) % 97, i)).collect();\n    let mut s = input.clone();\n    s.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));\n    let mut u = input.clone();\n    u.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));\n    println!(\"unique key (key, id): sort == sort_unstable: {}\", s == u);\n}\n"
+        },
+        {
+          "label": "1.98.1: a cyclic (non-total) comparator makes stable sort_by panic on this 50-element input",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "exit_code": 101,
+          "source": "use std::cmp::Ordering;\nfn main() {\n    let n = 50u32;\n    let mut v: Vec<u32> = (0..n).map(|i| (i * 7919) % n).collect();\n    // rock-paper-scissors on residues mod 3: not transitive, so not a total order\n    v.sort_by(|a, b| match (a % 3 + 3 - b % 3) % 3 {\n        0 => Ordering::Equal,\n        1 => Ordering::Greater,\n        _ => Ordering::Less,\n    });\n    println!(\"returned\");\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Primitive type slice (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.slice.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "sort is stable and preserves the initial order of equal elements; sort_unstable may reorder equal elements; both may panic if Ord is not a total order and otherwise leave the order unspecified; the current implementations are driftsort and ipnsort, and neither section promises deterministic tie order."
+        },
+        {
+          "title": "Primitive type slice (Rust 1.80.0 docs)",
+          "url": "https://doc.rust-lang.org/1.80.0/std/primitive.slice.html",
+          "year": 2024,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The 1.80.0 sort_unstable docs described pattern-defeating quicksort using 'randomization ... with a fixed seed to always provide deterministic behavior' - wording absent from the 1.98.1 docs."
+        },
+        {
+          "title": "Announcing Rust 1.81.0",
+          "url": "https://blog.rust-lang.org/2024/09/05/Rust-1.81.0/",
+          "year": 2024,
+          "kind": "blog",
+          "identifier": "",
+          "claim": "Rust 1.81 replaced both sort implementations; the new ones try to detect incorrect Ord implementations and panic instead of returning effectively randomly arranged data."
+        },
+        {
+          "title": "Rust RELEASES.md at tag 1.98.1",
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/RELEASES.md",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "1.81.0 replaced the sorts with driftsort and ipnsort and notes they may panic on a non-total Ord; 1.82.0 notes the new binary_search may select a different value among equal ones than the old implementation."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: src/geometry/narrow_phase/pair_management.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/narrow_phase/pair_management.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "rapier3d-f64 0.35.3 adds a contact-graph edge only when find_edge between the two colliders' graph nodes returns None."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: src/data/graph.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/data/graph.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Rapier's Graph::find_edge delegates to find_edge_undirected, so it finds an edge between two nodes in either direction."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: src/geometry/narrow_phase/queries.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/narrow_phase/queries.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "NarrowPhase::contact_pairs() returns contact_graph.interactions(), the pairs in graph edge order."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "sort-f64-with-sort-by-f64-total-cmp-find-first-matches-with-partition-point-and-dedup-floats-by-bits",
+      "name": "Sort f64 with sort_by(f64::total_cmp), find first matches with partition_point, and dedup floats by bits",
+      "what": "f64 is not Ord, so `sort()`, `sort_by_key(|p| p.x)` and `BTreeMap<f64, _>` fail with E0277; `total_cmp` is IEEE 754 totalOrder (-NaN < -inf < ... < -0.0 < +0.0 < ... < +inf < +NaN); on a sorted slice `binary_search` may return any of several equal matches, and `dedup` removes only consecutive PartialEq-equal runs.",
+      "how": "`v.sort_by(f64::total_cmp)`; for records `v.sort_by(|a, b| a.depth.total_cmp(&b.depth).then(a.id.cmp(&b.id)))`. Costly keys (a String, a computed norm): `v.sort_by_cached_key(|b| key(b))` calls the key at most once per element (100 calls for 100 elements against 1406 for `sort_by_key`, measured on 1.98.1). First index of a value in a sorted slice: `s.partition_point(|x| *x < target)`; keep `binary_search` for membership or the insertion point (`Err(i)`). Remove every duplicate: sort, then `dedup()`; for floats compare bits: `v.dedup_by(|a, b| a.to_bits() == b.to_bits())`.",
+      "rust_version": "total_cmp 1.62+; sort_by_cached_key 1.34+; partition_point 1.52+; binary_search tie choice changed in 1.82",
+      "gotchas": "`a.partial_cmp(b).unwrap()` panics at the first NaN comparison. `unwrap_or(Ordering::Equal)` is not a total order: on 1.98.1 it made `sort_unstable_by` panic on a 100-element input and left a 1000-element `sort_by` output unsorted without any error (both measured). `total_cmp` puts -0.0 before +0.0 while `==` calls them equal, so `dedup()` collapses [-0.0, 0.0] to the first and never merges NaNs. `[1, 2, 2, 2, 3].binary_search(&2)` returns Ok(3) on 1.98.1, not the first match; the docs say the index 'is chosen deterministically, but is subject to change in future versions of Rust', and 1.82 did change it. The order of sort_by_cached_key's key calls 'is unspecified and may change in future versions'.",
+      "engine_note": "`rebuild_snapshot` canonicalises -0.0 to +0.0 in `canon()` before `to_le_bytes` (solver/src/rapier_law.rs), and a NaN makes `write_body` / `canon_quat` refuse, so the step returns false. A future sort by an f64 on the snapshot path (contact points by depth, bodies by distance) should compare the canonicalised values with `total_cmp` plus an id tiebreak; on raw values, -0.0 and +0.0 order differently under `total_cmp`, so the same state could sort differently.",
+      "checks": [
+        {
+          "label": "sorting a Vec<f64> with sort() is rejected: f64 is not Ord (E0277)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "the trait bound `f64: Ord` is not satisfied"
+          ],
+          "source": "pub fn order(v: &mut Vec<f64>) {\n    v.sort();\n}\n"
+        },
+        {
+          "label": "sort_by_key with an f64 key is rejected the same way (E0277): the key must be Ord",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "the trait bound `f64: Ord` is not satisfied"
+          ],
+          "source": "pub fn by_depth(v: &mut Vec<(f64, u32)>) {\n    v.sort_by_key(|p| p.0);\n}\n"
+        },
+        {
+          "label": "total_cmp order, cached-key call count, binary_search tie index, dedup vs dedup-by-bits",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "[NaN, -inf, -1.5, -0.0, 0.0, 1.0, NaN]\nfirst is -NaN: true, -0.0 before +0.0: true\nkey calls: sort_by_key 1406 (>100: true), sort_by_cached_key 100\nbinary_search(2) Ok(3), partition_point 1, binary_search(4) Err(5)\ndedup [1, 2, 3, 2, 1], sort+dedup [1, 2, 3]\nf64 dedup [1.0, -0.0, NaN, NaN], dedup by bits [1.0, -0.0, 0.0, NaN]",
+          "source": "use std::cell::Cell;\nfn main() {\n    let mut w = vec![1.0, f64::NAN, -0.0, 0.0, f64::NEG_INFINITY, -f64::NAN, -1.5];\n    w.sort_by(f64::total_cmp);\n    println!(\"{:?}\", w);\n    println!(\n        \"first is -NaN: {}, -0.0 before +0.0: {}\",\n        w[0].is_nan() && w[0].is_sign_negative(),\n        w[3].is_sign_negative() && !w[4].is_sign_negative()\n    );\n    let data: Vec<u32> = (0..100u32).map(|i| (i * 37) % 100).collect();\n    let calls = Cell::new(0u32);\n    let mut a = data.clone();\n    a.sort_by_key(|&x| {\n        calls.set(calls.get() + 1);\n        x\n    });\n    let by_key = calls.replace(0);\n    let mut b = data.clone();\n    b.sort_by_cached_key(|&x| {\n        calls.set(calls.get() + 1);\n        x.to_string()\n    });\n    println!(\"key calls: sort_by_key {} (>100: {}), sort_by_cached_key {}\", by_key, by_key > 100, calls.get());\n    let s = [1, 2, 2, 2, 3];\n    println!(\n        \"binary_search(2) {:?}, partition_point {}, binary_search(4) {:?}\",\n        s.binary_search(&2),\n        s.partition_point(|&x| x < 2),\n        s.binary_search(&4)\n    );\n    let mut d = vec![1, 2, 2, 3, 2, 1];\n    d.dedup();\n    let mut e = vec![1, 2, 2, 3, 2, 1];\n    e.sort();\n    e.dedup();\n    println!(\"dedup {:?}, sort+dedup {:?}\", d, e);\n    let mut f = vec![1.0f64, 1.0, -0.0, 0.0, f64::NAN, f64::NAN];\n    f.dedup();\n    let mut g = vec![1.0f64, 1.0, -0.0, 0.0, f64::NAN, f64::NAN];\n    g.dedup_by(|a, b| a.to_bits() == b.to_bits());\n    println!(\"f64 dedup {:?}, dedup by bits {:?}\", f, g);\n}\n"
+        },
+        {
+          "label": "partial_cmp().unwrap() as a comparator panics as soon as a NaN is compared",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "exit_code": 101,
+          "source": "fn main() {\n    let mut v = vec![2.0, f64::NAN, 1.0];\n    v.sort_by(|a, b| a.partial_cmp(b).unwrap());\n    println!(\"unreachable: {:?}\", v);\n}\n"
+        },
+        {
+          "label": "1.98.1: NaN-as-Equal comparator makes sort_unstable_by panic on this 100-element input",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "exit_code": 101,
+          "source": "use std::cmp::Ordering;\nfn main() {\n    let mut v: Vec<f64> = (0..100usize)\n        .map(|i| if i % 5 == 0 { f64::NAN } else { ((i * 7919) % 1000) as f64 })\n        .collect();\n    v.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));\n    println!(\"returned\");\n}\n"
+        },
+        {
+          "label": "1.98.1: NaN-as-Equal sort_by over 1000 elements returns, but the numbers are left unsorted",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "returned; non-NaN values ascending: false",
+          "source": "use std::cmp::Ordering;\nfn main() {\n    let mut v: Vec<f64> = (0..1000usize)\n        .map(|i| if i % 5 == 0 { f64::NAN } else { ((i * 7919) % 1000) as f64 })\n        .collect();\n    v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));\n    let nums: Vec<f64> = v.iter().copied().filter(|x| !x.is_nan()).collect();\n    println!(\"returned; non-NaN values ascending: {}\", nums.windows(2).all(|w| w[0] <= w[1]));\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Primitive type f64 (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f64.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "total_cmp (stable since 1.62.0) orders values per IEEE 754 totalOrder, from negative quiet NaN through negative zero, positive zero, to positive quiet NaN, and disagrees with PartialOrd/PartialEq on the two zeros."
+        },
+        {
+          "title": "Primitive type slice (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.slice.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "sort_by_cached_key calls the key at most once per element and the call order is unspecified; binary_search returns any one of multiple matches, 'chosen deterministically, but ... subject to change in future versions of Rust'; partition_point returns the first index of the second partition; sorting f64 needs total_cmp or a partial_cmp().unwrap() that is only safe without NaN."
+        },
+        {
+          "title": "Vec in std::vec (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/vec/struct.Vec.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "dedup removes consecutive repeated elements according to PartialEq and removes all duplicates only if the vector is sorted; dedup_by_key/dedup_by keep the first of consecutive equal elements."
+        },
+        {
+          "title": "Rewrite binary search implementation (rust-lang/rust#128254)",
+          "url": "https://github.com/rust-lang/rust/pull/128254",
+          "year": 2024,
+          "kind": "pr",
+          "identifier": "rust-lang/rust#128254",
+          "claim": "The binary_search rewrite (merged 2024-08-02, milestone 1.82.0) may return a different index among equal elements than the previous implementation."
+        },
+        {
+          "title": "Rust RELEASES.md at tag 1.98.1",
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/RELEASES.md",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "The 1.82.0 compatibility notes state that the new binary_search may select a different value among equal ones than the old implementation."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "choose-iter-iter-mut-or-into-iter-by-ownership-and-consume-every-adapter-chain-you-build",
+      "name": "Choose iter, iter_mut or into_iter by ownership, and consume every adapter chain you build",
+      "what": "`for x in &v` iterates `&T` (iter), `for x in &mut v` iterates `&mut T` (iter_mut), `for x in v` consumes v and yields `T` (into_iter); adapters such as `map` are lazy and run nothing until consumed; from edition 2021, `array.into_iter()` yields values, while 2015/2018 resolve it to `(&array).into_iter()`.",
+      "how": "Read-only pass: `for b in &bodies {}`; in-place update: `for b in &mut bodies { b.v *= k; }`; transfer ownership: `for b in bodies {}` or `bodies.into_iter().map(..).collect()`. Run side effects in a `for` loop or `.for_each(..)`, never a bare `.map(..)`. Arrays in a 2021+ crate: `for x in [a, b, c]` and `[a, b, c].into_iter()` both give values; call `.iter()` when you want references.",
+      "rust_version": "array into_iter by value: edition 2021+ (IntoIterator for arrays exists in every edition since 1.53)",
+      "gotchas": "`v.iter().map(|x| println!(\"{x}\"));` compiles with `unused_must_use` ('iterators are lazy and do nothing unless consumed') and `map_unit_fn` warnings and prints nothing. After `for s in v`, `v.len()` is E0382 (v was moved by the loop's implicit `.into_iter()`). In an edition-2018 crate `[1, 2, 3].into_iter().collect::<Vec<i32>>()` is E0277 because the items are `&i32`; code that still compiles there gets the `array_into_iter` lint. Only method-call syntax differs by edition; `for e in [1, 2, 3]` iterates by value in every edition.",
+      "engine_note": "solver/Cargo.toml sets `edition = \"2021\"`, so in the law crate `array.into_iter()` already yields values; the snapshot and step loops walk bodies by index (`for i in 0..loaded.n_bodies`, `while i < n`) rather than through adapters.",
+      "checks": [
+        {
+          "label": "a bare map is lazy (unused_must_use, map_unit_fn) and prints nothing; iter_mut/into_iter work",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "lints": [
+            "unused_must_use",
+            "map_unit_fn"
+          ],
+          "stdout": "total 60, owned [\"10\", \"20\", \"30\"]",
+          "source": "fn main() {\n    let mut v = vec![1, 2, 3];\n    v.iter().map(|x| println!(\"lazy {x}\"));\n    for x in &mut v {\n        *x *= 10;\n    }\n    let total: i32 = v.iter().sum();\n    let owned: Vec<String> = v.into_iter().map(|x| x.to_string()).collect();\n    println!(\"total {total}, owned {:?}\", owned);\n}\n"
+        },
+        {
+          "label": "for x in v moves v; using v afterwards is E0382",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0382"
+          ],
+          "source": "fn main() {\n    let v = vec![String::from(\"a\"), String::from(\"b\")];\n    for s in v {\n        println!(\"{s}\");\n    }\n    println!(\"{}\", v.len());\n}\n"
+        },
+        {
+          "label": "edition 2018: array.into_iter() yields &i32, so collecting Vec<i32> is E0277",
+          "edition": "2018",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "source": "fn main() {\n    let a = [1, 2, 3];\n    let v: Vec<i32> = a.into_iter().collect();\n    println!(\"{:?}\", v);\n}\n"
+        },
+        {
+          "label": "edition 2021: the same array.into_iter() yields i32 values",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "[1, 2, 3]",
+          "source": "fn main() {\n    let a = [1, 2, 3];\n    let v: Vec<i32> = a.into_iter().collect();\n    println!(\"{:?}\", v);\n}\n"
+        },
+        {
+          "label": "edition 2018: array.into_iter() in a for loop compiles by reference and warns array_into_iter",
+          "edition": "2018",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "lints": [
+            "array_into_iter"
+          ],
+          "stdout": "1\n2\n3",
+          "source": "fn main() {\n    let a = [1, 2, 3];\n    for x in a.into_iter() {\n        let y: &i32 = x;\n        println!(\"{}\", y);\n    }\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Module std::iter (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/iter/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The three forms of iteration are iter() over &T, iter_mut() over &mut T and into_iter() over T; iterators and adapters are lazy and nothing happens until next is called, and a bare map for side effects triggers a warning."
+        },
+        {
+          "title": "The Rust Edition Guide: IntoIterator for arrays",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2021/IntoIterator-for-arrays.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Arrays implement IntoIterator in all editions (since 1.53); array.into_iter() resolves to (&array).into_iter() in 2015/2018 and to IntoIterator::into_iter in 2021; the array_into_iter lint flags calls whose meaning changes."
+        },
+        {
+          "title": "Module std::collections (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/collections/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "iter_mut yields mutable references in the same order as iter; into_iter transforms the collection into an iterator over its contents by value."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "assert-equal-lengths-before-zip-handle-chunks-exact-remainders-and-collect-into-the-target-you-mean",
+      "name": "Assert equal lengths before zip, handle chunks_exact remainders, and collect into the target you mean",
+      "what": "`zip` ends when either input ends, without error; `windows(k)` yields len-k+1 overlapping slices; `chunks_exact(k)` omits the last len % k elements into `remainder()`; `collect` builds any `FromIterator` target: `Result<Vec<_>, E>` stops at the first Err, and a `BTreeMap` sorts by key and keeps one value per key.",
+      "how": "`debug_assert_eq!(pos.len(), vel.len()); for (p, v) in pos.iter().zip(&vel) {}`; `for (i, b) in bodies.iter().enumerate()`; `a.iter().chain(&b)` concatenates in order. Fixed strides: `buf.chunks_exact(STRIDE)` and check `.remainder().is_empty()`, or `let (rows, tail) = buf.as_chunks::<17>();` (1.88+, rows are `&[[f64; 17]]`); neighbour pairs: `windows(2)` or `array_windows::<2>()` (1.94+). Parse or refuse: `let xs: Result<Vec<f64>, _> = toks.iter().map(|t| t.parse::<f64>()).collect();`.",
+      "rust_version": "chunks_exact 1.31+; as_chunks 1.88+; array_windows 1.94+",
+      "gotchas": "Zipping 4 positions with 3 velocities yields 3 pairs and no error. Over 7 items `chunks(3)` gives lengths [3, 3, 1] while `chunks_exact(3)` gives two chunks and hides [7] in `remainder()`. `windows(0)` and `chunks_exact(0)` panic. Collecting into a HashMap or HashSet brings back arbitrary order; into a BTreeMap, duplicate keys keep one value ('all but one of the corresponding values will be dropped'). `collect::<Result<_, _>>()` stops pulling at the first Err, so side effects in the closure stop there too (measured: '1' and 'x' seen, '3' never parsed).",
+      "engine_note": "solver/src/lib.rs lays bodies out as `[f64; MAX_BODIES * BODY_STRIDE]` with BODY_STRIDE = 17 (colliders: COLLIDER_STRIDE = 10), and `body_at` in rapier_law.rs copies a row with an index loop. Over a `&[f64]` view the same rows are `as_chunks::<17>()` with an empty remainder, which puts the stride in the type; how to obtain that view of a `static mut` soundly belongs to the unsafe-ffi lane.",
+      "checks": [
+        {
+          "label": "zip truncates, chunks_exact hides the tail, as_chunks/array_windows, Result collect stops at Err",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "zip pairs 3 (pos 4, vel 3)\nenumerate [(0, 'a'), (1, 'b'), (2, 'c')] chain [1, 2, 3]\nwindows(2) count 6\nchunks_exact remainder [7]\nchunks_exact sums [6, 15]\nchunks lens [3, 3, 1]\nas_chunks [[1, 2, 3], [4, 5, 6]] tail [7]\narray_windows diffs [1, 1, 1, 1, 1, 1]\nstring rust, btreemap {\"a\": 1, \"b\": 0, \"c\": 2}, duplicate keys -> 1 entry\nresult Err(\"x: invalid digit found in string\") after seeing [\"1\", \"x\"]",
+          "source": "use std::collections::BTreeMap;\nfn main() {\n    let pos = [0.0f64, 1.0, 2.0, 3.0];\n    let vel = [10.0f64, 20.0, 30.0];\n    println!(\"zip pairs {} (pos {}, vel {})\", pos.iter().zip(vel.iter()).count(), pos.len(), vel.len());\n    let e: Vec<(usize, char)> = \"abc\".chars().enumerate().collect();\n    let c: Vec<i32> = [1, 2].into_iter().chain([3]).collect();\n    println!(\"enumerate {:?} chain {:?}\", e, c);\n    let d = [1, 2, 3, 4, 5, 6, 7];\n    println!(\"windows(2) count {}\", d.windows(2).count());\n    let ce = d.chunks_exact(3);\n    println!(\"chunks_exact remainder {:?}\", ce.remainder());\n    println!(\"chunks_exact sums {:?}\", ce.map(|ch| ch.iter().sum::<i32>()).collect::<Vec<_>>());\n    println!(\"chunks lens {:?}\", d.chunks(3).map(|ch| ch.len()).collect::<Vec<_>>());\n    let (rows, tail) = d.as_chunks::<3>();\n    println!(\"as_chunks {:?} tail {:?}\", rows, tail);\n    println!(\"array_windows diffs {:?}\", d.array_windows::<2>().map(|[a, b]| b - a).collect::<Vec<_>>());\n    let s: String = ['r', 'u', 's', 't'].iter().collect();\n    let m: BTreeMap<&str, usize> = [\"b\", \"a\", \"c\"].iter().enumerate().map(|(i, k)| (*k, i)).collect();\n    let dup: BTreeMap<u32, char> = [(1, 'a'), (1, 'b')].into_iter().collect();\n    println!(\"string {s}, btreemap {:?}, duplicate keys -> {} entry\", m, dup.len());\n    let mut seen = Vec::new();\n    let r: Result<Vec<i32>, String> = [\"1\", \"x\", \"3\"]\n        .iter()\n        .map(|t| {\n            seen.push(*t);\n            t.parse::<i32>().map_err(|e| format!(\"{t}: {e}\"))\n        })\n        .collect();\n    println!(\"result {:?} after seeing {:?}\", r, seen);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Trait Iterator in std::iter (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/iter/trait.Iterator.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "If either iterator returns None, next from the zipped iterator returns None; collect builds any FromIterator target."
+        },
+        {
+          "title": "Primitive type slice (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.slice.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "windows yields overlapping windows and panics on size zero; chunks_exact omits the last up-to chunk_size-1 elements, retrievable via remainder, and panics on zero; as_chunks (1.88.0) splits into N-element arrays plus a remainder; array_windows is stable since 1.94.0."
+        },
+        {
+          "title": "Result in std::result (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/result/enum.Result.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Collecting into Result takes each element: if it is an Err, no further elements are taken and the Err is returned."
+        },
+        {
+          "title": "BTreeMap in std::collections (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/collections/struct.BTreeMap.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "BTreeMap::from_iter drops all but one of the values for pairs with equal keys."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "sum-floats-in-one-canonical-order-iter-sum-is-a-left-fold-from-0-0-and-reordering-changes-the-bits",
+      "name": "Sum floats in one canonical order: iter().sum() is a left fold from -0.0 and reordering changes the bits",
+      "what": "For f16/f32/f64/f128, `Iterator::sum` is `iter.fold(-0.0, |a, b| a + b)` in iteration order (core at tag 1.98.1); float addition is not associative, so reversing or regrouping the same values changes the result, and an empty float sum is -0.0 since 1.82 (rust-lang/rust#129321).",
+      "how": "Sum over a canonical sequence (body index order, or a sorted Vec), never over a HashMap/HashSet or a parallel iterator. Choose the identity on purpose: `.sum::<f64>()` starts at -0.0, `.fold(0.0, |a, &b| a + b)` starts at +0.0; they differ only for empty or all -0.0 input. Canonicalise zero before hashing (`if x == 0.0 { 0.0 } else { x }`, then `to_bits()`). If a total must not depend on order, change the representation (integers, fixed point), not the loop.",
+      "rust_version": "1.82+ (empty float sum is -0.0)",
+      "gotchas": "[0.1, 0.2, 0.3] sums to 0.6000000000000001 forward and 0.6 reversed; [1e16, 1.0, -1e16] sums to 0.0 while [1e16, -1e16, 1.0] sums to 1.0, and the same holds under -O (measured). The fold docs call order 'not important' for 'associative operators like +'; that is true for integers, not for floats. Before 1.82 the float identity was +0.0, so an empty sum hashed through `to_bits()` changes sign across that release. Parallel reductions (rayon) regroup additions (concurrency-async lane).",
+      "engine_note": "solver/src contains no `.sum()` today (grep at e5fbcb9 and main 4782a8a). `rebuild_snapshot` sends every f64 through `canon()` (rapier_law.rs), so an empty-sum -0.0 would hash as +0.0 there, while `mix_f64`, which feeds `signature()`, hashes `to_bits()` without canonicalising. Any behaviour number the Phase 2 outcome tests total over bodies should be summed in body-index order.",
+      "checks": [
+        {
+          "label": "sum is fold(-0.0): order changes bits; empty sum is -0.0; canon() maps it to +0.0",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "forward 0.6000000000000001 reverse 0.6 same bits false\nsum == fold(-0.0) bitwise true\nabsorption 0.0 vs 1.0\nempty sum -0.0 (sign bit true), empty fold(0.0) 0.0\ncanon(empty) has +0.0 bits: true",
+          "source": "fn main() {\n    let xs = [0.1f64, 0.2, 0.3];\n    let fwd: f64 = xs.iter().sum();\n    let rev: f64 = xs.iter().rev().sum();\n    println!(\"forward {:?} reverse {:?} same bits {}\", fwd, rev, fwd.to_bits() == rev.to_bits());\n    let folded = xs.iter().fold(-0.0, |a, &b| a + b);\n    println!(\"sum == fold(-0.0) bitwise {}\", folded.to_bits() == fwd.to_bits());\n    let a: f64 = [1e16f64, 1.0, -1e16].iter().sum();\n    let b: f64 = [1e16f64, -1e16, 1.0].iter().sum();\n    println!(\"absorption {:?} vs {:?}\", a, b);\n    let empty: f64 = std::iter::empty::<f64>().sum();\n    let empty_fold = std::iter::empty::<f64>().fold(0.0, |a, b| a + b);\n    println!(\"empty sum {:?} (sign bit {}), empty fold(0.0) {:?}\", empty, empty.is_sign_negative(), empty_fold);\n    let canon = |x: f64| if x == 0.0 { 0.0 } else { x };\n    println!(\"canon(empty) has +0.0 bits: {}\", canon(empty).to_bits() == 0.0f64.to_bits());\n}\n"
+        },
+        {
+          "label": "the same order effects survive -O: the optimiser does not regroup the additions",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-O"
+          ],
+          "expect": "runs",
+          "stdout": "forward 0.6000000000000001 reverse 0.6 same bits false\nsum == fold(-0.0) bitwise true\nabsorption 0.0 vs 1.0\nempty sum -0.0 (sign bit true), empty fold(0.0) 0.0\ncanon(empty) has +0.0 bits: true",
+          "source": "fn main() {\n    let xs = [0.1f64, 0.2, 0.3];\n    let fwd: f64 = xs.iter().sum();\n    let rev: f64 = xs.iter().rev().sum();\n    println!(\"forward {:?} reverse {:?} same bits {}\", fwd, rev, fwd.to_bits() == rev.to_bits());\n    let folded = xs.iter().fold(-0.0, |a, &b| a + b);\n    println!(\"sum == fold(-0.0) bitwise {}\", folded.to_bits() == fwd.to_bits());\n    let a: f64 = [1e16f64, 1.0, -1e16].iter().sum();\n    let b: f64 = [1e16f64, -1e16, 1.0].iter().sum();\n    println!(\"absorption {:?} vs {:?}\", a, b);\n    let empty: f64 = std::iter::empty::<f64>().sum();\n    let empty_fold = std::iter::empty::<f64>().fold(0.0, |a, b| a + b);\n    println!(\"empty sum {:?} (sign bit {}), empty fold(0.0) {:?}\", empty, empty.is_sign_negative(), empty_fold);\n    let canon = |x: f64| if x == 0.0 { 0.0 } else { x };\n    println!(\"canon(empty) has +0.0 bits: {}\", canon(empty).to_bits() == 0.0f64.to_bits());\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Trait Iterator in std::iter (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/iter/trait.Iterator.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "sum returns the additive identity for an empty iterator, '0 for integers and -0.0 for floats'; fold combines elements in a left-associative fashion."
+        },
+        {
+          "title": "core/src/iter/traits/accum.rs at tag 1.98.1",
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/library/core/src/iter/traits/accum.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "At tag 1.98.1 the float Sum impls (by value and by reference, for f16 f32 f64 f128) are iter.fold(-0.0, |a, b| a + b)."
+        },
+        {
+          "title": "Change neutral element of <fNN as iter::Sum> to neg_zero (rust-lang/rust#129321)",
+          "url": "https://github.com/rust-lang/rust/pull/129321",
+          "year": 2024,
+          "kind": "pr",
+          "identifier": "rust-lang/rust#129321",
+          "claim": "Changed the neutral element of float Sum from +0.0 to -0.0 because +0 + -0 = +0; merged 2024-08-21 with milestone 1.82.0."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "return-closures-as-impl-fn-with-move-and-bound-callbacks-by-the-weakest-fn-trait-the-call-site-needs",
+      "name": "Return closures as impl Fn with move, and bound callbacks by the weakest Fn trait the call site needs",
+      "what": "A closure captures each variable in the first mode its body allows (shared borrow, unique borrow, mutable borrow, move) and implements FnOnce always, FnMut if it moves nothing out, Fn if it also mutates nothing; `move` forces by-value capture (a copy for Copy types) without changing which Fn traits apply.",
+      "how": "Return: `fn scaler(k: f64) -> impl Fn(f64) -> f64 { move |x| x * k }`. Parameters: `F: FnOnce()` when you call it once, `FnMut` when it may mutate captured state (std's `retain`, `sort_by` and `map` take FnMut), `Fn` only when it must be callable through `&`. Store different closures as `Vec<Box<dyn Fn(f64) -> f64>>`. A `move` closure over a Copy value copies it and the original stays usable.",
+      "rust_version": "any (edition 2021+ captures disjoint fields)",
+      "gotchas": "Returning `|x| x * k` without `move` is E0373 ('closure may outlive the current function, but it borrows `k`'). Calling a closure that moves a capture out a second time is E0382 ('closure cannot be invoked more than once'). The same mistake, a mutating closure passed to an `F: Fn()` parameter, is reported as E0594 when the closure is written inline (the expected bound drives inference), and a closure that only implements FnOnce, bound to a variable first, is reported as E0525. `move` does not make a closure FnOnce. Edition 2021 captures disjoint fields (ownership-borrowing lane).",
+      "engine_note": "",
+      "checks": [
+        {
+          "label": "returning a closure that borrows a parameter is E0373",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0373"
+          ],
+          "source": "pub fn scaler(k: f64) -> impl Fn(f64) -> f64 {\n    |x| x * k\n}\n"
+        },
+        {
+          "label": "calling a closure that moves a capture out twice is E0382",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0382"
+          ],
+          "source": "pub fn twice() {\n    let name = String::from(\"orc\");\n    let consume = move || name;\n    let a = consume();\n    let b = consume();\n    let _ = (a, b);\n}\n"
+        },
+        {
+          "label": "an inline mutating closure passed to an F: Fn() parameter is E0594",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0594"
+          ],
+          "source": "fn call_twice<F: Fn()>(f: F) {\n    f();\n    f();\n}\npub fn g() {\n    let mut n = 0;\n    call_twice(|| n += 1);\n}\n"
+        },
+        {
+          "label": "an FnOnce closure bound to a variable, then passed to an F: Fn() parameter, is E0525",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0525"
+          ],
+          "source": "fn call_twice<F: Fn()>(f: F) {\n    f();\n    f();\n}\npub fn g() {\n    let s = String::from(\"x\");\n    let f = move || drop(s);\n    call_twice(f);\n}\n"
+        },
+        {
+          "label": "FnMut accumulator, move copies a Copy capture, a move closure stays Fn, boxed dyn Fn",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "FnMut total 6\nmove copies Copy captures: 4 and k is still 3\nmove closure is still Fn: 2 2\nboxed [3.0, 2.5]",
+          "source": "fn scaler(k: f64) -> impl Fn(f64) -> f64 {\n    move |x| x * k\n}\nfn call_each<F: FnMut(u32)>(mut f: F) {\n    for i in 1..=3 {\n        f(i);\n    }\n}\nfn main() {\n    let mut total = 0;\n    call_each(|i| total += i);\n    println!(\"FnMut total {total}\");\n    let k = 3;\n    let add_k = move |x: i32| x + k;\n    println!(\"move copies Copy captures: {} and k is still {}\", add_k(1), k);\n    let names = vec![String::from(\"a\"), String::from(\"b\")];\n    let count = move || names.len();\n    println!(\"move closure is still Fn: {} {}\", count(), count());\n    let fs: Vec<Box<dyn Fn(f64) -> f64>> = vec![Box::new(scaler(2.0)), Box::new(|x| x + 1.0)];\n    println!(\"boxed {:?}\", fs.iter().map(|f| f(1.5)).collect::<Vec<_>>());\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference: Closure types",
+          "url": "https://doc.rust-lang.org/reference/types/closure.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Capture modes are ImmBorrow, UniqueImmBorrow, MutBorrow and ByValue, chosen as the first mode compatible with the closure body; all closures implement FnOnce, those that move nothing out implement FnMut, those that also mutate nothing implement Fn; move closures may still implement Fn or FnMut."
+        },
+        {
+          "title": "The Rust Reference: Closure expressions",
+          "url": "https://doc.rust-lang.org/reference/expressions/closure-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Without move a closure prefers to capture by shared reference; move forces capture by copying or moving, often so the closure's lifetime is 'static."
+        },
+        {
+          "title": "The Rust Programming Language, 13.1 Closures",
+          "url": "https://doc.rust-lang.org/book/ch13-01-closures.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Closures capture by immutable borrow, mutable borrow or ownership according to what the body does; FnOnce, FnMut and Fn are defined by whether captured values are moved out or mutated."
+        },
+        {
+          "title": "Rust error codes index: E0373",
+          "url": "https://doc.rust-lang.org/error_codes/E0373.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "E0373: a captured variable may not live long enough, most commonly when returning a closure that captures a local by reference; the fix is a move closure."
+        },
+        {
+          "title": "Rust error codes index: E0525",
+          "url": "https://doc.rust-lang.org/error_codes/E0525.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "E0525: a closure was used where a different Fn trait was expected, e.g. an FnOnce closure passed to a parameter bounded by Fn."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "treat-str-lengths-as-bytes-slice-only-on-char-boundaries-and-keep-unicode-case-mapping-out-of-hashed-keys",
+      "name": "Treat str lengths as bytes, slice only on char boundaries, and keep Unicode case mapping out of hashed keys",
+      "what": "String and &str are always valid UTF-8: `len()` counts bytes, `s[i]` does not compile (E0277), `&s[a..b]` panics off a char boundary while `s.get(a..b)` returns None, and Unicode-aware methods follow `char::UNICODE_VERSION`, which the docs say changes over time without that being a breaking change.",
+      "how": "Take `&str` parameters, return `String` when you allocate. Count chars with `s.chars().count()`, walk bytes with `s.bytes()`, find cut points with `s.char_indices()` or `s.is_char_boundary(i)`, slice with `s.get(a..b)`. Decode untrusted bytes with `String::from_utf8(bytes)` (Err on invalid input); `from_utf8_lossy` silently substitutes U+FFFD. For names or ids that reach a hash, compare with `eq_ignore_ascii_case` / `to_ascii_lowercase` or on raw bytes, not with `to_lowercase`. `format!(\"{:>8.3}\", x)`: width 8, and for floats precision is the number of digits after the decimal point.",
+      "rust_version": "any; char::UNICODE_VERSION is (17, 0, 0) on 1.98.1",
+      "gotchas": "`\"héllo\".len()` is 6 and `.chars().count()` is 5; `&s[0..2]` panics ('end byte index 2 is not a char boundary; it is inside 'é' (bytes 1..3 of string)'). `to_uppercase` can change length ('Straße' becomes 'STRASSE') and its tables follow `UNICODE_VERSION`, (17, 0, 0) on 1.98.1, so a toolchain bump can change case mapping. `{}` printed 1e21 as 1000000000000000000000 (measured). Formatted float text is not a hashing format; hash bits (float-determinism lane).",
+      "engine_note": "",
+      "checks": [
+        {
+          "label": "bytes vs chars, boundaries, get, from_utf8, UNICODE_VERSION, case mapping, format! (ASCII out)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "len 6 chars 5 first bytes [104, 195, 169]\nboundary(2) false get(0..2) is None: true, get(0..3) = h\\u{e9}\nchar starts [0, 1, 3, 4, 5]\nfrom_utf8 invalid is_err true, lossy replaced true\nunicode (17, 0, 0)\nSTRASSE \\u{c9}lan true\n[   3.142] [hp  ] [00042] [1.5e3] [1000000000000000000000]",
+          "source": "fn main() {\n    // Non-ASCII results are printed with escape_default so stdout is plain ASCII on any console.\n    let s = \"héllo\";\n    println!(\"len {} chars {} first bytes {:?}\", s.len(), s.chars().count(), s.bytes().take(3).collect::<Vec<u8>>());\n    println!(\n        \"boundary(2) {} get(0..2) is None: {}, get(0..3) = {}\",\n        s.is_char_boundary(2),\n        s.get(0..2).is_none(),\n        s.get(0..3).unwrap_or(\"none\").escape_default()\n    );\n    println!(\"char starts {:?}\", s.char_indices().map(|(i, _)| i).collect::<Vec<_>>());\n    let bad = [0x66u8, 0x6f, 0xff];\n    println!(\n        \"from_utf8 invalid is_err {}, lossy replaced {}\",\n        String::from_utf8(bad.to_vec()).is_err(),\n        String::from_utf8_lossy(&bad) == \"fo\\u{FFFD}\"\n    );\n    println!(\"unicode {:?}\", char::UNICODE_VERSION);\n    println!(\n        \"{} {} {}\",\n        \"Straße\".to_uppercase(),\n        \"ÉLAN\".to_ascii_lowercase().escape_default(),\n        \"orc\".eq_ignore_ascii_case(\"ORC\")\n    );\n    println!(\"[{:>8.3}] [{:<4}] [{:05}] [{:e}] [{}]\", 3.14159f64, \"hp\", 42, 1500.0f64, 1e21f64);\n}\n"
+        },
+        {
+          "label": "slicing a String inside a multi-byte char panics at run time",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "exit_code": 101,
+          "source": "fn main() {\n    let s = String::from(\"héllo\");\n    let t = &s[0..2];\n    println!(\"{t}\");\n}\n"
+        },
+        {
+          "label": "indexing a String with an integer is E0277",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "cannot be indexed by `{integer}`"
+          ],
+          "source": "pub fn first(s: &String) -> char {\n    s[0]\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "String in std::string (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/string/struct.String.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Strings are always valid UTF-8; indexing with a usize is forbidden; range slicing takes byte indices and panics if they are not character boundaries."
+        },
+        {
+          "title": "Primitive type str (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.str.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "str::len is in bytes, not chars or graphemes; str::get is the non-panicking alternative to indexing and returns None where indexing would panic; is_char_boundary checks a byte index."
+        },
+        {
+          "title": "Primitive type char (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.char.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "char::UNICODE_VERSION names the Unicode version behind char and str methods; their behaviour and the constant change over time, and this is not considered a breaking change."
+        },
+        {
+          "title": "The Rust Programming Language, 8.2 Storing UTF-8 Encoded Text with Strings",
+          "url": "https://doc.rust-lang.org/book/ch08-02-strings.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Rust strings do not support indexing; slicing part of a character's bytes panics at run time; use chars for Unicode scalar values and bytes for raw bytes."
+        },
+        {
+          "title": "Module std::fmt (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/fmt/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "For floating-point types, precision is the number of digits after the decimal point; format! takes width, fill, alignment and precision specifiers."
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

@@ -1,0 +1,248 @@
+{
+  "wave": 0,
+  "date": "2026-06-07",
+  "title": "Local seed — TRELLIS.2 sprite pipeline proven on the RTX 5090",
+  "domain_scope": "mesh-360, render-light, downsample-finish",
+  "agent_count": 0,
+  "verifier_note": "evidence = measured-on-rig by direct execution + look-at-output on 2026-06-07 (NOT a research swarm). Receipts are the actual runs in E:/AI/trellis-work and the trellis-sprite-pipeline repo. External sources (arXiv/GitHub/HF) are real and resolve.",
+  "lanes": [
+    {
+      "laneSlug": "mesh-360",
+      "title": "Mesh-path 360 — proven TRELLIS.2 lane",
+      "recipes": [
+        {
+          "slug": "trellis2-4b-rtx5090-image-to-glb",
+          "name": "TRELLIS.2-4B image -> textured GLB on RTX 5090 (Blackwell)",
+          "kind": "model",
+          "engine_family": "trellis2",
+          "applicable_to": "turnaround",
+          "base_model_family": "TRELLIS",
+          "claim": "TRELLIS.2-4B runs on the 5090 in a dedicated torch-2.10+cu130 venv and turns one front image into a textured GLB; commercial-clean (mesh is MIT).",
+          "summary": "Run TRELLIS.2 in a dedicated env (E:/AI-Models/trellis2-env, torch 2.10.0+cu130) against the standalone repo (E:/AI-Models/TRELLIS.2-repo), NOT the ComfyUI-Trellis2 node (its wheels are torch-2.10-locked vs ComfyUI's 2.12 -> DLL/ABI mismatch). Load with Trellis2ImageTo3DPipeline.from_pretrained('microsoft/TRELLIS.2-4B').cuda(); mesh = pipe.run(img, pipeline_type=...)[0]; mesh.simplify(); o_voxel.postprocess.to_glb(...). dinov3 image encoder is gated (HF token, cached). Background removal patched from gated RMBG-2.0 to ungated ZhengPeng7/BiRefNet (input-only, commercial-clean).",
+          "design_implication": "This is the studio's proven 360 engine. The mesh is MIT (shippable); BiRefNet touches only the input (not a shipped asset). Generate the source character on a commercial-clean base (SDXL base 1.0 or Apache Z-Image/Chroma) and the whole chain stays commercial.",
+          "evidence_strength": "measured-on-rig",
+          "measured_conditions": "RTX 5090 32GB, Win11, trellis2-env torch 2.10.0+cu130, ATTN_BACKEND=sdpa + grafted Blackwell sparse-attention (_sdpa_varlen), HF_HOME=E:/AI-Models/hf-cache. 512^3: gen 60s, gen-peak 3.4GB (allocator), 582k->482k verts, 35.9MB GLB. 1024_cascade: gen 37s, gen-peak 3.5GB, 2.26M->477k verts, 38.3MB GLB. Watchdog clean.",
+          "num_runs": 3,
+          "license": "MIT (TRELLIS.2 code+mesh); BiRefNet MIT (input preprocessing only); dinov3 gated research license (encoder, not shipped)",
+          "commercial_use": "yes",
+          "commercial_notes": "Shipped asset = the mesh (MIT) rendered to 2D in Blender. AVOID the nvdiffrast/nvdiffrec render path (non-commercial NVIDIA license) — render in Blender instead.",
+          "vram_gb": "15-16 total (3.4-3.5 allocator peak) at both 512 and 1024_cascade",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "download_priority": 1,
+          "status": "recommended",
+          "verified": 1,
+          "verify_note": "Run end-to-end on the rig 2026-06-07; outputs looked-at from 8 angles.",
+          "engine_recipe_ref": "trellis2-env (tensor-engine-knowledge candidate)",
+          "hparams": [
+            {"name": "pipeline_type", "value": "512 | 1024 | 1024_cascade | 1536_cascade", "note": "run() arg; default is 1024_cascade. Call explicitly. Both DiTs load at from_pretrained."},
+            {"name": "to_glb.decimation_target", "value": "1000000", "note": "1M faces ~ game-appropriate; raise to 4M-10M to keep 1024 detail (heavier RAM downstream)"},
+            {"name": "to_glb.texture_size", "value": "4096", "note": "PBR texture bake; webp via extension_webp=True"},
+            {"name": "to_glb.remesh / remesh_band / remesh_project", "value": "True / 1 / 0", "note": "smoke-test baseline; remesh=False + project~1 better preserves thin features per research"},
+            {"name": "ATTN_BACKEND", "value": "sdpa", "required": 1, "note": "xformers is DEAD on Blackwell sm_120; flash_attn won't build on Windows"}
+          ],
+          "failures": [
+            {"symptom": "Side/back of head is a featureless white smear", "cause": "single front-view input gives TRELLIS no data for head sides", "remediation": "feed a back/side reference view, or paint-fix; NOT fixable by resolution", "severity": "quality"},
+            {"symptom": "Back textures desaturated/hallucinated (never black with AgX lift)", "cause": "TRELLIS hallucinates unseen back from a front image", "remediation": "acceptable at sprite size; tonemap keeps them readable", "severity": "cosmetic"},
+            {"symptom": "expandable_segments not supported warning", "cause": "Windows CUDA allocator", "remediation": "benign — ignore", "severity": "cosmetic"}
+          ],
+          "sources": [
+            {"kind": "github", "title": "microsoft/TRELLIS.2", "year": "2025", "url": "https://github.com/microsoft/TRELLIS.2", "claim": "Official TRELLIS.2 repo (MIT); O-Voxel image-to-3D.", "verified": 1},
+            {"kind": "paper", "title": "TRELLIS.2", "identifier": "arXiv:2512.14692", "year": "2025", "url": "https://arxiv.org/abs/2512.14692", "claim": "TRELLIS.2 method paper; 512^3 vs 1024^3 O-Voxel representation.", "verified": 1},
+            {"kind": "model-card", "title": "microsoft/TRELLIS.2-4B", "url": "https://huggingface.co/microsoft/TRELLIS.2-4B", "claim": "The 4B checkpoint used; ships 512 + 1024 DiTs.", "verified": 1},
+            {"kind": "model-card", "title": "ZhengPeng7/BiRefNet", "url": "https://huggingface.co/ZhengPeng7/BiRefNet", "claim": "Ungated MIT background remover swapped in for gated RMBG-2.0.", "verified": 1}
+          ]
+        },
+        {
+          "slug": "trellis2-1024-cascade-vs-512-thin-features",
+          "name": "1024_cascade vs 512 for thin features (5090)",
+          "kind": "technique",
+          "engine_family": "trellis2",
+          "applicable_to": "turnaround",
+          "base_model_family": "TRELLIS",
+          "claim": "1024_cascade yields visibly sharper faces/armor/folds than 512 at near-identical VRAM and time on the 5090; thin features survive at both.",
+          "summary": "Same character meshed at pipeline_type='512' vs '1024_cascade', identical to_glb. 1024 generated ~3.9x the geometry (2.26M vs 0.58M verts) and looked sharper (face reads as a face, armor filigree, robe folds) EVEN after decimating both to ~1M faces — better generation survives decimation. A thin vertical staff (shaft + ornate head + finial) reconstructed cleanly at BOTH resolutions. The RESEARCH-REPORT's ~24GB OOM fear for 1024 was 5080-era pessimism: on the 5090, 1024_cascade peaked 3.5GB allocator (~16GB total).",
+          "design_implication": "Use 1024_cascade for hero/portrait/close characters (face-as-face survives the 64px downscale). 512 is fine for tiny background mobs where the gain washes out. Cost is ~nil on the 5090, so default to 1024_cascade unless batching at scale.",
+          "evidence_strength": "measured-on-rig",
+          "measured_conditions": "RTX 5090; 512 gen 60s/3.4GB, 1024_cascade gen 37s/3.5GB; both looked-at from 8 angles 2026-06-07.",
+          "license": "n/a (technique)",
+          "commercial_use": "yes",
+          "vram_gb": "3.5 allocator / ~16 total at 1024_cascade",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "verified": 1,
+          "verify_note": "A/B looked-at on the rig.",
+          "sources": [
+            {"kind": "paper", "title": "TRELLIS.2 (resolution tiers)", "identifier": "arXiv:2512.14692", "url": "https://arxiv.org/abs/2512.14692", "claim": "1024 cascade credited with finer detail / structural stability.", "verified": 1}
+          ]
+        },
+        {
+          "slug": "trellis2-skip-v1-cleanup-ovoxel-is-clean",
+          "name": "Skip the v1-era trimesh cleanup for TRELLIS.2 (RAM trap)",
+          "kind": "technique",
+          "engine_family": "python",
+          "applicable_to": "turnaround",
+          "base_model_family": "TRELLIS",
+          "claim": "clean_mesh.py and the mesh-gate's trimesh.split() on a ~1M-face/4096^2-texture TRELLIS GLB are a system-RAM hog that can trip the watchdog; TRELLIS.2 O-Voxel meshes are clean, so skip them.",
+          "summary": "The parked clean_mesh.py (split + component filter + fix_normals) and the pipeline mesh-gate both call trimesh.split() on the high-poly textured GLB. That is CPU/RAM-heavy; stacked with a resident ComfyUI it pushed system RAM to 99% and the aborting watchdog killed the run. clean_mesh is TRELLIS-v1-era (built to remove v1's floating artifacts); TRELLIS.2's O-Voxel output is a clean single component, so cleanup adds RAM cost + texture-loss risk for ~no benefit. Blender render + Lanczos downsample are RAM-light and unaffected.",
+          "design_implication": "Run the sprite pipeline with --no-cleanup --no-mesh-gate for the trellis_v3 backend. If a gate is wanted, run it on a decimated copy, not the full 1M-face mesh. Keep the aborting watchdog up for every GPU run — it caught this correctly.",
+          "evidence_strength": "measured-on-rig",
+          "measured_conditions": "RTX 5090, 64GB RAM; watchdog _watchdog.ps1 fired RAM>=90% (99%) during cleanup 2026-06-07; re-run with --no-cleanup --no-mesh-gate completed clean.",
+          "license": "n/a",
+          "commercial_use": "yes",
+          "rig_fit": 5,
+          "studio_fit": 4,
+          "status": "recommended",
+          "verified": 1,
+          "verify_note": "Reproduced the RAM trip + the clean re-run on the rig.",
+          "failures": [
+            {"symptom": "Pipeline killed mid-'Cleaning mesh' with no traceback", "cause": "trimesh.split on 1M-face mesh spikes system RAM; watchdog aborts at 90%", "remediation": "--no-cleanup --no-mesh-gate, or gate on a decimated copy", "severity": "blocker"}
+          ],
+          "sources": [
+            {"kind": "receipt", "title": "watchdog kill log + e2e reruns (trellis-sprite-pipeline)", "url": "https://github.com/mcp-tool-shop-org/trellis-sprite-pipeline", "claim": "clean step tripped the RAM watchdog; --no-cleanup run completed in 159.5s.", "verified": 1}
+          ]
+        },
+        {
+          "slug": "sprite-pipeline-trellis-v3-end-to-end",
+          "name": "Re-pointed pipeline (generate_mesh_v3 -> Blender -> downsample)",
+          "kind": "pipeline",
+          "engine_family": "python",
+          "applicable_to": "game-sprite",
+          "base_model_family": "TRELLIS",
+          "claim": "pipeline.py --backend trellis_v3 drives image -> TRELLIS.2 mesh -> Blender 8-dir render -> 64px downsample to 8 directional sprites in ~160s, no ComfyUI server.",
+          "summary": "generate_mesh_v3.py replaces the dead ComfyUI-API generate_mesh_v2.py with a direct trellis2-env call. It self-locates the TRELLIS repo (sets sys.path + chdir so 'import trellis2' resolves) and sets its own env, so pipeline.py can shell out to it. Because trimesh+PIL import cleanly in trellis2-env, one interpreter drives mesh+clean+downsample; only render_views.py runs in Blender's bundled Python. Wired pipeline.py with --backend trellis_v3 --ptype.",
+          "design_implication": "This is the studio's sprite-from-character pipeline, runnable headless. Stage chaining: mesh-360 -> render-light -> downsample-finish.",
+          "evidence_strength": "measured-on-rig",
+          "measured_conditions": "RTX 5090; e2e trellis_v3 512 + --no-cleanup --no-mesh-gate --hdri = 8 sprites in 159.5s (mesh 117s, render 7s, downsample <1s) 2026-06-07.",
+          "stage_order": 1,
+          "license": "n/a (orchestration)",
+          "commercial_use": "yes",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "verified": 1,
+          "verify_note": "Full chain produced 8 looked-at 64px sprites on the rig.",
+          "sources": [
+            {"kind": "github", "title": "trellis-sprite-pipeline (generate_mesh_v3.py, pipeline.py)", "url": "https://github.com/mcp-tool-shop-org/trellis-sprite-pipeline", "claim": "The re-pointed pipeline + v3 mesh generator.", "verified": 1}
+          ]
+        }
+      ]
+    },
+    {
+      "laneSlug": "render-light",
+      "title": "Render & lighting — proven Blender lane",
+      "recipes": [
+        {
+          "slug": "blender-headless-8dir-camera-parented-rig",
+          "name": "Blender 5.0.1 headless 8-direction camera-parented light rig",
+          "kind": "technique",
+          "engine_family": "blender",
+          "applicable_to": "game-sprite",
+          "base_model_family": "n/a",
+          "claim": "A camera-parented 3-point + shadowless lens-fill rig orbiting with an ortho camera gives 8 identically-lit directional renders; runs unmodified on Blender 5.0.1.",
+          "summary": "render_views.py imports the GLB, builds an ORTHO camera at pitch 30 parented to an orbit pivot, and parents Key/Fill/Rim Area lights + a shadowless camera-coincident LensFill to the camera so every yaw step is lit identically. Energies auto-scale with size^2. EEVEE, film_transparent, 8 yaws (front..front_left). Verified the bpy API on Blender 5.0.1: engine enum 'BLENDER_EEVEE' is valid in 5.0 (EEVEE-Next reclaimed that id; 'BLENDER_EEVEE_NEXT' is gone), AgX/gamma/exposure/glTF-import/Area-light-shadow all present.",
+          "design_implication": "Blender 5.0.1 is the studio's sprite renderer (installed at E:/AI-Models/blender-5.0.1-windows-x64). The camera-parented rig is the fix for dark back/side views. Render in Blender (commercial-clean) — never nvdiffrast.",
+          "evidence_strength": "measured-on-rig",
+          "measured_conditions": "Blender 5.0.1 headless on RTX 5090; 8 views ~7s; API probed 2026-06-07.",
+          "license": "Blender is GPL; rendered output is yours (commercial-clean)",
+          "commercial_use": "yes",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "verified": 1,
+          "hparams": [
+            {"name": "pitch", "value": "30", "unit": "deg", "note": "camera elevation for 2.5D JRPG read"},
+            {"name": "ortho_scale", "value": "size*1.3", "note": "frames the normalized TRELLIS mesh"},
+            {"name": "lights", "value": "Key/Fill/Rim + shadowless LensFill", "note": "energies auto-scale size^2; LensFill prevents black silhouettes in EEVEE (no GI)"}
+          ],
+          "sources": [
+            {"kind": "github", "title": "render_views.py (trellis-sprite-pipeline)", "url": "https://github.com/mcp-tool-shop-org/trellis-sprite-pipeline", "claim": "The camera-parented 8-direction render rig.", "verified": 1},
+            {"kind": "docs", "title": "Blender 5.0 Python API (color management, EEVEE)", "url": "https://docs.blender.org/api/current/", "claim": "view_settings.view_transform + EEVEE engine enum.", "verified": 1}
+          ]
+        },
+        {
+          "slug": "tonemap-per-character-value",
+          "name": "Tonemap per character value: AgX for dark, Standard for bright",
+          "kind": "technique",
+          "engine_family": "blender",
+          "applicable_to": "game-sprite",
+          "base_model_family": "n/a",
+          "claim": "AgX + raised exposure washes out bright/light characters; Standard (or Filmic) + exposure 0 restores their saturation. Choose the view transform per character value.",
+          "summary": "render_views.py defaulted to AgX view transform + view-exposure 1.5 (chosen to lift dark back textures off black). On a bright silver-armored character that overshoots into a chalky, desaturated look. A 4-way A/B (AgX+1.5 / AgX+0 / Standard+0 / Filmic+0) on the same render showed the colors are fully present in the texture — AgX+exposure was the wash. Standard+0 restored real metallic contrast + warm accents, closest to the SDXL source. Added a --view-transform CLI flag.",
+          "design_implication": "Expose view_transform as a per-character knob: dark-armored villains keep AgX+1.5 (rescues dark backs from black); bright/light characters use Standard or Filmic at exposure 0. A light saturation/levels pass is the final polish (TRELLIS bakes albedo a touch flatter than the input).",
+          "evidence_strength": "measured-on-rig",
+          "measured_conditions": "4-variant render compared + looked-at on the rig 2026-06-07.",
+          "license": "n/a",
+          "commercial_use": "yes",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "verified": 1,
+          "failures": [
+            {"symptom": "Sprites look washed-out / chalky / desaturated", "cause": "AgX view transform + raised exposure desaturates highlights on a bright subject", "remediation": "--view-transform Standard --view-exposure 0 (Filmic for a middle ground)", "severity": "quality"}
+          ],
+          "sources": [
+            {"kind": "docs", "title": "Blender AgX / Standard view transforms", "url": "https://docs.blender.org/manual/en/latest/render/color_management/index.html", "claim": "AgX is a filmic transform that desaturates toward white; Standard is linear-to-sRGB.", "verified": 1}
+          ]
+        },
+        {
+          "slug": "studio-hdri-ambient-fill",
+          "name": "Studio HDRI ambient fill (Studio Kontrast 04, CC0)",
+          "kind": "technique",
+          "engine_family": "blender",
+          "applicable_to": "game-sprite",
+          "base_model_family": "n/a",
+          "claim": "A CC0 studio HDRI gives better directional form than flat-gray ambient; the flat-ambient fallback still works for a first look.",
+          "summary": "render_views.py loads an environment HDRI (Studio Kontrast 04, Poly Haven, CC0) at strength 0.8 and rotates it with camera yaw for direction-independent fill; falls back to flat gray (strength 3.0) if absent. The HDRI improves shadow/form modeling but, being a bright neutral studio map, adds little saturation to an already-light subject. Installed at E:/AI-Models/hdri/studio_kontrast_04_4k.exr (path fixed F:->E: in render_views.py).",
+          "design_implication": "Use the HDRI for delivery-quality form; it is commercial-clean (CC0) and input-only. For punch, pair with the Standard tonemap (above), not just brighter light.",
+          "evidence_strength": "measured-on-rig",
+          "measured_conditions": "Rendered with + without HDRI, looked-at on the rig 2026-06-07.",
+          "license": "CC0 (Poly Haven)",
+          "commercial_use": "yes",
+          "rig_fit": 5,
+          "studio_fit": 4,
+          "status": "recommended",
+          "verified": 1,
+          "sources": [
+            {"kind": "docs", "title": "Poly Haven — Studio Kontrast 04 (CC0 HDRI)", "url": "https://polyhaven.com/a/studio_kontrast_04", "claim": "CC0-licensed studio HDRI used for ambient fill.", "verified": 1}
+          ]
+        }
+      ]
+    },
+    {
+      "laneSlug": "downsample-finish",
+      "title": "Downsample & finish — proven lane",
+      "recipes": [
+        {
+          "slug": "lanczos-512-to-64-foot-anchored",
+          "name": "Lanczos 512->64px, foot-anchored, union-bbox",
+          "kind": "post-process",
+          "engine_family": "python",
+          "applicable_to": "game-sprite",
+          "base_model_family": "n/a",
+          "claim": "Auto-crop -> union-bbox across 8 directions -> foot-anchor -> Lanczos resize -> unsharp gives consistent, readable 64px game sprites.",
+          "summary": "downsample_sprites.py (Pillow): crops each direction by its alpha bbox, computes a union bbox across all 8 so every direction shares framing, foot-anchors (feet on a common ground line), Lanczos-resizes to the game size, applies a light unsharp mask, and writes a contact sheet. Pillow Lanczos scales the filter window for downscale (unlike OpenCV INTER_LANCZOS4). Produced 8x 64px in <1s, looked-at.",
+          "design_implication": "Final stage of the sprite pipeline. Foot-anchoring + union-bbox is what makes an 8-direction set read as one character at game size. 64px reads here; 48px and palette-quantization are available knobs (see the research lane).",
+          "evidence_strength": "measured-on-rig",
+          "measured_conditions": "Ran on the 8 Blender renders; 64px contact sheet looked-at 2026-06-07.",
+          "license": "Pillow is HPND (permissive)",
+          "commercial_use": "yes",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "verified": 1,
+          "hparams": [
+            {"name": "target_size", "value": "64", "unit": "px", "note": "48 also supported; 64 read cleanly for a detailed character"},
+            {"name": "foot_anchor", "value": "true", "note": "feet on a common baseline across directions"},
+            {"name": "resample", "value": "Lanczos", "note": "Pillow scales the window on downscale; better than OpenCV INTER_LANCZOS4"}
+          ],
+          "sources": [
+            {"kind": "github", "title": "downsample_sprites.py (trellis-sprite-pipeline)", "url": "https://github.com/mcp-tool-shop-org/trellis-sprite-pipeline", "claim": "Auto-crop/union-bbox/foot-anchor/Lanczos/unsharp downsampler.", "verified": 1},
+            {"kind": "docs", "title": "Pillow Image.resize (Lanczos)", "url": "https://pillow.readthedocs.io/en/stable/handbook/concepts.html#filters", "claim": "Lanczos properly scales the filter window for downsampling.", "verified": 1}
+          ]
+        }
+      ]
+    }
+  ]
+}

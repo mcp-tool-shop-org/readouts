@@ -1,0 +1,183 @@
+{
+  "bucket": "rust-currency",
+  "verifier_note": "Checked all 53 warrant sources by direct retrieval (17 dated 'Announcing Rust 1.NN.0' posts 1.80-1.98, 3 topic blog posts, the current edition guide's 2024 chapter across 12 pages, the current rustc book and Cargo book, current std/core docs, and two RELEASES.md snapshots) plus roughly 20 uncited 'stabilized in 1.NN' claims scattered through gotchas (LazyCell 1.80, Vec::extract_if 1.87, array_windows 1.94, Box::new_zeroed 1.92, assert_matches! 1.96, cargo info 1.82, publish --workspace 1.90, build.build-dir/--target host-tuple 1.91, resolver.lockfile-path 1.97, cargo fix target-selection 1.89, dangerous_implicit_autorefs added-1.88/deny-1.89, etc.) via independent search. Also ran every check in checks[] myself through scripts/compile_oracle.py against the real pinned rustc 1.98.1 (host, wasm32-unknown-unknown and wasm32v1-none): 58/58 passed. Also checked every engine_note claim against si-rpg-engine@main via gh api (lib.rs, rapier_law.rs, Cargo.toml, .cargo/config.toml, rust-toolchain.toml, build.mjs) byte-for-byte, including all 7 static_mut_refs line numbers and all 10 #[no_mangle] export names. Result: zero source misattributions, zero stale APIs, zero check/prose mismatches, zero wrong engine facts across all 10 recipes. Systemic weakness: this lane's two verification paths (citation retrieval and the compile oracle) both have a blind spot the recipes exploit unintentionally — precise-looking measured numbers in gotchas that are neither cited nor exercised by any checks[] entry. Recipe 4's gotcha claims the relaxed-simd fused-multiply-add 'returned the fused result... (-8.67e-19 where a separate multiply and add give 0)', but check #6 in that same recipe only asserts the function compiles and exports 'fused' — it never asserts that stdout value, so the specific number is untested by the very check sitting next to it. Recipe 1's gotchas cite exact digest prefixes and a '22 bytes' delta from a blank-line probe with no matching check and no source at all. These are plausible (spec text for algebraic_*/relaxed-simd explicitly allows codegen-dependent results, so the shape of the claim is right) but unfalsifiable by anyone reading only this lane's artifacts; they rest entirely on an unlogged local run.",
+  "verdicts": [
+    {
+      "slug": "move-si-solver-to-edition-2024-cargo-fix-rewrites-10-no-mangle-hand-fix-7-static-mut-refs",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "7/7 oracle checks pass on rustc 1.98.1. Engine: all 10 #[no_mangle] names and all 7 static_mut_refs sites (lib.rs:28,33,183,184; rapier_law.rs:78,738,743) match main byte-for-byte; Cargo.toml still edition=2021.",
+      "evidence_url": "https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-attributes.html", "supported": true, "note": "Confirmed: no_mangle/export_name/link_section need unsafe(..); lint in rust-2024-compat; cargo fix migrates."},
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html", "supported": true, "note": "Confirmed verbatim incl. NUMS.len() autoref example; no automatic migration exists."},
+        {"url": "https://doc.rust-lang.org/edition-guide/editions/transitioning-an-existing-project-to-a-new-edition.html", "supported": true, "note": "Confirmed: cargo fix --edition, edit Cargo.toml, build/test, cargo fmt (page also lists cargo update first)."},
+        {"url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/", "supported": true, "note": "Confirmed verbatim: #[unsafe(no_mangle)], &raw const/mut, and &raw mut of a static mut needs no unsafe block."}
+      ]
+    },
+    {
+      "slug": "expect-edition-2024-to-drop-if-let-scrutinee-and-tail-expression-temporaries-earlier",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "10/10 oracle checks pass. if-let/tail-expr drop-order pages, let-chains-2024-only wording, and the 1.91.0 pin!/format_args!/write!/writeln! restriction all matched verbatim. Engine's ensure() if-let-with-no-else confirmed on main.",
+      "evidence_url": "https://doc.rust-lang.org/edition-guide/rust-2024/temporary-if-let-scope.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/temporary-if-let-scope.html", "supported": true, "note": "Confirmed: scrutinee temp drops before else now; if_let_rescope->match keeps 2021 order; RwLock deadlock shown."},
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/temporary-tail-expr-scope.html", "supported": true, "note": "Confirmed verbatim: tail temps may drop before locals; exact c.borrow().len()/E0597 example; lint only warns."},
+        {"url": "https://blog.rust-lang.org/2025/06/26/Rust-1.88.0/", "supported": true, "note": "Confirmed verbatim: let chains stabilized, 2024-edition only, tied to if-let temporary scope change."},
+        {"url": "https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/", "supported": true, "note": "Confirmed: if-let guards stabilized (page silent on edition scope; oracle confirms works in both)."},
+        {"url": "https://doc.rust-lang.org/stable/releases.html", "supported": true, "note": "Confirmed under 1.91.0: restricts scope of temps from pin!/format_args!/write!/writeln! in 2024 if-let scrutinees."}
+      ]
+    },
+    {
+      "slug": "know-which-edition-2024-changes-cargo-fix-edition-migrates-and-which-stay-manual",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "11/11 oracle checks pass. All 9 sources matched verbatim; independently cross-checked uncited claims (gen->r#gen via keyword_idents_2024, Future/IntoFuture join prelude, unsafe_op_in_unsafe_fn auto-fix) via search, all correct.",
+      "evidence_url": "https://doc.rust-lang.org/edition-guide/editions/transitioning-an-existing-project-to-a-new-edition.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://blog.rust-lang.org/2025/02/20/Rust-1.85.0/", "supported": true, "note": "Confirmed verbatim: 'Rust 2024 Edition is now stable'; cargo fix can automate many changes."},
+        {"url": "https://doc.rust-lang.org/edition-guide/editions/transitioning-an-existing-project-to-a-new-edition.html", "supported": true, "note": "Confirmed: cargo fix --edition cannot migrate doctests/macros/build-time code in every case; prints what it can't fix."},
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/macro-fragment-specifiers.html", "supported": true, "note": "Confirmed verbatim: expr now also matches const{..} and _; edition_2024_expr_fragment_specifier rewrites to expr_2021."},
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/rpit-lifetime-capture.html", "supported": true, "note": "Confirmed verbatim: all in-scope lifetimes captured; impl_trait_overcaptures can't always auto-fix; use<..> since 1.82."},
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/intoiterator-box-slice.html", "supported": true, "note": "Confirmed: Box<[T]>::into_iter yields &T pre-2024, T in 2024; boxed_slice_into_iter auto-migrates."},
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/never-type-fallback.html", "supported": true, "note": "Confirmed verbatim: fallback becomes ! in 2024; no automatic fix, annotate the type explicitly."},
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-extern.html", "supported": true, "note": "Confirmed verbatim: unsafe extern required, safe/unsafe per item, missing_unsafe_on_extern migrates via cargo fix."},
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/newly-unsafe-functions.html", "supported": true, "note": "Confirmed verbatim: set_var/remove_var/before_exec unsafe in 2024 only; deprecated_safe_2024 wraps with a TODO comment."},
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/rustdoc-doctests.html", "supported": true, "note": "Confirmed verbatim: doctests combined into one binary, no automatic migration, standalone_crate opts out."}
+      ]
+    },
+    {
+      "slug": "treat-wasm32-unknown-unknown-s-six-default-features-as-byte-changes-and-relaxed-simd-as-no-ban",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "7/7 oracle checks pass, incl. bitmask=63 (six on) and =2 (wasm32v1-none). Feature versions (1.70/1.82-LLVM19/1.87-LLVM20) confirmed on rustc book + dedicated blog + 1.70 RELEASES.md. Engine's -relaxed-simd pin confirmed twice.",
+      "evidence_url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html", "supported": true, "note": "Confirmed: 6 default features listed; bulk-memory/nontrapping-fptoint tagged 1.87+/LLVM20+ on the page."},
+        {"url": "https://blog.rust-lang.org/2024/09/24/webassembly-targets-change-in-default-target-features/", "supported": true, "note": "Confirmed verbatim: LLVM19/Rust1.82 makes multivalue+reference-types default; over-long LEB; extern C ABI unaffected."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust/1.70.0/RELEASES.md", "supported": true, "note": "Confirmed verbatim: sign-ext and mutable-globals enabled in codegen from 1.70.0."},
+        {"url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32v1-none.html", "supported": true, "note": "Confirmed verbatim: Tier 2, imports nothing, MVP+mutable-globals only, core+alloc no std."},
+        {"url": "https://doc.rust-lang.org/1.88.0/releases.html", "supported": true, "note": "Confirmed: 1.84.0 removed wasm32-wasi (->wasm32-wasip1) + added wasm32v1-none Tier2; 1.87.0 = LLVM20 update."},
+        {"url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/", "supported": true, "note": "Confirmed: relaxed-SIMD intrinsics incl. f64x2_relaxed_madd stabilized in this release."}
+      ]
+    },
+    {
+      "slug": "expect-wasm32-undefined-symbols-to-fail-the-link-since-1-96-and-the-standard-c-abi-since-1-89",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "4/4 oracle checks pass. 1.96 link-error, 1.89 standard C ABI, 1.91.1 wasm_import_module fix all confirmed verbatim. Engine: no extern block, build.mjs instantiates with no import object (line 77), all 10 exports scalar/pointer-only.",
+      "evidence_url": "https://blog.rust-lang.org/2026/05/28/Rust-1.96.0/",
+      "corrections": null,
+      "sources": [
+        {"url": "https://blog.rust-lang.org/2026/04/04/changes-to-webassembly-targets-and-handling-undefined-symbols/", "supported": true, "note": "Confirmed: both restore flags named, #[link(wasm_import_module=\"env\")] and -Clink-arg=--allow-undefined."},
+        {"url": "https://blog.rust-lang.org/2025/04/04/c-abi-changes-for-wasm32-unknown-unknown/", "supported": true, "note": "Confirmed: legacy ABI splatted structs, standard ABI passes indirectly; u32 passed directly as a param."},
+        {"url": "https://blog.rust-lang.org/2026/05/28/Rust-1.96.0/", "supported": true, "note": "Confirmed verbatim: undefined wasm symbols now a linker error, not an env import; both restore flags named."},
+        {"url": "https://blog.rust-lang.org/2025/08/07/Rust-1.89.0/", "supported": true, "note": "Confirmed: 'Standards Compliant C ABI on the wasm32-unknown-unknown target' shipped this release."},
+        {"url": "https://blog.rust-lang.org/2025/11/10/Rust-1.91.1/", "supported": true, "note": "Confirmed verbatim: 1.91.0 regression (wrong-module import resolution, UB risk), fixed in 1.91.1."},
+        {"url": "https://doc.rust-lang.org/1.88.0/releases.html", "supported": true, "note": "Confirmed: 1.84.0 removed wasm32-wasi target name; 1.86.0 made wasm_c_abi warning a hard error."}
+      ]
+    },
+    {
+      "slug": "replace-flat-buffer-index-math-with-1-86-1-93-std-apis-as-chunks-mut-get-disjoint-mut-as-array",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "4/4 oracle checks pass. get_disjoint_mut/next_up 1.86, as_chunks_mut 1.88, strict_* 1.91, as_array 1.93, cfg_select! 1.95, midpoint 1.85, floor-const 1.90, mul_add-const 1.94 all confirmed on live std docs.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/primitive.f64.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://blog.rust-lang.org/2025/04/03/Rust-1.86.0/", "supported": true, "note": "Confirmed verbatim: get_disjoint_mut and next_up/next_down stabilized this release."},
+        {"url": "https://blog.rust-lang.org/2025/06/26/Rust-1.88.0/", "supported": true, "note": "Confirmed: as_chunks, as_rchunks, as_chunks_mut and unchecked variants stabilized."},
+        {"url": "https://blog.rust-lang.org/2025/10/30/Rust-1.91.0/", "supported": true, "note": "Confirmed: strict_add and sibling strict_* methods listed among stabilized APIs."},
+        {"url": "https://blog.rust-lang.org/2026/01/22/Rust-1.93.0/", "supported": true, "note": "Confirmed verbatim: <[T]>::as_array and as_mut_array stabilized."},
+        {"url": "https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/", "supported": true, "note": "Confirmed: cfg_select! macro stabilized this release."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f64.html", "supported": true, "note": "Confirmed exactly: midpoint 1.85.0, next_up 1.86.0, floor const since 1.90.0, mul_add const since 1.94.0."}
+      ]
+    },
+    {
+      "slug": "keep-1-98-s-f64-algebraic-methods-out-of-the-law-the-std-docs-allow-different-results-per-run",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "4/4 oracle checks pass. algebraic_* stabilization + reorder/non-determinism wording confirmed verbatim on 1.98.0 announcement and core f32 docs. Engine: canon_zero passes NaN through untouched, mix_f64 hashes to_bits() exactly as claimed.",
+      "evidence_url": "https://blog.rust-lang.org/2026/08/20/Rust-1.98.0/",
+      "corrections": null,
+      "sources": [
+        {"url": "https://blog.rust-lang.org/2026/08/20/Rust-1.98.0/", "supported": true, "note": "Confirmed: algebraic_add/sub/mul/div/rem stabilized; compiler may reorder chains; non-deterministic, never UB."},
+        {"url": "https://doc.rust-lang.org/stable/core/primitive.f32.html", "supported": true, "note": "Confirmed: reorder/reciprocal/sign-of-zero allowed; same inputs may differ in one run; const NaN need not match runtime."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f64.html", "supported": true, "note": "Confirmed: NAN guaranteed quiet, payload/sign arbitrary, bit pattern may change across versions/targets."},
+        {"url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/", "supported": true, "note": "Confirmed: float arithmetic permitted in const fn this release; is_sign_positive compile-vs-runtime example present."},
+        {"url": "https://doc.rust-lang.org/1.88.0/releases.html", "supported": true, "note": "Confirmed independently via live docs + 1.82 announcement directly; this snapshot carries the same two facts."}
+      ]
+    },
+    {
+      "slug": "stop-sorting-floats-with-partial-cmp-unwrap-or-equal-1-81-sorts-panic-on-a-non-total-order",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "2/2 oracle checks pass (NaN sort panics; total_cmp sorts cleanly). 1.81 panic wording, 1.82 binary_search change, 1.96 BTreeMap::append, 1.98 derive(PartialOrd) all confirmed verbatim. Engine's integer-tuple sort confirmed on main.",
+      "evidence_url": "https://blog.rust-lang.org/2024/09/05/Rust-1.81.0/",
+      "corrections": null,
+      "sources": [
+        {"url": "https://blog.rust-lang.org/2024/09/05/Rust-1.81.0/", "supported": true, "note": "Confirmed verbatim panic wording; post itself doesn't name driftsort/ipnsort (uncited elsewhere but accurate)."},
+        {"url": "https://doc.rust-lang.org/1.88.0/releases.html", "supported": true, "note": "Confirmed verbatim under 1.82.0: new binary_search may select a different element among equal ones."},
+        {"url": "https://doc.rust-lang.org/stable/releases.html", "supported": true, "note": "Confirmed: 1.96.0 BTreeMap::append may panic on bad Ord; 1.98.0 derive(PartialOrd) fast path breaks inconsistent impls."}
+      ]
+    },
+    {
+      "slug": "expect-1-86-1-98-lint-escalations-to-break-old-unsafe-and-macro-code-on-a-toolchain-bump",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "9/9 oracle checks pass. All 6 lints confirmed on live rustc book + release notes; dangerous_implicit_autorefs added-1.88/deny-1.89 resolved precisely across two RELEASES.md snapshots. Engine's addr_of_mut!(SOLVER) pattern found 3x on main.",
+      "evidence_url": "https://doc.rust-lang.org/stable/rustc/lints/listing/deny-by-default.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/rustc/lints/listing/deny-by-default.html", "supported": true, "note": "Confirmed: all 6 named lints deny-by-default, matching example code (static_mut_refs rightly absent, edition-only)."},
+        {"url": "https://doc.rust-lang.org/stable/rustc/lints/listing/warn-by-default.html", "supported": true, "note": "Confirmed: missing_abi, mismatched_lifetime_syntaxes, dangling_pointers_from_locals, linker_messages all present."},
+        {"url": "https://blog.rust-lang.org/2025/12/11/Rust-1.92.0/", "supported": true, "note": "Confirmed verbatim: both never-type lints deny-by-default; fire only building the affected crate, not via a dependency."},
+        {"url": "https://doc.rust-lang.org/stable/releases.html", "supported": true, "note": "Confirmed all 4: 1.89 autorefs-deny+frag-spec-error, 1.91 semicolon-deny, 1.93 deref_nullptr-deny, 1.98 symbol lint."},
+        {"url": "https://blog.rust-lang.org/2025/04/03/Rust-1.86.0/", "supported": true, "note": "Confirmed verbatim: missing_abi lint now warns by default."},
+        {"url": "https://blog.rust-lang.org/2026/07/09/Rust-1.97.0/", "supported": true, "note": "Confirmed verbatim: linker_messages is explicitly not affected by the warnings lint group."}
+      ]
+    },
+    {
+      "slug": "gate-solver-ci-with-cargo-s-build-warnings-1-97-not-rustflags-and-keep-locked-across-resolver-3",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "No checks[] here (Cargo-config claims, not compiled code), oracle coverage N/A. All 7 sources confirmed verbatim incl. 1.94.0's own post. Engine: config.toml + build.mjs RUSTFLAGS-repeats-relaxed-simd pattern confirmed on main.",
+      "evidence_url": "https://doc.rust-lang.org/cargo/reference/resolver.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/cargo/reference/config.html", "supported": true, "note": "Confirmed: build.warnings default \"warn\"; rustflags precedence order; include .toml-only; build.build-dir."},
+        {"url": "https://doc.rust-lang.org/cargo/reference/resolver.html", "supported": true, "note": "Confirmed: resolver \"3\" = edition-2024 default, needs Rust 1.84+; fallback picks incompatible version, doesn't fail."},
+        {"url": "https://blog.rust-lang.org/2026/07/09/Rust-1.97.0/", "supported": true, "note": "Confirmed: CARGO_BUILD_WARNINGS controls warn/allow/deny without invalidating the build cache."},
+        {"url": "https://blog.rust-lang.org/2025/01/09/Rust-1.84.0/", "supported": true, "note": "Confirmed verbatim: MSRV-aware resolver, incompatible-rust-versions=\"fallback\", package.resolver=\"3\"."},
+        {"url": "https://blog.rust-lang.org/2024/07/25/Rust-1.80.0/", "supported": true, "note": "Confirmed verbatim: check-cfg enabled for known names/values, unexpected_cfgs lint, [lints] table for custom cfgs."},
+        {"url": "https://blog.rust-lang.org/2026/03/05/Rust-1.94.0/", "supported": true, "note": "Confirmed verbatim: stabilized config include key and TOML 1.1 manifest/config parsing."},
+        {"url": "https://blog.rust-lang.org/2025/06/26/Rust-1.88.0/", "supported": true, "note": "Confirmed: cache GC removes network files unused 3mo, local files 1mo; skipped under offline/frozen."}
+      ]
+    }
+  ]
+}

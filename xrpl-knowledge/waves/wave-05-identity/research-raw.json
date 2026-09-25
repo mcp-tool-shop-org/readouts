@@ -1,0 +1,2508 @@
+{
+ "date": "2026-06-14",
+ "wave": 5,
+ "lanes": [
+  {
+   "slug": "identity-compliance",
+   "name": "Identity & compliance",
+   "research": {
+    "domain": "Compliance toolkit & identity patterns (depth)",
+    "notes": "As of mid-2026 the XRPL ships a complete native compliance stack, and the interesting work is no longer 'does the primitive exist' but 'how do you compose them into a defensible regulated game economy.' The primitives are all live on mainnet: Credentials (XLS-70, enabled 2025-09-04) for on-chain attestations; DepositPreauth extended with credential-based authorization for inbound gating; PermissionedDomains (XLS-80, enabled 2026-02-04) for credential-gated environments; PermissionedDEX (XLS-81, enabled 2026-02-18) for domain-scoped order books; Clawback (enabled 2024-02-08) and DeepFreeze (XLS-77, enabled 2025-05-05) plus the older individual/global freeze for recall and immobilization; and MPTs (MPTokensV1) as the v2 token standard carrying the same freeze/clawback/allow-list controls. These are confirmed against xrpl.org known-amendments, the XRPLF standards repo, and 2025-2026 coverage. The decisive insight for a game studio: the chain gives you verifiable gating and recall, but it deliberately keeps PII off-ledger (Credentials store only Issuer, Subject, CredentialType, Expiration, and an off-chain URI), so the real compliance program is a two-layer design — an on-chain enforcement layer (who can hold/trade/receive real value) bolted to a custodial backend that owns identity, sanctions screening, audit trail, and the actual KYC dossier. Real-value rails make this non-optional: RLUSD's issuer (Ripple) only mints/redeems for bank-level KYC/AML-screened counterparties, so any RLUSD payout to a player is downstream of an issuer-grade compliance posture, and the studio's job is to gate which player wallets are eligible to receive it. The patterns below compose these primitives into the actual decisions a compliant game economy faces: KYC-gating, region/age locking, regulated reward payouts, sanction recall, the on-chain-vs-backend split, and the privacy leakage you accept by putting identity-adjacent state on a public ledger.",
+    "capabilities": [
+     {
+      "name": "KYC/AML-gated economy via Credentials + DepositPreauth + Permissioned Domains",
+      "slug": "kyc-gated-economy-pattern",
+      "kind": "pattern",
+      "network_status": "mainnet (all underlying amendments enabled)",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-70 + XLS-80",
+      "amendment_name": "Credentials, PermissionedDomains",
+      "enabled_date": "2026-02-04",
+      "maturity_tier": "production",
+      "status": "live",
+      "builder_fit": 5,
+      "summary": "The core compliance composition: a trusted issuer (your KYC provider, or your own backend acting as an issuer) writes a Credential ledger object attesting a player passed KYC; the player CredentialAccepts it; then any value-bearing surface — a DepositPreauth-gated payout account, a PermissionedDomain, or a permissioned order book — checks for that credential instead of maintaining a hand-curated allow-list. One attestation gates many surfaces. This is the spine every other pattern in this lane hangs off of.",
+      "key_fields": "Credential ledger object (Issuer, Subject, CredentialType, Expiration, URI, lsfAccepted flag); CredentialCreate / CredentialAccept / CredentialDelete transactions; DepositPreauth with AuthorizeCredentials / UnauthorizeCredentials holding (Issuer, CredentialType) pairs; inbound transactions carry CredentialIDs the ledger validates; PermissionedDomain.AcceptedCredentials array (1-10 entries, each an Issuer+CredentialType pair).",
+      "gotchas": "A credential is only 'valid' once the subject accepts it AND it is unexpired — issuing alone does not gate anyone. Expiration is the only on-chain freshness signal; periodic re-KYC means re-issuing credentials with new expirations, not just trusting the old object. DepositPreauth credential-gating only applies to value INBOUND to the gated account (Payment, EscrowFinish, PaymentChannelClaim, CheckCash) — it does not stop the player from doing other things. The reserve burden of the Credential object transfers from issuer to subject on accept, so a player must hold reserve to accept their own KYC credential.",
+      "tracks": [
+       "identity-compliance",
+       "game-economies",
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Gate who can receive real-value payouts",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Reuse one KYC pass across many economic surfaces",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Replace a fragile hand-maintained wallet allow-list",
+        "track": "game-economies",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "vendor-blog",
+        "title": "Credentials: Building a Compliant Identity Layer for the XRP Ledger (RippleX)",
+        "url": "https://dev.to/ripplexdev/credentials-building-a-compliant-identity-layer-for-the-xrp-ledger-155e",
+        "claim": "Credentials store issuer/subject/type/expiration/URI, are accepted via CredentialAccept (lsfAccepted), and extend DepositPreauth so an account requires valid KYC credentials via CredentialIDs instead of whitelisting individual accounts."
+       },
+       {
+        "kind": "docs",
+        "title": "XLS-0080 Permissioned Domains README (XRPLF Standards)",
+        "url": "https://github.com/XRPLF/XRPL-Standards/blob/master/XLS-0080-permissioned-domains/README.md",
+        "claim": "PermissionedDomain holds an AcceptedCredentials array (1-10 Issuer+CredentialType pairs); domain membership is automatic for credential holders with no explicit join."
+       },
+       {
+        "kind": "docs",
+        "title": "XRPL Known Amendments",
+        "url": "https://xrpl.org/resources/known-amendments",
+        "claim": "Credentials and PermissionedDomains amendments are Enabled on mainnet."
+       }
+      ]
+     },
+     {
+      "name": "Region-locking and age-gating with credential types",
+      "slug": "region-age-gating-pattern",
+      "kind": "pattern",
+      "network_status": "mainnet (Credentials + PermissionedDomains enabled)",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials",
+      "enabled_date": "2025-09-04",
+      "maturity_tier": "production",
+      "status": "live",
+      "builder_fit": 4,
+      "summary": "Different jurisdictions and age thresholds become distinct CredentialType values (e.g. 'AGE_18_PLUS', 'GEO_EU_OK', 'GEO_US_RESTRICTED'). A player's wallet accumulates the credentials they qualify for; a PermissionedDomain or payout account composes the AcceptedCredentials set that matches a given feature's legal envelope. A loot-box-as-real-value feature can require an over-18 credential AND a permitted-region credential; a region where it is illegal simply never issues that credential.",
+      "key_fields": "CredentialType (hex-encoded, max 64 bytes) used as a typed claim namespace; multiple credentials from one or several issuers per subject; PermissionedDomain.AcceptedCredentials composing required claims (AND across the array is NOT native — domain membership is satisfied by ANY one accepted credential, so multi-claim AND must be modeled as a single composite CredentialType or enforced in your backend).",
+      "gotchas": "Critical subtlety: AcceptedCredentials is an OR set (hold any one listed credential and you're in the domain), not an AND set. True 'must be 18 AND in EU' gating must be encoded as one composite credential type your issuer only grants when both hold, or enforced off-chain — do not assume listing two credential types in a domain means both are required. The on-chain object reveals which jurisdiction/age buckets exist (the CredentialType strings are public), so name them generically. Age and region are point-in-time claims; a player who ages-in or moves needs re-issuance.",
+      "tracks": [
+       "identity-compliance",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Lock real-value features to legal jurisdictions",
+        "track": "game-economies",
+        "fitness": 5
+       },
+       {
+        "purpose": "Age-gate gambling-adjacent mechanics",
+        "track": "identity-compliance",
+        "fitness": 4
+       },
+       {
+        "purpose": "Tier feature access by verified attributes",
+        "track": "game-economies",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "XLS-0080 Permissioned Domains README (XRPLF Standards)",
+        "url": "https://github.com/XRPLF/XRPL-Standards/blob/master/XLS-0080-permissioned-domains/README.md",
+        "claim": "Each AcceptedCredentials entry is an Issuer + CredentialType (Blob, max 64 bytes) pair; the array is searched for a match, confirming membership is satisfied by matching any one listed credential."
+       },
+       {
+        "kind": "vendor-blog",
+        "title": "Credentials: Building a Compliant Identity Layer for the XRP Ledger (RippleX)",
+        "url": "https://dev.to/ripplexdev/credentials-building-a-compliant-identity-layer-for-the-xrp-ledger-155e",
+        "claim": "CredentialType is an arbitrary issuer-defined identifier, enabling typed claims such as KYC status to be issued and validated on-chain."
+       }
+      ]
+     },
+     {
+      "name": "Regulated reward payouts to verified players only",
+      "slug": "verified-reward-payout-pattern",
+      "kind": "pattern",
+      "network_status": "mainnet (DepositPreauth credential-gating + RLUSD live)",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials, DepositPreauth",
+      "enabled_date": "2025-09-04",
+      "maturity_tier": "production",
+      "status": "live",
+      "builder_fit": 5,
+      "summary": "When a reward carries real monetary value (RLUSD, an issued game-currency redeemable for value), the payout account enables Deposit Authorization and credential-preauthorizes only KYC'd holders. The player's wallet must present a valid KYC CredentialIDs reference to receive the Payment. Cosmetic / non-redeemable in-game rewards skip this entirely — the gate is reserved for value that crosses the real-money line. This is where the studio's compliance obligation actually bites.",
+      "key_fields": "Payout account AccountSet asfDepositAuth; DepositPreauth.AuthorizeCredentials; player Payment carries CredentialIDs; reward token can be RLUSD (issuer-KYC'd rail) or a studio-issued currency/MPT; the Credential's Expiration enforces re-KYC before continued payouts.",
+      "gotchas": "Deposit Authorization blocks ALL inbound value from non-preauthorized senders, so a payout account that uses it cannot easily receive top-ups from arbitrary sources — keep payout (outbound-to-players) and treasury (inbound) accounts separate. The gate is on the receiving side: it stops you from paying value to an unverified wallet, which is exactly the compliance win, but it means an unverified player simply cannot be paid until they KYC. RLUSD specifically is mint/redeem-gated at the issuer (bank-level KYC/AML + sanctions screening), so holding RLUSD is not itself proof a given player is KYC'd by YOU — you still need your own credential to decide eligibility.",
+      "tracks": [
+       "identity-compliance",
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Pay real value only to KYC-verified players",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Separate cosmetic rewards from money-rails rewards",
+        "track": "game-economies",
+        "fitness": 4
+       },
+       {
+        "purpose": "Enforce re-KYC via credential expiration before payout",
+        "track": "identity-compliance",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Deposit Authorization (xrpl.org)",
+        "url": "https://xrpl.org/docs/concepts/accounts/depositauth",
+        "claim": "Deposit Authorization blocks all transfers from strangers and applies to Payment, EscrowFinish, PaymentChannelClaim, and CheckCash unless the sender is preauthorized."
+       },
+       {
+        "kind": "vendor-docs",
+        "title": "Ripple USD (RLUSD) — Ripple Solutions",
+        "url": "https://ripple.com/solutions/stablecoin/",
+        "claim": "RLUSD direct customers are limited to enterprise institutions meeting bank-level KYC/AML with regular sanctions screening of both customers and wallets; minting only issues after a compliance check on the customer wallet passes."
+       },
+       {
+        "kind": "vendor-blog",
+        "title": "Credentials: Building a Compliant Identity Layer for the XRP Ledger (RippleX)",
+        "url": "https://dev.to/ripplexdev/credentials-building-a-compliant-identity-layer-for-the-xrp-ledger-155e",
+        "claim": "An account may require incoming transactions to provide valid credentials (e.g. KYC status) via the CredentialIDs field, validated by the ledger before authorization."
+       }
+      ]
+     },
+     {
+      "name": "Sanction and recall handling: freeze-then-clawback workflow",
+      "slug": "freeze-clawback-recall-pattern",
+      "kind": "pattern",
+      "network_status": "mainnet (Clawback + DeepFreeze enabled)",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-77 (DeepFreeze) + Clawback",
+      "amendment_name": "Clawback, DeepFreeze",
+      "enabled_date": "2025-05-05",
+      "maturity_tier": "production",
+      "status": "live",
+      "builder_fit": 5,
+      "summary": "When a player is flagged (sanctions hit, fraud, court order) the issuer of a studio-issued token runs a two-step recall: first freeze the trust line to immobilize the asset (individual freeze stops spending; Deep Freeze additionally stops receiving), then, if recovery is required, Clawback pulls the tokens back to the issuer. Freeze is the reversible containment step; clawback is the irreversible recovery step. This only works for issued tokens/MPTs you control — never for XRP.",
+      "key_fields": "AccountSet asfAllowTrustLineClawback (must be set on a clean issuer with empty owner directory, BEFORE any trust lines exist); Clawback transaction (issuer-only); Individual Freeze (lsfHighFreeze/lsfLowFreeze on the trust line); Deep Freeze (XLS-77, requires a standard freeze already in place); Global Freeze (asfGlobalFreeze, all counterparties); AMMClawback to recover tokens parked in an AMM.",
+      "gotchas": "The Allow Trust Line Clawback flag is permanent and can ONLY be enabled on an issuer account with a completely empty owner directory — you must decide clawback-capability at issuer setup, before issuing anything; you cannot retrofit it onto a live token. Deep Freeze requires a normal freeze first (two transactions, ordered). Clawback applies to issued currencies and MPTs (MPTokensV1) but NOT to XRP — design real-value rewards as a clawback-enabled issued token if recall is a requirement. Clawback is highly visible on-chain and is a strong action; pair it with off-chain legal justification and an audit record. RLUSD is Ripple-issued, so you cannot clawback RLUSD a player holds — recall of RLUSD value must go through the issuer/your custodial layer, not your own clawback.",
+      "tracks": [
+       "identity-compliance",
+       "game-economies",
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Enforce sanctions by immobilizing then recovering tokens",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Reverse fraudulent real-value grants",
+        "track": "game-economies",
+        "fitness": 4
+       },
+       {
+        "purpose": "Contain a compromised player wallet quickly (freeze)",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Clawing Back Tokens (xrpl.org)",
+        "url": "https://xrpl.org/docs/concepts/tokens/fungible-tokens/clawing-back-tokens",
+        "claim": "Clawback requires the issuer to enable Allow Trust Line Clawback via AccountSet, which can only be set when the owner directory is empty; an issuer with existing tokens cannot enable it."
+       },
+       {
+        "kind": "docs",
+        "title": "Deep Freeze (xrpl.org)",
+        "url": "https://xrpl.org/docs/concepts/tokens/fungible-tokens/deep-freeze",
+        "claim": "Deep Freeze further freezes a counterparty so they cannot receive tokens either, and requires a standard freeze on the trust line first; it targets specific trust lines for finer control than Global Freeze."
+       },
+       {
+        "kind": "news",
+        "title": "XRPL Clawback Amendment Goes Live on Mainnet (CoinGape)",
+        "url": "https://coingape.com/xrp-ledger-xrpl-clawback-amendment-goes-live-on-mainnet/",
+        "claim": "The Clawback amendment was enabled on mainnet on Feb 8, 2024 with ~94.3% validator support and complements the existing Freeze feature for immobilizing assets."
+       }
+      ]
+     },
+     {
+      "name": "Privacy tradeoffs of on-chain identity (what leaks)",
+      "slug": "onchain-identity-privacy-tradeoff",
+      "kind": "concept",
+      "network_status": "n/a",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "evergreen",
+      "status": "live",
+      "builder_fit": 4,
+      "summary": "XRPL Credentials are deliberately PII-minimal: the ledger holds only Issuer, Subject (wallet), CredentialType, Expiration, and an off-chain URI — never the dossier itself. But that minimalism is not full privacy. The mere existence of a credential publicly links a wallet to 'this issuer KYC'd this account,' the CredentialType strings reveal what category of claim was made (age, region, accreditation), and because XRPL is fully transparent, a wallet's entire payment graph is then linkable to that attested identity bucket. Putting any identity-adjacent state on-chain trades surveillance-resistance for verifiability; you must consciously decide what that link reveals.",
+      "key_fields": "On-chain: Issuer AccountID, Subject AccountID, CredentialType string, Expiration, URI; Off-chain: the actual identity document / dossier the URI points to. Leakage vectors: issuer-subject linkage, credential-type semantics, full transaction-graph correlation of an attested wallet, timing/amount analysis. Mitigation directions: generic CredentialType naming, per-feature wallet segregation, zero-knowledge 'over-18' style proofs (gold standard but not native to XLS-70), keeping all real PII strictly off-ledger.",
+      "gotchas": "Do NOT put anything resembling PII in the CredentialType or URI that resolves to public data — GDPR-style 'right to erasure' is incompatible with an immutable ledger, so on-chain you keep only cryptographic/categorical references. A single attested wallet that also receives payouts and trades publicly is fully deanonymizable to its identity bucket by graph analysis; if a player uses one wallet for everything, KYC'ing it exposes their whole on-chain life. XLS-70 does not provide zero-knowledge selective disclosure — proving 'over 18' on-chain currently means holding a credential that says so, which is more revealing than a true ZK proof; treat ZK as a backend/off-chain concern for now.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Decide what identity state is safe to put on-chain",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Design wallet segregation to limit linkability",
+        "track": "identity-compliance",
+        "fitness": 4
+       },
+       {
+        "purpose": "Set GDPR-compatible on-chain vs off-chain data boundaries",
+        "track": "identity-compliance",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "vendor-blog",
+        "title": "Credentials: Building a Compliant Identity Layer for the XRP Ledger (RippleX)",
+        "url": "https://dev.to/ripplexdev/credentials-building-a-compliant-identity-layer-for-the-xrp-ledger-155e",
+        "claim": "Personal information remains off-ledger; the URI references external data while the ledger only tracks credential validity, issuer, subject, and expiration — privacy is an embedded design use case."
+       },
+       {
+        "kind": "research",
+        "title": "On-chain Privacy and Financial Compliance (TRM Labs)",
+        "url": "https://www.trmlabs.com/reports-and-whitepapers/on-chain-privacy-and-financial-compliance",
+        "claim": "Public-chain pseudonymity makes all transactions visible, so KYC touchpoints that link an address to a real identity expose the address's full transaction graph; ZK proofs are the gold standard for proving a fact without revealing identity."
+       },
+       {
+        "kind": "research",
+        "title": "Blockchain for Digital Identity: DIDs and Verifiable Credential KYC (Blockchain Council)",
+        "url": "https://www.blockchain-council.org/blockchain/blockchain-for-digital-identity-dids-verifiable-credentials-kyc-beyond-crypto/",
+        "claim": "Mature on-chain identity keeps personal data off-chain in user-controlled wallets and stores only cryptographic proofs on-chain, since no PII should ever be stored on-chain to comply with regulations like GDPR."
+       }
+      ]
+     },
+     {
+      "name": "On-chain enforcement vs custodial backend: the compliance split decision",
+      "slug": "onchain-vs-backend-compliance-split",
+      "kind": "concept",
+      "network_status": "n/a",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "evergreen",
+      "status": "live",
+      "builder_fit": 5,
+      "summary": "The decisive architecture call for a compliant game economy: the ledger is an ENFORCEMENT layer, not a compliance program. On-chain belongs only what must be verifiable and enforceable by anyone — who may hold/receive/trade value (Credentials, Permissioned Domains, DepositPreauth) and the ability to immobilize/recover it (freeze, clawback). Everything that constitutes the actual KYC/AML program — collecting identity documents, sanctions screening, the audit trail, suspicious-activity reporting, re-verification scheduling, right-to-erasure handling — lives in the custodial backend, which acts as the credential ISSUER and the system of record. Get this split wrong and you either leak PII on an immutable ledger or build unenforceable gates.",
+      "key_fields": "On-chain (enforcement): Credential objects, PermissionedDomain membership, DepositPreauth gates, freeze flags, clawback capability, MPT allow-lists. Off-chain (compliance program): identity dossier, sanctions/PEP screening engine, KYC vendor integration, audit log, SAR workflow, re-KYC scheduler, credential issuance/revocation policy, erasure handling. The bridge: your backend is the credential issuer — it decides when to CredentialCreate (grant) and when to CredentialDelete / let-expire (revoke), turning a backend compliance verdict into an on-chain enforceable state.",
+      "gotchas": "Revocation is the hard seam: deleting/expiring a credential stops FUTURE value flows but does not retroactively unwind value already received — for that you need freeze+clawback on the token, so revocation policy and recall policy must be designed together. The ledger has no concept of 'reason' — a frozen or clawed-back state on-chain is just a flag; the legal justification and audit record must live in the backend or you cannot defend the action. Do not treat on-chain credentials as your source of truth for identity — they are derived assertions; the backend dossier is canonical, and the chain is a projection of its current verdict.",
+      "tracks": [
+       "identity-compliance",
+       "game-economies",
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Decide what compliance logic goes on-chain vs backend",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Architect the backend as credential issuer / system of record",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Co-design revocation and recall policy",
+        "track": "game-economies",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "vendor-blog",
+        "title": "Credentials: Building a Compliant Identity Layer for the XRP Ledger (RippleX)",
+        "url": "https://dev.to/ripplexdev/credentials-building-a-compliant-identity-layer-for-the-xrp-ledger-155e",
+        "claim": "The framework keeps personal information off-ledger with on-chain validity tracking, and an issuer (CredentialCreate) plus subject (CredentialAccept) model lets a trusted party project KYC status onto the ledger for enforcement."
+       },
+       {
+        "kind": "vendor-docs",
+        "title": "RLUSD overview (Ripple Docs)",
+        "url": "https://docs.ripple.com/products/stablecoin/overview/rlusd",
+        "claim": "Ripple performs the compliance check on the customer wallet off-chain and only then mints on-chain, demonstrating the backend-decides / chain-enforces split for a regulated token."
+       },
+       {
+        "kind": "research",
+        "title": "Onchain KYC: Identity and Compliance for Smart Contracts (Chainlink)",
+        "url": "https://chain.link/article/onchain-kyc",
+        "claim": "On-chain KYC systems rely strictly on off-chain storage of identity data with on-chain cryptographic proofs/state to satisfy regulations like GDPR while keeping enforcement verifiable."
+       }
+      ]
+     },
+     {
+      "name": "Permissioned DEX for compliant secondary markets",
+      "slug": "permissioned-dex-compliant-trading",
+      "kind": "pattern",
+      "network_status": "mainnet (enabled 2026-02-18)",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-81",
+      "amendment_name": "PermissionedDEX",
+      "enabled_date": "2026-02-18",
+      "maturity_tier": "early-production",
+      "status": "live",
+      "builder_fit": 3,
+      "summary": "If players can trade real-value game assets among themselves, a Permissioned DEX confines that trading to a credential-gated order book: offers carry a DomainID and only match within that domain's book, so only KYC'd-and-region-cleared accounts can place or take offers. This turns peer-to-peer trading of valuable assets from an unbounded compliance liability into a gated venue where every counterparty is pre-verified. Rated 3 because most game economies do not need a full secondary trading venue — it matters specifically when player-to-player trade of real value is a core loop.",
+      "key_fields": "Offer carries a DomainID linking it to a PermissionedDomain; order books are sorted by domain + currency pair (credential-gated liquidity islands); only accounts satisfying the domain's AcceptedCredentials can place/take offers; builds directly on XLS-80 domains and XLS-70 credentials.",
+      "gotchas": "Brand-new on mainnet (first permissioned offer executed 2026-02-18) — tooling, SDK support, and liquidity are still maturing; do not assume the same maturity as the open DEX. Liquidity is fragmented per domain, so a thin domain means poor execution; gating trade improves compliance but can starve the market. It only governs the native DEX order books — it does not by itself stop direct Payments between players, which still need DepositPreauth-style gating if you want to constrain peer transfers of value.",
+      "tracks": [
+       "identity-compliance",
+       "game-economies",
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Gate player-to-player trading of real-value assets",
+        "track": "game-economies",
+        "fitness": 4
+       },
+       {
+        "purpose": "Run a compliant secondary market for RWA/FX-style assets",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Enforce KYC/AML on every trade counterparty",
+        "track": "identity-compliance",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Permissioned DEXes (xrpl.org)",
+        "url": "https://xrpl.org/docs/concepts/tokens/decentralized-exchange/permissioned-dexes",
+        "claim": "Permissioned DEXes are order books within the native DEX that only accept trades from accounts meeting a domain's requirements; offers specify a DomainID and are valid only within that domain's order book."
+       },
+       {
+        "kind": "news",
+        "title": "XRP Ledger rolls out members-only DEX for regulated institutions (CoinDesk)",
+        "url": "https://www.coindesk.com/tech/2026/02/18/xrp-ledger-rolls-out-members-only-dex-for-regulated-institutions",
+        "claim": "The XLS-81 Permissioned DEX activated on Feb 18, 2026, enabling gated on-chain trading where only approved, credential-holding participants can place or accept offers, aimed at KYC/AML-controlled secondary markets."
+       }
+      ]
+     },
+     {
+      "name": "MPT allow-listing for compliant game currencies",
+      "slug": "mpt-allowlist-game-currency",
+      "kind": "pattern",
+      "network_status": "mainnet (MPTokensV1 enabled)",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-33 (MPT) family",
+      "amendment_name": "MPTokensV1",
+      "enabled_date": "",
+      "maturity_tier": "production",
+      "status": "live",
+      "builder_fit": 4,
+      "summary": "Multi-Purpose Tokens are the v2 fungible-token standard and carry the same compliance toolkit — authorization (allow-listing), freeze, and clawback — in a more compact, fixed-supply-friendly form than trust-line tokens. For a real-value game currency, issuing it as an authorization-required MPT means a wallet must be explicitly approved (after passing your KYC gate) before it can hold the token at all, making 'only verified players hold the currency' a property of the token itself rather than an external check.",
+      "key_fields": "MPTokenIssuanceCreate with the require-authorization flag; per-holder authorization (issuer approves each holder); freeze and clawback supported on MPTs (clawback requires MPTokensV1); compact issuance vs the older trust-line model; pairs naturally with Credentials as the off-chain gate that decides whom to authorize.",
+      "gotchas": "MPT clawback specifically requires the MPTokensV1 amendment, and the require-authorization choice is set at issuance — decide compliance posture up front, same as trust-line clawback. Allow-listing puts an approval step between KYC pass and token holding, so your backend must drive authorization as part of the credentialing flow or verified players still can't receive currency. MPTs are newer than trust-line tokens; confirm wallet/exchange support for any holder-facing currency before committing to MPT over the older model.",
+      "tracks": [
+       "identity-compliance",
+       "game-economies",
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Make 'only verified players hold it' a token property",
+        "track": "game-economies",
+        "fitness": 4
+       },
+       {
+        "purpose": "Issue a real-value game currency with built-in recall",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Allow-list holders as part of the KYC flow",
+        "track": "identity-compliance",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Fungible Tokens (xrpl.org)",
+        "url": "https://xrpl.org/docs/concepts/tokens/fungible-tokens",
+        "claim": "Multi-Purpose Tokens are the 'version 2' fungible token standard, and both trust-line tokens and MPTs support compliance-focused features such as freezes, clawback, and allow-listing."
+       },
+       {
+        "kind": "docs",
+        "title": "Clawing Back Tokens (xrpl.org)",
+        "url": "https://xrpl.org/docs/concepts/tokens/fungible-tokens/clawing-back-tokens",
+        "claim": "Clawback of MPTs requires the MPTokensV1 amendment, and clawback capability must be configured at issuance."
+       }
+      ]
+     }
+    ]
+   },
+   "cloud_verify": {
+    "model": "deepseek-v3.1:671b",
+    "verdicts": [
+     {
+      "capability": "KYC/AML-gated economy via Credentials + DepositPreauth + Permissioned Domains",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live (Credentials and PermissionedDomains amendments enabled)",
+      "currency": "current",
+      "fixes": "",
+      "note": "All underlying amendments are enabled on mainnet as verified by XRPL known amendments list."
+     },
+     {
+      "capability": "Region-locking and age-gating with credential types",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live (Credentials amendment enabled)",
+      "currency": "current",
+      "fixes": "",
+      "note": "CredentialType field allows issuer-defined identifiers for typed claims on mainnet."
+     },
+     {
+      "capability": "Regulated reward payouts to verified players only",
+      "overall": "unverified",
+      "network_status_check": "unverified RLUSD status",
+      "currency": "unknown",
+      "fixes": "RLUSD compliance model not confirmed as mainnet-live capability",
+      "note": "DepositPreauth credential-gating exists but RLUSD enterprise compliance claims lack mainnet verification."
+     },
+     {
+      "capability": "Sanction and recall handling: freeze-then-clawback workflow",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live (Clawback amendment enabled Feb 2024, DeepFreeze enabled)",
+      "currency": "current",
+      "fixes": "",
+      "note": "Both Clawback and DeepFreeze amendments are enabled on XRPL mainnet as documented."
+     },
+     {
+      "capability": "Privacy tradeoffs of on-chain identity (what leaks)",
+      "overall": "confirmed",
+      "network_status_check": "n/a (conceptual)",
+      "currency": "current",
+      "fixes": "",
+      "note": "Accurate description of privacy design: personal data off-chain, only credential validity on-chain."
+     },
+     {
+      "capability": "On-chain enforcement vs custodial backend: the compliance split decision",
+      "overall": "confirmed",
+      "network_status_check": "n/a (conceptual)",
+      "currency": "current",
+      "fixes": "",
+      "note": "Valid description of off-chain compliance checks with on-chain enforcement pattern."
+     },
+     {
+      "capability": "Permissioned DEX for compliant secondary markets",
+      "overall": "refuted",
+      "network_status_check": "not mainnet-live (XLS-81 not enabled as of mid-2026)",
+      "currency": "unknown",
+      "fixes": "PermissionedDEX amendment is not enabled on XRPL mainnet",
+      "note": "XLS-81 Permissioned DEX is not among enabled amendments on XRPL mainnet as of mid-2026."
+     },
+     {
+      "capability": "MPT allow-listing for compliant game currencies",
+      "overall": "refuted",
+      "network_status_check": "not mainnet-live (MPTokensV1 amendment not enabled)",
+      "currency": "unknown",
+      "fixes": "MPTokensV1 amendment is not enabled on XRPL mainnet",
+      "note": "MPTokensV1 amendment is not among enabled amendments on XRPL mainnet as of mid-2026."
+     }
+    ]
+   }
+  },
+  {
+   "slug": "identity-compliance",
+   "name": "Identity & compliance",
+   "research": {
+    "domain": "Credentials / on-chain attestations (depth)",
+    "notes": "RESOLVED Wave-1 uncertainty: XRPL Credentials (XLS-70) IS mainnet-live. The 'Credentials' amendment (ID 1CB67D082CF7D9102412D34258CEDB400E659352D3B207348889297A6D90F5EF) was introduced in rippled 2.3.0 (Nov 2024), reached the 80%+ validator supermajority, and was ENABLED ON MAINNET on 2025-09-04 (03:51:21 UTC). It is listed as 'Enabled' on xrpl.org's Known Amendments status page as of mid-2026. Wave 1's verifier could not confirm this because the lane was researched before the Sept-2025 activation; it is now definitively live. Credentials add three native transactions (CredentialCreate / CredentialAccept / CredentialDelete) and a Credential ledger object implementing an issuer->subject attestation model: an issuer attests a fact about a subject account (KYC-passed, accredited, age/region) by creating a credential; the subject must CredentialAccept it (two-party handshake, like holding your own passport). On-chain the ledger stores only Issuer, Subject, CredentialType (1-64 byte hex tag), an optional immutable URI (1-256 bytes, points to off-chain Verifiable Credential / PII), and optional Expiration -- NO PII goes on-chain. Credentials are the dependency layer for the rest of the compliance stack: DepositPreauth was extended (same Credentials amendment) with AuthorizeCredentials so an account can pre-authorize ANY holder of a given credential-type-from-issuer, and Permissioned Domains (XLS-80) -- which went live on Mainnet 2026-02-04 -- use an AcceptedCredentials list (max 10) so credential possession = automatic domain membership, gating permissioned DEX/AMM/payment environments. Game relevance is direct: age-gating (issuer attests over-18/over-21), region/jurisdiction compliance (geo credential gates restricted features), and verified-player / accredited status for premium or regulated economies -- all without the studio ever putting player PII on a public ledger. Revocation = CredentialDelete (issuer or subject any time; anyone once expired) + Expiration timestamp for time-boxed attestations.",
+    "capabilities": [
+     {
+      "name": "Credentials amendment (XLS-70)",
+      "slug": "credentials-amendment-xls70",
+      "kind": "standard",
+      "network_status": "Live on Mainnet. The 'Credentials' amendment (ID 1CB67D082CF7D9102412D34258CEDB400E659352D3B207348889297A6D90F5EF) was introduced in rippled 2.3.0 (Nov 2024) and ENABLED on XRPL Mainnet on 2025-09-04 at 03:51:21 UTC after crossing the 80%+ validator supermajority. Listed as 'Enabled' on xrpl.org Known Amendments as of mid-2026. This capability DEFINITIVELY SETTLES the Wave-1 open question: yes, on-chain Credentials are mainnet-live.",
+      "chain": "XRPL",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials",
+      "enabled_date": "2025-09-04",
+      "maturity_tier": "production",
+      "status": "verified",
+      "builder_fit": 5,
+      "summary": "The native on-chain attestation layer of the XRP Ledger. XLS-70 adds three transactions (CredentialCreate / CredentialAccept / CredentialDelete) and a Credential ledger object that lets a trusted issuer attest a fact about a subject account in a way other participants can rely on, without exposing PII on-chain. It is the dependency root of the whole XRPL compliance stack -- DepositPreauth credential authorization and XLS-80 Permissioned Domains both build directly on it. For a studio building KYC/compliance on XRPL this is the foundational amendment; everything else in this lane assumes it is enabled.",
+      "key_fields": "Amendment ID 1CB67D082CF7D9102412D34258CEDB400E659352D3B207348889297A6D90F5EF; introduced rippled 2.3.0; mainnet-enabled 2025-09-04 03:51:21 UTC; governance = 80%+ validator supermajority held 2 weeks then EnableAmendment. Adds ledger object type Credential and tx types CredentialCreate/Accept/Delete. Modifies DepositPreauth to accept credential-based authorization.",
+      "gotchas": "Pre-2025-09-04 testnet/devnet research (such as Wave 1's) predates activation and could not confirm mainnet status -- always re-check the live Known Amendments page rather than trusting older notes. Requires all gating amendments (DepositPreauth credential auth, Permissioned Domains) to ALSO be enabled to be useful end-to-end; Credentials alone only stores attestations. Amendment activation is irreversible once enabled.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Establishing that native KYC/attestation primitives exist on XRPL mainnet (not just testnet promise)",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Dependency check before designing any credential-gated game economy",
+        "track": "identity-compliance",
+        "fitness": 5
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Known Amendments - XRPL.org",
+        "url": "https://xrpl.org/resources/known-amendments",
+        "claim": "Credentials amendment ID 1CB67D082CF7D9102412D34258CEDB400E659352D3B207348889297A6D90F5EF listed with status 'Enabled' on Mainnet; introduces tools for managing authorization and compliance on the XRP Ledger."
+       },
+       {
+        "kind": "release-notes",
+        "title": "Introducing XRP Ledger version 2.3.0 - XRPL.org",
+        "url": "https://xrpl.org/blog/2024/rippled-2.3.0",
+        "claim": "rippled 2.3.0 includes the Credentials amendment (XLS-70) which adds the ability to issue Credentials on the ledger and use them to pre-approve incoming payments."
+       },
+       {
+        "kind": "article",
+        "title": "XRP Ledger Activates On-Chain KYC/AML In Major Upgrade - Bitcoinist",
+        "url": "https://bitcoinist.com/xrp-ledger-activates-on-chain-kyc-aml/",
+        "claim": "The XRPL Credentials amendment was enabled on mainnet on September 4, 2025 at 03:51:21 UTC, adding a native standards-aligned identity/KYC layer."
+       }
+      ]
+     },
+     {
+      "name": "CredentialCreate transaction",
+      "slug": "credentialcreate",
+      "kind": "transaction",
+      "network_status": "Live on Mainnet since 2025-09-04 (Credentials amendment enabled).",
+      "chain": "XRPL",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials",
+      "enabled_date": "2025-09-04",
+      "maturity_tier": "production",
+      "status": "verified",
+      "builder_fit": 5,
+      "summary": "The issuer side of the attestation handshake. An issuer account submits CredentialCreate naming the Subject, a CredentialType tag, and optionally an Expiration and a URI pointing to off-chain proof. This mints a provisional Credential ledger object owned by the issuer until the subject accepts it. For a game studio this is the transaction a licensed KYC/age-verification partner (or the studio's own verified-identity service) runs to attest 'this player passed verification X' -- the issuer never publishes the underlying documents, only the typed claim.",
+      "key_fields": "Account (issuer, required). Subject (Address, required) -- the account being attested; must be funded or returns tecNO_TARGET. CredentialType (Hex Blob, required, 1-64 bytes) -- arbitrary tag, e.g. hex of 'kyc' / 'over21' / 'eu_resident'. Expiration (UInt32, optional, seconds since Ripple Epoch) -- past value returns tecEXPIRED. URI (Hex Blob, optional, 1-256 bytes) -- points to off-chain Verifiable Credential doc; immutable after creation. Errors: tecDUPLICATE (same subject+issuer+type exists), tecNO_TARGET (subject unfunded), temINVALID_ACCOUNT_ID.",
+      "gotchas": "URI is immutable -- if the underlying off-chain data changes materially you must delete and re-issue (like renewing a license), you cannot edit in place. CredentialType is an opaque hex tag with no on-chain registry; issuer and verifier must agree on the convention out-of-band. Credential is NOT valid until the subject runs CredentialAccept -- a created-but-unaccepted credential cannot gate access. (subject+issuer+CredentialType) must be unique per issuer; you cannot stack two identical-type live credentials.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Attesting a player passed KYC / age / region verification (issuer-run)",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Granting verified-player or accredited status on-chain",
+        "track": "identity-compliance",
+        "fitness": 4
+       },
+       {
+        "purpose": "Linking an off-chain Verifiable Credential to an XRPL account via URI",
+        "track": "identity-compliance",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "CredentialCreate - XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/credentialcreate",
+        "claim": "CredentialCreate requires Account (issuer), Subject (Address), and CredentialType (1-64 byte hex blob); optional Expiration (UInt32) and URI (1-256 byte hex blob, immutable); errors include tecDUPLICATE, tecEXPIRED, tecNO_TARGET."
+       },
+       {
+        "kind": "standard",
+        "title": "XLS-70d On-Chain Credentials - XRPLF/XRPL-Standards Discussion #202",
+        "url": "https://github.com/XRPLF/XRPL-Standards/discussions/202",
+        "claim": "The Credential object stores Issuer, Subject, CredentialType and an immutable URI; if data changes materially a new credential must be issued."
+       }
+      ]
+     },
+     {
+      "name": "CredentialAccept transaction",
+      "slug": "credentialaccept",
+      "kind": "transaction",
+      "network_status": "Live on Mainnet since 2025-09-04 (Credentials amendment enabled).",
+      "chain": "XRPL",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials",
+      "enabled_date": "2025-09-04",
+      "maturity_tier": "production",
+      "status": "verified",
+      "builder_fit": 5,
+      "summary": "The subject side of the attestation handshake. Only the subject account can submit CredentialAccept (naming the Issuer and CredentialType), which makes the credential valid and moves the credential's owner reserve to the subject -- modeling the 'you hold your own passport' design where the attestation lives under the subject's control, not the issuer's. A credential is unusable for any gating until accepted, so for a studio this is the explicit player-consent step: the player must opt in to carrying the verified-status credential on their account.",
+      "key_fields": "Account (the subject, required -- ONLY the subject can accept). Issuer (Address, required) -- the account that created the credential. CredentialType (Hex Blob, required, 1-64 bytes) -- must match the created credential. Effect: clears the provisional state, marks the Credential valid, and the owner reserve transfers from issuer to subject.",
+      "gotchas": "Two-party model: a credential the subject never accepts can never gate access -- design flows so the player is prompted to accept. Acceptance transfers the owner reserve to the SUBJECT, so the player pays the standard XRPL owner reserve for each accepted credential (delete to reclaim). Only the subject account itself can accept -- no delegation. If the credential already expired before acceptance, accepting it does not make it usable for gating.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Player opt-in / consent to carry a verified-status credential",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Activating an issued KYC/age credential so it can gate features",
+        "track": "identity-compliance",
+        "fitness": 5
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "CredentialAccept - XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/credentialaccept",
+        "claim": "CredentialAccept is sent by the subject (Account) naming Issuer and CredentialType (1-64 bytes); only the subject can accept, and acceptance makes the credential valid."
+       },
+       {
+        "kind": "standard",
+        "title": "XLS-70d On-Chain Credentials - XRPLF/XRPL-Standards Discussion #202",
+        "url": "https://github.com/XRPLF/XRPL-Standards/discussions/202",
+        "claim": "Subjects hold their own credentials (like a physical passport) rather than storing everything under the issuer's account; the subject accepts via CredentialAccept."
+       }
+      ]
+     },
+     {
+      "name": "CredentialDelete transaction (revocation)",
+      "slug": "credentialdelete",
+      "kind": "transaction",
+      "network_status": "Live on Mainnet since 2025-09-04 (Credentials amendment enabled).",
+      "chain": "XRPL",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials",
+      "enabled_date": "2025-09-04",
+      "maturity_tier": "production",
+      "status": "verified",
+      "builder_fit": 4,
+      "summary": "The revocation and cleanup transaction. Either the issuer or the subject can delete a credential at any time, and once a credential is past its Expiration ANY account can delete it (so expired attestations can be garbage-collected). Deletion permanently removes the Credential object -- there is no 'inactive' state -- and refunds the owner reserve. For a studio this is dual-purpose: the verifier (issuer) revokes a credential when a player's KYC lapses or sanctions status changes, and the player can drop a credential to reclaim reserve.",
+      "key_fields": "Account (sender). Requires Subject and/or Issuer plus CredentialType to identify the target credential. Authorization: issuer OR subject may delete at any time; anyone may delete once Expiration has passed. tecNO_PERMISSION if sender is neither issuer nor subject and the credential is not expired. Deletion is permanent (no soft-revoke) and returns the owner reserve.",
+      "gotchas": "Revocation is hard-delete only -- there is no on-chain 'revoked but visible' record, so an audit trail of revocations must be reconstructed from account_tx history, not from current ledger state. Anyone can sweep an expired credential, so do not rely on an expired credential lingering on-chain. Because deletion is permanent, re-granting requires a fresh CredentialCreate + CredentialAccept handshake (player must re-consent).",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Issuer revoking a lapsed/invalid KYC or sanctions credential",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Player reclaiming owner reserve by dropping unwanted credentials",
+        "track": "identity-compliance",
+        "fitness": 3
+       },
+       {
+        "purpose": "Garbage-collecting expired age/region attestations",
+        "track": "identity-compliance",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "CredentialDelete - XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/credentialdelete",
+        "claim": "The holder or issuer can delete a credential at any time; if the credential is expired anyone can delete it; sender that is neither issuer nor subject on a non-expired credential gets tecNO_PERMISSION."
+       }
+      ]
+     },
+     {
+      "name": "Issuer-to-subject attestation model",
+      "slug": "issuer-subject-attestation-model",
+      "kind": "concept",
+      "network_status": "Live on Mainnet since 2025-09-04 (the model is realized by the Credentials amendment).",
+      "chain": "XRPL",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials",
+      "enabled_date": "2025-09-04",
+      "maturity_tier": "production",
+      "status": "verified",
+      "builder_fit": 5,
+      "summary": "The conceptual core of XLS-70: a three-role trust model. An AUTHORIZER (e.g. the studio or a regulated platform) decides which issuers it trusts; an ISSUER (a KYC/identity provider) attests typed facts about accounts; and a SUBJECT (the player) holds the resulting credential on their own account and presents it to gate access. The key design choice is that the subject must accept and then owns the credential (passport model), so attestations are portable, consent-based, and reusable across any app that trusts the same issuer+type -- a player who is KYC-verified once can be recognized by many games/services without re-verifying.",
+      "key_fields": "Three roles: authorizer (trusts issuers, defines accepted credential sets, e.g. via Permissioned Domain AcceptedCredentials or DepositPreauth AuthorizeCredentials), issuer (runs CredentialCreate), subject (runs CredentialAccept, holds credential). Trust is expressed off-chain (which issuers an authorizer accepts) plus on-chain (the accepted-credentials lists). CredentialType is the typed claim; URI optionally links a richer off-chain Verifiable Credential.",
+      "gotchas": "There is no global registry of trusted issuers -- each authorizer/app independently decides which issuer accounts + credential types it honors, so a credential is only as good as the verifier's trust list. Issuer-account compromise is a single point of failure (a bad issuer can mint false attestations); rotate issuer keys and scope issuers narrowly. Portability is a feature AND a risk: any app trusting the same issuer+type recognizes the credential, so issuers must scope credential types carefully (e.g. 'over18' is broadly reusable, 'gameX_vip' is not).",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Designing who issues vs who trusts vs who holds credentials in a compliant game",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Reusing one KYC verification across multiple games/services",
+        "track": "identity-compliance",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Credentials concept - XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/decentralized-storage/credentials",
+        "claim": "Credentials use a three-party model of authorizers, issuers, and users, with a KYC workflow where an issuer attests identity/status that an authorizer relies on."
+       },
+       {
+        "kind": "standard",
+        "title": "XLS-70d On-Chain Credentials - XRPLF/XRPL-Standards Discussion #202",
+        "url": "https://github.com/XRPLF/XRPL-Standards/discussions/202",
+        "claim": "Subjects hold their own credentials rather than the issuer storing everything, enabling a portable passport-style attestation model."
+       }
+      ]
+     },
+     {
+      "name": "On-chain credential privacy (PII off-ledger)",
+      "slug": "credential-on-chain-privacy",
+      "kind": "concept",
+      "network_status": "Live on Mainnet since 2025-09-04 (privacy properties follow from the Credential ledger object shipped with the amendment).",
+      "chain": "XRPL",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials",
+      "enabled_date": "2025-09-04",
+      "maturity_tier": "production",
+      "status": "verified",
+      "builder_fit": 4,
+      "summary": "What is and isn't public when you use Credentials. On the public ledger a Credential object exposes only: the Issuer account, the Subject account, the CredentialType tag, an optional immutable URI, and an optional Expiration. NO personal data is stored on-chain -- names, dates of birth, documents, sanctions detail all stay off-ledger; the URI at most points to an external Verifiable Credential the issuer controls. This is the privacy property that makes XLS-70 usable for real KYC: the studio can prove a player satisfies a requirement (passed KYC, over 21, EU resident) without any player PII becoming permanently public.",
+      "key_fields": "Public on-chain: Issuer, Subject, CredentialType (opaque hex tag), URI (optional, immutable, points off-chain), Expiration (optional). Off-chain: all PII / source documents / the actual Verifiable Credential content. Discoverability: credential creation/acceptance/deletion are visible in account_tx history, so subjects can be notified when a credential is created for them, and observers can see THAT an account holds a typed credential from an issuer (just not the underlying data).",
+      "gotchas": "It is NOT zero-knowledge: the linkage 'Subject account holds credential-type X from Issuer Y' is fully public and permanent in history -- correlation/de-anonymization is possible if the credential type or issuer is sensitive (e.g. a 'sanctions_cleared' tag reveals the account went through sanctions screening). Choose credential-type tags that don't leak sensitive context. The URI is public and immutable; never put anything sensitive or mutable behind it, and ensure the off-chain endpoint enforces its own access control. account_tx exposes the full attestation timeline, not just current state.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Proving a compliance requirement without publishing player PII",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Deciding which facts are safe to encode as public credential types",
+        "track": "identity-compliance",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "standard",
+        "title": "XLS-70d On-Chain Credentials - XRPLF/XRPL-Standards Discussion #202",
+        "url": "https://github.com/XRPLF/XRPL-Standards/discussions/202",
+        "claim": "On-chain storage is minimal; sensitive PII stays off-chain with the URI pointing to external data, and credential details are discoverable through account_tx history."
+       },
+       {
+        "kind": "docs",
+        "title": "CredentialCreate - XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/credentialcreate",
+        "claim": "The on-chain credential stores only Subject, CredentialType and an optional URI (1-256 bytes) that may point to a Verifiable Credential document, not the credential data itself."
+       }
+      ]
+     },
+     {
+      "name": "Credential-gated DepositPreauth (AuthorizeCredentials)",
+      "slug": "depositpreauth-credential-authorization",
+      "kind": "pattern",
+      "network_status": "Live on Mainnet. Base DepositPreauth/DepositAuth has been enabled for years; the Credentials amendment (enabled 2025-09-04) extended it with AuthorizeCredentials, which is therefore live since that date.",
+      "chain": "XRPL",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials",
+      "enabled_date": "2025-09-04",
+      "maturity_tier": "production",
+      "status": "verified",
+      "builder_fit": 5,
+      "summary": "The first concrete gate that consumes credentials. With Deposit Authorization enabled on an account, the account normally rejects all incoming payments unless the sender is pre-authorized. Credentials add AuthorizeCredentials so instead of whitelisting individual addresses you authorize ANY sender holding a specific credential-type-from-issuer. For a game studio this is the cleanest way to make a treasury / cash-out / regulated-economy account that only accepts funds from KYC-verified or region-cleared players, with one rule instead of one entry per player.",
+      "key_fields": "On the receiving account: enable DepositAuth (asfDepositAuth flag). DepositPreauth tx: Authorize (single Address to whitelist) OR AuthorizeCredentials (set of {Issuer, CredentialType} pairs). A sender then satisfies the gate either by being directly authorized or by holding a matching accepted credential. The credential must be accepted (valid) and not expired at send time.",
+      "gotchas": "Sender's credential must be currently valid (accepted + not expired) -- an expired or unaccepted credential fails the gate. AuthorizeCredentials matches on exact Issuer+CredentialType, so credential-type tag conventions must be agreed in advance. DepositAuth only governs INCOMING value to the protected account; it does not stop the protected account from sending out. For broad many-to-many credential gating of trading venues, Permissioned Domains (next capability) is the more scalable tool than per-account DepositPreauth.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Treasury/cash-out account that only accepts funds from KYC-verified players",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Region-gating deposits to a compliance-sensitive account",
+        "track": "identity-compliance",
+        "fitness": 4
+       },
+       {
+        "purpose": "Replacing per-player address whitelists with a single credential rule",
+        "track": "identity-compliance",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "DepositPreauth - XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/depositpreauth",
+        "claim": "DepositPreauth supports Authorize (single account) and AuthorizeCredentials (set of {Issuer, CredentialType}); credential-based authorization lets an account accept deposits from any holder of a specified credential."
+       },
+       {
+        "kind": "release-notes",
+        "title": "Introducing XRP Ledger version 2.3.0 - XRPL.org",
+        "url": "https://xrpl.org/blog/2024/rippled-2.3.0",
+        "claim": "The Credentials amendment lets accounts use Credentials to pre-approve incoming payments, extending Deposit Authorization."
+       }
+      ]
+     },
+     {
+      "name": "Permissioned Domains (XLS-80) credential gating",
+      "slug": "permissioned-domains-xls80",
+      "kind": "standard",
+      "network_status": "Live on Mainnet. The PermissionedDomains amendment (XLS-80) crossed 91%+ validator support and was ENABLED on XRPL Mainnet on 2026-02-04. It depends on the Credentials amendment (which must be -- and is -- enabled first).",
+      "chain": "XRPL",
+      "xls_standard": "XLS-80",
+      "amendment_name": "PermissionedDomains",
+      "enabled_date": "2026-02-04",
+      "maturity_tier": "production",
+      "status": "verified",
+      "builder_fit": 4,
+      "summary": "Scales credential gating from single accounts to whole environments. A Permissioned Domain defines an AcceptedCredentials list (up to 10 issuer+type pairs); any account holding one of those credentials is automatically a member -- no join step. Domains are credential-gated overlays on the public XRPL used to create compliant trading/settlement zones (the foundation for Permissioned DEX and other gated primitives). For a studio this is how you build a 'verified-players-only' marketplace or economy zone where membership is granted purely by holding the right KYC/age/region credential.",
+      "key_fields": "PermissionedDomainSet tx: creates/modifies a domain (only the Owner can modify), specifying AcceptedCredentials (array, max 10, each {Issuer, CredentialType hex<=64 bytes}). PermissionedDomainDelete tx: removes the domain (Owner only). Domain identity = Owner + Sequence. Membership rule: ownership of any one accepted credential = automatic member. Dependency: requires Credentials amendment enabled (rippled 2.4.0 added a guard preventing domain creation if Credentials is not yet enabled).",
+      "gotchas": "Hard dependency on Credentials -- meaningless without it (the amendment ordering guard exists precisely because of this). The domain itself 'doesn't bring functionality by itself' -- it is consumed by other amendments (e.g. Permissioned DEX); on its own it just classifies membership. AcceptedCredentials capped at 10 issuer+type pairs, so design credential types to be broad enough to fit. Members must hold ACCEPTED (valid, non-expired) credentials; expiry silently drops membership. Newer than the rest of the stack (live 2026-02-04) -- verify downstream consuming amendments (Permissioned DEX/AMM) are also enabled before relying on gated trading.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Verified-players-only marketplace or economy zone",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Credential-gated trading venue (permissioned DEX) for a regulated in-game economy",
+        "track": "identity-compliance",
+        "fitness": 4
+       },
+       {
+        "purpose": "Region/jurisdiction-segmented economy environments",
+        "track": "identity-compliance",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "standard",
+        "title": "XLS-0080 Permissioned Domains - XRPLF/XRPL-Standards",
+        "url": "https://github.com/XRPLF/XRPL-Standards/blob/master/XLS-0080-permissioned-domains/README.md",
+        "claim": "A permissioned domain uses an AcceptedCredentials array (max 10) of {Issuer, CredentialType}; holding one of these credentials automatically makes you a member; PermissionedDomainSet/Delete manage domains; the feature is gated by other amendments that consume it."
+       },
+       {
+        "kind": "article",
+        "title": "Ripple's permissioned domains go live on XRPL mainnet - Cryptopolitan",
+        "url": "https://www.cryptopolitan.com/ripples-permissioned-domains-go-live-xrpl/",
+        "claim": "Permissioned Domains (XLS-80) activated on XRPL mainnet on February 4, 2026 with over 91% validator support, providing credential-gated access layers on the public ledger."
+       },
+       {
+        "kind": "release-notes",
+        "title": "Introducing XRP Ledger version 2.4.0 - XRPL.org",
+        "url": "https://xrpl.org/blog/2025/rippled-2.4.0",
+        "claim": "rippled 2.4.0 added a check preventing permissioned domains from being created if the Permissioned Domains amendment is enabled before the Credentials amendment, confirming XLS-80 depends on XLS-70."
+       }
+      ]
+     },
+     {
+      "name": "Age-gating via credentials (game pattern)",
+      "slug": "credential-age-gating-game",
+      "kind": "pattern",
+      "network_status": "Live on Mainnet -- pattern built entirely on Credentials (XLS-70, enabled 2025-09-04) and optional DepositPreauth/Permissioned Domain gating.",
+      "chain": "XRPL",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials",
+      "enabled_date": "2025-09-04",
+      "maturity_tier": "production",
+      "status": "verified",
+      "builder_fit": 5,
+      "summary": "Concrete studio pattern: a trusted age-verification issuer attests an 'over18'/'over21' CredentialType for a player's account; the player accepts it; the game gates age-restricted content, loot boxes, real-money cash-out, or chat features by checking the account holds a valid age credential (off-chain client check) and enforces value flows via DepositPreauth/Permissioned Domain on-chain. The player's actual date of birth never touches the ledger -- only the boolean-style typed claim and its expiry. Re-verification is just a fresh credential when the old one expires.",
+      "key_fields": "Issuer = age-verification partner account. CredentialType = hex of e.g. 'over18' or 'over21'. Optional Expiration to force periodic re-verification. Game read path: account_objects / account_tx to confirm a valid accepted, non-expired credential of the required type from a trusted issuer. Value-flow enforcement: DepositPreauth AuthorizeCredentials and/or Permissioned Domain AcceptedCredentials referencing that issuer+type.",
+      "gotchas": "On-chain enforcement only governs value movement (payments into gated accounts/domains); UI/content gating is a client-side trust decision the studio must implement and cannot be enforced by the ledger alone. The fact that an account holds 'over21' from a known issuer is public -- avoid encoding more granular age than needed. Issuer trust is the whole security model: a compromised age issuer can mint false 'over21' claims, so scope and monitor the issuer account. Expired age credentials silently drop gating -- handle the lapse-and-renew flow in the client.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Age-gating mature content, gambling-style mechanics, or real-money features",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Forcing periodic age re-verification via credential expiry",
+        "track": "identity-compliance",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Credentials concept - XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/decentralized-storage/credentials",
+        "claim": "Credentials are signed statements stored in the ledger that attest identity or status (e.g. a KYC workflow), supporting Deposit Authorization and permissioned domains as the enforcement layer."
+       },
+       {
+        "kind": "docs",
+        "title": "CredentialCreate - XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/credentialcreate",
+        "claim": "CredentialType is an arbitrary 1-64 byte tag and Expiration is an optional UInt32, allowing time-boxed typed claims such as an age attestation without publishing the underlying data."
+       }
+      ]
+     },
+     {
+      "name": "Region/jurisdiction compliance & verified-player status (game pattern)",
+      "slug": "credential-region-verified-player-game",
+      "kind": "pattern",
+      "network_status": "Live on Mainnet -- pattern built on Credentials (XLS-70, 2025-09-04) plus Permissioned Domains (XLS-80, 2026-02-04) for environment-scoped gating.",
+      "chain": "XRPL",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials",
+      "enabled_date": "2025-09-04",
+      "maturity_tier": "production",
+      "status": "verified",
+      "builder_fit": 4,
+      "summary": "Concrete studio pattern for jurisdiction compliance and trusted-player tiers. A compliance issuer attests region/jurisdiction credentials (e.g. 'eu_resident', 'us_restricted_cleared') and a 'verified_player' / 'kyc_passed' credential; the studio then runs region-segmented economy zones as Permissioned Domains (AcceptedCredentials by region) and gates regulated cash-out via credential-authorized DepositPreauth. This lets the studio honor geo-restrictions on certain features (e.g. real-money trading disabled in restricted regions) and offer elevated verified-player tiers, all without storing where a player lives on-chain.",
+      "key_fields": "Issuer = compliance/KYC partner. CredentialTypes = region tags (e.g. hex 'eu_resident') and status tags (e.g. 'verified_player'). Enforcement: Permissioned Domain per region/tier with matching AcceptedCredentials (max 10 pairs); DepositPreauth AuthorizeCredentials on regulated treasury accounts. Optional Expiration for periodic re-attestation of residency/status.",
+      "gotchas": "Region encoded as a public credential type is a privacy signal -- 'us_restricted_cleared' on an account reveals jurisdiction context permanently in history; minimize granularity. Permissioned Domain AcceptedCredentials cap of 10 limits how many region/tier pairs one domain can accept -- you may need multiple domains. Geo-compliance still requires the studio's own legal determination of which credentials map to which feature restrictions; the ledger only enforces value flow, not legal policy. Verified-player tiers are only as trustworthy as the issuer; a single issuer for all status claims is a concentration risk.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Disabling regulated features (real-money trade/cash-out) by jurisdiction",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Verified-player / KYC-passed tiers for premium or regulated economies",
+        "track": "identity-compliance",
+        "fitness": 4
+       },
+       {
+        "purpose": "Region-segmented economy zones via Permissioned Domains",
+        "track": "identity-compliance",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "article",
+        "title": "XRPL Introduces On-Chain Identity Verification in Major Protocol Update - Gate",
+        "url": "https://www.gate.com/post/status/14487580",
+        "claim": "XLS-70 Credentials lets issuers verify facts about an XRPL account such as identity confirmation or sanctions/region status that other participants can rely on without exposing sensitive data on-chain."
+       },
+       {
+        "kind": "standard",
+        "title": "XLS-0080 Permissioned Domains - XRPLF/XRPL-Standards",
+        "url": "https://github.com/XRPLF/XRPL-Standards/blob/master/XLS-0080-permissioned-domains/README.md",
+        "claim": "Permissioned domains create rule-based controlled environments on the public XRPL gated by credential ownership, enabling region/tier-segmented participation."
+       }
+      ]
+     }
+    ]
+   },
+   "cloud_verify": {
+    "model": "deepseek-v3.1:671b",
+    "verdicts": [
+     {
+      "capability": "Credentials amendment (XLS-70)",
+      "overall": "confirmed",
+      "network_status_check": "Enabled on XRPL Mainnet since 2025-09-04",
+      "currency": "current",
+      "fixes": "",
+      "note": "Credentials amendment XLS-70 is confirmed enabled on XRPL Mainnet as of September 2025."
+     },
+     {
+      "capability": "CredentialCreate transaction",
+      "overall": "confirmed",
+      "network_status_check": "Live on Mainnet since Credentials amendment enabled",
+      "currency": "current",
+      "fixes": "",
+      "note": "CredentialCreate transaction is part of the enabled Credentials amendment."
+     },
+     {
+      "capability": "CredentialAccept transaction",
+      "overall": "confirmed",
+      "network_status_check": "Live on Mainnet since Credentials amendment enabled",
+      "currency": "current",
+      "fixes": "",
+      "note": "CredentialAccept transaction is part of the enabled Credentials amendment."
+     },
+     {
+      "capability": "CredentialDelete transaction (revocation)",
+      "overall": "confirmed",
+      "network_status_check": "Live on Mainnet since Credentials amendment enabled",
+      "currency": "current",
+      "fixes": "",
+      "note": "CredentialDelete transaction is part of the enabled Credentials amendment."
+     },
+     {
+      "capability": "Issuer-to-subject attestation model",
+      "overall": "confirmed",
+      "network_status_check": "Live on Mainnet via Credentials amendment",
+      "currency": "current",
+      "fixes": "",
+      "note": "The attestation model is implemented by the enabled Credentials amendment."
+     },
+     {
+      "capability": "On-chain credential privacy (PII off-ledger)",
+      "overall": "confirmed",
+      "network_status_check": "Live on Mainnet via Credentials amendment",
+      "currency": "current",
+      "fixes": "",
+      "note": "Privacy properties are inherent in the Credentials amendment design."
+     },
+     {
+      "capability": "Credential-gated DepositPreauth (AuthorizeCredentials)",
+      "overall": "confirmed",
+      "network_status_check": "Live on Mainnet via Credentials amendment extension",
+      "currency": "current",
+      "fixes": "",
+      "note": "AuthorizeCredentials functionality extends existing DepositPreauth with credential-based authorization."
+     },
+     {
+      "capability": "Permissioned Domains (XLS-80) credential gating",
+      "overall": "unverified",
+      "network_status_check": "Unknown - cannot verify February 2026 activation date",
+      "currency": "unknown",
+      "fixes": "Cannot confirm PermissionedDomains amendment activation date as mid-2026 is future reference point",
+      "note": "Unable to verify XLS-80 activation status for February 2026 from current knowledge."
+     },
+     {
+      "capability": "Age-gating via credentials (game pattern)",
+      "overall": "confirmed",
+      "network_status_check": "Available pattern using Credentials amendment",
+      "currency": "current",
+      "fixes": "",
+      "note": "Age-gating is a valid use case pattern enabled by the Credentials amendment."
+     },
+     {
+      "capability": "Region/jurisdiction compliance & verified-player status (game pattern)",
+      "overall": "unverified",
+      "network_status_check": "Partially dependent on unverified Permissioned Domains status",
+      "currency": "unknown",
+      "fixes": "Pattern relies on both Credentials (confirmed) and Permissioned Domains (unverified)",
+      "note": "Cannot fully verify this pattern due to dependency on unverified Permissioned Domains amendment status."
+     }
+    ]
+   }
+  },
+  {
+   "slug": "identity-compliance",
+   "name": "Identity & compliance",
+   "research": {
+    "domain": "Deposit authorization & account controls (depth)",
+    "notes": "Mid-2026 depth synthesis resolving the Wave-1 DepositPreauth uncertainty. XRPL account-access hardening is a layered system, not one flag. Base layer (live since 2018): the DepositAuth account flag (asfDepositAuth 9 / lsfDepositAuth 0x01000000) categorically blocks unsolicited incoming Payments, and DepositPreauth (enabled mainnet 2018-10-09 with fix1515, rippled v1.1.0) adds an address allow-list. The major 2025 addition — RESOLVED HERE — is CREDENTIAL-based deposit preauthorization: the Credentials amendment (XLS-70d) went live on XRPL mainnet 2025-09-04 (~03:51 UTC). It extends DepositPreauth with AuthorizeCredentials / UnauthorizeCredentials (sets of 1..8 Issuer+CredentialType objects), so a treasury can preauthorize ANY holder of a KYC credential from a trusted issuer rather than enumerating addresses, and senders attach CredentialIDs to Payment/EscrowFinish/PaymentChannelClaim/AccountDelete to satisfy the policy. Parallel hardening: the DisallowIncoming amendment (enabled mainnet 2023-08-21, rippled v1.10.0) adds four spam-shield flags — asfDisallowIncomingCheck(13), asfDisallowIncomingPayChan(14), asfDisallowIncomingNFTokenOffer(12), asfDisallowIncomingTrustline(15) — each blocking that entry type with tecNO_PERMISSION. Token-issuer side: asfRequireAuth(2 / lsfRequireAuth 0x00040000) gates who may hold your issued tokens; asfRequireDest(1 / lsfRequireDestTag) forces destination tags so a shared/exchange-style treasury can route deposits. For a game/treasury account the playbook is: DepositAuth + credential-based DepositPreauth = KYC-gated deposits without per-player allow-listing; RequireDest = no untagged orphan deposits; the four DisallowIncoming flags = kill Check/PayChan/NFT-offer/trustline spam and keep the account deletable; RequireAuth on an in-game-currency issuer = only verified players hold the token. Gotcha that bit Wave-1 framing: DepositAuth blocks Payments but recipients can still PULL funds via CheckCash/EscrowFinish/PaymentChannelClaim/OfferCreate, and a sub-reserve account may still receive up to ~1 XRP so it never gets stuck. Sources: xrpl.org docs + blogs, XRPLF/XRPL-Standards XLS-70.",
+    "capabilities": [
+     {
+      "name": "DepositAuth account flag (block unsolicited deposits)",
+      "slug": "depositauth-flag",
+      "kind": "concept",
+      "network_status": "Enabled on Mainnet (DepositAuth amendment + fix1513, live since 2018).",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "DepositAuth",
+      "enabled_date": "2018",
+      "maturity_tier": "battle-tested",
+      "status": "stable",
+      "builder_fit": 5,
+      "summary": "Account-level switch that rejects all unsolicited incoming Payments (XRP and tokens) from any sender that is not explicitly preauthorized. Set via AccountSet asfDepositAuth (9); detect via lsfDepositAuth (0x01000000) on account_info Flags. This is the foundational primitive for a game/treasury account that must not accept money from strangers. Funds can still be PULLED by the account holder (CheckCash, EscrowFinish, PaymentChannelClaim, OfferCreate), and preauthorized senders' direct Payments succeed. Pairs with DepositPreauth (address or credential allow-list) to actually let money in on your terms.",
+      "key_fields": "AccountSet.SetFlag=asfDepositAuth(9) to enable, ClearFlag=9 to disable; ledger flag lsfDepositAuth=0x01000000; pull-paths that still work: CheckCash / EscrowFinish / OfferCreate / PaymentChannelClaim.",
+      "gotchas": "Blocks Payments only, NOT the pull-style transactions a recipient initiates — combine with DisallowIncoming* flags to also block Checks/PayChan/NFT-offers/trustlines. A sub-reserve account is exempted: it can still receive an XRP Payment of <= the minimum account reserve (~1 XRP) so it cannot get permanently stuck unable to fund a tx. Enabling alone makes the account a black hole for normal payers until you add preauthorizations. Disabling rippling (NoRipple) and avoiding Offers is recommended alongside it.",
+      "tracks": [
+       "identity-compliance",
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Stop random/airdrop/dust payments hitting a treasury or game wallet",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Base layer for KYC-gated deposit policy (with DepositPreauth)",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Keep a hot wallet's incoming ledger clean and auditable",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Deposit Authorization — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/accounts/depositauth",
+        "claim": "DepositAuth blocks all unsolicited transfers (XRP and tokens) from strangers; set via asfDepositAuth(9), detect via lsfDepositAuth 0x01000000; recipients can still receive via CheckCash/EscrowFinish/OfferCreate/PaymentChannelClaim and a sub-reserve account may still receive up to the minimum reserve in XRP."
+       },
+       {
+        "kind": "docs",
+        "title": "AccountSet flags — xrpl.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/accountset",
+        "claim": "asfDepositAuth has value 9 and maps to ledger flag lsfDepositAuth."
+       }
+      ]
+     },
+     {
+      "name": "DepositPreauth — address allow-list",
+      "slug": "depositpreauth-address",
+      "kind": "transaction",
+      "network_status": "Enabled on Mainnet 2018-10-09 (with fix1515, rippled v1.1.0).",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "DepositPreauth",
+      "enabled_date": "2018-10-09",
+      "maturity_tier": "battle-tested",
+      "status": "stable",
+      "builder_fit": 5,
+      "summary": "Grants a specific sender address pre-approval to deliver Payments (and EscrowFinish/PaymentChannelClaim) to an account that has DepositAuth enabled. Submit DepositPreauth with Authorize=<sender address> to grant, Unauthorize=<address> to revoke. Creates a DepositPreauth ledger object that costs one owner reserve increment. This is the classic Wave-1 question: it is the ADDRESS-based half of the preauth system, settled here as enabled since 2018-10-09. For a studio it is the right tool when the set of allowed depositors is small and known (a partner exchange, your own treasury sweep wallet, a payment processor).",
+      "key_fields": "Account (the protected account); exactly ONE of Authorize / Unauthorize (address) — or AuthorizeCredentials / UnauthorizeCredentials (see credential cap); preauth is currency-agnostic and one-directional; cannot preauthorize self.",
+      "gotchas": "Each preauthorization is a ledger object that raises your owner reserve — do not enumerate thousands of player addresses this way (use credential-based preauth instead). One-directional: it does not let YOU send to them. temCANNOT_PREAUTH_SELF if you target your own address; tecDUPLICATE if it already exists; tecNO_ENTRY revoking a non-existent one; tecINSUFFICIENT_RESERVE if you can't afford the object. Useless unless DepositAuth is actually enabled on the account.",
+      "tracks": [
+       "identity-compliance",
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Whitelist a small fixed set of partner/exchange deposit addresses",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Allow your own sweep/hot wallet to fund a locked treasury",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Per-player allow-listing at scale",
+        "track": "identity-compliance",
+        "fitness": 1
+       }
+      ],
+      "sources": [
+       {
+        "kind": "blog",
+        "title": "DepositPreauth is Now Available — xrpl.org",
+        "url": "https://xrpl.org/blog/2018/depositpreauth-fix1515-enabled",
+        "claim": "DepositPreauth and fix1515 amendments (rippled v1.1.0) became enabled on the XRP Ledger on 2018-10-09."
+       },
+       {
+        "kind": "docs",
+        "title": "DepositPreauth transaction — xrpl.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/depositpreauth",
+        "claim": "DepositPreauth gives another account pre-approval to deliver payments; provide exactly one of Authorize/Unauthorize/AuthorizeCredentials/UnauthorizeCredentials; errors include temCANNOT_PREAUTH_SELF, tecDUPLICATE, tecNO_ENTRY, tecINSUFFICIENT_RESERVE."
+       }
+      ]
+     },
+     {
+      "name": "Credential-based deposit preauthorization",
+      "slug": "depositpreauth-credentials",
+      "kind": "pattern",
+      "network_status": "Enabled on Mainnet 2025-09-04 (Credentials amendment / XLS-70d). DepositPreauth.AuthorizeCredentials requires this amendment.",
+      "chain": "XRPL",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials",
+      "enabled_date": "2025-09-04",
+      "maturity_tier": "emerging",
+      "status": "stable",
+      "builder_fit": 5,
+      "summary": "The 2025 upgrade to deposit authorization, RESOLVING the Wave-1 gap: instead of allow-listing individual addresses, you preauthorize by CREDENTIAL TYPE. Submit DepositPreauth with AuthorizeCredentials = a set of 1..8 {Issuer, CredentialType} objects; any account holding a matching accepted Credential from that issuer can then deliver Payments to your DepositAuth-protected account by attaching CredentialIDs. This is the on-chain KYC primitive: a trusted issuer runs CredentialCreate -> the player CredentialAccepts -> the player can deposit to your treasury without you knowing or storing their address. One preauth object covers unlimited verified players. Enabled on mainnet 2025-09-04 (~03:51 UTC).",
+      "key_fields": "DepositPreauth.AuthorizeCredentials / UnauthorizeCredentials: array of 1..8 entries, each AuthorizeCredentialBody {Issuer (account), CredentialType (hex blob)}; sender attaches CredentialIDs (the on-ledger Credential object IDs) to Payment / EscrowFinish / PaymentChannelClaim / AccountDelete; new ledger entry type Credential; new tx CredentialCreate / CredentialAccept / CredentialDelete.",
+      "gotchas": "Requires BOTH the DepositPreauth and Credentials amendments — temDISABLED otherwise. The credential must be ACCEPTED by the subject (CredentialAccept) and not expired/deleted to satisfy the policy; an unaccepted or revoked credential fails the check. tecNO_ISSUER if the named issuer doesn't exist. Up to 8 credentials per preauth set — model your policy within that cap (e.g. one KYC-tier credential type). Credentials carry an owner reserve on the holder. The issuer is fully trusted: a compromised issuer can mint deposit access, so pick/operate issuers carefully and use CredentialDelete to revoke.",
+      "tracks": [
+       "identity-compliance",
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "KYC-gated deposits: only verified players may pay the treasury, no per-address allow-listing",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Regulatory/AML-aligned deposit policy enforced on-ledger",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Scale deposit access to thousands of players with one preauth object",
+        "track": "payments",
+        "fitness": 5
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "DepositPreauth (AuthorizeCredentials) — xrpl.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/depositpreauth",
+        "claim": "AuthorizeCredentials/UnauthorizeCredentials accept a set of 1..8 credentials (each Issuer + CredentialType); these fields require the Credentials amendment; exactly one of Authorize/Unauthorize/AuthorizeCredentials/UnauthorizeCredentials must be provided."
+       },
+       {
+        "kind": "spec",
+        "title": "XLS-0070 On-Chain Credentials — XRPLF/XRPL-Standards",
+        "url": "https://github.com/XRPLF/XRPL-Standards/tree/master/XLS-0070-credentials",
+        "claim": "XLS-70 adds the Credential ledger entry plus CredentialCreate/CredentialAccept/CredentialDelete and a CredentialIDs field on Payment/EscrowFinish/PaymentChannelClaim/AccountDelete, and extends DepositPreauth to express authorization in terms of credential requirements."
+       },
+       {
+        "kind": "article",
+        "title": "XRP Ledger Activates On-Chain KYC/AML — Bitcoinist",
+        "url": "https://bitcoinist.com/xrp-ledger-activates-on-chain-kyc-aml/",
+        "claim": "The XRPL Credentials amendment was enabled on mainnet on 2025-09-04, bringing credential-based (KYC/AML) on-chain identity verification."
+       }
+      ]
+     },
+     {
+      "name": "DisallowIncoming flags (spam shield)",
+      "slug": "disallow-incoming-flags",
+      "kind": "concept",
+      "network_status": "Enabled on Mainnet 2023-08-21 (DisallowIncoming amendment, rippled v1.10.0).",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "DisallowIncoming",
+      "enabled_date": "2023-08-21",
+      "maturity_tier": "battle-tested",
+      "status": "stable",
+      "builder_fit": 4,
+      "summary": "Four AccountSet flags that categorically block specific incoming ledger-entry types so other accounts cannot create them with you as recipient: asfDisallowIncomingCheck(13), asfDisallowIncomingPayChan(14), asfDisallowIncomingNFTokenOffer(12), asfDisallowIncomingTrustline(15). Attempts fail with tecNO_PERMISSION. Complements DepositAuth (which only stops Payments) by closing the OTHER spam/clutter vectors. For a game treasury this kills unsolicited Checks, junk payment channels, NFT-offer spam, and dust trustlines — keeping the owner directory small, cheap, and the account deletable.",
+      "key_fields": "AccountSet flags: asfDisallowIncomingCheck=13 (lsfDisallowIncomingCheck), asfDisallowIncomingPayChan=14 (lsfDisallowIncomingPayChan), asfDisallowIncomingNFTokenOffer=12 (lsfDisallowIncomingNFTokenOffer), asfDisallowIncomingTrustline=15 (lsfDisallowIncomingTrustline); blocked attempts return tecNO_PERMISSION.",
+      "gotchas": "Each is independent — set the ones you want; you usually want all four on a pure-treasury account. DisallowIncomingNFTokenOffer blocks others from making you an offer on YOUR NFTs (consider before listing). DisallowIncomingTrustline blocks new inbound trust lines — do NOT set it on a TOKEN-ISSUER account that needs holders to open trust lines to it. PayChan/Check blocks remove legitimate channel/check inflows. Existing entries are unaffected; flags only block NEW creations.",
+      "tracks": [
+       "identity-compliance",
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Harden a treasury/hot wallet against Check/PayChan/NFT-offer/trustline spam",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Keep an account's owner directory empty so it stays deletable",
+        "track": "identity-compliance",
+        "fitness": 4
+       },
+       {
+        "purpose": "Reduce attack surface for scam ledger entries",
+        "track": "payments",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "blog",
+        "title": "DisallowIncoming and Others Expected 2023-08-21 — xrpl.org",
+        "url": "https://xrpl.org/blog/2023/disallowincoming-and-others-expected",
+        "claim": "The DisallowIncoming amendment (rippled v1.10.0) was expected enabled 2023-08-21 and adds four AccountSet flags to block incoming checks, payment channels, NFT offers, and trust lines; blocked attempts fail with tecNO_PERMISSION."
+       },
+       {
+        "kind": "docs",
+        "title": "AccountSet flags — xrpl.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/accountset",
+        "claim": "asfDisallowIncomingCheck=13, asfDisallowIncomingPayChan=14, asfDisallowIncomingNFTokenOffer=12, asfDisallowIncomingTrustline=15, each requiring the DisallowIncoming amendment."
+       }
+      ]
+     },
+     {
+      "name": "RequireAuth — authorized trust lines",
+      "slug": "require-auth-trustlines",
+      "kind": "concept",
+      "network_status": "Enabled on Mainnet (core protocol, long-standing).",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "stable",
+      "builder_fit": 4,
+      "summary": "Issuer-side gate: with asfRequireAuth(2 / lsfRequireAuth 0x00040000) set, no counterparty may hold a token you ISSUE until you explicitly authorize their trust line. The issuer authorizes by sending a TrustSet with the holder as issuer of LimitAmount, value 0, and the tfSetfAuth flag. For a studio running its own in-game currency or a points/scrip token, this is the membership gate — only KYC-passed or whitelisted players can ever hold the asset. Distinct from DepositAuth (which is about incoming PAYMENTS); RequireAuth is about who can hold YOUR issued balances.",
+      "key_fields": "AccountSet.SetFlag=asfRequireAuth(2); ledger flag lsfRequireAuth=0x00040000; issuer authorizes via TrustSet {LimitAmount: {currency, issuer=holder, value:'0'}, Flags: tfSetfAuth}; can only enable asfRequireAuth while the account has no trust lines and no Offers.",
+      "gotchas": "Must be enabled BEFORE you issue — you can only set asfRequireAuth when the account has zero trust lines and zero Offers. Authorization is one-way and tfSetfAuth, once set by the issuer, cannot be unset (authorization is effectively permanent unless the trust line is deleted and recreated). The authorizing TrustSet must be signed by the ISSUER, increasing the issuer key's exposure — script it carefully / use a delegated signer. Does not by itself block payments TO the issuer (that's DepositAuth); it governs holding the issued token.",
+      "tracks": [
+       "identity-compliance",
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Whitelist who may hold an in-game currency / scrip token (KYC gate)",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Compliance-controlled token where every holder is vetted",
+        "track": "identity-compliance",
+        "fitness": 4
+       },
+       {
+        "purpose": "Restrict secondary circulation of a studio-issued asset",
+        "track": "payments",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Authorized Trust Lines — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/tokens/fungible-tokens/authorized-trust-lines",
+        "claim": "RequireAuth prevents counterparties from holding balances you issue unless you approve the trust line via a TrustSet with tfSetfAuth; asfRequireAuth can only be enabled when the account has no trust lines and no Offers."
+       },
+       {
+        "kind": "docs",
+        "title": "AccountSet flags — xrpl.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/accountset",
+        "claim": "asfRequireAuth has value 2 and maps to ledger flag lsfRequireAuth (0x00040000)."
+       }
+      ]
+     },
+     {
+      "name": "RequireDest — force destination tags",
+      "slug": "require-dest-tag",
+      "kind": "concept",
+      "network_status": "Enabled on Mainnet (core protocol, long-standing).",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "stable",
+      "builder_fit": 4,
+      "summary": "Account flag asfRequireDest(1 / lsfRequireDestTag) that rejects any incoming Payment lacking a DestinationTag. Essential for a shared/pooled treasury that must route each deposit to a specific player or invoice — without it, untagged deposits become unattributable orphans requiring manual reconciliation. For a game economy where one XRPL account fronts many player sub-balances (exchange-style), RequireDest enforces that every deposit identifies its owner. Cheap, no amendment, immediate operational hygiene win.",
+      "key_fields": "AccountSet.SetFlag=asfRequireDest(1); ledger flag lsfRequireDestTag; senders must include Payment.DestinationTag; payments without a tag are rejected (tecDST_TAG_NEEDED).",
+      "gotchas": "Only enforces presence of A tag, not that it is VALID — your off-ledger mapping must validate the tag. Combine with DepositAuth/preauth: RequireDest controls attribution, DepositAuth controls WHO can pay. Setting it can break existing integrations that send untagged payments — communicate the change. Does not apply to pull-style receipts (CheckCash etc.) the same way; primarily governs direct Payments.",
+      "tracks": [
+       "identity-compliance",
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Pooled treasury routing each deposit to a player/invoice via DestinationTag",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Prevent unattributable orphan deposits and manual reconciliation",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Exchange-style single-account-many-users deposit model",
+        "track": "identity-compliance",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "AccountSet flags — xrpl.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/accountset",
+        "claim": "asfRequireDest has value 1 and maps to ledger flag lsfRequireDestTag: require a destination tag to send payments to this account."
+       },
+       {
+        "kind": "docs",
+        "title": "Deposit Authorization — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/accounts/depositauth",
+        "claim": "Account hardening guidance pairs deposit controls with destination-tag and rippling settings for treasury-style accounts."
+       }
+      ]
+     },
+     {
+      "name": "Treasury hardening recipe (KYC-gated deposits)",
+      "slug": "treasury-hardening-recipe",
+      "kind": "pattern",
+      "network_status": "All components Enabled on Mainnet as of mid-2026 (DepositAuth 2018, DepositPreauth 2018-10-09, DisallowIncoming 2023-08-21, Credentials 2025-09-04, RequireAuth/RequireDest core).",
+      "chain": "XRPL",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials",
+      "enabled_date": "2025-09-04",
+      "maturity_tier": "emerging",
+      "status": "stable",
+      "builder_fit": 5,
+      "summary": "Composite playbook for locking down a game/studio treasury or hot wallet against spam while enforcing KYC-gated deposits, using only native account controls. Layer: (1) asfDepositAuth to refuse all unsolicited Payments; (2) credential-based DepositPreauth (AuthorizeCredentials with your KYC issuer's CredentialType) so any verified player can deposit with CredentialIDs — no per-address allow-listing; (3) asfRequireDest so every deposit carries a routing tag; (4) all four DisallowIncoming* flags to kill Check/PayChan/NFT-offer/trustline spam and keep the account deletable; (5) on a separate in-game-token ISSUER account, asfRequireAuth so only vetted players can hold the currency. This is the canonical 2026 access-control stack for a studio treasury.",
+      "key_fields": "AccountSet: SetFlag asfDepositAuth(9), asfRequireDest(1), asfDisallowIncomingCheck(13)/PayChan(14)/NFTokenOffer(12)/Trustline(15); DepositPreauth AuthorizeCredentials [{Issuer, CredentialType}]; issuer account AccountSet asfRequireAuth(2) + TrustSet tfSetfAuth; senders attach Payment.CredentialIDs + DestinationTag.",
+      "gotchas": "Order matters: enable asfRequireAuth on the issuer BEFORE issuing (needs zero trust lines/Offers). Don't set DisallowIncomingTrustline on a token issuer that needs inbound trust lines — apply that flag only to the pure treasury, not the issuer. Credential-based preauth needs both DepositPreauth + Credentials amendments and the player must CredentialAccept; revoke via CredentialDelete / UnauthorizeCredentials. Keep the issuer fully trusted and its keys protected (compromise = minted deposit access / token holding). Leave the ~1 XRP sub-reserve receive exemption in mind so the treasury can never brick itself. Separate the deposit-receiving treasury from the token-issuer account.",
+      "tracks": [
+       "identity-compliance",
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "End-to-end KYC-gated, spam-proof studio treasury using native flags only",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Compliant on-chain deposit funnel for an in-game economy",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Single hardened account configuration shippable without smart-contract risk",
+        "track": "identity-compliance",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Deposit Authorization — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/accounts/depositauth",
+        "claim": "DepositAuth + DepositPreauth let an account refuse unsolicited payments while allowing preauthorized senders, and the docs recommend pairing with destination-tag and rippling settings for hardened accounts."
+       },
+       {
+        "kind": "spec",
+        "title": "XLS-0070 On-Chain Credentials — XRPLF/XRPL-Standards",
+        "url": "https://github.com/XRPLF/XRPL-Standards/tree/master/XLS-0070-credentials",
+        "claim": "Credentials extend DepositPreauth so deposit authorization can be expressed by credential type, enabling KYC-gated deposits via CredentialIDs on Payment and related transactions."
+       },
+       {
+        "kind": "blog",
+        "title": "DisallowIncoming and Others Expected 2023-08-21 — xrpl.org",
+        "url": "https://xrpl.org/blog/2023/disallowincoming-and-others-expected",
+        "claim": "DisallowIncoming flags categorically block incoming checks, payment channels, NFT offers, and trust lines, hardening an account and keeping it deletable."
+       }
+      ]
+     }
+    ]
+   },
+   "cloud_verify": {
+    "model": "deepseek-v3.1:671b",
+    "verdicts": [
+     {
+      "capability": "DepositAuth account flag (block unsolicited deposits)",
+      "overall": "confirmed",
+      "network_status_check": "Enabled on Mainnet since 2018 (DepositAuth amendment)",
+      "currency": "current",
+      "fixes": "",
+      "note": "DepositAuth is correctly described and has been mainnet-live since 2018."
+     },
+     {
+      "capability": "DepositPreauth — address allow-list",
+      "overall": "confirmed",
+      "network_status_check": "Enabled on Mainnet 2018-10-09 (DepositPreauth amendment)",
+      "currency": "current",
+      "fixes": "",
+      "note": "DepositPreauth transaction type is correctly described and has been mainnet-live since 2018."
+     },
+     {
+      "capability": "Credential-based deposit preauthorization",
+      "overall": "refuted",
+      "network_status_check": "NOT enabled on Mainnet as of mid-2026 (Credentials amendment is proposed, not live)",
+      "currency": "unknown",
+      "fixes": "Credentials amendment is not enabled on XRPL mainnet; it remains a proposed standard",
+      "note": "The Credentials amendment (XLS-70) has not been activated on XRPL mainnet as of mid-2026."
+     },
+     {
+      "capability": "DisallowIncoming flags (spam shield)",
+      "overall": "confirmed",
+      "network_status_check": "Enabled on Mainnet 2023-08-21 (DisallowIncoming amendment)",
+      "currency": "current",
+      "fixes": "",
+      "note": "DisallowIncoming amendment is correctly described and was enabled on mainnet in 2023."
+     },
+     {
+      "capability": "RequireAuth — authorized trust lines",
+      "overall": "confirmed",
+      "network_status_check": "Enabled on Mainnet (core protocol, long-standing)",
+      "currency": "current",
+      "fixes": "",
+      "note": "RequireAuth is a core XRPL feature that has been available since the beginning."
+     },
+     {
+      "capability": "RequireDest — force destination tags",
+      "overall": "confirmed",
+      "network_status_check": "Enabled on Mainnet (core protocol, long-standing)",
+      "currency": "current",
+      "fixes": "",
+      "note": "RequireDest is a core XRPL feature that has been available since the beginning."
+     },
+     {
+      "capability": "Treasury hardening recipe (KYC-gated deposits)",
+      "overall": "refuted",
+      "network_status_check": "NOT fully enabled on Mainnet as of mid-2026 (Credentials amendment is not live)",
+      "currency": "unknown",
+      "fixes": "Credentials-based KYC gating is not available since Credentials amendment is not enabled",
+      "note": "While most components exist, credential-based KYC gating is not available as Credentials amendment is not mainnet-live."
+     }
+    ]
+   }
+  },
+  {
+   "slug": "identity-compliance",
+   "name": "Identity & compliance",
+   "research": {
+    "domain": "Decentralized Identifiers / DID (depth)",
+    "notes": "2026 depth synthesis for self-sovereign, portable player identity on XRPL. SETTLED MAINNET STATUS (web-verified 2026-06-14): the DID amendment (a.k.a. XLS-40 / XLS-40d, amendment ID DB432C3A09D9D5DFC7859F39AE5FF767ABC59AED0A9FB441E83B814D8946C109) is LIVE on Mainnet. It was first shipped in rippled 2.0.0 (released 2024-01-09) and ENABLED on Mainnet 2024-10-30 after validator consensus (reported 30 of 35 validators in favor), landing in the same activation window as its two supporting fix amendments fixEmptyDID and fixPreviousTxnID. As of mid-2026 it remains Enabled and stable. WHAT XLS-40 ACTUALLY GIVES YOU: exactly ONE DID ledger object per XRPL account (the object is keyed by SHA-512Half of the DID-space key 0x0049 concatenated with the controlling AccountID, so it is deterministically derived and there is no second DID per account), managed by two transactions — DIDSet (create/update) and DIDDelete (remove). The object carries up to three optional Blob fields, each capped at 256 bytes: DIDDocument (a minimal inline W3C DID document), URI (a pointer to an off-chain document on IPFS/STORJ/HTTPS), and Data (public identity attestations). At least one of the three must be present on DIDSet or it errors (temEMPTY_DID for a malformed submit; tecEMPTY_DID if an update would leave the object empty — this is exactly the edge fixEmptyDID hardened). The DID resolves under the did:xrpl method to a W3C DID document containing verification keys / service endpoints; resolution is intended to work through the Universal Resolver so consumers do not need XRPL-specific code. PRIVACY IS LOAD-BEARING: everything written to the ledger is public AND immutable, so the Data and DIDDocument fields must NEVER contain PII — keep PII off-ledger behind the URI and reference it, treat on-ledger fields as public attestations only. STUDIO FIT: this is the canonical primitive for a portable cross-game player identity anchored to one wallet — the DID is the stable anchor, off-chain (IPFS) holds the rich profile/credentials, and Verifiable Credentials issued against the DID let other games trust achievements/ownership without a central account server. Note the building blocks: XLS-40 ships DIDs only; on-ledger Verifiable Credentials are a SEPARATE, later standard (XLS-70 / Credentials) — confirm its own status before relying on it. Cost is one owner reserve per DID object (~2 XRP at the mid-2026 incremental owner-reserve level; verify the live reserve, it is a network setting), reclaimed on DIDDelete.",
+    "capabilities": [
+     {
+      "name": "DID amendment (XLS-40)",
+      "slug": "did-amendment-xls40",
+      "kind": "standard",
+      "network_status": "mainnet-live",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-40 (XLS-40d)",
+      "amendment_name": "DID",
+      "enabled_date": "2024-10-30",
+      "maturity_tier": "production",
+      "status": "recommended",
+      "builder_fit": 5,
+      "summary": "The protocol amendment that adds native W3C-conformant Decentralized Identifiers to XRPL. It introduces the DID ledger object plus the DIDSet and DIDDelete transactions, letting any account anchor a self-sovereign identity on-ledger. This is the foundation a studio builds portable cross-game player identity on, so as the enabling standard it rates a 5.",
+      "key_fields": "Amendment name: DID; amendment ID DB432C3A09D9D5DFC7859F39AE5FF767ABC59AED0A9FB441E83B814D8946C109; shipped in rippled 2.0.0 (2024-01-09); enabled on Mainnet 2024-10-30; supporting amendments fixEmptyDID and fixPreviousTxnID activated in the same window; one DID object per account.",
+      "gotchas": "Do not confuse XLS-40 (DIDs) with on-ledger Verifiable Credentials, which are a separate later standard (XLS-70 / Credentials) — XLS-40 gives you the identifier, not an issued-credential registry. The amendment needed a fix cycle (fixEmptyDID) before its Mainnet enablement, so the 'introduced 2.0.0' date (Jan 2024) and the 'enabled' date (Oct 2024) are different; cite the Oct 2024 enablement as the live date.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Anchor a portable, wallet-bound player identity on-chain",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Confirm a feature is actually live on Mainnet before building on it",
+        "track": "identity-compliance",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "XRPL Known Amendments — DID",
+        "url": "https://xrpl.org/resources/known-amendments",
+        "claim": "DID amendment, ID DB432C3A09D9D5DFC7859F39AE5FF767ABC59AED0A9FB441E83B814D8946C109, status Enabled, conforms to W3C standard."
+       },
+       {
+        "kind": "blog",
+        "title": "Introducing XRP Ledger version 2.0.0",
+        "url": "https://xrpl.org/blog/2024/rippled-2.0.0",
+        "claim": "rippled 2.0.0 (released 2024-01-09) introduces the DID amendment alongside XChainBridge."
+       },
+       {
+        "kind": "standard",
+        "title": "XLS-40d: Decentralized Identity on XRPL (XRPL-Standards Discussion #100)",
+        "url": "https://github.com/XRPLF/XRPL-Standards/discussions/100",
+        "claim": "XLS-40 adopts W3C DID and DID document standards so identity data (DID document and VCs) is usable across services."
+       }
+      ]
+     },
+     {
+      "name": "DIDSet transaction",
+      "slug": "didset-transaction",
+      "kind": "transaction",
+      "network_status": "mainnet-live",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-40",
+      "amendment_name": "DID",
+      "enabled_date": "2024-10-30",
+      "maturity_tier": "production",
+      "status": "recommended",
+      "builder_fit": 5,
+      "summary": "DIDSet creates the single DID object for an account or updates its fields. You submit at least one of DIDDocument, URI, or Data (each a hex-encoded Blob, max 256 bytes). It is the workhorse a game calls when a player first establishes or rotates their on-chain identity, so it rates a 5.",
+      "key_fields": "Account (sender = DID controller); DIDDocument (Blob, optional, <=256 bytes, inline minimal W3C DID document); URI (Blob, optional, <=256 bytes, pointer to off-chain doc on IPFS/STORJ/HTTPS); Data (Blob, optional, <=256 bytes, public attestations). All field values are hex-encoded. Must include at least one of the three. To clear a single field, submit it as an empty string.",
+      "gotchas": "All three fields are size-capped at 256 bytes — a full DID document with multiple keys/services will not fit inline, so use URI to reference an off-chain document instead of stuffing DIDDocument. Submitting with none of the three set is malformed (temEMPTY_DID). An update that would erase the last remaining field fails with tecEMPTY_DID (the fixEmptyDID hardening) rather than leaving a useless empty object. Field values must be hex-encoded blobs, not raw UTF-8.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Player establishes / updates their on-chain identity anchor",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Rotate the off-chain profile pointer (URI) when credentials change",
+        "track": "identity-compliance",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "DIDSet — XRPL transaction reference",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/didset",
+        "claim": "DIDSet must include either Data, DIDDocument, or URI; errors temEMPTY_DID / tecEMPTY_DID; delete a field by submitting it as an empty string."
+       },
+       {
+        "kind": "docs",
+        "title": "Decentralized Identifiers — concept",
+        "url": "https://xrpl.org/docs/concepts/decentralized-storage/decentralized-identifiers",
+        "claim": "A reference document can be stored in URI (e.g. IPFS/STORJ) or a minimal document inline in DIDDocument."
+       },
+       {
+        "kind": "sdk",
+        "title": "DIDSet interface (xrpl.js)",
+        "url": "https://js.xrpl.org/interfaces/DIDSet.html",
+        "claim": "xrpl.js exposes DIDSet with Data, DIDDocument, and URI string fields."
+       }
+      ]
+     },
+     {
+      "name": "DIDDelete transaction",
+      "slug": "diddelete-transaction",
+      "kind": "transaction",
+      "network_status": "mainnet-live",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-40",
+      "amendment_name": "DID",
+      "enabled_date": "2024-10-30",
+      "maturity_tier": "production",
+      "status": "situational",
+      "builder_fit": 3,
+      "summary": "DIDDelete removes the DID object owned by the sending account and returns its owner reserve. It is the self-sovereign exit: a player can fully revoke their on-chain identity anchor at will. Useful but only called occasionally (deletion/right-to-be-forgotten flows), so it rates a 3.",
+      "key_fields": "Account (must be the DID controller); deletes the account's single DID ledger object; frees one owner reserve (~2 XRP at mid-2026 levels) back to spendable balance.",
+      "gotchas": "Deletion is the player's, not the studio's — only the controlling account can sign it, which is the point of self-sovereignty but means a game cannot unilaterally purge a player's DID. Because the ledger is immutable, DIDDelete removes the live object but does NOT erase historical transaction records that previously contained the data — another reason to keep PII off-ledger. Off-chain documents referenced by a now-deleted URI may persist on IPFS independently; plan an off-chain cleanup step too.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Player-initiated identity revocation / account closure",
+        "track": "identity-compliance",
+        "fitness": 4
+       },
+       {
+        "purpose": "Reclaim owner reserve when an identity is abandoned",
+        "track": "identity-compliance",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Decentralized Identifiers — concept (DIDDelete)",
+        "url": "https://xrpl.org/docs/concepts/decentralized-storage/decentralized-identifiers",
+        "claim": "DIDDelete deletes the DID associated with your XRPL account."
+       },
+       {
+        "kind": "code",
+        "title": "DID (XLS-40) implementation — rippled PR #4636",
+        "url": "https://github.com/XRPLF/rippled/pull/4636",
+        "claim": "The XLS-40 implementation adds the DID ledger object plus DIDSet and DIDDelete transactions, merged into the 2.0.0 milestone."
+       }
+      ]
+     },
+     {
+      "name": "DID ledger object",
+      "slug": "did-ledger-object",
+      "kind": "concept",
+      "network_status": "mainnet-live",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-40",
+      "amendment_name": "DID",
+      "enabled_date": "2024-10-30",
+      "maturity_tier": "production",
+      "status": "recommended",
+      "builder_fit": 4,
+      "summary": "The on-ledger entry that holds (or references) the data for an account's Decentralized Identifier. It is deterministically keyed from the controlling account, so there is exactly one per account and its existence/contents are publicly queryable. Understanding its structure and reserve cost is essential to designing identity storage, so it rates a 4.",
+      "key_fields": "Account (AccountID, controller); DIDDocument / Data / URI (each Blob, <=256 bytes, optional); OwnerNode (UInt64, owner-directory hint); PreviousTxnID (UInt256); PreviousTxnLgrSeq (UInt32). Object ID = SHA-512Half(0x0049 + AccountID). Costs one owner reserve to create; reclaimed on DIDDelete. Queryable via the ledger_entry / account_objects APIs.",
+      "gotchas": "One DID per account is a hard constraint of the keying scheme — a player who wants multiple personas needs multiple XRPL accounts (each with its own reserve), which has cost and UX implications for a studio. Everything in the object is public and immutable; the 256-byte caps force any real DID document off-ledger. The owner reserve is a live network setting (~2 XRP at mid-2026), not a protocol constant — confirm the current value rather than hardcoding it.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Model on-chain identity storage and per-account reserve cost",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Query/verify a player's DID exists from a game backend",
+        "track": "identity-compliance",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "DID ledger entry type",
+        "url": "https://xrpl.org/docs/references/protocol/ledger-data/ledger-entry-types/did",
+        "claim": "DID entry fields Account/DIDDocument/Data/URI (each <=256 bytes) + OwnerNode/PreviousTxnID; object keyed by SHA-512Half(0x0049 + AccountID); costs one owner reserve."
+       },
+       {
+        "kind": "docs",
+        "title": "Decentralized Identifiers — concept",
+        "url": "https://xrpl.org/docs/concepts/decentralized-storage/decentralized-identifiers",
+        "claim": "A DID holds references to or data associated with a single Decentralized Identifier, created/modified via DIDSet."
+       }
+      ]
+     },
+     {
+      "name": "did:xrpl method & DID document resolution",
+      "slug": "did-xrpl-method-resolution",
+      "kind": "standard",
+      "network_status": "mainnet-live",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-40",
+      "amendment_name": "DID",
+      "enabled_date": "2024-10-30",
+      "maturity_tier": "beta",
+      "status": "recommended",
+      "builder_fit": 4,
+      "summary": "The did:xrpl method defines how an XRPL DID string is formed and resolved to a W3C DID document. The identifier carries a network number and the controlling address (e.g. did:xrpl:1:rf1BiGeXwwQoi8Z2ueFYTEXSwuJYfV2Jpn), and resolution is designed to work through the W3C Universal Resolver so consumers avoid XRPL-specific code. It is the interoperability layer that makes the identity portable across ecosystems, so it rates a 4.",
+      "key_fields": "Method syntax did:xrpl:<network>:<account-address> (the docs example uses did:xrpl:1:r...); resolves to a W3C DID document (JSON/JSON-LD) with verification keys + service endpoints; resolution sources the document from the inline DIDDocument field, the off-chain URI target, or an implicit document derived from public account info; targets the Universal Resolver for cross-chain interop.",
+      "gotchas": "did:xrpl method-driver/Universal-Resolver tooling maturity lags the on-ledger primitive — the ledger object is production, but verify the resolver/driver you depend on actually supports did:xrpl before promising cross-platform resolution. The network number in the DID string matters: a Mainnet DID and a Devnet DID with the same address are different identifiers, so pin the network in any persisted DID string. Implicit-document resolution (no DIDDocument/URI set) yields only what is derivable from public account state — thin compared to a full document.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Resolve a player's DID to verification keys from another game/service",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Cross-ecosystem interoperability via Universal Resolver",
+        "track": "identity-compliance",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Decentralized Identifiers — concept (did:xrpl example & resolution)",
+        "url": "https://xrpl.org/docs/concepts/decentralized-storage/decentralized-identifiers",
+        "claim": "A DID resolves to a W3C DID document; example identifier did:xrpl:1:rf1BiGeXwwQoi8Z2ueFYTEXSwuJYfV2Jpn; documents may be referenced, inline, or implicit."
+       },
+       {
+        "kind": "standard",
+        "title": "XLS-40d discussion — resolution & interoperability",
+        "url": "https://github.com/XRPLF/XRPL-Standards/discussions/100",
+        "claim": "DIDs use W3C standards so they work with tooling like the Universal Resolver, letting developers avoid blockchain-specific implementations."
+       },
+       {
+        "kind": "reference",
+        "title": "Decentralized identifier (W3C) — Wikipedia overview",
+        "url": "https://en.wikipedia.org/wiki/Decentralized_identifier",
+        "claim": "A DID is a globally unique identifier that resolves to a DID document describing how to verify the DID subject."
+       }
+      ]
+     },
+     {
+      "name": "Off-chain document & credential linking (URI pattern)",
+      "slug": "did-offchain-linking-pattern",
+      "kind": "pattern",
+      "network_status": "mainnet-live",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-40",
+      "amendment_name": "DID",
+      "enabled_date": "2024-10-30",
+      "maturity_tier": "production",
+      "status": "recommended",
+      "builder_fit": 5,
+      "summary": "The canonical XLS-40 pattern: keep the DID anchor on-ledger but store the rich DID document and any credentials off-chain (IPFS/STORJ/HTTPS) and point to them via the URI field. This sidesteps the 256-byte cap and keeps PII off the public ledger while preserving cryptographic verifiability. For a studio linking a wallet to a full player profile/credentials, this is the core design pattern, so it rates a 5.",
+      "key_fields": "On-ledger: URI Blob (<=256 bytes) pointing to off-chain content; prefer content-addressed IPFS so the pointer hash guarantees the off-chain doc cannot be silently altered. Off-ledger: full W3C DID document + Verifiable Credentials / player profile JSON. Optional Data field for small public attestations (e.g. a credential commitment), never PII.",
+      "gotchas": "IPFS content-addressing protects integrity but NOT availability — if no node pins the content it can disappear, so the studio must pin (or use a pinning service) for any document it relies on. Using a mutable HTTPS URL instead of a content hash reintroduces a trust/centralization point and lets the target change under you. The Data field is public and immutable: put credential commitments/hashes there, never the credential contents or PII. This pattern stores a POINTER to credentials; issuing and verifying the credentials themselves is the Verifiable Credentials layer (off-chain VCs today; on-ledger via the separate XLS-70 Credentials standard — check its status).",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Link a wallet/DID to a full off-chain player profile + credentials",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Keep PII off-ledger while staying verifiable",
+        "track": "identity-compliance",
+        "fitness": 5
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Decentralized Identifiers — privacy & storage",
+        "url": "https://xrpl.org/docs/concepts/decentralized-storage/decentralized-identifiers",
+        "claim": "Store the document on a decentralized network (IPFS/STORJ) referenced by URI; avoid personal info in public DID documents; IPFS content-addressing prevents unauthorized edits."
+       },
+       {
+        "kind": "standard",
+        "title": "XLS-40d discussion — Data field & PII guidance",
+        "url": "https://github.com/XRPLF/XRPL-Standards/discussions/100",
+        "claim": "On-ledger Data (256 bytes) is public, immutable, and must not contain PII — it holds publicly accessible attestations; richer data goes off-chain via URI."
+       }
+      ]
+     },
+     {
+      "name": "Portable cross-game player identity (DID anchor)",
+      "slug": "did-portable-cross-game-identity",
+      "kind": "pattern",
+      "network_status": "mainnet-live",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-40",
+      "amendment_name": "DID",
+      "enabled_date": "2024-10-30",
+      "maturity_tier": "beta",
+      "status": "situational",
+      "builder_fit": 4,
+      "summary": "The studio-level application of XLS-40: use one wallet-bound DID as a stable identity anchor a player carries across multiple games/titles, with achievements and asset ownership expressed as Verifiable Credentials resolvable against that DID. It replaces a central account server with self-sovereign, cryptographically verifiable identity. Powerful but architecture-level and dependent on a maturing VC layer, so it rates a 4.",
+      "key_fields": "Anchor: one did:xrpl DID per player wallet. Trust model: other games resolve the DID and verify VCs without a shared backend. Storage split: DID + commitments on-ledger, profile + credentials off-chain (URI/IPFS). Self-sovereign: the player, not the studio, controls and can revoke (DIDDelete).",
+      "gotchas": "Cross-game portability only pays off if more than one title (or partner) actually consumes the DID/VCs — for a single-title launch the DID anchor is overhead versus a normal account, so treat this as a platform bet, not a v1 requirement. The credentials half leans on Verifiable Credentials, which XLS-40 does NOT provide on-ledger — you either issue VCs off-chain or wait on/verify the separate XLS-70 Credentials standard. One-DID-per-account means a player using multiple wallets fragments their identity unless you link them off-chain. Self-sovereignty cuts both ways: the studio cannot recover or reassign a player's DID if keys are lost.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Carry one player identity + achievements across multiple titles",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Replace a central account server with self-sovereign identity",
+        "track": "identity-compliance",
+        "fitness": 4
+       },
+       {
+        "purpose": "Single-title launch identity (overkill)",
+        "track": "identity-compliance",
+        "fitness": 1
+       }
+      ],
+      "sources": [
+       {
+        "kind": "standard",
+        "title": "XLS-40d discussion — portable identity across services",
+        "url": "https://github.com/XRPLF/XRPL-Standards/discussions/100",
+        "claim": "DID owners can use identity data (DID document and VCs) associated with their DIDs across services; anchoring to W3C standards enables cross-ecosystem use."
+       },
+       {
+        "kind": "docs",
+        "title": "Decentralized Identifiers — self-sovereign control",
+        "url": "https://xrpl.org/docs/concepts/decentralized-storage/decentralized-identifiers",
+        "claim": "DIDs are fully under the control of the DID owner, independent from any centralized registry, identity provider, or certificate authority."
+       },
+       {
+        "kind": "news",
+        "title": "XRP News: XRPL Undergoes Major Shift As Decentralized ID Goes Live",
+        "url": "https://coingape.com/xrp-news-xrpl-undergoes-major-shift-as-decentralized-id-goes-live/",
+        "claim": "XLS-40 DID activated on Mainnet 2024-10-30, enabling self-sovereign identities cryptographically verifiable and independent of centralized authorities."
+       }
+      ]
+     }
+    ]
+   },
+   "cloud_verify": {
+    "model": "deepseek-v3.1:671b",
+    "verdicts": [
+     {
+      "capability": "DID amendment (XLS-40)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live (enabled October 30, 2024)",
+      "currency": "current",
+      "fixes": "XLS-40d is the correct designation, not XLS-40",
+      "note": "DID amendment is live on XRPL Mainnet as of October 2024, implementing W3C DID standards."
+     },
+     {
+      "capability": "DIDSet transaction",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "DIDSet transaction is fully functional on mainnet for creating and updating DID documents."
+     },
+     {
+      "capability": "DIDDelete transaction",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "DIDDelete transaction is operational on mainnet for removing DID associations."
+     },
+     {
+      "capability": "DID ledger object",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "DID ledger object type exists with proper storage constraints and reserve requirements."
+     },
+     {
+      "capability": "did:xrpl method & DID document resolution",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "did:xrpl method namespace is standardized and DID documents resolve according to W3C specifications."
+     },
+     {
+      "capability": "Off-chain document & credential linking (URI pattern)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "URI pattern for off-chain document storage is supported with proper content-addressing recommendations."
+     },
+     {
+      "capability": "Portable cross-game player identity (DID anchor)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "DID provides portable self-sovereign identity foundation enabling cross-service identity usage."
+     }
+    ]
+   }
+  },
+  {
+   "slug": "identity-compliance",
+   "name": "Identity & compliance",
+   "research": {
+    "domain": "Permissioned domains & gated access (depth)",
+    "notes": "2026 depth synthesis for building GATED/COMPLIANT access on XRPL. RESOLVED MAINNET STATUS (verified 2026-06-14, settling Wave-1 uncertainty where the cross-family verifier could NOT confirm these as live): the full 'permissioning stack' is now MAINNET-LIVE. (1) Credentials (XLS-70) — Enabled on Mainnet (the foundation; CredentialCreate/Accept/Delete + DepositPreauth-by-credential). (2) PermissionedDomains (XLS-80) — Enabled on Mainnet 2026-02-04 (~09:57 UTC) after surpassing the 80% validator threshold in late January with ~91% support; introduced in rippled v2.4.0, minimum core server v2.4.0 (older servers were amendment-blocked). (3) PermissionedDEX (XLS-81) — Enabled on Mainnet 2026-02-18 after validator consensus (28 yes / 6 no, above the 27-of-34 threshold); RippleX confirmed it 'achieved validator consensus to activate in 2 weeks' on 2026-02-04 and CoinDesk/Yahoo Finance reported the activation 2026-02-18. NOTE the standard numbers differ: XLS-80 = Permissioned Domains (the gating primitive), XLS-81 = Permissioned DEXes (the first consumer of domains). Both depend on Credentials being live; PermissionedDEX additionally depends on PermissionedDomains. IMPORTANT — stale doc warning: the prose body of the xrpl.org Permissioned Domains / Permissioned DEX concept pages still reads 'Not yet enabled on mainnet' / 'No XRP Ledger features currently use permissioned domains' because those pages were last edited ~9 months before activation; the AUTHORITATIVE live status is the known-amendments page + xrpscan amendment pages + RippleX/CoinDesk activation reports, all of which confirm Enabled. ARCHITECTURE FOR A GAME STUDIO: the stack cleanly separates 'who can participate' (Credentials answer identity; a Domain is an abstraction layer over a 1-10 entry accepted-credential allow-list) from 'how they participate' (the DEX/payment/vault primitive that consumes a DomainID). This is the load-bearing design fact: you issue/accept off-chain-vetted credentials once, then any number of resources (a region-locked marketplace order book, a regulated reward exchange) gate on the same domain without re-vetting. Two DISTINCT gating rails that are easy to conflate: (a) DepositAuth + DepositPreauth (incl. preauth-by-credential) gates who can SEND you value — uses CredentialIDs on the incoming Payment; (b) Permissioned Domains gates who can TRADE in a permissioned order book — uses DomainID on OfferCreate, NOT CredentialIDs. AMM IS INCOMPATIBLE with permissioned DEX (a domain-scoped offer cannot route through an AMM pool), so a fully gated economy is a credential-gated central-limit order book, not a gated AMM. For a region-restricted game economy the canonical build is: issue a 'region-eligible' (or KYC) credential per player -> create one PermissionedDomain accepting that credential -> have the marketplace place permissioned (or hybrid) offers tagged with the DomainID. Offers auto-invalidate when a player's credential expires/is revoked or the domain's accepted set changes — compliance state is enforced by the ledger, not by your server.",
+    "capabilities": [
+     {
+      "name": "Permissioned Domains (XLS-80)",
+      "slug": "permissioned-domains",
+      "kind": "standard",
+      "network_status": "ENABLED on Mainnet 2026-02-04 (~09:57 UTC). Surpassed the 80% validator threshold late January 2026 with ~91% support; introduced in rippled v2.4.0 (minimum core server v2.4.0). RESOLVES the Wave-1 'could not confirm live' uncertainty: it IS live. (The xrpl.org concept-page prose still says 'Not yet enabled on mainnet' — that text is stale by ~9 months; the known-amendments + xrpscan pages are authoritative and show Enabled.)",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-80",
+      "amendment_name": "PermissionedDomains",
+      "enabled_date": "2026-02-04",
+      "maturity_tier": "live-stable",
+      "status": "production-ready (mainnet-enabled)",
+      "builder_fit": 5,
+      "summary": "The core gating primitive for compliant access on XRPL. A Permissioned Domain is a ledger object that acts as an abstraction layer between credentials and any restricted resource: it holds an allow-list of 1-10 accepted credentials (issuer + credential-type pairs), and an account is 'in the domain' if it holds at least one valid, unexpired matching credential. By itself a domain does nothing — it is consumed by other amendments (PermissionedDEX today; Single Asset Vaults XLS-65d and Lending Protocols XLS-66d in the pipeline). This separation is the whole point: it answers 'who can participate' once, so you can change access policy (swap the accepted credential set) without touching the underlying market/vault resource. For a game studio this is the single most important building block for a region-locked or regulated economy: vet the player once via a credential, then gate every downstream economic surface on the domain.",
+      "key_fields": {
+       "ledger_object": "PermissionedDomain — fields: Owner (controlling account), Sequence (from the creating PermissionedDomainSet tx; Owner+Sequence+space-key derive the unique DomainID/LedgerIndex), AcceptedCredentials (array, max 10). The object is a deletion-blocker: the owning account cannot be deleted while the domain exists.",
+       "DomainID": "256-bit hash deterministically derived from Owner + creating Sequence. This is the handle every consumer (OfferCreate, future vault/payment primitives) references to scope itself to the domain.",
+       "AcceptedCredentials": "1-10 entries. Each is a Credential object with Issuer (valid account, required) and CredentialType (1-64 bytes as hex, required). No duplicates. Membership = holding >=1 matching valid credential, NOT all of them (OR semantics).",
+       "owner_count_reserve": "Each domain counts toward the owner's reserve / owner-count, like any owned ledger object.",
+       "abstraction": "Spec explicitly scopes domains to 'who can participate'; 'how they participate' (which tokens, what limits) is left to the consuming primitive. Do not try to encode trading rules in the domain itself."
+      },
+      "gotchas": "Stale-docs trap: do not quote the xrpl.org concept page's 'Not yet enabled' line — it is wrong as of mid-2026; cite known-amendments/xrpscan. Depends on the Credentials (XLS-70) amendment — without it PermissionedDomainSet returns temDISABLED. Membership is OR over the accepted set, so adding a single broad credential type can silently widen access. The domain owner and the credential issuers are fully trusted: a compromised owner can change the accepted set and a compromised/malicious issuer can mint or revoke membership at will — treat issuer key custody as a top security control. Revocation/expiry is enforced lazily at the point a consuming primitive checks membership (e.g., when an offer tries to cross), not by a sweep — design for offers/positions that can become invalid out from under a player.",
+      "tracks": [
+       "identity-compliance",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Region-locked / KYC-gated economy membership layer",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Single allow-list reused across multiple gated markets/vaults",
+        "track": "game-economies",
+        "fitness": 5
+       },
+       {
+        "purpose": "Lightweight per-item access control (overkill — use credentials directly)",
+        "track": "identity-compliance",
+        "fitness": 2
+       }
+      ],
+      "sources": [
+       {
+        "kind": "standard",
+        "title": "XLS-0080 Permissioned Domains — XRPLF/XRPL-Standards",
+        "url": "https://github.com/XRPLF/XRPL-Standards/blob/master/XLS-0080-permissioned-domains/README.md",
+        "claim": "Defines the PermissionedDomain ledger object (Owner, Sequence, AcceptedCredentials max 10; DomainID derived from Owner+Sequence), PermissionedDomainSet/Delete semantics, deletion-blocker behavior, and the 'who can participate' vs 'how they participate' abstraction; states the feature 'doesn't bring functionality by itself' and is gated by consuming amendments."
+       },
+       {
+        "kind": "docs",
+        "title": "Permissioned Domains — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/tokens/decentralized-exchange/permissioned-domains",
+        "claim": "Domains maintain a list of 1-10 accepted credentials (issuer + credential type); access is granted to accounts holding at least one matching valid credential; requires the PermissionedDomains and Credentials amendments. (Page prose 'Not yet enabled' is stale.)"
+       },
+       {
+        "kind": "blog",
+        "title": "Ripple's permissioned domains go live on XRPL mainnet — Cryptopolitan",
+        "url": "https://www.cryptopolitan.com/ripples-permissioned-domains-go-live-xrpl/",
+        "claim": "XLS-80 activated on XRPL mainnet 2026-02-04 after surpassing the validator threshold (~91% support), bringing credential-gated Permissioned Domains live on the public ledger."
+       },
+       {
+        "kind": "explorer",
+        "title": "PermissionedDomains amendment — XRPScan",
+        "url": "https://xrpscan.com/amendment/PermissionedDomains",
+        "claim": "PermissionedDomains creates the PermissionedDomain ledger entry and the PermissionedDomainSet/PermissionedDomainDelete transactions; tracked activation 2026-02-04 ~09:57:51 UTC; minimum core server v2.4.0."
+       }
+      ]
+     },
+     {
+      "name": "PermissionedDomainSet transaction",
+      "slug": "permissioned-domain-set",
+      "kind": "transaction",
+      "network_status": "ENABLED on Mainnet (part of PermissionedDomains, enabled 2026-02-04). Live and usable.",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-80",
+      "amendment_name": "PermissionedDomains",
+      "enabled_date": "2026-02-04",
+      "maturity_tier": "live-stable",
+      "status": "production-ready (mainnet-enabled)",
+      "builder_fit": 5,
+      "summary": "The transaction that creates or modifies a Permissioned Domain. Submitting WITHOUT a DomainID creates a new domain owned by the sender (the DomainID is derived from sender + Sequence); submitting WITH a DomainID modifies that existing domain — and only the original owner may modify it. This is the operational entry point a studio's compliance/ops service calls to stand up a region or KYC tier and to evolve its policy over time. Because the accepted-credential list is REPLACED wholesale on every set (not patched), the transaction doubles as the policy-rotation lever: to add or drop an eligible credential type you resubmit the full intended list.",
+      "key_fields": {
+       "TransactionType": "PermissionedDomainSet (required)",
+       "AcceptedCredentials": "Required. Array of 1-10 Credential wrapper objects, each { Issuer: <account>, CredentialType: <hex 1-64 bytes> }. No duplicates. Completely REPLACES the prior list — partial updates are not supported.",
+       "DomainID": "Optional Hash256. Omit to CREATE a new domain; include to MODIFY the named existing domain (owner-only).",
+       "flags": "No transaction-specific flags.",
+       "errors": "temDISABLED if PermissionedDomains or Credentials amendment is inactive; ownership error if a non-owner targets an existing DomainID; malformed if an Issuer account doesn't exist or a CredentialType is malformed/duplicated."
+      },
+      "gotchas": "The accepted-credential list is a full replace — a 'modify' that forgets to re-list existing entries will silently REVOKE access for everyone holding the dropped credential type, invalidating their open permissioned offers. Always read the current set and submit the intended full set. Only the owner can modify; plan key custody for the domain-owner account as carefully as for issuers. Creating a domain is irreversible-ish in that it consumes an owner-reserve slot and blocks owner-account deletion until PermissionedDomainDelete is run (named compensator). Each unique (Owner, Sequence) yields a distinct DomainID — re-running create makes a NEW domain, it does not idempotently return the old one; track DomainID off-ledger after first creation.",
+      "tracks": [
+       "identity-compliance",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Stand up a region/KYC tier and rotate its eligibility policy",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Programmatically manage multiple gated markets from one ops service",
+        "track": "game-economies",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "PermissionedDomainSet — xrpl.org transaction reference",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/permissioneddomainset",
+        "claim": "AcceptedCredentials is a required 1-10 array of {Issuer, CredentialType(1-64 bytes hex)} with no duplicates and is a full replace; DomainID optional (omit=create, include=modify, owner-only); no tx-specific flags; temDISABLED without PermissionedDomains/Credentials amendments."
+       },
+       {
+        "kind": "standard",
+        "title": "XLS-0080 Permissioned Domains — XRPLF/XRPL-Standards",
+        "url": "https://github.com/XRPLF/XRPL-Standards/blob/master/XLS-0080-permissioned-domains/README.md",
+        "claim": "PermissionedDomainSet creates or modifies domains via AcceptedCredentials; fails if issuers don't exist, credentials are malformed, or a non-owner attempts modification; DomainID derived from Owner+Sequence."
+       }
+      ]
+     },
+     {
+      "name": "PermissionedDomainDelete transaction",
+      "slug": "permissioned-domain-delete",
+      "kind": "transaction",
+      "network_status": "ENABLED on Mainnet (part of PermissionedDomains, enabled 2026-02-04). Live and usable.",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-80",
+      "amendment_name": "PermissionedDomains",
+      "enabled_date": "2026-02-04",
+      "maturity_tier": "live-stable",
+      "status": "production-ready (mainnet-enabled)",
+      "builder_fit": 3,
+      "summary": "Deletes a Permissioned Domain ledger object; restricted to the domain owner. This is the NAMED COMPENSATOR for PermissionedDomainSet creation: it reclaims the owner-reserve slot and removes the deletion-blocker so the owner account can later be deleted. Deleting a domain immediately invalidates every permissioned/hybrid offer scoped to that DomainID — counterparties can no longer match in that book. Useful for sunsetting a region, retiring a regulated event market, or cleaning up after a season; it is a peripheral but necessary lifecycle tool rather than a day-to-day operation.",
+      "key_fields": {
+       "TransactionType": "PermissionedDomainDelete (required)",
+       "DomainID": "Required Hash256 — the domain to delete. Owner-only.",
+       "effect": "Removes the PermissionedDomain object, frees the owner-reserve, lifts the account-deletion block. All offers referencing this DomainID become unmatchable.",
+       "errors": "Ownership error if sender is not the domain owner; temDISABLED if the amendment is inactive."
+      },
+      "gotchas": "Destructive and instantaneous to all dependent order books — do not delete a domain that still has live permissioned offers or in-flight settlements unless you intend to strand them. Sequence it as a real compensator: drain/cancel offers first, then delete. Only the owner can delete; there is no admin override. Because the DomainID is derived from Owner+Sequence, a deleted domain's exact DomainID cannot be recreated with the same handle (a new create yields a new Sequence -> new DomainID), so anything that hard-coded the old DomainID must be repointed.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Compensator/teardown for a retired region or seasonal market",
+        "track": "identity-compliance",
+        "fitness": 4
+       },
+       {
+        "purpose": "Routine in-game operation (rare — lifecycle only)",
+        "track": "identity-compliance",
+        "fitness": 1
+       }
+      ],
+      "sources": [
+       {
+        "kind": "standard",
+        "title": "XLS-0080 Permissioned Domains — XRPLF/XRPL-Standards",
+        "url": "https://github.com/XRPLF/XRPL-Standards/blob/master/XLS-0080-permissioned-domains/README.md",
+        "claim": "PermissionedDomainDelete removes domains and is restricted to the owner account; the PermissionedDomain object is a deletion-blocker preventing owner-account removal while it exists."
+       },
+       {
+        "kind": "explorer",
+        "title": "PermissionedDomains amendment — XRPScan",
+        "url": "https://xrpscan.com/amendment/PermissionedDomains",
+        "claim": "The amendment introduces PermissionedDomainSet (create/modify) and PermissionedDomainDelete (delete) transactions alongside the PermissionedDomain ledger entry."
+       }
+      ]
+     },
+     {
+      "name": "Permissioned DEX / credential-gated order books (XLS-81)",
+      "slug": "permissioned-dex",
+      "kind": "standard",
+      "network_status": "ENABLED on Mainnet 2026-02-18 after validator consensus (28 yes / 6 no, above the 27-of-34 threshold). RESOLVES the Wave-1 'could not confirm' uncertainty: Permissioned DEXes ARE live. Depends on Credentials (XLS-70) and PermissionedDomains (XLS-80), both already enabled. Amendment name: PermissionedDEX; standard: XLS-81.",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-81",
+      "amendment_name": "PermissionedDEX",
+      "enabled_date": "2026-02-18",
+      "maturity_tier": "live-stable",
+      "status": "production-ready (mainnet-enabled)",
+      "builder_fit": 5,
+      "summary": "Extends Permissioned Domains to the on-ledger central-limit order book: a credential-gated DEX where only accounts holding the domain's accepted credentials can place and accept offers, and trades execute only against other offers in the SAME domain. Each permissioned DEX is implicitly the set of order books sharing one DomainID. This is the core primitive for a compliant / region-restricted MARKETPLACE or EXCHANGE inside a game: a KYC-only reward market, a region-locked item exchange, an institution-grade asset venue. Three offer types coexist: open (standard DEX), permissioned (domain-scoped, credential-required), and hybrid (domain-scoped but can ALSO match the open DEX). Offer validity is ledger-enforced against live credential/domain state, so compliance is not something your matching engine has to police.",
+      "key_fields": {
+       "domain_scoping": "A permissioned DEX = all order books that share a DomainID. Permissioned offers only match permissioned/hybrid offers in the same domain; open offers never cross into a permissioned book except via the open side of a hybrid offer.",
+       "offer_types": "Open (no DomainID), Permissioned (DomainID set, requires the offerer hold valid domain credentials), Hybrid (DomainID set + hybrid flag; matches both the domain book and the open DEX).",
+       "auto_bridging": "Allowed WITHIN the same permissioned DEX across currency pairs (XRP bridging between two token pairs in-domain); not across different domains.",
+       "single_domain_per_tx": "A transaction cannot aggregate liquidity across multiple permissioned DEXes; a hybrid offer is the only way to mix exactly one domain with the open DEX.",
+       "AMM_incompatibility": "Permissioned DEXes are INCOMPATIBLE with AMMs — a domain-scoped transaction cannot route through an AMM pool. A fully gated venue is an order book, not a gated pool.",
+       "ledger_changes": "XLS-81 adds a DomainID field to the Offer object and DirectoryNode, and DomainID handling to Payment paths."
+      },
+      "gotchas": "AMM is off the table for gated trading — if your economy design assumed a credential-gated liquidity pool, it must instead be a credential-gated order book (or an open AMM with gating moved to deposit-auth on the wallets, a weaker model). Permissioned offers can become INVALID after placement if the offerer loses domain access (credential expiry/revocation) or the accepted-credential set changes or the domain is deleted — your client UI must handle 'my resting offer silently stopped being matchable.' You cannot pull liquidity from two domains in one trade; cross-region arbitrage inside the ledger is structurally blocked (often a feature for region-locking). Hybrid offers leak into the open DEX by design — use plain permissioned (not hybrid) offers when you need a hermetically sealed venue. Auto-bridging only helps within a single domain.",
+      "tracks": [
+       "identity-compliance",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Compliant / region-restricted in-game marketplace or exchange",
+        "track": "game-economies",
+        "fitness": 5
+       },
+       {
+        "purpose": "KYC/AML-gated regulated reward market",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Gated automated liquidity pool (not possible — AMM incompatible)",
+        "track": "game-economies",
+        "fitness": 1
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Permissioned DEXes — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/tokens/decentralized-exchange/permissioned-dexes",
+        "claim": "A permissioned DEX is order books sharing a DomainID; trades execute only against trades in the same permissioned DEX; offers become invalid if credentials expire, the accepted set changes, or the domain is deleted; Permissioned DEXes are incompatible with AMMs; requires PermissionedDEX + Credentials + Permissioned Domains amendments."
+       },
+       {
+        "kind": "standard",
+        "title": "XLS-81d Permissioned DEXes — XRPLF/XRPL-Standards Discussion #229",
+        "url": "https://github.com/XRPLF/XRPL-Standards/discussions/229",
+        "claim": "XLS-81d extends Permissioned Domains to a permissioned DEX for KYC/AML-compliant trading; each permissioned offer carries a DomainID; proposes changes to Offer, DirectoryNode, and Payment objects."
+       },
+       {
+        "kind": "blog",
+        "title": "XRP Ledger rolls out members-only DEX for regulated institutions — CoinDesk",
+        "url": "https://www.coindesk.com/tech/2026/02/18/xrp-ledger-rolls-out-members-only-dex-for-regulated-institutions",
+        "claim": "The PermissionedDEX amendment activated on mainnet 2026-02-18, enabling gated trading venues where only approved (KYC/AML-credentialed) participants can place and accept offers; aimed at regulated banks and brokers."
+       },
+       {
+        "kind": "explorer",
+        "title": "PermissionedDEX amendment — XRPScan",
+        "url": "https://xrpscan.com/amendment/PermissionedDEX",
+        "claim": "PermissionedDEX creates controlled trading environments in the DEX restricted by permissioned domains; relies on Credentials and PermissionedDomains; reached consensus (28 yes / 6 no) and enabled 2026-02-18."
+       }
+      ]
+     },
+     {
+      "name": "Permissioned & hybrid Offers (DomainID on OfferCreate)",
+      "slug": "permissioned-offers",
+      "kind": "pattern",
+      "network_status": "ENABLED on Mainnet (DomainID-tagged offers are usable since PermissionedDEX enabled 2026-02-18). Live.",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-81",
+      "amendment_name": "PermissionedDEX",
+      "enabled_date": "2026-02-18",
+      "maturity_tier": "live-stable",
+      "status": "production-ready (mainnet-enabled)",
+      "builder_fit": 5,
+      "summary": "The concrete client-side mechanic for trading in a gated book: an OfferCreate carries a DomainID to make a PERMISSIONED offer (matches only same-domain permissioned/hybrid offers), and optionally a hybrid flag (tfHybrid) to make a HYBRID offer that also matches the open DEX. In most respects these behave like ordinary offers (limit price, partial fill, expiration) — the differences are eligibility (the placing account must hold the domain's required credentials) and revocability of validity (the offer can become unmatchable if domain access is lost). This is what a game client actually submits to list an item in a region-locked market or to take a quote in a regulated venue.",
+      "key_fields": {
+       "DomainID": "Set on OfferCreate to scope the offer to a permissioned domain; the placing account must hold valid credentials accepted by that domain or the offer fails.",
+       "tfHybrid": "Hybrid flag — with a DomainID set, the offer matches BOTH the domain's permissioned book and the open DEX; without it (plain permissioned offer) it matches only the domain book.",
+       "matching": "Permissioned: same-domain permissioned/hybrid only. Hybrid: same-domain + open DEX. Open (no DomainID): open + the open side of hybrids only — never the permissioned-only book.",
+       "validity": "Unlike open offers, a permissioned offer can be invalidated post-placement by credential expiry/revocation, accepted-set change, or domain deletion. The Offer ledger object stores the DomainID.",
+       "use_CredentialIDs": "Do NOT use CredentialIDs to trade — that field is for deposit authorization. Trading eligibility is proven by holding credentials the DomainID's domain accepts; you reference the DomainID, not credential hashes, on the offer."
+      },
+      "gotchas": "Common conflation: CredentialIDs (deposit-auth) vs DomainID (trading) are different rails — putting CredentialIDs on an OfferCreate does nothing for permissioned trading. Plain permissioned offers are sealed; hybrid offers deliberately leak to the open DEX, so pick the type to match your isolation requirement. A resting permissioned offer is not 'fire and forget' — credential changes can strand it; surface this in the player UI and consider re-validating before relying on a quote. You can mix exactly one domain with the open DEX (hybrid) but never two domains in one offer. Auto-bridging applies only within the same domain.",
+      "tracks": [
+       "identity-compliance",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Listing/taking items in a region-locked or KYC-gated game market",
+        "track": "game-economies",
+        "fitness": 5
+       },
+       {
+        "purpose": "Bridging gated liquidity to public liquidity via hybrid offers",
+        "track": "game-economies",
+        "fitness": 4
+       },
+       {
+        "purpose": "Hermetically sealed compliance venue (use plain permissioned, not hybrid)",
+        "track": "identity-compliance",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Offers (permissioned & hybrid) — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/tokens/decentralized-exchange/offers",
+        "claim": "An OfferCreate can specify a permissioned DomainID; the tfHybrid flag makes a hybrid offer that also matches the open DEX; permissioned offers require the domain's credentials, match only within the same domain, and can become invalid if the account loses domain access; requires the PermissionedDEX amendment."
+       },
+       {
+        "kind": "blog",
+        "title": "Building the Future of Finance: New Identity & Credentialing Tools on the XRP Ledger — Lachlan Todd",
+        "url": "https://medium.com/@LachlanTodd/building-the-future-of-finance-new-identity-credentialing-tools-on-the-xrp-ledger-37c2d4617077",
+        "claim": "CredentialIDs is used only for deposit authorization, not for trading in a permissioned DEX; to trade you use the DomainID field to specify a domain for which you hold valid credentials. Each permissioned offer contains a DomainID and its validity depends on domain status + credentials."
+       }
+      ]
+     },
+     {
+      "name": "Credentials (XLS-70) — on-chain identity attestations",
+      "slug": "credentials-xls70",
+      "kind": "standard",
+      "network_status": "ENABLED on Mainnet (the foundation the whole permissioning stack depends on; live before XLS-80/81). Amendment name: Credentials. Adds CredentialCreate / CredentialAccept / CredentialDelete and credential-based authorization.",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials",
+      "enabled_date": "",
+      "maturity_tier": "live-stable",
+      "status": "production-ready (mainnet-enabled)",
+      "builder_fit": 5,
+      "summary": "Signed, ledger-stored attestations of a subject's identity/legal/eligibility status, modeled on a three-party scheme: issuers vet and issue, users accept, authorizers gate actions on holding them. The underlying documents (passport, region proof, KYC pack) are vetted OFF-CHAIN and never published — only a signed credential reference lands on the ledger, and many counterparties can rely on the same credential. This is the identity bedrock for everything else in this lane: a Permissioned Domain's accepted list is just (issuer, credential-type) pairs, and DepositPreauth-by-credential matches against these. For a game studio it is how you express 'this wallet is region-eligible' or 'this wallet passed KYC' once, privately, and reuse it across markets, payouts, and gated venues.",
+      "key_fields": {
+       "CredentialCreate": "Issuer creates a credential for a subject (account + credential type + optional expiration + optional URI to off-ledger data).",
+       "CredentialAccept": "Subject accepts the issued credential, making it active/valid for authorization checks.",
+       "CredentialDelete": "Either party deletes/revokes; revocation propagates to dependent domains/offers lazily at check time.",
+       "model": "Three roles — Issuer (vets+issues), Subject/User (accepts+presents), Authorizer (gates on holding). W3C-inspired but adapted to XRPL's address model.",
+       "privacy": "Vetting documents stay off-chain; only the signed credential (type, issuer, subject, expiry, optional URI) is on-ledger. One credential is reusable by many authorizers."
+      },
+      "gotchas": "A credential is only effective after CredentialAccept — an issued-but-unaccepted credential does not grant domain membership; client onboarding must walk the user through accept. Expiration and revocation are real and enforced lazily, so downstream offers/positions can lapse — never treat a credential as permanent. Issuer key custody is the security crux: a compromised issuer can mint membership into every domain that trusts it. CredentialType is an opaque hex tag (1-64 bytes) — define a clear off-ledger registry of what each type means so domains and partners agree. Don't put PII in the on-ledger URI; point to access-controlled storage.",
+      "tracks": [
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Express region-eligibility / KYC status once, reuse everywhere",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Privacy-preserving identity layer for gated economies",
+        "track": "identity-compliance",
+        "fitness": 5
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Credentials — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/decentralized-storage/credentials",
+        "claim": "Credentials are signed ledger-stored statements attesting identity/legal/other status; three-party model (issuer, user, authorizer); transaction types CredentialCreate, CredentialAccept, CredentialDelete; integrate with Deposit Authorization to auto-allow senders holding the right credentials instead of approving accounts individually."
+       },
+       {
+        "kind": "explorer",
+        "title": "Known Amendments (Credentials, XLS-70) — xrpl.org",
+        "url": "https://xrpl.org/resources/known-amendments",
+        "claim": "The Credentials amendment (XLS-70) is Enabled; introduces CredentialCreate/CredentialAccept/CredentialDelete and extends existing transactions with credential-based authorization."
+       }
+      ]
+     },
+     {
+      "name": "Deposit-auth + preauth-by-credential gating",
+      "slug": "deposit-auth-credential-preauth",
+      "kind": "pattern",
+      "network_status": "ENABLED on Mainnet. DepositAuth and DepositPreauth are long-live; preauth-BY-CREDENTIAL is enabled via the Credentials (XLS-70) amendment, also live. The combined pattern is fully usable in mid-2026.",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials (preauth-by-credential); DepositAuth/DepositPreauth (base)",
+      "enabled_date": "",
+      "maturity_tier": "live-stable",
+      "status": "production-ready (mainnet-enabled)",
+      "builder_fit": 4,
+      "summary": "The SECOND gating rail, complementary to domains: DepositAuth makes an account reject all incoming value by default, and DepositPreauth whitelists who may pay it — either by explicit account or, with Credentials, by REQUIRED CREDENTIAL SET (AuthorizeCredentials). A sender then attaches CredentialIDs to the Payment and the protocol admits it only if the presented credentials match the configured policy. This gates who can SEND value to a treasury/escrow wallet, whereas Permissioned Domains gate who can TRADE in a book — different surfaces, often used together. For a game studio: lock a regulated reward-payout or fiat-on-ramp treasury so only KYC-credentialed wallets can deposit, without maintaining a hand-edited allow-list of individual accounts.",
+      "key_fields": {
+       "DepositAuth": "AccountSet flag (asfDepositAuth) — when set, the account rejects incoming Payments unless the sender is preauthorized.",
+       "DepositPreauth (by account)": "Whitelists a specific sending account.",
+       "DepositPreauth (by credential)": "AuthorizeCredentials — a set of {Issuer, CredentialType} the sender must hold; replaces per-account whitelisting with policy-based admission.",
+       "CredentialIDs": "Field the SENDER attaches to a Payment to present the credentials that satisfy the receiver's preauth policy. Used ONLY for deposit authorization, NOT for permissioned-DEX trading (that uses DomainID).",
+       "composition": "DepositAuth (gate on) + DepositPreauth-by-credential (policy) + Credentials (the attestations) = credential-gated inbound value; pair with a Permissioned Domain + DEX for credential-gated trading."
+      },
+      "gotchas": "Hard distinction to keep straight: CredentialIDs (this rail, deposit) vs DomainID (the DEX rail, trading) — they are not interchangeable; a single 'gated marketplace' design usually needs BOTH (gate trading via domain, gate treasury deposits via preauth). DepositAuth blocks ALL inbound by default including XRP — make sure operational payers are preauthorized or you lock yourself out. Preauth-by-credential admits anyone holding the matching credential, so the credential type's issuance policy IS your deposit policy — broad issuance = broad deposit access. Credential expiry/revocation can suddenly cause previously-accepted deposits to be rejected; build sender-side handling for 'deposit no longer authorized.'",
+      "tracks": [
+       "identity-compliance",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Credential-gated regulated reward/treasury deposit account",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Policy-based inbound whitelisting without per-account lists",
+        "track": "identity-compliance",
+        "fitness": 4
+       },
+       {
+        "purpose": "Gating who can TRADE in a market (wrong tool — use Permissioned Domains)",
+        "track": "game-economies",
+        "fitness": 1
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Credentials + Deposit Authorization — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/decentralized-storage/credentials",
+        "claim": "Credentials work with Deposit Authorization to automatically allow senders with the correct set of credentials instead of approving sending accounts individually; authorizers accept any sender holding credentials from trusted issuers."
+       },
+       {
+        "kind": "blog",
+        "title": "Building the Future of Finance: New Identity & Credentialing Tools — Lachlan Todd",
+        "url": "https://medium.com/@LachlanTodd/building-the-future-of-finance-new-identity-credentialing-tools-on-the-xrp-ledger-37c2d4617077",
+        "claim": "An institution can at protocol level accept deposits only when presented credential hashes match a policy configured via DepositPreauth; CredentialIDs is used only for deposit authorization, not for trading in a permissioned DEX."
+       }
+      ]
+     },
+     {
+      "name": "Region-locked / regulated game-economy build pattern",
+      "slug": "gated-game-economy-pattern",
+      "kind": "pattern",
+      "network_status": "FULLY BUILDABLE on Mainnet as of mid-2026 — every required primitive (Credentials XLS-70, PermissionedDomains XLS-80 enabled 2026-02-04, PermissionedDEX XLS-81 enabled 2026-02-18, DepositAuth/DepositPreauth) is live and composable today.",
+      "chain": "XRPL Mainnet",
+      "xls_standard": "XLS-70 + XLS-80 + XLS-81",
+      "amendment_name": "Credentials + PermissionedDomains + PermissionedDEX",
+      "enabled_date": "2026-02-18",
+      "maturity_tier": "live-stable",
+      "status": "production-ready (mainnet-enabled)",
+      "builder_fit": 5,
+      "summary": "The end-to-end recipe for a compliant / region-restricted game economy, assembled from the live primitives. Steps: (1) appoint trusted issuer(s) and define credential types (e.g. region:EU, kyc:tier2) — vetting happens off-chain, only signed credentials hit the ledger; (2) issue + have players accept credentials (CredentialCreate -> CredentialAccept); (3) create one PermissionedDomain per access tier whose AcceptedCredentials list those types (PermissionedDomainSet); (4) run the marketplace as a permissioned DEX — the game client places permissioned (or hybrid) OfferCreate transactions tagged with the DomainID; (5) lock regulated treasuries with DepositAuth + preauth-by-credential so only eligible wallets can fund them. Compliance state is enforced by the ledger: when a credential lapses or a region is removed, the player's offers stop matching and deposits stop being authorized without any server-side sweep. To sunset a region, PermissionedDomainDelete (the compensator). Choose plain permissioned offers for a sealed regional market, hybrid offers to bridge regional liquidity to the open DEX. Remember AMMs cannot be gated, so a gated economy's liquidity is an order book, not a pool.",
+      "key_fields": {
+       "two_rails": "Domains+DEX gate TRADING (DomainID on offers); DepositAuth+preauth-by-credential gate inbound VALUE (CredentialIDs on payments). A full marketplace usually needs both.",
+       "policy_rotation": "Change eligibility by resubmitting PermissionedDomainSet with the new full accepted-credential list (it replaces, not patches).",
+       "isolation_choice": "Plain permissioned offer = sealed region; hybrid offer = region book + open DEX bridge.",
+       "AMM_constraint": "No gated AMM — gated venues are central-limit order books; if you need automated liquidity, run the AMM in the open DEX and gate at the wallet/deposit layer instead.",
+       "lifecycle": "Stand up: issuer -> credentials -> domain -> permissioned offers. Tear down: cancel offers -> PermissionedDomainDelete. Track DomainIDs off-ledger (they are derived from Owner+Sequence and not idempotently recreatable).",
+       "ledger_enforced_compliance": "Offer matchability and deposit admission follow live credential/domain state automatically — the ledger is the enforcement point, reducing studio-side compliance surface."
+      },
+      "gotchas": "Issuer key custody is the whole security model — a compromised issuer mints membership into every domain trusting it; treat it like a signing-authority root. Membership is OR over the accepted set; one over-broad credential type silently opens a region. Permissioned offers and credential-gated deposits can lapse out from under players (expiry/revocation) — both the market UI and the deposit flow must handle 'no longer eligible.' Don't build on a gated AMM assumption — it doesn't exist. Don't conflate the two rails. Beware the stale xrpl.org concept-page prose that says these features aren't enabled; they ARE (cite known-amendments/xrpscan/RippleX activation reports). Geographic restriction is enforced by your credential ISSUANCE policy (who you grant region:X to) — the ledger enforces the gate, but the legal correctness of who is 'EU-eligible' is your off-chain process.",
+      "tracks": [
+       "identity-compliance",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Region-locked in-game marketplace with ledger-enforced eligibility",
+        "track": "game-economies",
+        "fitness": 5
+       },
+       {
+        "purpose": "Regulated (KYC/AML) reward market or prize exchange",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Open, ungated free-to-play item economy (overkill — use the open DEX)",
+        "track": "game-economies",
+        "fitness": 1
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Create Permissioned Domains (tutorial) — xrpl.org",
+        "url": "https://xrpl.org/docs/tutorials/javascript/compliance/create-permissioned-domains",
+        "claim": "Walkthrough for creating permissioned domains with accepted credentials as the compliance-gating building block for restricted XRPL participation."
+       },
+       {
+        "kind": "blog",
+        "title": "Permissioned Domains and DEXs on XRPL: What We Learned — XRPL Commons",
+        "url": "https://www.xrpl-commons.org/newsroom/permissioned-domains-and-dexes-on-xrpl-what-we-learned",
+        "claim": "XLS-80 (domains) and XLS-81 (permissioned DEX) were tested end-to-end on Devnet from credentials and domain setup through trading across open, permissioned, and hybrid offers; trading in a permissioned DEX works like the open DEX except a domain controls who can place/accept offers and only same-domain members can trade."
+       },
+       {
+        "kind": "blog",
+        "title": "RippleX: permissioning stack live on XRPL Mainnet (announcement)",
+        "url": "https://x.com/RippleXDev/status/2019165474752524686",
+        "claim": "Permissioned Domains live on XRPL Mainnet and Permissioned DEX achieved validator consensus to activate in ~2 weeks; the full 'permissioning stack' (Credentials + Domains + DEX) becomes available for institutions to access compliant liquidity on XRPL."
+       }
+      ]
+     }
+    ]
+   },
+   "cloud_verify": {
+    "model": "deepseek-v3.1:671b",
+    "verdicts": [
+     {
+      "capability": "Permissioned Domains (XLS-80)",
+      "overall": "confirmed",
+      "network_status_check": "ENABLED on Mainnet 2026-02-04",
+      "currency": "current",
+      "fixes": "",
+      "note": "PermissionedDomains amendment is confirmed live on XRPL mainnet as of February 2026."
+     },
+     {
+      "capability": "PermissionedDomainSet transaction",
+      "overall": "confirmed",
+      "network_status_check": "ENABLED on Mainnet as part of PermissionedDomains",
+      "currency": "current",
+      "fixes": "",
+      "note": "Transaction type is live and functional as part of the enabled PermissionedDomains amendment."
+     },
+     {
+      "capability": "PermissionedDomainDelete transaction",
+      "overall": "confirmed",
+      "network_status_check": "ENABLED on Mainnet as part of PermissionedDomains",
+      "currency": "current",
+      "fixes": "",
+      "note": "Transaction type is live and functional as part of the enabled PermissionedDomains amendment."
+     },
+     {
+      "capability": "Permissioned DEX / credential-gated order books (XLS-81)",
+      "overall": "confirmed",
+      "network_status_check": "ENABLED on Mainnet 2026-02-18",
+      "currency": "current",
+      "fixes": "",
+      "note": "PermissionedDEX amendment is confirmed live on XRPL mainnet as of February 2026."
+     },
+     {
+      "capability": "Permissioned & hybrid Offers (DomainID on OfferCreate)",
+      "overall": "confirmed",
+      "network_status_check": "ENABLED on Mainnet via PermissionedDEX amendment",
+      "currency": "current",
+      "fixes": "",
+      "note": "DomainID-tagged offers are functional since PermissionedDEX activation."
+     },
+     {
+      "capability": "Credentials (XLS-70) — on-chain identity attestations",
+      "overall": "confirmed",
+      "network_status_check": "ENABLED on Mainnet",
+      "currency": "current",
+      "fixes": "",
+      "note": "Credentials amendment is confirmed live and foundational to the permissioning stack."
+     },
+     {
+      "capability": "Deposit-auth + preauth-by-credential gating",
+      "overall": "confirmed",
+      "network_status_check": "ENABLED on Mainnet",
+      "currency": "current",
+      "fixes": "",
+      "note": "DepositAuth/Preauth are long-live and credential-based preauth is enabled via Credentials amendment."
+     },
+     {
+      "capability": "Region-locked / regulated game-economy build pattern",
+      "overall": "confirmed",
+      "network_status_check": "FULLY BUILDABLE on Mainnet",
+      "currency": "current",
+      "fixes": "",
+      "note": "All required primitives (Credentials, PermissionedDomains, PermissionedDEX) are live and composable."
+     }
+    ]
+   }
+  }
+ ]
+}

@@ -1,0 +1,2735 @@
+{
+ "date": "2026-06-14",
+ "wave": 4,
+ "lanes": [
+  {
+   "slug": "transactions",
+   "name": "Transactions & accounts",
+   "research": {
+    "domain": "Mass payouts & batching (depth)",
+    "notes": "2026 depth synthesis for paying many players efficiently. HEADLINE STATUS (verified 2026-06-14): the Batch transaction (XLS-56) is NOT mainnet-enabled. It was introduced in rippled v2.5.0, reached the amendment-voting phase, then a critical signature-validation flaw was disclosed 2026-02-19 (Pranamya Keshkamat + Cantina AI's autonomous tool 'Apex') in which a batch signer whose key matched its own account caused the validator loop to early-exit and skip remaining signers, allowing unauthorized inner transactions on arbitrary accounts. rippled v3.1.1 (2026-02-23) marked both Batch and fixBatchInnerSigs as UNSUPPORTED/Obsolete so they can no longer receive validator votes; the known-amendments page now shows Batch status 'Obsolete' with note 'disabled in v3.1.1 due to a bug; will be replaced by BatchV1_1 in a future release.' Batch was never live on Mainnet and no funds were ever at risk. BatchV1_1 (the corrected re-introduction) is under review with no release date as of mid-2026. PRACTICAL CONSEQUENCE FOR A STUDIO DOING MASS PAYOUTS TODAY: you CANNOT rely on atomic on-ledger batching on mainnet right now. The production-proven pattern for high-throughput reward distribution in mid-2026 is one Payment per player, parallelized via Tickets (out-of-order/concurrent submission, up to 250 reserved sequence numbers) and gated by sequence/fee/queue management with idempotent retry keyed on tx hash + LastLedgerSequence. Design the payout service so a future flip to BatchV1_1 is a swap of the submission layer, not the accounting layer. Fee math is the floor cost not the spend driver: base reference cost is ~10 drops (0.00001 XRP) per Payment under no load, escalating exponentially when the open-ledger target is exceeded; the queue holds at most 10 txns per sending account, so a single hot payout account is a throughput bottleneck — shard across multiple funded payout accounts and/or pace submission to the open-ledger cost.",
+    "capabilities": [
+     {
+      "name": "Batch transaction (XLS-56)",
+      "slug": "batch-transaction",
+      "kind": "transaction",
+      "network_status": "NOT enabled on Mainnet. Status 'Obsolete'. Introduced in rippled v2.5.0, reached amendment voting, then disabled in v3.1.1 (2026-02-23) after a critical signature-validation vulnerability disclosed 2026-02-19. Marked unsupported so it can no longer be voted in. Never live on Mainnet. To be replaced by BatchV1_1 (in review, no release date as of mid-2026).",
+      "chain": "XRPL (Mainnet target — currently blocked)",
+      "xls_standard": "XLS-56",
+      "amendment_name": "Batch",
+      "enabled_date": "",
+      "maturity_tier": "blocked",
+      "status": "do-not-rely (obsolete; awaiting BatchV1_1)",
+      "builder_fit": 2,
+      "summary": "A single outer Batch transaction that wraps 2-8 inner ('raw') transactions and applies them atomically under one of four modes. It is the canonical on-ledger primitive for atomic multi-send / multi-step flows, and would be the natural fit for paying many players in one signed envelope. CRITICAL: it is not usable on Mainnet in mid-2026 — the original amendment was found to have a signature-validation early-exit bug (a signer whose key matched its own account short-circuited the loop, skipping validation of remaining signers and allowing unauthorized inner transactions on arbitrary accounts), so it was disabled in rippled v3.1.1 and is awaiting a corrected re-introduction as BatchV1_1. Build payout architecture so that batching is an optional acceleration layer to be enabled when BatchV1_1 ships, not a hard dependency today.",
+      "key_fields": {
+       "modes": "ALLORNOTHING (0x00010000) — all inner txns must succeed or none apply; ONLYONE (0x00020000) — only the first inner txn that would succeed is applied, rest skipped; UNTILFAILURE (0x00040000) — apply in order until the first failure, then stop; INDEPENDENT (0x00080000) — apply all inner txns regardless of individual failures",
+       "RawTransactions": "Array of 2-8 inner transactions. Each inner txn MUST carry the tfInnerBatchTxn flag (0x40000000), set Fee to '0', have an empty SigningPubKey and NO TxnSignature, and omit any Signers field.",
+       "BatchSigners": "Array enabling multi-account batches; each entry has Account plus either SigningPubKey/TxnSignature (single-sign) or a Signers field (multi-sign). This is the surface where the disclosed vulnerability lived.",
+       "atomicity": "Inner-txn outcomes are governed entirely by the chosen mode; per-inner metadata is stored separately for backward compatibility. For reward payouts INDEPENDENT mimics 'fire all, ignore stragglers'; ALLORNOTHING gives true all-or-nothing semantics.",
+       "fee_model": "Outer fee = (n + 2) * base_fee + sum of the inner transactions' fees, where n is the number of batch signatures. Inner Fee fields are '0'; the cost is rolled up into the outer transaction.",
+       "inner_tx_limit": "2 to 8 inner transactions per Batch (small — Batch is for atomicity, not bulk throughput; thousands of payouts still need many Batches or many individual sends)"
+      },
+      "gotchas": "Do NOT design a mid-2026 mass-payout system that depends on Batch — it is blocked on Mainnet and there is no shipping replacement yet. Even when BatchV1_1 lands, the inner-tx cap is only 8, so Batch is an atomicity tool (e.g. 'pay-and-clawback' or 'swap-and-pay' pairs), not a bulk-throughput tool; paying 10,000 players still means thousands of envelopes. The four flags are mutually exclusive — pick exactly one mode. Inner transactions with a non-zero Fee, a signature, or a missing tfInnerBatchTxn flag are malformed. Track BatchV1_1 on the known-amendments page before writing any code against it; the field/flag shapes may shift in the re-spec.",
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Atomic all-or-nothing multi-step payout (when BatchV1_1 ships)",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Paired economic actions e.g. mint-and-pay or swap-and-distribute",
+        "track": "game-economies",
+        "fitness": 3
+       },
+       {
+        "purpose": "Bulk reward distribution to thousands of players",
+        "track": "payments",
+        "fitness": 1
+       }
+      ],
+      "sources": [
+       {
+        "kind": "standard",
+        "title": "XLS-0056 Batch — XRPLF/XRPL-Standards",
+        "url": "https://github.com/XRPLF/XRPL-Standards/tree/master/XLS-0056-batch",
+        "claim": "Defines the four modes (ALLORNOTHING 0x00010000, ONLYONE 0x00020000, UNTILFAILURE 0x00040000, INDEPENDENT 0x00080000), RawTransactions (2-8 inner txns with tfInnerBatchTxn flag 0x40000000, Fee '0', no signature), BatchSigners, and outer fee = (n+2)*base_fee + sum of inner fees."
+       },
+       {
+        "kind": "docs",
+        "title": "Known Amendments — xrpl.org",
+        "url": "https://xrpl.org/resources/known-amendments",
+        "claim": "Batch amendment status is 'Obsolete', introduced v2.5.0, not enabled on Mainnet, 'disabled in v3.1.1 due to a bug; will be replaced by BatchV1_1 in a future release.'"
+       },
+       {
+        "kind": "blog",
+        "title": "Vulnerability Disclosure Report: XRPL Batch Amendment — Unauthorized Inner Transaction Execution (Feb 2026)",
+        "url": "https://xrpl.org/blog/2026/vulnerabilitydisclosurereport-bug-feb2026",
+        "claim": "Signature-validation early-exit flaw found 2026-02-19 by Pranamya Keshkamat + Cantina AI (Apex); Batch was in voting phase, never activated on Mainnet, no funds at risk; corrected BatchV1_1 under review."
+       }
+      ]
+     },
+     {
+      "name": "fixBatchInnerSigs amendment",
+      "slug": "fix-batch-inner-sigs",
+      "kind": "standard",
+      "network_status": "NOT enabled. Status 'Obsolete'. The companion fix for inner-transaction signing in Batch; also marked unsupported in rippled v3.1.1 (2026-02-23) and removed alongside Batch. Folded into the forthcoming BatchV1_1 re-introduction.",
+      "chain": "XRPL (Mainnet target — currently blocked)",
+      "xls_standard": "XLS-56",
+      "amendment_name": "fixBatchInnerSigs",
+      "enabled_date": "",
+      "maturity_tier": "blocked",
+      "status": "do-not-rely (obsolete)",
+      "builder_fit": 1,
+      "summary": "A follow-on amendment intended to correct how inner-transaction signatures are validated inside a Batch. It was disabled in the same emergency rippled v3.1.1 release that blocked Batch, after the broader signature-validation vulnerability was disclosed. It is listed only to make clear that BOTH the Batch amendment and its inner-signature fix were pulled together — there is no partial Batch capability live on Mainnet. The corrected logic (removing the early-exit, adding authorization guards, tightening the signing-check scope) is being consolidated into BatchV1_1.",
+      "key_fields": {
+       "relationship": "Companion to the Batch amendment; governs validation of inner-transaction authorization signatures within a Batch envelope",
+       "fate": "Marked unsupported/Obsolete in rippled v3.1.1 alongside Batch; superseded by BatchV1_1",
+       "why_it_matters": "Confirms there is no half-working Batch path — both the feature and its signature fix are off the table until BatchV1_1"
+      },
+      "gotchas": "Purely informational for a mid-2026 builder — there is nothing to integrate. Do not assume that because a 'fix' amendment exists, Batch is safe to use; the fix itself was disabled. Watch for BatchV1_1, which replaces both.",
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Understanding why no Batch capability is available on Mainnet today",
+        "track": "payments",
+        "fitness": 1
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Known Amendments — xrpl.org",
+        "url": "https://xrpl.org/resources/known-amendments",
+        "claim": "fixBatchInnerSigs is marked 'Obsolete' and was disabled in v3.1.1 alongside Batch."
+       },
+       {
+        "kind": "blog",
+        "title": "Introducing XRP Ledger version 3.1.1 and upcoming Devnet reset",
+        "url": "https://xrpl.org/blog/2026/rippled-3.1.1",
+        "claim": "rippled 3.1.1 (2026-02-23) marks Batch and fixBatchInnerSigs as unsupported, blocking them from validator votes and network activation."
+       }
+      ]
+     },
+     {
+      "name": "Tickets (out-of-order sequence reservation)",
+      "slug": "tickets-out-of-order",
+      "kind": "transaction",
+      "network_status": "Enabled on Mainnet (TicketBatch amendment, long-live). Production-stable and the load-bearing primitive for parallel mass payouts in mid-2026 given Batch is blocked.",
+      "chain": "XRPL (Mainnet)",
+      "xls_standard": "XLS-8d / XLS-13d",
+      "amendment_name": "TicketBatch",
+      "enabled_date": "",
+      "maturity_tier": "stable",
+      "status": "recommended",
+      "builder_fit": 5,
+      "summary": "A Ticket reserves a sequence number in advance so a later transaction can be submitted out of normal sequence order by setting TicketSequence instead of Sequence. This is THE mechanism that makes concurrent payout submission safe today: with Batch blocked, a payout service pre-reserves a block of Tickets (one TicketCreate makes up to 250), then fires many Payments in parallel — each pinned to its own Ticket — without serializing on the account's single advancing Sequence number. Because each send consumes exactly one Ticket and does not touch the normal sequence, retries and reordering are deterministic and idempotent at the slot level.",
+      "key_fields": {
+       "TicketCreate": "One signed transaction reserves up to 250 sequence numbers as Tickets at once",
+       "max_tickets": "An account may hold at most 250 Tickets in the ledger at a time, and cannot create more than 250 at a time",
+       "reserve": "0.2 XRP owner reserve per Ticket (each Ticket is a separate owner-reserve item); reclaimed when the Ticket is consumed",
+       "TicketSequence": "Set on a later transaction to spend a specific reserved Ticket instead of using Sequence; consuming a Ticket removes its Ticket object and does NOT advance the account's normal sequence number",
+       "sequence_derivation": "A TicketCreate sent with Sequence N produces Tickets starting at TicketSequence N+1",
+       "parallelism": "Different in-flight transactions use different Tickets, so they can be prepared/signed/submitted concurrently with no sequence-number contention"
+      },
+      "gotchas": "250 is a hard ceiling on outstanding Tickets per account — to sustain thousands of concurrent sends you must continuously top up Tickets and/or shard across multiple payout accounts. Each Ticket locks 0.2 XRP of owner reserve until consumed, so over-reserving ties up capital. A Ticket is single-use; consuming it (even by a failed tec result) burns the slot, so your slot-allocator must track which Ticket each retry uses to stay idempotent. Tickets give parallelism, not atomicity — they do NOT make a group of payouts all-or-nothing (that is what Batch/BatchV1_1 would provide). The transaction queue still caps each sending account at 10 queued txns regardless of how many Tickets exist.",
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Parallel/concurrent submission of many independent player payouts",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Reward-distribution job that must not serialize on one Sequence",
+        "track": "game-economies",
+        "fitness": 5
+       },
+       {
+        "purpose": "Collecting multisig signatures on several payouts in parallel",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Tickets — xrpl.org concepts",
+        "url": "https://xrpl.org/docs/concepts/accounts/tickets",
+        "claim": "Max 250 Tickets per account at a time and per TicketCreate; 0.2 XRP owner reserve each; TicketSequence spends a Ticket without advancing the normal sequence; a TicketCreate with Sequence N yields Tickets from N+1."
+       },
+       {
+        "kind": "docs",
+        "title": "Use Tickets — xrpl.org",
+        "url": "https://xrpl.org/use-tickets.html",
+        "claim": "Tickets let transactions be sent out of normal sequence order and in parallel, each pinned to a distinct Ticket."
+       },
+       {
+        "kind": "standard",
+        "title": "XLS-8d Tickets: Supporting out-of-sequence transactions — XRPLF/XRPL-Standards Discussion #23",
+        "url": "https://github.com/XRPLF/XRPL-Standards/discussions/23",
+        "claim": "Original Tickets standard defining out-of-sequence transaction support on the XRP Ledger."
+       }
+      ]
+     },
+     {
+      "name": "Parallel payout via Ticket pool",
+      "slug": "parallel-payout-ticket-pool",
+      "kind": "pattern",
+      "network_status": "Composed entirely from Mainnet-enabled primitives (TicketCreate + Payment). Production-viable in mid-2026; the recommended throughput pattern while Batch is blocked.",
+      "chain": "XRPL (Mainnet)",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "stable",
+      "status": "recommended",
+      "builder_fit": 5,
+      "summary": "The mid-2026 reference architecture for paying many players concurrently from a backend: maintain a pool of reserved Tickets on one or more funded payout accounts, assign each pending payout a distinct Ticket, then sign and submit Payments in parallel. Because each Payment is pinned to its own Ticket (not the advancing account Sequence), submissions do not have to be strictly ordered and a failed/dropped send can be retried in its own slot without blocking others. A slot-allocator maps (player, payout-id) -> Ticket, and a refiller issues new TicketCreate batches as Tickets are consumed, keeping the outstanding count under the 250 ceiling per account.",
+      "key_fields": {
+       "building_blocks": "TicketCreate (reserve up to 250 slots) + Payment with TicketSequence per player",
+       "concurrency_unit": "One Ticket = one independently submittable, independently retryable payout slot",
+       "throughput_scaling": "Shard across K payout accounts to exceed the per-account 250-Ticket / 10-queue limits; aggregate throughput ~ K * ledger-inclusion rate",
+       "idempotency_hook": "Persist (payout-id -> Ticket, tx hash, LastLedgerSequence); a Ticket is consumed at most once, so a retry that reuses the same Ticket cannot double-pay",
+       "vs_batch": "Provides parallel throughput but NOT atomicity; if you need all-or-nothing, wait for BatchV1_1"
+      },
+      "gotchas": "This pattern does NOT give atomic group semantics — partial completion is normal and your accounting must reconcile per-payout, not per-job. Owner reserve (0.2 XRP/Ticket) is real working capital; size the pool to in-flight demand, not the whole job. The 10-txns-per-account queue cap means a single account cannot have hundreds of Payments simultaneously in the open-ledger queue — pace submission to ledger close (~3-5s) and/or shard. Always set LastLedgerSequence on every Payment so abandoned sends expire deterministically and their Tickets can be safely reclaimed/retried. Beware destination requirements (DestinationTag, trustlines/authorized for IOUs, account existence + base reserve for first-time XRP recipients) — a payout to a non-existent account or missing trustline yields tec results that still consume the Ticket.",
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Distributing rewards/prizes to hundreds-thousands of players efficiently",
+        "track": "game-economies",
+        "fitness": 5
+       },
+       {
+        "purpose": "Backend payout service with high concurrent send volume",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Atomic all-or-nothing batch settlement",
+        "track": "payments",
+        "fitness": 1
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Use Tickets — xrpl.org",
+        "url": "https://xrpl.org/use-tickets.html",
+        "claim": "Tickets enable out-of-order, parallel transaction submission, each pinned to a distinct reserved Ticket."
+       },
+       {
+        "kind": "docs",
+        "title": "Transaction Queue — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/transactions/transaction-queue",
+        "claim": "A single sending address can have at most 10 transactions queued simultaneously, bounding per-account concurrency and motivating account sharding."
+       },
+       {
+        "kind": "docs",
+        "title": "Tickets — xrpl.org concepts",
+        "url": "https://xrpl.org/docs/concepts/accounts/tickets",
+        "claim": "Up to 250 Tickets per account; 0.2 XRP reserve each — sets the pool-size and capital limits for the pattern."
+       }
+      ]
+     },
+     {
+      "name": "Open-ledger fee escalation & transaction queue",
+      "slug": "fee-escalation-queue",
+      "kind": "concept",
+      "network_status": "Live Mainnet protocol behavior (FeeEscalation). Always in effect; dominates the cost and throughput model of any high-volume payout job.",
+      "chain": "XRPL (Mainnet)",
+      "xls_standard": "",
+      "amendment_name": "FeeEscalation",
+      "enabled_date": "",
+      "maturity_tier": "stable",
+      "status": "must-understand",
+      "builder_fit": 5,
+      "summary": "The XRPL sets a soft per-ledger transaction target; once exceeded, the cost to be included in the current ('open') ledger escalates exponentially, and transactions that won't pay it are placed in a queue for a future ledger. For mass payouts this is the throughput governor: a flood of cheap Payments from one account will queue (capped at 10) and require rapidly increasing fees to jump the queue. Read open_ledger_fee and load_factor from server_info / server_state and set each Payment's Fee accordingly — pay the open-ledger cost to land this ledger, or pay the minimum and accept queueing. Sustained high-volume payouts should pace to ledger close and shard across accounts rather than fee-bidding into an exponential.",
+      "key_fields": {
+       "base_cost": "~10 drops (0.00001 XRP) reference cost per standard transaction under no load",
+       "escalation": "Required cost rises exponentially each time the open-ledger target is exceeded within a ledger",
+       "queue_cap_per_account": "At most 10 transactions queued per sending address at once",
+       "queue_ordering": "Ranked by fee level (relative to the type's minimum), ties broken by tx hash ascending; same-sender txns ordered by Sequence",
+       "priority_cost": "To push your queued txns into the open ledger you must pay enough to cover the open-ledger cost of this txn plus all your prior queued txns — compounds with queue depth",
+       "signals": "server_info -> validated_ledger.base_fee_xrp, load_factor; server_state -> load_factor, load_base; use these to compute Fee before submit"
+      },
+      "gotchas": "Do not hardcode 10-drop fees for a payout flood — under load they will silently queue and may expire. Do not fee-bid blindly to win the open ledger; the cost is exponential and one account can only have 10 queued, so beyond a point you are throwing XRP away — shard accounts and pace to ledger close instead. Queue ordering for a single sender is by Sequence, which is exactly why Ticket-based parallel sends behave better than Sequence-based ones under contention. A txn whose LastLedgerSequence passes while queued is dropped — always set it so failures are deterministic.",
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Sizing fees and pacing for a high-volume payout job",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Avoiding silently-queued/dropped reward payouts under load",
+        "track": "game-economies",
+        "fitness": 4
+       },
+       {
+        "purpose": "Deciding when to shard payout accounts vs fee-bid",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Transaction Queue — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/transactions/transaction-queue",
+        "claim": "Max 10 queued txns per account; open-ledger cost escalates exponentially; queue ranked by relative fee with hash tie-break; to jump the queue you must cover the open-ledger cost of your txn plus prior queued txns."
+       },
+       {
+        "kind": "docs",
+        "title": "Transaction Cost — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/transactions/transaction-cost",
+        "claim": "Transaction cost scales with network load to prevent spam; base reference cost is ~10 drops and rises with load_factor."
+       },
+       {
+        "kind": "docs",
+        "title": "Fees — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/transactions/fees",
+        "claim": "The transaction cost is a tiny amount of XRP destroyed per transaction that scales with network load to protect against spam."
+       }
+      ]
+     },
+     {
+      "name": "Sequence vs Ticket submission management",
+      "slug": "sequence-vs-ticket-management",
+      "kind": "concept",
+      "network_status": "Live Mainnet behavior. Core mechanics for serializing or parallelizing sends from one account.",
+      "chain": "XRPL (Mainnet)",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "stable",
+      "status": "must-understand",
+      "builder_fit": 5,
+      "summary": "Every transaction from an account consumes either the account's monotonically increasing Sequence number OR a reserved Ticket (via TicketSequence). Sequence forces strict ordering — txn N+1 cannot apply before N — which is a hard serialization bottleneck for payouts: one stuck or slow send blocks everything behind it. Tickets break that dependency, letting each payout advance independently. Choosing Sequence for a few ordered admin txns and Tickets for the parallel payout fan-out is the central design decision in a high-throughput sender.",
+      "key_fields": {
+       "Sequence": "Per-account counter; each non-Ticket txn must use the next value, enforcing strict in-order application",
+       "TicketSequence": "Spends a pre-reserved Ticket; does not advance Sequence, so multiple Ticket txns are mutually independent",
+       "head-of-line_blocking": "A queued/stuck low-Sequence txn blocks all higher-Sequence txns from the same account until it clears or expires",
+       "concurrency_model": "Tickets convert a strictly-ordered stream into a set of independent slots safe for parallel submission and per-slot retry",
+       "local_tracking": "High-throughput senders track next-Sequence and the free-Ticket set client-side to avoid terPRE_SEQ / tefPAST_SEQ from racing submissions"
+      },
+      "gotchas": "Mixing Sequence-based and Ticket-based sends carelessly causes ordering surprises — a Sequence txn submitted while many Ticket txns are in flight still slots by Sequence. Submitting two txns with the same Sequence from racing workers makes one fail (tefPAST_SEQ) — for any parallelism use Tickets, not optimistic Sequence increments. Re-reading Sequence from the network mid-flood is racy; maintain it locally and reconcile against validated ledgers. Don't forget consumed Tickets free their reserve; a long-running service must refill Tickets to keep the parallel pool full.",
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Eliminating head-of-line blocking in a payout fan-out",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Deciding Sequence vs Ticket per transaction class",
+        "track": "game-economies",
+        "fitness": 4
+       },
+       {
+        "purpose": "Avoiding tefPAST_SEQ races across concurrent workers",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Tickets — xrpl.org concepts",
+        "url": "https://xrpl.org/docs/concepts/accounts/tickets",
+        "claim": "TicketSequence spends a reserved Ticket without advancing the account's normal Sequence, enabling out-of-order, independent sends."
+       },
+       {
+        "kind": "docs",
+        "title": "Reliable Transaction Submission — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/transactions/reliable-transaction-submission",
+        "claim": "Sequence, Fee, and LastLedgerSequence must be managed correctly; updates occur as submissions are included in validated ledgers or exceed LastLedgerSequence."
+       },
+       {
+        "kind": "docs",
+        "title": "Transaction Queue — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/transactions/transaction-queue",
+        "claim": "Same-sender queued transactions are ordered by Sequence number, which is the source of head-of-line blocking that Tickets avoid."
+       }
+      ]
+     },
+     {
+      "name": "Idempotent retry on transaction results (tem/tef/ter/tec)",
+      "slug": "idempotent-retry-result-codes",
+      "kind": "pattern",
+      "network_status": "Live Mainnet result-code semantics. Always in effect; the correctness backbone of any payout retry loop.",
+      "chain": "XRPL (Mainnet)",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "stable",
+      "status": "must-understand",
+      "builder_fit": 5,
+      "summary": "Reliable mass payouts hinge on routing each transaction result to the correct retry decision, and on a LastLedgerSequence + tx-hash idempotency key so a retry can never double-pay. The five result classes have distinct meanings: tes = success; tec = applied-and-charged-but-failed (a ledger change happened, the fee was burned — do NOT retry, the slot/Sequence is consumed); ter = not-yet-applied, provisionally retried by the server, may succeed in a later ledger; tef = failed and cannot succeed in any future ledger (e.g. tefPAST_SEQ) — do NOT resubmit as-is; tem = malformed, will never succeed — fix the transaction, never blind-retry. The safe pattern: submit with a known LastLedgerSequence, poll for a validated result, and only consider a payout 'unsent' (eligible for a fresh attempt on a new Ticket/Sequence) once the original LastLedgerSequence has definitively passed without inclusion.",
+      "key_fields": {
+       "tes": "tesSUCCESS — applied successfully; final once validated",
+       "tec": "Applied to a ledger to charge the cost and possibly other side effects, but the intended action failed; NOT retried (retry would likely repeat); Sequence/Ticket consumed",
+       "ter": "Not yet applied; server may auto-retry; could succeed in a future ledger (e.g. terQUEUED, terPRE_SEQ) — wait, do not resubmit a duplicate",
+       "tef": "Failed, not in a ledger, but could have succeeded in some theoretical ledger; typically can no longer succeed in any future ledger (e.g. tefPAST_SEQ, tefMAX_LEDGER) — treat as terminal for that submission",
+       "tem": "Malformed; cannot succeed under protocol rules; never applied — fix and rebuild, do not retry verbatim",
+       "idempotency_key": "Validated tx hash + the txn's LastLedgerSequence; a payout is only re-eligible after that ledger passes with no inclusion",
+       "finality_rule": "A submitted-but-unconfirmed txn is NOT safe to replace until its LastLedgerSequence is in the past (then it can never be included)"
+      },
+      "gotchas": "Never resubmit on a tec — it already consumed the fee and the sequence slot; treat it as a (failed) outcome and reconcile, do not pay again. Never blind-retry a tem (malformed will fail identically) or a tef (terminal). The dangerous case is timeout/no-response: if you resubmit before LastLedgerSequence has passed, the original could still land and you double-pay — gate every replacement on definitive LastLedgerSequence expiry. terQUEUED/terPRE_SEQ are NOT failures — they mean wait. Always set LastLedgerSequence on every payout so 'is it still possibly going to land?' has a deterministic answer. xrpl.js submitAndWait / xrpl-py autofill encode much of this; understand it even when using the helper.",
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Safe retry loop for a payout service (no double-pays)",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Reconciling partial reward distribution outcomes",
+        "track": "game-economies",
+        "fitness": 5
+       },
+       {
+        "purpose": "Handling submission timeouts without duplicating sends",
+        "track": "payments",
+        "fitness": 5
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Transaction Results — xrpl.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/transaction-results",
+        "claim": "Result codes split into tes (success), tec (claimed/applied-cost), tem (malformed, never applied), ter (retry/not-yet-applied), tef (failed, not in a ledger but theoretically could have succeeded)."
+       },
+       {
+        "kind": "docs",
+        "title": "tec Codes — xrpl.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/transaction-results/tec-codes",
+        "claim": "tec transactions are applied to a ledger to charge the cost and are not retried since results would likely be the same."
+       },
+       {
+        "kind": "docs",
+        "title": "Reliable Transaction Submission — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/transactions/reliable-transaction-submission",
+        "claim": "Use LastLedgerSequence and validated results to decide finality; only treat a txn as failed-and-replaceable once its LastLedgerSequence has passed without inclusion."
+       }
+      ]
+     },
+     {
+      "name": "Reward-distribution architecture: per-tx vs batched",
+      "slug": "reward-distribution-architecture",
+      "kind": "pattern",
+      "network_status": "Architectural guidance grounded in mid-2026 Mainnet reality (Batch blocked; Tickets + Payment live). Actionable today.",
+      "chain": "XRPL (Mainnet)",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "stable",
+      "status": "recommended",
+      "builder_fit": 5,
+      "summary": "The mid-2026 answer to 'one Payment per player vs one batched envelope' for a studio is: one Payment per player, parallelized via Tickets, behind an idempotent payout service — because atomic on-ledger Batch (XLS-56) is NOT available on Mainnet and even BatchV1_1 caps inner txns at 8. Structure the service in two layers: (1) an accounting/ledger of intended payouts (player, amount, currency, payout-id, status) that is the source of truth and is currency-agnostic to the submission mechanism; (2) a submission layer that maps each pending payout to a Ticket, fees it to the open-ledger cost, submits, and updates status by validated result. This separation means flipping to BatchV1_1 later (to batch small atomic groups) changes only the submission layer. Cost is dominated by destination/reserve concerns and pacing, not the ~10-drop base fee.",
+      "key_fields": {
+       "decision_mid_2026": "Per-player Payment + Ticket parallelism is the only production-viable high-throughput option; batched-atomic is unavailable",
+       "layering": "Accounting layer (intent + status, source of truth) decoupled from submission layer (Ticket allocation, fee, submit, result-handling)",
+       "cost_math": "~10 drops base/Payment under no load (10k payouts ~= 0.1 XRP in base fees, trivial); real costs are recipient base reserve for new XRP accounts and 0.2 XRP/Ticket working capital, plus escalated fees if you flood",
+       "atomicity_tradeoff": "Per-tx = no all-or-nothing (reconcile partials); future BatchV1_1 = atomic groups of <=8 only",
+       "scaling": "Shard across K payout accounts to beat the 10-queue / 250-Ticket per-account caps; pace to ledger close (~3-5s) to avoid fee escalation",
+       "audit": "Persist tx hash + LastLedgerSequence per payout for reconciliation and idempotency"
+      },
+      "gotchas": "Do not architect around Batch today — it is blocked, and BatchV1_1 has no release date and only batches <=8. Do not assume base fees are the cost driver; they are negligible — the spend that bites is recipient base reserve (a first-time XRP recipient needs the account-reserve to exist) and Ticket owner-reserve capital. For IOU/token rewards, the recipient must hold a (possibly authorized) trustline or the Payment tecs — pre-flight check trustlines. Build reconciliation for partial completion as a first-class state, not an error path, since per-tx payouts are not atomic. Keep the submission layer swappable so BatchV1_1 (or a future bulk primitive) is a drop-in, not a rewrite.",
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Designing a studio's player reward-payout service in mid-2026",
+        "track": "game-economies",
+        "fitness": 5
+       },
+       {
+        "purpose": "Choosing per-tx vs batched payout strategy on XRPL today",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Cost/capital planning for large reward distributions",
+        "track": "game-economies",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Known Amendments — xrpl.org",
+        "url": "https://xrpl.org/resources/known-amendments",
+        "claim": "Batch is 'Obsolete' and not enabled on Mainnet, forcing per-transaction payout architecture until BatchV1_1 ships."
+       },
+       {
+        "kind": "docs",
+        "title": "Tickets — xrpl.org concepts",
+        "url": "https://xrpl.org/docs/concepts/accounts/tickets",
+        "claim": "Up to 250 Tickets (0.2 XRP reserve each) enable the parallel per-player Payment pattern that replaces batching today."
+       },
+       {
+        "kind": "docs",
+        "title": "Transaction Cost — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/transactions/transaction-cost",
+        "claim": "Base reference cost (~10 drops) is negligible at scale; load-based escalation and reserves dominate real payout cost planning."
+       }
+      ]
+     }
+    ]
+   },
+   "cloud_verify": {
+    "model": "deepseek-v3.1:671b",
+    "verdicts": [
+     {
+      "capability": "Batch transaction (XLS-56)",
+      "overall": "confirmed",
+      "network_status_check": "Obsolete, never enabled on Mainnet, disabled in v3.1.1 due to critical vulnerability",
+      "currency": "stale",
+      "fixes": "",
+      "note": "Batch amendment was indeed disabled before Mainnet activation and marked obsolete, with BatchV1_1 planned as replacement."
+     },
+     {
+      "capability": "fixBatchInnerSigs amendment",
+      "overall": "confirmed",
+      "network_status_check": "Obsolete, never enabled on Mainnet, disabled alongside Batch in v3.1.1",
+      "currency": "stale",
+      "fixes": "",
+      "note": "Companion fix amendment was indeed disabled and marked obsolete alongside the main Batch amendment."
+     },
+     {
+      "capability": "Tickets (out-of-order sequence reservation)",
+      "overall": "confirmed",
+      "network_status_check": "Enabled on Mainnet via TicketBatch amendment",
+      "currency": "current",
+      "fixes": "",
+      "note": "Tickets are live on Mainnet and provide out-of-order transaction capability with 250 ticket limit per account."
+     },
+     {
+      "capability": "Parallel payout via Ticket pool",
+      "overall": "confirmed",
+      "network_status_check": "Composed from Mainnet-enabled primitives (TicketCreate + Payment)",
+      "currency": "current",
+      "fixes": "",
+      "note": "This pattern is viable using existing Mainnet capabilities, though constrained by 10-transaction queue limit per account."
+     },
+     {
+      "capability": "Open-ledger fee escalation & transaction queue",
+      "overall": "confirmed",
+      "network_status_check": "Live Mainnet protocol behavior via FeeEscalation amendment",
+      "currency": "current",
+      "fixes": "",
+      "note": "Fee escalation and transaction queue are active Mainnet mechanisms that significantly impact high-volume operations."
+     },
+     {
+      "capability": "Sequence vs Ticket submission management",
+      "overall": "confirmed",
+      "network_status_check": "Live Mainnet behavior governing transaction ordering",
+      "currency": "current",
+      "fixes": "",
+      "note": "Core account sequencing mechanics are fundamental to XRPL transaction processing and remain current."
+     },
+     {
+      "capability": "Idempotent retry on transaction results (tem/tef/ter/tec)",
+      "overall": "confirmed",
+      "network_status_check": "Live Mainnet result-code semantics always in effect",
+      "currency": "current",
+      "fixes": "",
+      "note": "Transaction result codes and idempotent retry patterns are fundamental XRPL protocol features."
+     },
+     {
+      "capability": "Reward-distribution architecture: per-tx vs batched",
+      "overall": "confirmed",
+      "network_status_check": "Architectural guidance reflecting mid-2026 Mainnet reality (Batch blocked)",
+      "currency": "current",
+      "fixes": "",
+      "note": "Current architectural guidance correctly reflects Batch's obsolete status and reliance on Ticket-based patterns."
+     }
+    ]
+   }
+  },
+  {
+   "slug": "payments-advanced",
+   "name": "Advanced payments",
+   "research": {
+    "domain": "Payment channels / streaming micropayments (depth)",
+    "notes": "Depth synthesis verified mid-2026 against xrpl.org and XRPLF. XRPL payment channels are the protocol primitive for streaming/high-frequency micropayments: the source escrows XRP on-ledger once (PaymentChannelCreate), then issues an unbounded stream of OFF-LEDGER signed Claims authorizing a CUMULATIVE drops total. The receiver verifies each Claim locally (signature-only, no consensus round-trip) and redeems the largest one on-ledger whenever it chooses (PaymentChannelClaim) — 'sign many, settle once'. Throughput is bounded by signature speed (Ed25519 ~100k sign/s, ~70k verify/s on commodity hardware), not by the 3-5s ledger close, which is why channels beat per-tx payments for tipping, pay-per-call, pay-per-second-of-stream, and pay-per-asset-chunk. Two structural constraints are load-bearing as of mid-2026: (1) channels are UNIDIRECTIONAL (source->destination only; bidirectional flow requires two channels), and (2) channels are XRP-ONLY on mainnet — token-enabled PayChan (alongside the XLS-34 token-escrow line) remains in spec phase with no mainnet amendment, so any IOU/MPT/stablecoin micropayment design must use XRP rails or a different mechanism today. Core PayChan amendment has been live since 2017-03-30; fixPayChanCancelAfter activated ~2025-08-29 (rejects PaymentChannelCreate with a past CancelAfter, returning tecEXPIRED). Each channel costs one owner-reserve item (0.2 XRP since the 2024-12-02 reserve reduction) plus the escrowed Amount, which is locked until claimed or returned. Safety hinges on SettleDelay (the dispute-window the source must wait through before a forced close completes) and on watchtower-style redemption (the receiver must redeem outstanding Claims before the channel can close, or lose them).",
+    "capabilities": [
+     {
+      "name": "PaymentChannelCreate",
+      "slug": "payment-channel-create",
+      "kind": "transaction",
+      "network_status": "mainnet-live",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "PayChan",
+      "enabled_date": "2017-03-30",
+      "maturity_tier": "battle-tested",
+      "status": "recommended",
+      "builder_fit": 5,
+      "summary": "Opens and funds a unidirectional XRP payment channel from the sending account (source) to a fixed Destination. Sets the escrowed Amount (drops), the SettleDelay grace period, the PublicKey the source will sign claims with, and optionally an immutable CancelAfter. This is the one on-ledger setup transaction that enables an unbounded off-ledger micropayment stream afterward.",
+      "key_fields": [
+       "Amount (XRP drops escrowed into the channel; locked until claimed or returned)",
+       "Destination (the only account that can receive from this channel; cannot equal source)",
+       "SettleDelay (UInt32 seconds the source must wait before a forced close completes if funds remain)",
+       "PublicKey (33-byte hex; secp256k1 or Ed25519 key the source uses to sign all claims)",
+       "CancelAfter (optional UInt32 Ripple-epoch seconds; IMMUTABLE hard expiry, cannot be extended)",
+       "DestinationTag / SourceTag (optional routing tags)"
+      ],
+      "gotchas": [
+       "Unidirectional only: this funds source->destination; a return flow needs a second, separately-funded channel.",
+       "XRP-only: Amount must be XRP drops. There is no token/IOU/MPT channel on mainnet as of mid-2026.",
+       "CancelAfter is immutable once set — pick it carefully; only the mutable Expiration (set later via Fund/Claim) can change.",
+       "Since fixPayChanCancelAfter (~2025-08-29), a CancelAfter in the past fails with tecEXPIRED instead of creating then auto-expiring.",
+       "Costs one owner-reserve item (0.2 XRP) PLUS the escrowed Amount; both are locked, not spent.",
+       "Fails with tecNO_PERMISSION if the destination has DisallowIncoming set for payment channels."
+      ],
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Open a streaming-tip / pay-per-call channel to a single recipient",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Fund a player->service channel for high-frequency in-game microtransactions",
+        "track": "game-economies",
+        "fitness": 4
+       },
+       {
+        "purpose": "Bidirectional settlement between two parties",
+        "track": "payments",
+        "fitness": 2
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "PaymentChannelCreate - XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/paymentchannelcreate",
+        "claim": "Required fields are Amount, Destination, SettleDelay, and PublicKey; CancelAfter is immutable and cannot be extended; PublicKey supports secp256k1 or Ed25519."
+       },
+       {
+        "kind": "docs",
+        "title": "Payment Channels concept - XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/payment-types/payment-channels",
+        "claim": "Payment channels are unidirectional and XRP-only; the source sets aside XRP and signs off-ledger claims the destination redeems later."
+       }
+      ]
+     },
+     {
+      "name": "Off-ledger signed Claim (the micropayment unit)",
+      "slug": "off-ledger-signed-claim",
+      "kind": "concept",
+      "network_status": "mainnet-live",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "PayChan",
+      "enabled_date": "2017-03-30",
+      "maturity_tier": "battle-tested",
+      "status": "recommended",
+      "builder_fit": 5,
+      "summary": "A Claim is a tiny off-ledger data structure the source signs to authorize a CUMULATIVE total of drops deliverable through a specific channel. Claims never touch the network individually — the source sends them to the receiver over any channel (HTTP, WebSocket, in-band game protocol), the receiver verifies each locally, and only the final/largest claim is settled on-ledger. This 'sign many, settle once' property is the actual micropayment mechanism: throughput scales with signing speed, not ledger consensus.",
+      "key_fields": [
+       "Channel ID (32-byte hex of the target channel)",
+       "Authorized amount (cumulative XRP drops total, NOT a per-claim delta)",
+       "Signature (over the canonical claim message, by the channel PublicKey)",
+       "Cumulative semantics: to charge two 10-drop items, claim #1 = 10 drops, claim #2 = 20 drops total"
+      ],
+      "gotchas": [
+       "Amounts are CUMULATIVE, not incremental — a new claim restates the running total; redeeming the largest supersedes all smaller ones.",
+       "Claims carry no expiry of their own; their validity is bounded by the channel's Expiration/CancelAfter and remaining funds.",
+       "A claim can authorize more than the channel currently holds — it only becomes redeemable up to the channel's funded Amount, so receivers MUST cross-check funding (see channel_verify gotcha).",
+       "Off-ledger transport is the integrator's responsibility; there is no protocol-level delivery or ordering guarantee.",
+       "XRP-only: a claim authorizes drops, never tokens."
+      ],
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Per-tip / per-message / per-API-call streaming micropayments",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Pay-per-asset-chunk or pay-per-second-of-content delivery in-game",
+        "track": "game-economies",
+        "fitness": 4
+       },
+       {
+        "purpose": "One-off single payment between accounts",
+        "track": "payments",
+        "fitness": 1
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Use Payment Channels tutorial - XRPL.org",
+        "url": "https://xrpl.org/docs/tutorials/payments/use-payment-channels",
+        "claim": "Claims are cumulative — to pay for two 10-drop items the first claim authorizes 10 drops and the second authorizes 20 total; the receiver verifies claims off-ledger and redeems combined value later."
+       },
+       {
+        "kind": "docs",
+        "title": "Payment Channels concept - XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/payment-types/payment-channels",
+        "claim": "The receiver can verify claims individually without distributing them to the network and waiting for consensus, then redeem many small claims later before expiration."
+       }
+      ]
+     },
+     {
+      "name": "channel_authorize (sign a claim)",
+      "slug": "channel-authorize",
+      "kind": "transaction",
+      "network_status": "mainnet-live",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "PayChan",
+      "enabled_date": "2017-03-30",
+      "maturity_tier": "battle-tested",
+      "status": "recommended",
+      "builder_fit": 4,
+      "summary": "The rippled API method the source uses to produce a claim signature for a given channel and cumulative drops amount, using the channel's key seed/secret. The signature is computed over the canonical claim message — the prefix 'CLM\\0' (0x434C4D00) followed by the 32-byte channel ID and the 8-byte big-endian drops amount — with Ed25519 or secp256k1. In production the source signs offline/in-app rather than handing a seed to a server.",
+      "key_fields": [
+       "channel_id (64-char hex)",
+       "amount (cumulative drops to authorize)",
+       "seed / secret / key_type (the channel's signing key material)",
+       "Output: signature (hex) the source ships to the receiver with the amount"
+      ],
+      "gotchas": [
+       "channel_authorize requires the signing key — never expose it on a public/untrusted endpoint; sign on the source's own infrastructure or client.",
+       "The signed amount is the cumulative total; mismatches between the signed amount and the on-ledger PaymentChannelClaim Amount cause the claim to be rejected.",
+       "Signing speed (not the API) is the throughput ceiling — Ed25519 sign/verify vastly outpaces secp256k1, which matters for high-frequency streams.",
+       "The 'CLM\\0' prefix domain-separates claim signatures from transaction signatures; a raw signature over the wrong message will not verify."
+      ],
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Generate the per-increment authorization in a streaming-payment sender",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Batch-pre-sign a ladder of claims for an offline session",
+        "track": "payments",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "channel_authorize - XRPL.org",
+        "url": "https://xrpl.org/channel_authorize.html",
+        "claim": "channel_authorize creates a signature that can be used to redeem a specific amount of XRP from a payment channel."
+       },
+       {
+        "kind": "docs",
+        "title": "channel_verify - XRPL.org",
+        "url": "https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/payment-channel-methods/channel_verify",
+        "claim": "A claim signature is produced over the channel_id and amount (drops) using the channel public key (Ed25519 or secp256k1)."
+       }
+      ]
+     },
+     {
+      "name": "channel_verify (verify a claim signature)",
+      "slug": "channel-verify",
+      "kind": "transaction",
+      "network_status": "mainnet-live",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "PayChan",
+      "enabled_date": "2017-03-30",
+      "maturity_tier": "battle-tested",
+      "status": "recommended",
+      "builder_fit": 4,
+      "summary": "The receiver-side rippled method that checks whether a claim signature is cryptographically valid for a given channel_id, amount, and public_key, returning signature_verified true/false. Critically it verifies ONLY the signature — it does NOT confirm the channel exists, is funded, or has that much XRP remaining. A safe receiver pairs channel_verify with account_channels to confirm live funding before treating a claim as money in hand.",
+      "key_fields": [
+       "channel_id (64-char hex)",
+       "amount (cumulative drops the signature should authorize)",
+       "public_key (channel key, base58 or hex)",
+       "signature (hex)",
+       "Output: signature_verified (boolean)"
+      ],
+      "gotchas": [
+       "Does NOT check channel funding or balance — a valid signature over 1,000,000 drops on a channel funded for 100 drops still verifies true. Always cross-check account_channels.",
+       "public_key must be the exact PublicKey stored for the channel; a verify against the wrong key returns false.",
+       "Verification is the receiver's high-frequency hot path; prefer Ed25519 channels for throughput.",
+       "signature_verified true is necessary but not sufficient to redeem — the on-ledger PaymentChannelClaim still enforces Balance <= Amount and funding."
+      ],
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Validate each incoming streaming claim before accepting service/value",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Standalone signature audit without ledger state",
+        "track": "payments",
+        "fitness": 2
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "channel_verify - XRPL.org",
+        "url": "https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/payment-channel-methods/channel_verify",
+        "claim": "channel_verify returns signature_verified true if the signature is valid for the amount, channel, and public key, but explicitly does NOT check whether the channel has enough XRP allocated."
+       },
+       {
+        "kind": "docs",
+        "title": "Use Payment Channels tutorial - XRPL.org",
+        "url": "https://xrpl.org/docs/tutorials/payments/use-payment-channels",
+        "claim": "The payee validates claims with channel_verify and confirms remaining funds and expiration via account_channels before redeeming."
+       }
+      ]
+     },
+     {
+      "name": "PaymentChannelClaim (redeem or close)",
+      "slug": "payment-channel-claim",
+      "kind": "transaction",
+      "network_status": "mainnet-live",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "PayChan",
+      "enabled_date": "2017-03-30",
+      "maturity_tier": "battle-tested",
+      "status": "recommended",
+      "builder_fit": 5,
+      "summary": "The on-ledger transaction that actually moves XRP out of a channel, or renews/closes it. The destination submits it with the channel's largest signed claim (Channel, Balance, Amount, Signature, PublicKey) to settle accumulated micropayments in one ledger entry — 'settle once' after many off-ledger signs. The source can also use it to add funds, set/clear Expiration (tfRenew), or initiate closure (tfClose).",
+      "key_fields": [
+       "Channel (UInt256 channel ID)",
+       "Balance (cumulative XRP delivered after this claim; must exceed prior deliveries and be <= signed Amount)",
+       "Amount (cumulative XRP authorized by the Signature; must match the signed message)",
+       "Signature + PublicKey (the off-ledger claim; PublicKey must match the channel's stored key; required unless the sender is the channel source)",
+       "Flags: tfRenew (0x00010000, clears Expiration, source-only), tfClose (0x00020000, schedule/execute close)"
+      ],
+      "gotchas": [
+       "Balance must be strictly greater than total already delivered and no greater than the signed Amount, else the claim is rejected.",
+       "Destination redeems the LARGEST claim to capture the full cumulative total; smaller superseded claims need not be submitted.",
+       "Source closing with tfClose when funds remain only SCHEDULES closure — the destination still has at least SettleDelay seconds to redeem outstanding claims first.",
+       "Any validly-formed transaction touching an already-expired channel (past Expiration or CancelAfter) closes it and returns unclaimed XRP to the source.",
+       "Destination using tfClose closes immediately after processing the claim; source can only close-immediately when no XRP remains."
+      ],
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Settle accumulated streaming micropayments in a single on-ledger write",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "End-of-session cash-out of in-game pay-per-action claims",
+        "track": "game-economies",
+        "fitness": 4
+       },
+       {
+        "purpose": "Top up an existing channel mid-stream (source PaymentChannelFund is usually better)",
+        "track": "payments",
+        "fitness": 2
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "PaymentChannelClaim - XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/paymentchannelclaim",
+        "claim": "Balance must be more than the total delivered so far but not greater than the signed Amount; PublicKey must match the channel's stored key; tfRenew (0x00010000) and tfClose (0x00020000) control renewal and closure."
+       },
+       {
+        "kind": "docs",
+        "title": "Use Payment Channels tutorial - XRPL.org",
+        "url": "https://xrpl.org/docs/tutorials/payments/use-payment-channels",
+        "claim": "The payee submits PaymentChannelClaim with the largest authorized amount and signature to transfer XRP; source closure with tfClose gives the payee no less than the settlement delay to redeem first."
+       }
+      ]
+     },
+     {
+      "name": "PaymentChannelFund (extend funds & Expiration)",
+      "slug": "payment-channel-fund",
+      "kind": "transaction",
+      "network_status": "mainnet-live",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "PayChan",
+      "enabled_date": "2017-03-30",
+      "maturity_tier": "battle-tested",
+      "status": "situational",
+      "builder_fit": 4,
+      "summary": "Source-only transaction to top up an existing channel with more XRP and/or extend its mutable Expiration, keeping a long-lived streaming channel alive and funded across many redemption cycles. It is how an open-ended stream avoids re-paying setup/reserve overhead — you keep one channel and refill it instead of churning new channels.",
+      "key_fields": [
+       "Channel (channel ID to fund)",
+       "Amount (additional XRP drops to add to the channel's total)",
+       "Expiration (optional new mutable expiry; can only push later, never earlier than SettleDelay allows, and never past CancelAfter)"
+      ],
+      "gotchas": [
+       "Only the source can fund; the destination cannot add or reclaim funds via Fund.",
+       "Expiration set here is the MUTABLE expiry and cannot exceed the immutable CancelAfter.",
+       "Topping up does not bypass SettleDelay for closing — dispute-window guarantees still apply.",
+       "Each additional Amount is additional locked XRP; it does not add owner-reserve items (still one channel = one reserve item)."
+      ],
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Keep a long-running streaming/tipping channel funded without re-opening",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Refill a persistent player session channel as the player spends down the balance",
+        "track": "game-economies",
+        "fitness": 4
+       },
+       {
+        "purpose": "First-time channel setup (use PaymentChannelCreate instead)",
+        "track": "payments",
+        "fitness": 1
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "PaymentChannelFund - XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/paymentchannelfund",
+        "claim": "PaymentChannelFund adds XRP to an existing channel and optionally updates the mutable Expiration field; it is sent by the channel's source address."
+       },
+       {
+        "kind": "docs",
+        "title": "PayChannel ledger entry - XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/ledger-data/ledger-entry-types/paychannel",
+        "claim": "A PayChannel entry counts as one item toward the owner reserve regardless of how much XRP is funded into it."
+       }
+      ]
+     },
+     {
+      "name": "SettleDelay & closure / cancel mechanics",
+      "slug": "settledelay-closure-mechanics",
+      "kind": "concept",
+      "network_status": "mainnet-live",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "PayChan",
+      "enabled_date": "2017-03-30",
+      "maturity_tier": "battle-tested",
+      "status": "recommended",
+      "builder_fit": 4,
+      "summary": "The trust model of a channel rests on its closure rules. SettleDelay is the minimum seconds the source must wait, after requesting closure of a channel that still holds XRP, before funds return to the source — giving the receiver a guaranteed window to redeem outstanding claims. CancelAfter is an immutable hard deadline; Expiration is a mutable soft deadline. Past either deadline, any transaction touching the channel closes it and returns unclaimed XRP to the source.",
+      "key_fields": [
+       "SettleDelay (immutable grace seconds before a funded forced-close completes)",
+       "Expiration (mutable; set/cleared via Fund or Claim tfRenew; the soft close countdown)",
+       "CancelAfter (immutable hard expiry set at creation)",
+       "tfClose (source schedules close -> SettleDelay window; destination closes immediately after its claim)"
+      ],
+      "gotchas": [
+       "Choose SettleDelay long enough that a receiver (or its watchtower) can realistically redeem before funds revert — too short risks lost claims.",
+       "CancelAfter cannot be extended; a channel WILL die at CancelAfter regardless of remaining funds — size session lifetimes accordingly.",
+       "Since fixPayChanCancelAfter (~2025-08-29) a PaymentChannelCreate with a past CancelAfter fails (tecEXPIRED) rather than creating a dead channel.",
+       "After expiry, anyone can submit a transaction that closes the channel and returns unclaimed XRP to the source — receivers must not sit on unredeemed claims past the window."
+      ],
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Design the dispute / safe-redemption window for a streaming channel",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Set session-bounded hard expiry for ephemeral pay-per-use channels",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "PaymentChannelCreate - XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/paymentchannelcreate",
+        "claim": "SettleDelay is the seconds the source must wait before closing a channel that still has unclaimed funds; CancelAfter is immutable and the channel cannot remain open past it."
+       },
+       {
+        "kind": "blog",
+        "title": "Two Fix Amendments Enabled (fixPayChanCancelAfter) - XRPL.org",
+        "url": "https://xrpl.org/blog/2025/fixes-enabled-dnfts-expected",
+        "claim": "fixPayChanCancelAfter activated on mainnet (~Aug 2025), making PaymentChannelCreate fail with tecEXPIRED when CancelAfter is before the current ledger."
+       }
+      ]
+     },
+     {
+      "name": "Watchtower / claim-redemption pattern",
+      "slug": "watchtower-claim-redemption",
+      "kind": "pattern",
+      "network_status": "mainnet-live",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "established",
+      "status": "recommended",
+      "builder_fit": 4,
+      "summary": "An off-ledger receiver-side service that holds the latest signed claim and guarantees on-time redemption — the XRPL channel analogue of a Lightning watchtower. Because a source can schedule closure (starting only a SettleDelay countdown) and the channel hard-expires at CancelAfter, the receiver MUST submit its largest claim before those deadlines or forfeit the accumulated balance. The watchtower monitors account_channels for closure signals/expiry and auto-submits PaymentChannelClaim in time.",
+      "key_fields": [
+       "Persisted latest (largest-cumulative) claim per channel: channel_id, amount, signature, public_key",
+       "Monitoring: account_channels polling/subscription for Expiration/SettleDelay/CancelAfter and closure events",
+       "Auto-redeem trigger: submit PaymentChannelClaim before the SettleDelay window or CancelAfter elapses",
+       "Funding cross-check: verify on-ledger remaining funds (channel_verify checks signature only)"
+      ],
+      "gotchas": [
+       "Not a protocol feature — it is integration responsibility; if no one redeems before close/expiry, unclaimed XRP returns to the source.",
+       "Always store and redeem the LARGEST cumulative claim; redeeming a stale smaller claim leaves money on the table.",
+       "channel_verify alone is insufficient — pair with account_channels to confirm the channel is still funded for the claimed amount.",
+       "SettleDelay must be tuned to the watchtower's worst-case reaction + ledger-inclusion latency, or the window can close on you.",
+       "High-frequency streams mean the 'latest claim' changes constantly — persist durably so a crash doesn't lose the newest authorization."
+      ],
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Guarantee a receiver never loses accumulated micropayments to a channel close/expiry",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Server-side auto-cashout for an in-game pay-per-action service",
+        "track": "game-economies",
+        "fitness": 4
+       },
+       {
+        "purpose": "Low-stakes one-shot payment where loss risk is negligible",
+        "track": "payments",
+        "fitness": 1
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Use Payment Channels tutorial - XRPL.org",
+        "url": "https://xrpl.org/docs/tutorials/payments/use-payment-channels",
+        "claim": "The payee must redeem claims via PaymentChannelClaim before the channel closes; after the source requests close it has no less than the settlement delay, and after expiration any account can close the channel returning unclaimed XRP to the source."
+       },
+       {
+        "kind": "docs",
+        "title": "channel_verify - XRPL.org",
+        "url": "https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/payment-channel-methods/channel_verify",
+        "claim": "channel_verify does not check whether the channel has enough XRP allocated, so a redeemer must independently confirm funding via account_channels."
+       }
+      ]
+     },
+     {
+      "name": "Channel reserve & XRP-only economics",
+      "slug": "channel-reserve-xrp-only",
+      "kind": "concept",
+      "network_status": "mainnet-live",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "PayChan",
+      "enabled_date": "2017-03-30",
+      "maturity_tier": "battle-tested",
+      "status": "recommended",
+      "builder_fit": 4,
+      "summary": "Each open channel costs the source one owner-reserve item — 0.2 XRP since the 2024-12-02 reserve reduction — locked (not burned) while the channel exists, plus the escrowed Amount which is locked until claimed or returned. Channels are XRP-only on mainnet as of mid-2026: token-enabled PayChan (alongside the token-escrow line that shipped first) remains in spec phase with no activated mainnet amendment. This shapes the build decision: stablecoin/IOU/MPT micropayments cannot stream over a channel today and must use XRP or a different rail.",
+      "key_fields": [
+       "Owner reserve: +1 item = 0.2 XRP locked per open channel (since 2024-12-02 reduction from 2 XRP)",
+       "Escrowed Amount: locked XRP, returned to source on close/expiry if unclaimed",
+       "Channel ID = SHA-512Half(0x0078 space key + source AccountID + destination AccountID + create sequence/TicketSequence)",
+       "Currency: XRP drops only; no token field exists on the channel today"
+      ],
+      "gotchas": [
+       "Many concurrent channels multiply the owner reserve (0.2 XRP each) — batch recipients or reuse/refill channels rather than churning new ones.",
+       "Reserve XRP is locked, not spent; it frees when the channel is removed (only after close/expiry), unlike the per-tx fee which is burned.",
+       "XRP-only is the single biggest design constraint: if your micropayments must be denominated in a token, payment channels are the wrong primitive on mainnet right now — track the token-PayChan spec but do not assume it.",
+       "Reserve amounts are validator-voted and have changed before (10->1 base, 2->0.2 owner in Dec 2024); do not hardcode — read them at runtime."
+      ],
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Budget the locked-XRP cost of operating one or many streaming channels",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Decide XRP-vs-token denomination for an in-game micropayment economy",
+        "track": "game-economies",
+        "fitness": 5
+       },
+       {
+        "purpose": "Rule channels out when payments MUST be a stablecoin/IOU today",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "PayChannel ledger entry - XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/ledger-data/ledger-entry-types/paychannel",
+        "claim": "A PayChannel entry counts as one item toward the owner reserve of the creating account while it is in the ledger; the channel ID is the SHA-512Half of the PayChannel space key 0x0078, source and destination AccountIDs, and the create sequence number."
+       },
+       {
+        "kind": "forum",
+        "title": "Alternate Token Enabled Escrows and PayChan - XRPL-Standards Discussion #133",
+        "url": "https://github.com/XRPLF/XRPL-Standards/discussions/133",
+        "claim": "As of 2025-2026 token escrows have shipped/are in review but token-enabled PayChan is still in specification phase with no finalized XLS spec or mainnet amendment; payment channels currently support only XRP."
+       }
+      ]
+     }
+    ]
+   },
+   "cloud_verify": {
+    "model": "deepseek-v3.1:671b",
+    "verdicts": [
+     {
+      "capability": "PaymentChannelCreate",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "PaymentChannelCreate transaction exists as described with PayChan amendment enabled on mainnet."
+     },
+     {
+      "capability": "Off-ledger signed Claim (the micropayment unit)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "Off-ledger claims are cumulative and XRP-only as described, part of PayChan mainnet functionality."
+     },
+     {
+      "capability": "channel_authorize (sign a claim)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "channel_authorize method exists for signing claims with Ed25519/secp256k1 keys as described."
+     },
+     {
+      "capability": "channel_verify (verify a claim signature)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "channel_verify method validates signatures without checking channel funding status as claimed."
+     },
+     {
+      "capability": "PaymentChannelClaim (redeem or close)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "PaymentChannelClaim transaction exists with tfRenew/tfClose flags for redemption and closure."
+     },
+     {
+      "capability": "PaymentChannelFund (extend funds & Expiration)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "PaymentChannelFund transaction allows adding XRP and updating expiration as described."
+     },
+     {
+      "capability": "SettleDelay & closure / cancel mechanics",
+      "overall": "confirmed-with-fixes",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "fixPayChanCancelAfter amendment activated in 2025, making PaymentChannelCreate fail with tecEXPIRED for past CancelAfter dates",
+      "note": "SettleDelay mechanics are correct and CancelAfter enforcement was strengthened by fixPayChanCancelAfter amendment."
+     },
+     {
+      "capability": "Watchtower / claim-redemption pattern",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "Claim redemption pattern requires monitoring and timely redemption before channel closure as described."
+     },
+     {
+      "capability": "Channel reserve & XRP-only economics",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "Payment channels are XRP-only and count toward owner reserve; token-enabled channels remain in specification phase."
+     }
+    ]
+   }
+  },
+  {
+   "slug": "payments-advanced",
+   "name": "Advanced payments",
+   "research": {
+    "domain": "Checks, deferred payments & backend integration (depth)",
+    "notes": "Wave-4 depth synthesis (web-verified mid-2026). This lane is about the backend that sits between the XRPL and the game's player ledger: how value lands, how you authoritatively credit the right player, and how you reconcile without double-crediting. Four facts dominate the design. (1) Checks are PULL/deferred payments: a CheckCreate writes a Check ledger object that authorizes the Destination to pull up to SendMax later via CheckCash — funds are NOT set aside at creation (a Check is not an Escrow), so the sender must hold the funds at cash time or CheckCash fails (recipient may retry until Expiration). The Checks amendment has been live on mainnet since 2018 — battle-tested. (2) The authoritative result of a payment is NEVER the Amount field: read metadata.delivered_amount (aka DeliverMax in API v2), and the final TransactionResult from a VALIDATED ledger. delivered_amount is generated on-demand and is NOT in the binary metadata nor the metadata hash — it exists precisely so backends stop trusting Amount on partial payments. (3) Idempotency is structural, not bolt-on: an XRPL account sequence number means a given (account, sequence) signed blob can be applied at most once; combine a pinned LastLedgerSequence with persisting the tx hash + signed tx_blob BEFORE submission, and your credit key is the validated tx hash. tec-class results are INCLUDED in ledgers and burn the fee but do nothing else — they are final failures you must record, not retry as-is; ter/terQUEUED are retryable, tef/tem never made it in. (4) NET-NEW for 2026: the Credentials amendment (XLS-70) went live on mainnet 2025-09-04, extending Deposit Authorization with credential-based preauthorization (AuthorizeCredentials + a CredentialIDs field on Payment/EscrowFinish/PaymentChannelClaim). For a custodial/exchange-style game backend this changes the incoming-payment gate: you can now require KYC-style credentials on deposits without per-sender DepositPreauth objects. DepositAuth blocks direct Payments from strangers but pull-based delivery the receiver initiates (CheckCash, EscrowFinish-as-destination, PaymentChannelClaim, OfferCreate) still works — design custodial inflows around either a DestinationTag-required hot wallet or a credential-gated DepositAuth wallet. Reserve accounting is real money: every payment object the studio holds (Check, Escrow, PayChannel, DepositPreauth, trustline, offer) costs 0.2 XRP owner reserve on top of the 1 XRP base; a backend minting thousands of Checks/Escrows must budget reserve and reclaim it by cashing/cancelling/closing.",
+    "capabilities": [
+     {
+      "name": "Checks (CheckCreate / CheckCash / CheckCancel) — deferred pull payments",
+      "slug": "checks-deferred-pull-payment",
+      "kind": "transaction",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "Checks",
+      "enabled_date": "2018-04",
+      "maturity_tier": "battle-tested",
+      "status": "stable",
+      "builder_fit": 4,
+      "summary": "A Check is an authorization to PULL funds, not a transfer and not an escrow. CheckCreate writes a Check ledger object naming the Destination, a SendMax (the cap, in XRP or an issued token), and optional Expiration / DestinationTag / InvoiceID. Crucially, NO funds are set aside at creation — money only moves when the recipient submits CheckCash, and only if the sender still holds the funds and a viable path/trustline exists at cash time (otherwise CheckCash fails and the recipient can retry until Expiration). The recipient cashes with either Amount (exact) or DeliverMin (flexible: deliver at least this, up to SendMax) — never both. This makes Checks the right primitive for studio->player payouts where the player should claim on their own schedule (e.g. battle-pass rewards, tournament prizes) and for sending into a DepositAuth-protected wallet, since CheckCash is receiver-initiated and bypasses the deposit-auth block. CheckCancel removes the object: sender or recipient may cancel before Expiration, anyone may cancel after. Each Check costs the sender 0.2 XRP owner reserve until cashed or cancelled.",
+      "key_fields": "CheckCreate: Destination, SendMax, DestinationTag, Expiration, InvoiceID. CheckCash: CheckID (64-char hex of the Check object), and exactly one of Amount or DeliverMin. CheckCancel: CheckID. Ledger object: Check (LedgerEntryType). tec errors: tecNO_ENTRY (no such check), tecNO_PERMISSION (cashing account is not the Destination), tecEXPIRED (past Expiration), tecPATH_PARTIAL / tecUNFUNDED (sender lacks funds at cash time), tecDST_TAG_NEEDED.",
+      "gotchas": "Funds are NOT locked — a Check can be unfundable at cash time even though CheckCreate succeeded; never treat CheckCreate success as a guaranteed payout. Don't confuse Check with Escrow (Escrow locks funds and reserves them; Check does not). SendMax is a ceiling, not the delivered amount — for token checks always reconcile against delivered_amount from CheckCash metadata, not SendMax. Expiration is set by the SENDER at create time; after it passes the Check is dead weight occupying reserve until someone cancels it. A flexible (DeliverMin) cash can deliver less than SendMax if liquidity is thin — credit the actual delivered_amount. The 0.2 XRP per outstanding Check adds up for a backend issuing many; sweep expired/uncashed checks with CheckCancel to reclaim reserve.",
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Player-claims-their-own reward / prize payout on the player's schedule",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Sending value into a DepositAuth-protected custodial wallet (receiver-pull bypasses the block)",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Invoice-style billing where amount may flex between create and cash",
+        "track": "payments",
+        "fitness": 3
+       },
+       {
+        "purpose": "High-frequency micro-payouts (reserve + two-tx round trip make this heavy)",
+        "track": "payments",
+        "fitness": 1
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Checks - Deferred Payments | XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/payment-types/checks",
+        "claim": "Checks are deferred payments; funds aren't set aside at creation, money moves only on cash; sender/recipient cancel before expiry, anyone after; CheckCash bypasses DepositAuth as a receiver-initiated transaction."
+       },
+       {
+        "kind": "docs",
+        "title": "CheckCash | XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/checkcash",
+        "claim": "CheckCash requires CheckID plus exactly one of Amount (exact) or DeliverMin (flexible, at least X up to SendMax); fails with tecNO_PERMISSION, tecNO_ENTRY, tecEXPIRED, tecDST_TAG_NEEDED."
+       }
+      ]
+     },
+     {
+      "name": "delivered_amount (DeliverMax) — authoritative credited amount",
+      "slug": "delivered-amount-authoritative-credit",
+      "kind": "concept",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "stable",
+      "builder_fit": 5,
+      "summary": "The single most important backend-safety field. A Payment (and CheckCash) can deliver LESS than its Amount — partial payments and flexible cashes are legitimate — so crediting a player from the Amount field is the canonical way to get robbed. The transaction metadata exposes delivered_amount (surfaced as DeliverMax in clio/rippled API v2), the exact currency actually received by the destination. Read it ONLY from a validated ledger result. It is generated on-demand for the API response and is deliberately NOT part of the binary metadata or the metadata hash, so you must request it from rippled/Clio rather than expect it in raw ledger data. For partial payments validated before 2014-01-20 it returns the string 'unavailable' and you must parse AffectedNodes balance deltas instead — not a concern for new payments but worth knowing if you ingest deep history. Rule: every player credit = delivered_amount from a validated, tesSUCCESS transaction, keyed by tx hash.",
+      "key_fields": "metadata.delivered_amount (string drops for XRP / object {currency,issuer,value} for tokens); aka DeliverMax in API v2. Returns 'unavailable' only for pre-2014-01-20 partial payments. Always pair with TransactionResult == tesSUCCESS and validated == true.",
+      "gotchas": "NEVER credit from Amount — that is the amount the sender was WILLING to send, not what arrived. delivered_amount only exists for successful Payment/CheckCash; for tec failures nothing was delivered (credit zero, record the failure). It is request-time-generated: don't expect it inside binary tx blobs, NFT metadata, or hashes. The legacy 'unavailable' sentinel forces an AffectedNodes fallback for ancient partials. Token amounts are objects, not numbers — compare on (currency, issuer, value), and beware issuer transfer fees already being reflected in delivered_amount.",
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Determining how much to credit a player's in-game balance from any incoming payment",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Defending against partial-payment exploits on a deposit address",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Reconciling token deposits net of issuer transfer fees",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Partial Payments | XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/payment-types/partial-payments",
+        "claim": "When processing any Payment use the delivered_amount metadata field, not the Amount field, to see how much actually reached the destination."
+       },
+       {
+        "kind": "docs",
+        "title": "Transaction Metadata | XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/metadata",
+        "claim": "delivered_amount is generated on-demand, is not in the binary metadata nor the metadata hash, and returns 'unavailable' only for partial payments validated before 2014-01-20."
+       }
+      ]
+     },
+     {
+      "name": "Reconciliation via transaction metadata (AffectedNodes + result codes)",
+      "slug": "metadata-reconciliation-affectednodes",
+      "kind": "pattern",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "stable",
+      "builder_fit": 4,
+      "summary": "Authoritative reconciliation reads the full metadata of a VALIDATED transaction, not just the top-line result. TransactionResult is the verdict; AffectedNodes is the audit trail of exactly which ledger entries changed (CreatedNode with NewFields, ModifiedNode and DeletedNode each with FinalFields + PreviousFields). For a deposit this lets you prove the destination's balance node moved and by how much (the ground truth behind delivered_amount), confirm a Check object was created/deleted, or detect that a trustline was touched. The changes are FINAL only when the transaction is in a validated ledger version — query rippled directly (the tx method with validated:true) for authoritative results; third-party data APIs and exported DBs are explicitly non-authoritative. TransactionIndex gives the deterministic position within the ledger for ordering. Backends should snapshot AffectedNodes balance deltas as the immutable receipt behind each player credit.",
+      "key_fields": "metadata.TransactionResult; metadata.AffectedNodes[] -> CreatedNode (LedgerEntryType, LedgerIndex, NewFields) / ModifiedNode (FinalFields, PreviousFields) / DeletedNode (FinalFields, PreviousFields); metadata.TransactionIndex (zero-indexed position in ledger); response fields ledger_index, ledger_hash, validated, close_time_iso.",
+      "gotchas": "Metadata is final ONLY in a validated ledger — never reconcile off a proposed/current-ledger result. LedgerIndex inside AffectedNodes is a state-tree key (object ID), NOT a ledger sequence number — don't confuse it with ledger_index. Read balance deltas from RippleState/AccountRoot ModifiedNodes (FinalFields minus PreviousFields) when you need ground truth beyond delivered_amount. Querying a third-party explorer for the 'result' is non-authoritative; go to rippled/Clio. A tec result still produces AffectedNodes (the fee burn) — don't mistake fee-only changes for a delivery.",
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Immutable per-credit receipt / audit trail for the studio ledger",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Ground-truth balance-delta verification beyond delivered_amount",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Detecting object lifecycle (Check/Escrow created or deleted) for state machines",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Transaction Metadata | XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/metadata",
+        "claim": "AffectedNodes lists CreatedNode/ModifiedNode/DeletedNode with NewFields, FinalFields and PreviousFields; changes are final only when the transaction is in a validated ledger; TransactionIndex is the zero-indexed position in the ledger."
+       },
+       {
+        "kind": "docs",
+        "title": "Look Up Transaction Results | XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/transactions/finality-of-results/look-up-transaction-results",
+        "claim": "Querying rippled directly gives the most authoritative results; other data APIs and exported databases are non-authoritative."
+       }
+      ]
+     },
+     {
+      "name": "Idempotent submission: sequence + LastLedgerSequence + persisted hash",
+      "slug": "idempotent-reliable-submission",
+      "kind": "pattern",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "stable",
+      "builder_fit": 5,
+      "summary": "XRPL gives you exactly-once semantics for free IF you use the account sequence number correctly. Each account has a strictly increasing Sequence; a transaction with a given (account, sequence) can be applied at most once, so a signed blob can never double-spend even if you submit it ten times. The reliable pattern: (1) fetch current sequence from account_info with ledger_index:validated; (2) set LastLedgerSequence to last-validated + 4 so the tx provably dies if not included by then; (3) persist the tx hash, sequence, LastLedgerSequence, sender, and signed tx_blob BEFORE submitting; (4) submit; (5) confirm by hash via the tx method, accepting only validated:true. If the result is txnNotFound AFTER LastLedgerSequence has passed, the tx is permanently gone — safe to re-sign with the SAME sequence, a fresh LastLedgerSequence, and possibly a higher Fee. The persisted tx hash is also your reconciliation key: credit a player once per validated hash and you can replay your whole pipeline without double-crediting.",
+      "key_fields": "Sequence (per-account, from account_info ledger_index:validated); LastLedgerSequence (set to last-validated + 4); persisted: tx hash, tx_blob, Sequence, LastLedgerSequence, sender, validated-ledger index; verify via tx method requiring validated:true; result classes tes/tec/ter/tef/tem.",
+      "gotchas": "Result classes decide retry policy: tesSUCCESS = done; tec-class = INCLUDED in a ledger, burned the fee, did nothing else — FINAL failure, record it, do NOT resubmit the same blob (the sequence is consumed); terQUEUED / ter-class = temporary, may apply later, watch it; tef/tem = never entered a ledger, safe to fix and resend. Resubmitting after LastLedgerSequence passes must reuse the SAME sequence or you risk a gap that stalls later txs. A consumed sequence with a tec result means the NEXT payout uses sequence+1 — track this server-side or use Tickets for out-of-order submission. Never key idempotency on your own internal id alone; key on the validated tx hash. Fee escalation: under load a too-low Fee yields terQUEUED or drops — bump Fee on resubmit.",
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Exactly-once player crediting / payout without double-spend across retries",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Crash-safe payout pipeline that can replay from persisted state",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Distinguishing retryable (ter) from final (tec) failures in a payout queue",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Reliable Transaction Submission | XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/transactions/reliable-transaction-submission",
+        "claim": "Persist tx hash, LastLedgerSequence, sequence and signed tx_blob before submitting; use last-validated+4 for LastLedgerSequence; correct sequence numbers make a transaction processable at most once; on txnNotFound past LastLedgerSequence, resubmit with same sequence and new LastLedgerSequence."
+       },
+       {
+        "kind": "docs",
+        "title": "Transaction Results | XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/transaction-results",
+        "claim": "tec-class results are included in ledgers and destroy the transaction cost but do nothing else; ter/tef/tem classes differ in retryability."
+       }
+      ]
+     },
+     {
+      "name": "Destination tags & InvoiceID for custodial sub-account crediting",
+      "slug": "destination-tags-invoiceid-crediting",
+      "kind": "pattern",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "stable",
+      "builder_fit": 5,
+      "summary": "The standard custodial/exchange pattern for a single shared hot wallet serving many players. A DestinationTag is a 32-bit unsigned integer carried on a Payment that tells your OFF-LEDGER system which player sub-account to credit — it has no on-ledger effect, it is pure routing metadata. You assign each player a tag, publish 'send to <address> with tag <N>', and on each validated incoming payment you look up the tag -> player and credit delivered_amount. Enable the account flag asfRequireDest (lsfRequireDestTag) so payments WITHOUT a tag are rejected (tecDST_TAG_NEEDED) — this prevents the classic 'untagged deposit, which player?' support nightmare. SourceTag identifies the origin for refunds/bounces. X-addresses bundle classic address + tag into one copy-paste-safe string (the tag acts as destination tag on receive, source tag on send), eliminating the #1 cause of lost deposits. InvoiceID is a separate optional 256-bit hash field you can stamp on a specific Payment/Check to tie it to one order/quest invoice for exact-match reconciliation.",
+      "key_fields": "DestinationTag (32-bit uint, off-ledger routing); SourceTag (32-bit uint, return/bounce routing); account flag asfRequireDest / lsfRequireDestTag (reject untagged -> tecDST_TAG_NEEDED); X-address (address+tag, single string); InvoiceID (256-bit hex hash on Payment/CheckCreate for order matching).",
+      "gotchas": "Tags have NO on-ledger functionality — they only matter to your backend, so your tag->player map is load-bearing and must be backed up. Without asfRequireDest, players WILL send untagged deposits and you'll have unattributable funds; turn it on for any shared custodial wallet. A 32-bit tag space is large but design your allocation (don't reuse tags across churned players without a mapping history). X-addresses are the safer UX but some senders/wallets still only accept classic address + separate tag — support both. InvoiceID is a fixed 256-bit value the SENDER sets; you can't rely on arbitrary senders to set it correctly, so use it for flows you control (your own payouts, signed orders), and use DestinationTag for inbound player deposits.",
+      "tracks": [
+       "payments",
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Crediting the right player from a shared custodial hot wallet",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Forcing attributable deposits via require-destination-tag",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Exact order/quest reconciliation via InvoiceID on studio-controlled payouts",
+        "track": "payments",
+        "fitness": 3
+       },
+       {
+        "purpose": "Copy-paste-safe deposit UX via X-addresses",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Source and Destination Tags | XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/transactions/source-and-destination-tags",
+        "claim": "A 32-bit destination tag indicates which customer an exchange/issuer should credit; tags have no direct on-ledger functionality; RequireDest rejects payments lacking a tag; X-addresses bundle address and tag where the tag is destination tag on receive and source tag on send."
+       },
+       {
+        "kind": "docs",
+        "title": "CheckCreate / Payment InvoiceID | XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/payment",
+        "claim": "InvoiceID is an optional 256-bit hash field used as an arbitrary reference to identify the reason for a payment or an off-ledger invoice."
+       }
+      ]
+     },
+     {
+      "name": "Real-time inflow detection: subscribe streams vs account_tx polling",
+      "slug": "subscribe-streams-account-tx-webhooks",
+      "kind": "service",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "stable",
+      "builder_fit": 5,
+      "summary": "Two complementary mechanisms feed the backend. (1) The subscribe WebSocket method with an accounts:[<hot wallet>] argument pushes a 'transaction' message every time a validated transaction affects that account — this is your real-time deposit webhook. Each message carries validated:true, ledger_index, ledger_hash, close_time_iso, and the meta object, so you can credit immediately on a validated event. The 'transactions' stream is the firehose of all validated txs; 'transactions_proposed' adds unconfirmed in-flight txs (validated false/absent, no meta, only ledger_current_index) — useful for UX previews but NEVER for crediting. (2) account_tx is the polling/history method: paginate the full transaction history of an account by ledger range, the authoritative way to backfill after downtime or audit gaps. Production pattern: subscribe for low-latency live crediting + account_tx sweep on a timer (and after every reconnect) to catch anything missed during a WebSocket gap. Only ever credit on validated transactions.",
+      "key_fields": "subscribe: streams (transactions, transactions_proposed, ledger), accounts:[address]; message fields validated, ledger_index, ledger_hash, meta, close_time_iso; proposed-only: ledger_current_index, validated absent/false; account_tx: account, ledger_index_min/max, marker (pagination), forward.",
+      "gotchas": "transactions_proposed and proposed-stream messages are NOT final (validated false/absent, no meta) — crediting on them is a double-spend/rollback hazard; always wait for validated. WebSocket connections drop — on reconnect you MUST account_tx-sweep the gap or you'll miss deposits silently; subscribe is not a durable queue. The accounts subscription fires on ANY affecting transaction (outgoing, trustline, offer), not just incoming payments — filter on transaction type + that your wallet is the Destination. Run your own rippled/Clio or use a reputable provider; public clusters rate-limit and may lag. account_tx is paginated via marker — handle the cursor or you'll truncate history.",
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Low-latency live deposit detection / webhook-style crediting",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Gap-recovery and audit backfill after downtime via account_tx",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "UX 'payment pending' preview from proposed stream (never credit)",
+        "track": "payments",
+        "fitness": 2
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "subscribe | XRPL.org",
+        "url": "https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/subscription-methods/subscribe",
+        "claim": "subscribe with an accounts array sends transaction messages whenever a transaction affects monitored accounts; the transactions_proposed stream includes unconfirmed in-flight transactions identifiable by validated missing/false and a ledger_current_index instead of meta."
+       },
+       {
+        "kind": "docs",
+        "title": "account_tx | XRPL.org",
+        "url": "https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/account-methods/account_tx",
+        "claim": "account_tx returns a paginated list of transactions affecting an account over a ledger range, the history/polling alternative to live subscription."
+       }
+      ]
+     },
+     {
+      "name": "Deposit Authorization gate (DepositAuth + credential-based XLS-70)",
+      "slug": "deposit-authorization-gate",
+      "kind": "concept",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "XLS-70",
+      "amendment_name": "Credentials",
+      "enabled_date": "2025-09-04",
+      "maturity_tier": "established",
+      "status": "stable",
+      "builder_fit": 3,
+      "summary": "A compliance-oriented inbound gate for a custodial wallet. Setting the asfDepositAuth account flag (lsfDepositAuth) blocks ALL incoming direct Payments — XRP and tokens — from senders who are not pre-approved; the account can then only receive value it pulls itself. Two pre-approval paths: (a) classic DepositPreauth transactions (Authorize / Unauthorize a specific sender address), each creating a DepositPreauth object that costs 0.2 XRP owner reserve; (b) NET-NEW for 2026 — the Credentials amendment (XLS-70, mainnet 2025-09-04) extends DepositAuth with credential-based preauthorization: authorize a CREDENTIAL TYPE from a trusted issuer via AuthorizeCredentials, and any sender presenting a matching credential in the CredentialIDs field (now accepted on Payment, EscrowFinish, PaymentChannelClaim, AccountDelete) may deposit — KYC/AML-aware deposits without enumerating every sender. Critically for game backends: pull-based delivery the RECEIVER initiates always bypasses DepositAuth — CheckCash, EscrowFinish where you are the destination, PaymentChannelClaim, and OfferCreate still work. So a DepositAuth wallet can take deposits via Checks/Escrows/Channels even while blocking random Payments.",
+      "key_fields": "Account flag asfDepositAuth (SetFlag value 9 / lsfDepositAuth, check Flags & 0x01000000); DepositPreauth tx fields Authorize / Unauthorize (-> DepositPreauth ledger object, 0.2 XRP reserve); XLS-70 AuthorizeCredentials / UnauthorizeCredentials; CredentialIDs field on Payment/EscrowFinish/PaymentChannelClaim/AccountDelete; bypassed by CheckCash, EscrowFinish (as destination), PaymentChannelClaim, OfferCreate.",
+      "gotchas": "DepositAuth blocks tokens too, not just XRP — turning it on can silently break expected inbound flows; whitelist before you flip it. Each per-sender DepositPreauth object costs 0.2 XRP reserve, so address-by-address preauth scales poorly — credential-based (XLS-70) is the answer for many senders. There's an exception: an account below its reserve can still receive up to a small amount of XRP to bootstrap. Credentials require a trusted ISSUER you've authorized and have their own expiration/validity — design issuer trust + revocation. This is heavier than DestinationTag-required for most game deposit flows; reach for it only when you need a compliance/whitelist gate, not for routine player deposits.",
+      "tracks": [
+       "payments",
+       "identity-compliance"
+      ],
+      "best_for": [
+       {
+        "purpose": "Compliance-gated custodial deposit wallet (KYC/whitelist) via credentials",
+        "track": "identity-compliance",
+        "fitness": 5
+       },
+       {
+        "purpose": "Blocking unsolicited/dust payments to a treasury wallet",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Accepting deposits via Checks/Escrows while blocking random Payments",
+        "track": "payments",
+        "fitness": 3
+       },
+       {
+        "purpose": "Routine high-volume player deposits (DestinationTag-required is simpler)",
+        "track": "payments",
+        "fitness": 1
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Deposit Authorization | XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/accounts/depositauth",
+        "claim": "asfDepositAuth blocks all transfers from strangers including XRP and tokens; preauthorized senders or receiver-initiated CheckCash/EscrowFinish/PaymentChannelClaim/OfferCreate still deliver; DepositPreauth Authorize/Unauthorize creates an object that increases owner reserve."
+       },
+       {
+        "kind": "github",
+        "title": "XLS-0070 Credentials — XRPLF/XRPL-Standards",
+        "url": "https://github.com/XRPLF/XRPL-Standards/tree/master/XLS-0070-credentials",
+        "claim": "XLS-70 Credentials (mainnet 2025-09-04) extends DepositPreauth with credential-based preauthorization (AuthorizeCredentials) and adds a CredentialIDs field to Payment, EscrowFinish, PaymentChannelClaim and AccountDelete so senders present credentials to destinations enforcing compliance checks."
+       }
+      ]
+     },
+     {
+      "name": "Owner reserve accounting for payment objects (Checks/Escrows/Channels/Preauth)",
+      "slug": "owner-reserve-payment-objects",
+      "kind": "concept",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "stable",
+      "builder_fit": 3,
+      "summary": "Every payment-related ledger object the studio's accounts OWN is collateralized by locked XRP it cannot spend until the object is removed. Current mainnet reserves: 1 XRP base reserve per account plus 0.2 XRP owner reserve per owned object. Each outstanding Check, Escrow, PayChannel, DepositPreauth, Offer, trustline, ticket, and signer list increments the owner reserve by 0.2 XRP. This is the hidden cost of a backend that mints many payment objects: a payout system holding 5,000 uncashed Checks has 1,000 XRP locked in reserve; an escrow-heavy quest system locks 0.2 XRP per outstanding escrow. Reserve is RECLAIMED when the object leaves the ledger — cashing/cancelling a Check, finishing/cancelling an Escrow, closing a Channel, removing a trustline. Budget reserve as working capital and run sweepers (CheckCancel on expired checks, EscrowCancel on lapsed escrows) to recover it. Reserve amounts are set by fee voting and can change; verify current values via server_info / server_state at runtime rather than hardcoding.",
+      "key_fields": "Base reserve ~1 XRP/account; owner reserve ~0.2 XRP per owned object (Check, Escrow, PayChannel, DepositPreauth, Offer, trustline, ticket, signer list). Read live values from server_info / server_state (reserve_base_xrp, reserve_inc_xrp). NFTs reserve per-page (up to 32 NFTs) not per-token. Some objects (e.g. larger Oracles) count as more than one increment.",
+      "gotchas": "Reserve is LOCKED, not spent — it reappears when the object is deleted, but until then it's unspendable, which can starve a hot wallet that's also paying network fees. Hardcoding 0.2/1 XRP is a future bug: reserves are governance-adjustable; fetch reserve_base_xrp and reserve_inc_xrp from server_state. A backend that creates Checks/Escrows faster than it cashes/cancels them will hit account-funding errors (tecINSUFFICIENT_RESERVE) — pre-fund and sweep. Trustlines also reserve (the holder owes it), so a wallet holding many in-game tokens carries reserve too. Don't forget DepositPreauth objects count — per-sender whitelisting has a reserve cost that credential-based auth avoids.",
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Capital-budgeting a backend that mints many Checks/Escrows/Channels",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Sizing a hot wallet so reserve doesn't starve fee payment",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Designing sweepers to reclaim reserve from expired payment objects",
+        "track": "payments",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Reserves | XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/accounts/reserves",
+        "claim": "Mainnet base reserve is 1 XRP and the owner reserve is 0.2 XRP per owned object; Checks, Escrows, Payment Channels, Deposit Preauthorizations, Offers, trust lines, tickets and signer lists each count toward the owner reserve; NFTs reserve per page of up to 32."
+       },
+       {
+        "kind": "docs",
+        "title": "server_state / server_info reserve fields | XRPL.org",
+        "url": "https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/server-info-methods/server_state",
+        "claim": "Current reserve_base_xrp and reserve_inc_xrp are reported by the server and set by fee voting, so they should be read at runtime rather than hardcoded."
+       }
+      ]
+     }
+    ]
+   },
+   "cloud_verify": {
+    "model": "deepseek-v3.1:671b",
+    "verdicts": [
+     {
+      "capability": "Checks (CheckCreate / CheckCash / CheckCancel) — deferred pull payments",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "Checks amendment is enabled on XRPL mainnet and functions as described for deferred pull payments."
+     },
+     {
+      "capability": "delivered_amount (DeliverMax) — authoritative credited amount",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "delivered_amount metadata field is the authoritative source for actual payment amounts received, as documented."
+     },
+     {
+      "capability": "Reconciliation via transaction metadata (AffectedNodes + result codes)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "Transaction metadata with AffectedNodes provides authoritative reconciliation data for validated transactions."
+     },
+     {
+      "capability": "Idempotent submission: sequence + LastLedgerSequence + persisted hash",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "Standard idempotent transaction submission pattern using sequence numbers and LastLedgerSequence is correct."
+     },
+     {
+      "capability": "Destination tags & InvoiceID for custodial sub-account crediting",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "Destination tags and InvoiceID function as described for custodial account management and payment referencing."
+     },
+     {
+      "capability": "Real-time inflow detection: subscribe streams vs account_tx polling",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "Both subscription streams and account_tx polling are valid methods for transaction monitoring on mainnet."
+     },
+     {
+      "capability": "Deposit Authorization gate (DepositAuth + credential-based XLS-70)",
+      "overall": "refuted",
+      "network_status_check": "XLS-70 Credentials not mainnet-live (proposed/development)",
+      "currency": "stale",
+      "fixes": "XLS-70 Credentials amendment is not enabled on XRPL mainnet as of mid-2026, only basic DepositAuth exists",
+      "note": "Claim incorrectly states XLS-70 Credentials is mainnet-live when it remains proposed/development status."
+     },
+     {
+      "capability": "Owner reserve accounting for payment objects (Checks/Escrows/Channels/Preauth)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "Owner reserve accounting for payment objects is accurate and should be read dynamically from server state."
+     }
+    ]
+   }
+  },
+  {
+   "slug": "payments-advanced",
+   "name": "Advanced payments",
+   "research": {
+    "domain": "Cross-currency settlement & payment safety (depth)",
+    "notes": "Mid-2026 depth synthesis for an XRPL-payments game studio. The load-bearing safety fact: on a backend you must NEVER credit a player based on the transaction's Amount/DeliverMax field — that field is the SENDER's maximum, not what arrived. Always read the delivered_amount metadata field instead. This is the single most exploited integration bug on XRPL (the 'partial payment exploit'): an attacker sends a large Amount with tfPartialPayment set, the tx succeeds delivering near-zero, and a naive exchange/game credits the full Amount. rippled API v2 (shipped in 2.0.0, Jan 2024; v2 is the modern default — Amount was renamed to DeliverMax in tx JSON, with Amount kept only as a v1 alias) renamed the field precisely to stop developers from trusting it. As of rippled 3.x (3.0.0 Dec 2025, 3.1.0 Jan 2026) the delivered_amount metadata field and the Amount->DeliverMax rename are the canonical, current behavior. Cross-currency settlement is the studio's superpower: a single Payment can send treasury currency A and deliver player-preferred currency B atomically, with the ledger consuming DEX Offers and AMM pools along discovered Paths, auto-bridging through XRP whenever that is cheaper. The safety envelope is built from four fields working together — DeliverMax (ceiling on delivery), SendMax (ceiling on cost incl. fees/slippage), DeliverMin (floor on a partial delivery), and tfLimitQuality (reject any path step worse than the Amount:SendMax exchange ratio). Pathfinding (ripple_path_find one-shot / path_find streaming) is advisory only — never trust paths from an untrusted server, and prefer omitting Paths on simple direct payouts so a malicious indirect route can't be forced. Everything here is mainnet-live, native protocol behavior (no amendment gating except where noted).",
+    "capabilities": [
+     {
+      "name": "Cross-currency Payment (send A, deliver B atomically)",
+      "slug": "cross-currency-payment",
+      "kind": "transaction",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "live",
+      "builder_fit": 5,
+      "summary": "A single Payment transaction where the source currency (SendMax) differs from the delivered currency (DeliverMax/Amount). The ledger consumes Offers in the DEX and AMM pools along a Path to convert A->B, fully atomically: the whole conversion executes or nothing does (no partial state, no stuck mid-conversion). This is the core primitive for paying a player in their preferred token directly out of a single treasury currency. At least one currency in the pair must be a non-XRP token (XRP-to-XRP is a same-currency direct send, not cross-currency); a Path between source and destination must exist with enough liquidity.",
+      "key_fields": "Account (source), Destination, DeliverMax/Amount (currency+issuer+value to deliver — the delivery ceiling), SendMax (currency+issuer+value the tx may cost incl. transfer fees/exchange rates/slippage), Paths (PathSet of conversion routes; auto-fillable, must be omitted for XRP-to-XRP), DestinationTag (route credit to the right player/account).",
+      "gotchas": "Atomic does NOT mean exact-delivery unless you control the fields: without tfPartialPayment a cross-currency Payment that can't deliver the full DeliverMax within SendMax fails with tecPATH_PARTIAL (insufficient liquidity/quality) or tecPATH_DRY (no usable path). Liquidity moves between submit and validation, so a quote can go stale. Set SendMax explicitly — if you omit it the tx defaults SendMax to the delivered amount in the SOURCE currency, which for a true cross-currency send is almost never what you want and will usually fail. A non-XRP DeliverMax/SendMax requires the issuer field.",
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Pay a player in their preferred token out of one treasury currency",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Atomic in-game currency swap at settlement time",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Cross-border / multi-stablecoin payout",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Cross-Currency Payments — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/payment-types/cross-currency-payments",
+        "claim": "Cross-currency payments deliver one currency while sending another, are fully atomic, consume Offers in the DEX, and require at least one Path between sender and receiver."
+       },
+       {
+        "kind": "docs",
+        "title": "Payment transaction reference — xrpl.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/payment",
+        "claim": "SendMax is the highest amount of source currency the tx may cost including transfer fees, exchange rates, and slippage; DeliverMax is the maximum amount to deliver."
+       }
+      ]
+     },
+     {
+      "name": "delivered_amount safety rule (never trust Amount on a backend)",
+      "slug": "delivered-amount-rule",
+      "kind": "pattern",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "live",
+      "builder_fit": 5,
+      "summary": "The non-negotiable integration rule for crediting funds: when processing ANY incoming Payment, read the delivered_amount field from the transaction METADATA — not the Amount/DeliverMax field from the transaction body. delivered_amount is the amount that actually arrived; Amount/DeliverMax is only the sender's stated maximum and can be wildly larger than what was delivered when tfPartialPayment is set. A game backend that credits players from on-chain deposits must gate on delivered_amount or it is exploitable. This rule is current and canonical through rippled 3.x.",
+      "key_fields": "delivered_amount (metadata field; same Currency Amount format as DeliverMax; the actual amount delivered). Special value: the literal string \"unavailable\" for some partial payments validated before 2014-01-20 — in that rare legacy case derive the real amount from metadata AffectedNodes. Also confirm the tx result is tesSUCCESS and validated:true before crediting.",
+      "gotchas": "This is the #1 XRPL integration bug. Reading Amount instead of delivered_amount is exactly the partial-payment exploit (see capability below). delivered_amount only appears in metadata of VALIDATED transactions — do not act on unvalidated/tentative results. For XRP, delivered_amount is drops (string); for tokens it is an object {currency, issuer, value}. The API v2 rename of Amount->DeliverMax was done specifically to push developers off the wrong field; it does not change this rule — you still read delivered_amount, never DeliverMax, for crediting.",
+      "tracks": [
+       "payments",
+       "security"
+      ],
+      "best_for": [
+       {
+        "purpose": "Credit a player only for funds that actually arrived",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Harden a deposit/webhook listener against partial-payment abuse",
+        "track": "security",
+        "fitness": 5
+       },
+       {
+        "purpose": "Reconcile treasury inflows against ledger truth",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Partial Payments — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/payment-types/partial-payments",
+        "claim": "When processing any Payment, use the delivered_amount metadata field, not the Amount field; delivered_amount is the amount a payment actually delivered, and is 'unavailable' only for partial payments validated before 2014-01-20."
+       },
+       {
+        "kind": "docs",
+        "title": "Transaction Metadata — xrpl.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/metadata",
+        "claim": "delivered_amount is a metadata field reporting the actual amount delivered by a Payment."
+       }
+      ]
+     },
+     {
+      "name": "tfPartialPayment & the partial-payment exploit",
+      "slug": "partial-payment-exploit",
+      "kind": "concept",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "live",
+      "builder_fit": 5,
+      "summary": "tfPartialPayment (flag 0x00020000) lets a Payment succeed by delivering LESS than DeliverMax rather than failing when full delivery would exceed SendMax. Useful for legitimately clearing the maximum deliverable given available liquidity — but it is the mechanism behind the exploit: an attacker sends a Payment with a huge DeliverMax, tfPartialPayment set, and minimal real delivery; the tx returns tesSUCCESS while delivering near-zero. Any system that credits from DeliverMax/Amount gets robbed. The defense is the delivered_amount rule plus DeliverMin. Understanding both sides (when to send partial vs how to never be fooled by one) is core for a payments studio.",
+      "key_fields": "tfPartialPayment (0x00020000 / 131072). When set, delivery is reduced instead of the tx failing. Constraint: DeliverMin <= delivered <= DeliverMax, and total source spent <= SendMax. XRP-to-XRP partial payments are forbidden (temBAD_SEND_XRP_PARTIAL). delivered_amount in metadata reveals the true amount.",
+      "gotchas": "Two failure modes for the studio: (1) RECEIVING — never credit on DeliverMax; always read delivered_amount. (2) SENDING — only set tfPartialPayment when you genuinely accept under-delivery (e.g. returning funds / sweeping dust); for a normal payout you want full-or-fail, so leave it OFF and let the tx fail rather than silently deliver less. A successful tx result code (tesSUCCESS) says nothing about how much was delivered when this flag is in play. Do not pair tfPartialPayment with a fixed SendMax expecting exact delivery — that's the whole point of the flag being dangerous.",
+      "tracks": [
+       "payments",
+       "security"
+      ],
+      "best_for": [
+       {
+        "purpose": "Defend a deposit listener against fake-large deposits",
+        "track": "security",
+        "fitness": 5
+       },
+       {
+        "purpose": "Deliberately deliver max-available when liquidity is thin (dust sweep, refunds)",
+        "track": "payments",
+        "fitness": 3
+       },
+       {
+        "purpose": "Decide full-or-fail vs partial semantics per payout type",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Partial Payments — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/payment-types/partial-payments",
+        "claim": "tfPartialPayment reduces the received amount instead of failing; partial payments can be used to exploit integrations that assume the Amount field always describes the exact amount delivered; XRP-to-XRP partial payments return temBAD_SEND_XRP_PARTIAL."
+       },
+       {
+        "kind": "github",
+        "title": "Partial Payments Exploit and API response saying Amount is misleading developers — XRPLF/rippled #3902",
+        "url": "https://github.com/XRPLF/rippled/issues/3902",
+        "claim": "The Amount field returned for a successful partial payment misleads developers into crediting the full stated amount, enabling the partial-payment exploit."
+       }
+      ]
+     },
+     {
+      "name": "Amount -> DeliverMax rename (rippled API v2)",
+      "slug": "amount-delivermax-rename",
+      "kind": "concept",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "2024-01-09",
+      "maturity_tier": "stable",
+      "status": "live",
+      "builder_fit": 4,
+      "summary": "In rippled API v2 (introduced with rippled 2.0.0, Jan 2024 — and the modern default api_version for new integrations) the Payment field formerly called Amount is exposed as DeliverMax in transaction JSON, with Amount retained only as a v1 alias. The rename is purely semantic clarity: 'DeliverMax' makes obvious that the value is a delivery CEILING, not the delivered amount, steering developers away from the partial-payment trap. When submitting, you supply either Amount or DeliverMax (never both); when reading, API v1 shows Amount and API v2+ shows DeliverMax for the same underlying field.",
+      "key_fields": "DeliverMax (API v2 name for the delivery-ceiling field; alias of Amount). Amount (API v1 name; still accepted on submit, still emitted by v1 responses). Rule: specify exactly one of Amount/DeliverMax on submission. Pin api_version explicitly in client requests so the field name your parser expects is stable.",
+      "gotchas": "The rename does NOT make DeliverMax safe to credit from — it is still only the ceiling. The actual delivery is still delivered_amount in metadata. Code that handled both api_version values must branch on field name (Amount vs DeliverMax). Sending both Amount and DeliverMax in one tx is an error. Library defaults differ by version, so explicitly pin api_version (PIN_PER_STEP discipline) so a silent client upgrade doesn't flip your field names underneath you.",
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Write a version-stable Payment parser/serializer",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Audit legacy integrations for the misleading-Amount assumption",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Onboard a team to current XRPL payment field naming",
+        "track": "payments",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "github",
+        "title": "Rename Amount Field to DeliverMax — XRPLF/rippled #3484",
+        "url": "https://github.com/XRPLF/rippled/issues/3484",
+        "claim": "The Amount field was renamed to DeliverMax to prevent incorrect handling of partial payments."
+       },
+       {
+        "kind": "release-notes",
+        "title": "Introducing XRP Ledger version 2.0.0 — xrpl.org blog",
+        "url": "https://xrpl.org/blog/2024/rippled-2.0.0",
+        "claim": "rippled 2.0.0 introduced API v2, which adds a DeliverMax alias to Amount in Payment transactions and uses DeliverMax in v2 JSON output."
+       }
+      ]
+     },
+     {
+      "name": "Pathfinding (ripple_path_find / path_find)",
+      "slug": "pathfinding",
+      "kind": "concept",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "live",
+      "builder_fit": 4,
+      "summary": "Pathfinding discovers viable conversion routes for a cross-currency payment: chains of steps that ripple through accounts (same currency) or trade across order books / AMM pools (different currency). ripple_path_find does a one-time lookup of candidate path sets; path_find (WebSocket only) opens a subscription that streams updates as liquidity changes. The discovered Paths can be fed into the Payment's Paths field. The engine searches for the cheapest paths but is not guaranteed to find the absolute optimum, and paths can include up to several intermediary hops.",
+      "key_fields": "ripple_path_find params: source_account, destination_account, destination_amount (what to deliver), send_max (optional), source_currencies (optional restriction). Returns alternatives, each with paths_computed and a source_amount (cost). path_find adds streaming follow-up responses over WebSocket. The Payment.Paths field is an Array of path arrays (PathSet); each step element may carry account, currency, and/or issuer.",
+      "gotchas": "SECURITY: never trust path results from an untrusted/3rd-party rippled — a malicious server can return deliberately bad/expensive paths to profit. Use your own node or a trusted provider, and validate cost against SendMax. Paths are advisory and can go stale between lookup and submit; the ledger re-evaluates at execution. For simple direct payouts, prefer NOT specifying Paths at all (let the default path work) so an attacker-suggested indirect route can't be forced. Pathfinding is computationally heavy — don't hammer it per-frame.",
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Quote the cost to deliver player-preferred currency before sending",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Live FX quote that updates as liquidity moves (path_find stream)",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Pre-flight a treasury payout for feasibility/cost",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Paths — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/tokens/fungible-tokens/paths",
+        "claim": "Paths connect sender and receiver through order books and AMMs; ripple_path_find does a one-time lookup while path_find (WebSocket) streams follow-up responses; rippled searches for cheapest paths but may not find them, and untrustworthy instances could be modified for profit."
+       },
+       {
+        "kind": "docs",
+        "title": "ripple_path_find method — xrpl.org",
+        "url": "https://xrpl.org/ripple_path_find.html",
+        "claim": "ripple_path_find is a pathfinding RPC that finds possible path sets for a cross-currency payment; be careful with results from untrusted servers."
+       }
+      ]
+     },
+     {
+      "name": "Auto-bridging through XRP",
+      "slug": "auto-bridging",
+      "kind": "concept",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "live",
+      "builder_fit": 3,
+      "summary": "When converting one token to another, the XRPL automatically routes through XRP (A->XRP->B) whenever that two-hop route is cheaper than the direct A->B order book. This happens natively during order-book matching (on any OfferCreate / cross-currency Payment) with no flag required — XRP acts as the universal bridge asset, deepening effective liquidity between thin token pairs. For the studio it means token-to-token payouts often get a better rate than the visible direct book implies, transparently.",
+      "key_fields": "No transaction field — auto-bridging is implicit in DEX matching. It triggers only for token-to-token conversions (a pair where neither side is XRP yet XRP improves price). Observed via pathfinding output / executed Offers in metadata rather than configured. (Note: XLS-60d DefaultAutoBridge is a standards-discussion refinement of bridging defaults, NOT required for this behavior, which is already native.)",
+      "gotchas": "Auto-bridging only kicks in when it lowers cost; if the direct book is cheaper it isn't used. It applies to order-book/AMM token conversions, not to same-currency rippling. You can't force or disable it via a Payment flag. Because it interleaves XRP hops, your realized rate may differ from a naive direct-book quote — always size SendMax and read delivered_amount rather than assuming the headline pair rate. AMM pools participate in the same matching, so effective routing blends order books, AMM, and the XRP bridge.",
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Get better token-to-token payout rates without extra logic",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Explain why a cross-token quote beats the direct order book",
+        "track": "payments",
+        "fitness": 3
+       },
+       {
+        "purpose": "Reason about realized FX rate on thin token pairs",
+        "track": "payments",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Auto-Bridging — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/tokens/decentralized-exchange/autobridging",
+        "claim": "Auto-bridging automatically uses XRP as an intermediary to convert between two tokens when doing so is cheaper than the direct conversion, and happens automatically during order matching."
+       },
+       {
+        "kind": "docs",
+        "title": "Cross-Currency Payments — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/payment-types/cross-currency-payments",
+        "claim": "A USD-to-MXN payment automatically converts USD->XRP->MXN if that is cheaper than converting USD->MXN directly."
+       }
+      ]
+     },
+     {
+      "name": "DeliverMin (floor on a partial delivery)",
+      "slug": "delivermin",
+      "kind": "transaction",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "stable",
+      "status": "live",
+      "builder_fit": 4,
+      "summary": "DeliverMin sets the minimum acceptable delivered amount on a partial payment: the tx succeeds only if DeliverMin <= delivered <= DeliverMax (within SendMax), otherwise it fails. It converts tfPartialPayment from 'deliver whatever you can, even dust' into 'deliver at least X or fail' — giving a safe floor when you must allow partial delivery (e.g. liquidity may be tight) but refuse to settle below a threshold. Only valid when tfPartialPayment is set.",
+      "key_fields": "DeliverMin (Currency Amount; optional; only valid on a partial payment). Works alongside DeliverMax (ceiling) and SendMax (cost cap). If omitted on a partial payment, any positive delivery satisfies the tx — which is the unsafe default DeliverMin exists to fix.",
+      "gotchas": "DeliverMin is IGNORED unless tfPartialPayment is set — setting it on a normal full-or-fail payment does nothing. It still does not replace the delivered_amount check on receipt: a sender's DeliverMin is the sender's guarantee, but the receiver should still verify delivered_amount independently. Choose DeliverMin in the DELIVERED currency. A too-tight DeliverMin in thin liquidity just turns a partial into an outright failure (tecPATH_PARTIAL).",
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Allow partial delivery but never settle below a threshold",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Bound slippage on a payout that must tolerate thin liquidity",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Safe dust/refund sweeps with a minimum payout",
+        "track": "payments",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Payment transaction reference — xrpl.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/payment",
+        "claim": "DeliverMin is the minimum amount of destination currency the transaction should deliver, valid only if this is a partial payment."
+       },
+       {
+        "kind": "docs",
+        "title": "Partial Payments — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/payment-types/partial-payments",
+        "claim": "A partial payment succeeds if DeliverMin <= delivered amount <= Amount and stays within SendMax limits."
+       }
+      ]
+     },
+     {
+      "name": "Quality limits & slippage control (tfLimitQuality)",
+      "slug": "quality-limit-slippage",
+      "kind": "concept",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "stable",
+      "status": "live",
+      "builder_fit": 4,
+      "summary": "tfLimitQuality (flag 0x00040000) caps the exchange QUALITY (input:output ratio) of every path step a payment consumes: the ledger only takes conversions whose ratio is equal to or better than the implied DeliverMax:SendMax rate. This is the on-chain slippage guard for cross-currency payments — it refuses to fill the payment through expensive path segments rather than burning your whole SendMax on a bad rate. Quality is defined per path; the engine prefers higher-quality (cheaper) paths and tfLimitQuality enforces a hard worst-acceptable bound.",
+      "key_fields": "tfLimitQuality (0x00040000 / 262144). Reference ratio is DeliverMax:SendMax (the rate you'd accept if the whole tx executed at the cap). Pairs naturally with SendMax (absolute cost cap) and tfPartialPayment+DeliverMin (allow under-delivery at acceptable quality instead of overpaying). tfNoRippleDirect (0x00010000) is the related routing control: skip the default path, use only the supplied Paths.",
+      "gotchas": "tfLimitQuality bounds the RATE, not the absolute spend — pair it with SendMax for a hard cost ceiling. Without tfPartialPayment, a quality limit that can't be met just fails the whole tx (tecPATH_PARTIAL / tecPATH_DRY); with tfPartialPayment it delivers less at acceptable quality. The reference ratio is derived from your DeliverMax and SendMax, so those two fields ARE your slippage tolerance — set them deliberately. tfNoRippleDirect is a different lever (route restriction, not price) and is easy to confuse with quality control.",
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Enforce max slippage on a cross-currency payout",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Refuse a bad FX fill rather than overpaying from treasury",
+        "track": "payments",
+        "fitness": 4
+       },
+       {
+        "purpose": "Combine rate floor (quality) + amount floor (DeliverMin) for safe partials",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Payment transaction flags — xrpl.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/payment",
+        "claim": "tfLimitQuality (0x00040000) only takes paths where all conversions have an input:output ratio equal or better than Amount:SendMax; tfNoRippleDirect (0x00010000) uses only the Paths field, not the default path."
+       },
+       {
+        "kind": "docs",
+        "title": "Paths — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/tokens/fungible-tokens/paths",
+        "claim": "Each path has a quality and the engine searches for the cheapest (highest-quality) paths to deliver the payment."
+       }
+      ]
+     },
+     {
+      "name": "Single-treasury payout in player-preferred currency",
+      "slug": "treasury-preferred-currency-payout",
+      "kind": "pattern",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "stable",
+      "status": "live",
+      "builder_fit": 5,
+      "summary": "The studio's end-to-end payout pattern: hold ONE treasury currency, pay every player in the token they prefer, using a single cross-currency Payment per payout. Quote first (ripple_path_find) to learn cost and feasibility, then submit a Payment whose DeliverMax is the player's currency, SendMax bounds treasury spend (including the issuer's transfer fee), tfLimitQuality caps slippage, and DestinationTag routes the credit. Auto-bridging through XRP improves the rate transparently. On confirmation, the player is credited from delivered_amount — never from DeliverMax.",
+      "key_fields": "Payout tx: DeliverMax = {player currency, issuer, value}; SendMax = treasury currency value set to cover amount + transfer fee (e.g. amount * (1 + transferRate)); DestinationTag = player id; tfLimitQuality for slippage; optionally tfPartialPayment + DeliverMin if you must tolerate thin liquidity. Pre-flight with ripple_path_find. Post-flight: gate crediting on delivered_amount + tesSUCCESS + validated.",
+      "gotchas": "When the SOURCE has a transfer fee, set SendMax = Amount + transfer fee or the tx underfunds and fails. Prefer OMITTING Paths on direct payouts — supplying Paths lets a more expensive indirect route be taken (and can be weaponized). Recipient must hold a trust line to the player-currency issuer (or use an issuer/path they trust) or the payment can't deliver. The player should still verify receipt via delivered_amount; so should your own reconciliation. Don't reuse a stale path quote — re-quote if liquidity is volatile. Keep DestinationTag handling correct so credits land on the right account.",
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Pay players in their chosen token from one treasury balance",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "FX-bounded payout with on-chain slippage + cost caps",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Reconcile payouts against actual delivered amounts",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Sending Payments to Customers — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/payment-types/sending-payments-to-customers",
+        "claim": "When sending tokens with a transfer fee, set SendMax to the Amount plus the transfer fee; avoid specifying the Paths field on direct payments because a malicious indirect route may be taken instead of failing."
+       },
+       {
+        "kind": "docs",
+        "title": "Cross-Currency Payments — xrpl.org",
+        "url": "https://xrpl.org/docs/concepts/payment-types/cross-currency-payments",
+        "claim": "A single Payment can deliver a fixed amount in the destination currency at a variable cost in the source currency, converting through the DEX/AMM and auto-bridging XRP."
+       }
+      ]
+     }
+    ]
+   },
+   "cloud_verify": {
+    "model": "deepseek-v3.1:671b",
+    "verdicts": [
+     {
+      "capability": "Cross-currency Payment (send A, deliver B atomically)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "Cross-currency payments exist on XRPL mainnet since inception using the DEX order book system."
+     },
+     {
+      "capability": "delivered_amount safety rule (never trust Amount on a backend)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "delivered_amount metadata field exists and is the correct way to determine actual payment amounts."
+     },
+     {
+      "capability": "tfPartialPayment & the partial-payment exploit",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "tfPartialPayment flag exists and the exploit pattern is well-documented for XRPL mainnet."
+     },
+     {
+      "capability": "Amount -> DeliverMax rename (rippled API v2)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "rippled 2.0.0 introduced DeliverMax alias for Amount field in API v2 to prevent partial payment confusion."
+     },
+     {
+      "capability": "Pathfinding (ripple_path_find / path_find)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "Pathfinding RPC methods exist on XRPL mainnet for cross-currency payment routing."
+     },
+     {
+      "capability": "Auto-bridging through XRP",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "Auto-bridging through XRP as intermediary currency exists on XRPL mainnet DEX."
+     },
+     {
+      "capability": "DeliverMin (floor on a partial delivery)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "DeliverMin field exists in Payment transactions to set minimum delivery amount for partial payments."
+     },
+     {
+      "capability": "Quality limits & slippage control (tfLimitQuality)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "tfLimitQuality flag exists on XRPL mainnet to enforce quality limits on payment conversions."
+     },
+     {
+      "capability": "Single-treasury payout in player-preferred currency",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "Cross-currency payment pattern allows single transaction to deliver fixed amount in destination currency."
+     }
+    ]
+   }
+  },
+  {
+   "slug": "payments-advanced",
+   "name": "Advanced payments",
+   "research": {
+    "domain": "Escrow & conditional value (depth)",
+    "notes": "Wave-4 depth synthesis on the XRPL escrow primitive (web-verified mid-2026). Escrow is the ledger's native deferred/conditional-value object: an EscrowCreate moves an Amount out of the sender's spendable balance into an on-ledger Escrow object that can only be released (EscrowFinish) or refunded (EscrowCancel) under conditions fixed at create time. Two release gates exist and compose: TIME (FinishAfter = earliest finish; CancelAfter = expiration/refund) and CRYPTO-CONDITION (PREIMAGE-SHA-256 only — supply a fulfillment whose SHA-256 hash matches the stored Condition). The single biggest 2026 change is TokenEscrow / XLS-85, LIVE on mainnet 2026-02-12: escrow now locks IOUs (trustline tokens like RLUSD) and MPTs, not just XRP. Path to live was bumpy — the amendment first hit ~29 validator votes in Sep-2025, dropped to 16 when a validator found an MPT transfer-fee/accounting incompatibility, was corrected by fixTokenEscrowV1 (shipped in rippled v3.0.0, Dec-2025), re-approved by 30 validators on 2026-01-30, and activated 2026-02-12. Token escrow carries hard rules that XRP escrow does not: (1) the token ISSUER must opt in — asfAllowTrustLineLocking (sets account flag lsfAllowTrustLineLocking) via AccountSet for IOUs; tfMPTCanEscrow (plus tfMPTCanTransfer) on the MPTokenIssuance for MPTs; without it EscrowCreate fails tecNO_PERMISSION. (2) Token escrows MUST carry a CancelAfter expiration (XRP escrows may omit it). (3) The token's issuer cannot be the escrow source. (4) TransferRate/TransferFee is snapshotted at create and applied at finish even if the issuer later changes it. Economics: every escrow is one owned ledger object = 0.2 XRP owner reserve held until finish/cancel (reserves were lowered Dec-2-2024). Conditional EscrowFinish costs MORE than a normal tx: 330 drops minimum + 10 drops per 16 bytes of fulfillment. Permission model is permissionless-by-design: once a time-based escrow is Ready (past FinishAfter) ANYONE can submit EscrowFinish and funds still go only to the original Destination; once Expired, ANYONE can EscrowCancel and funds return to the sender. There is NO identity/credential gate on finishing — design crank-bots accordingly and never assume the recipient is the finisher. Freeze interactions: deep-freeze / MPT-lock blocks finish but still allows cancel; clawback cannot reach funds inside a live escrow (must wait for finish/cancel). For a game studio this is the primitive for vesting team/treasury allocations in your own token, time-locked or secret-locked quest rewards, and counterparty-risk-free P2P trades — but two separate escrows are NOT one atomic transaction (the all-or-nothing Batch primitive, XLS-56, remains disabled on mainnet), so a crypto-condition shared across both legs is the closest you get to atomicity today.",
+    "capabilities": [
+     {
+      "name": "Time-based escrow (FinishAfter / CancelAfter)",
+      "slug": "time-based-escrow",
+      "kind": "transaction",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "stable",
+      "builder_fit": 5,
+      "summary": "The pure time-lock form of escrow: EscrowCreate locks an Amount that becomes releasable only on a schedule, with no secret to manage. FinishAfter sets the earliest moment funds can be released to the Destination; CancelAfter sets the expiration after which the escrow can be refunded to the sender. An escrow with only FinishAfter is created Held, then flips to Ready once that time passes — and in the Ready state ANY account can submit EscrowFinish, with funds always routing to the original Destination. This is the canonical primitive for deferred payouts where you trust the clock, not a counterparty: scheduled payments, time-delayed rewards, and the building block under vesting. Ledger close times have ~5s granularity, and you cannot set times in the past. It is the oldest, most-exercised escrow shape on XRPL (live since genesis-era escrow, semantics finalized by fix1571 in 2018).",
+      "key_fields": [
+       "EscrowCreate",
+       "FinishAfter",
+       "CancelAfter",
+       "Destination",
+       "DestinationTag",
+       "Amount",
+       "EscrowFinish",
+       "EscrowCancel"
+      ],
+      "gotchas": [
+       "Times use seconds since the Ripple Epoch (2000-01-01 UTC), NOT the Unix epoch — off by 946684800 seconds. A raw Unix timestamp will silently create a wrong window.",
+       "Anyone-can-finish: once Ready, any account may submit EscrowFinish (it pays the tx fee). Funds still go only to Destination, but you may need your own crank/bot to actually trigger release — funds do not auto-release at FinishAfter.",
+       "Release/expiration effective times can drift ~5 seconds because they resolve against the most-recently-closed ledger's close time, not wall-clock.",
+       "CancelAfter must be strictly after FinishAfter; you cannot create an escrow with past time values.",
+       "Each escrow is one owned object = 0.2 XRP owner reserve locked on the SENDER until finish/cancel. Thousands of concurrent escrows = hundreds of XRP in reserve.",
+       "For TOKEN (IOU/MPT) escrows a CancelAfter is mandatory — a finish-only token escrow is rejected."
+      ],
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Scheduled / time-delayed payout to a fixed recipient with no counterparty trust needed",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Time-locked quest or season reward that unlocks at a known date",
+        "track": "game-economies",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Escrow — XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/payment-types/escrow",
+        "claim": "With only a finish-after time the escrow is created Held, becomes Ready after the time passes, and then anyone can finish it; effective times can vary by about five seconds and you can't use past time values."
+       },
+       {
+        "kind": "docs",
+        "title": "EscrowCreate — XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/escrowcreate",
+        "claim": "FinishAfter and CancelAfter are seconds since the Ripple Epoch; CancelAfter must be after FinishAfter; all token escrows must specify a CancelAfter time."
+       }
+      ]
+     },
+     {
+      "name": "Conditional escrow via PREIMAGE-SHA-256 crypto-condition",
+      "slug": "conditional-escrow-crypto-condition",
+      "kind": "transaction",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "stable",
+      "builder_fit": 4,
+      "summary": "The secret-locked form of escrow: EscrowCreate stores a Condition (a PREIMAGE-SHA-256 crypto-condition), and the escrow can only be finished by an EscrowFinish that supplies a matching Fulfillment — the preimage whose SHA-256 hash, wrapped in the condition encoding, equals the stored Condition. You generate the fulfillment first (a type prefix + arbitrary, usually random bytes), derive the condition (hash + length metadata), and hand only the condition to the ledger at create time; whoever later learns the fulfillment can release the funds (still only to the fixed Destination). PREIMAGE-SHA-256 is the ONLY condition type the ledger supports — there is no on-ledger scripting, multisig-of-conditions, or arbitrary predicate. This is the gate that makes hash-locked / reveal-a-secret flows possible: cross-leg atomicity tricks, claim-on-reveal rewards, and the conditional half of HTLC-style settlement. Conditional escrows MUST also have an expiration so funds can't be locked forever if the secret is never revealed.",
+      "key_fields": [
+       "Condition",
+       "Fulfillment",
+       "EscrowFinish",
+       "EscrowCreate",
+       "CancelAfter",
+       "FinishAfter",
+       "Destination"
+      ],
+      "gotchas": [
+       "A conditional escrow CANNOT be created without an expiration (CancelAfter) — 'it is not possible to create a conditional escrow with no expiration.' Always design the refund path.",
+       "EscrowFinish with a fulfillment costs MORE: 330 drops minimum + 10 drops per 16 bytes of fulfillment. High-volume conditional release is meaningfully pricier than plain payments.",
+       "Only PREIMAGE-SHA-256 is supported. Do not assume PREFIX/THRESHOLD/RSA/ED25519 condition types from the broader crypto-conditions RFC — the ledger rejects them.",
+       "The condition is public on-ledger from create time; keep the FULFILLMENT (preimage) secret until you intend release, or anyone watching can finish it the instant they see it.",
+       "Combining FinishAfter + Condition makes the escrow 'Conditionally Ready': it is Held until FinishAfter passes, then needs the fulfillment. Both gates must be satisfied.",
+       "Use a vetted crypto-conditions library (e.g. five-bells-condition) to encode the condition/fulfillment — hand-rolling the binary format is error-prone and a malformed condition is unrecoverable until expiry."
+      ],
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Release-on-secret-reveal payout (HTLC-style / claim code) to a fixed recipient",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Cross-leg link to make a two-sided trade feel atomic (same condition unlocks both)",
+        "track": "game-economies",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Escrow — XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/payment-types/escrow",
+        "claim": "The only supported crypto-condition type is PREIMAGE-SHA-256; anyone can finish a conditional escrow only if they supply the correct fulfillment; combining a condition with finish-after yields a Conditionally Ready state."
+       },
+       {
+        "kind": "docs",
+        "title": "Send a Conditionally-Held Escrow — XRPL.org",
+        "url": "https://xrpl.org/docs/tutorials/how-tos/use-specialized-payment-types/use-escrows/send-a-conditionally-held-escrow",
+        "claim": "Generate the fulfillment first then derive the condition; EscrowFinish with a fulfillment costs 330 drops plus 10 drops per 16 bytes of the preimage; use a crypto-conditions library such as five-bells-condition."
+       }
+      ]
+     },
+     {
+      "name": "TokenEscrow — escrow of IOUs and MPTs (XLS-85)",
+      "slug": "token-escrow-xls85",
+      "kind": "standard",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "XLS-85",
+      "amendment_name": "TokenEscrow",
+      "enabled_date": "2026-02-12",
+      "maturity_tier": "emerging",
+      "status": "stable",
+      "builder_fit": 5,
+      "summary": "XLS-85 extends the native escrow object beyond XRP so the locked Amount can be an IOU (trustline token, e.g. RLUSD or your studio's issued game token) or a Multi-Purpose Token (MPT). Live on mainnet since 2026-02-12 (re-approved by 30 validators on 2026-01-30 after fixTokenEscrowV1 in rippled v3.0.0 repaired an MPT transfer-fee accounting bug that had stalled the original Sep-2025 vote). Mechanically the time and crypto-condition gates are identical to XRP escrow, but the asset is held by locking it on the relevant trustline/MPT holding rather than reserving XRP drops. This is what makes denominating deferred value in your OWN token real — vesting, conditional grants, and escrow-secured trades no longer have to be priced in XRP. Critical control point: the token ISSUER must opt in (asfAllowTrustLineLocking for IOUs; tfMPTCanEscrow + tfMPTCanTransfer for MPTs), so if you are the issuer you gate whether your token can be escrowed at all; if you are merely a holder you depend on the issuer having enabled it.",
+      "key_fields": [
+       "asfAllowTrustLineLocking",
+       "lsfAllowTrustLineLocking",
+       "tfMPTCanEscrow",
+       "tfMPTCanTransfer",
+       "Amount (IOU/MPT object)",
+       "CancelAfter (mandatory)",
+       "TransferRate",
+       "tecNO_PERMISSION"
+      ],
+      "gotchas": [
+       "Issuer opt-in is mandatory and per-asset: IOUs need the issuer to set asfAllowTrustLineLocking (account flag lsfAllowTrustLineLocking) via AccountSet; MPTs need tfMPTCanEscrow (and tfMPTCanTransfer unless the destination is the issuer) on MPTokenIssuance. Missing it = tecNO_PERMISSION on EscrowCreate.",
+       "The token's ISSUER cannot be the escrow source — an issuer trying to escrow its own token as sender fails tecNO_PERMISSION.",
+       "Every token escrow MUST carry a CancelAfter expiration; unlike XRP there is no open-ended token escrow.",
+       "TransferRate / TransferFee is snapshotted at EscrowCreate and applied at EscrowFinish even if the issuer changes the rate later — the delivered amount is net of that captured fee, so the recipient receives less than the locked face amount when a fee exists.",
+       "Freeze interactions differ from XRP: deep-freeze (IOU) or MPT lock BLOCKS EscrowFinish but still ALLOWS EscrowCancel; clawback cannot reach funds inside a live escrow (must wait until finish/cancel).",
+       "Destination must already be authorized for authorization-required tokens BEFORE finish — authorization cannot be granted during settlement.",
+       "Still 0.2 XRP owner reserve per escrow object PLUS the locked token; you need XRP on hand to create token escrows even though the value is in another asset."
+      ],
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Lock deferred/conditional value denominated in the studio's own issued token or a stablecoin (RLUSD) instead of XRP",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Issuer-gated control over whether the in-game token can be escrowed at all",
+        "track": "game-economies",
+        "fitness": 5
+       }
+      ],
+      "sources": [
+       {
+        "kind": "standard",
+        "title": "XLS-0085: Token-Enabled Escrows — XRPL Standards",
+        "url": "https://github.com/XRPLF/XRPL-Standards/tree/master/XLS-0085-token-escrow",
+        "claim": "IOU escrow requires the issuer to set asfAllowTrustLineLocking (lsfAllowTrustLineLocking); MPT escrow requires tfMPTCanEscrow plus tfMPTCanTransfer; the token issuer cannot be the escrow source (tecNO_PERMISSION); TransferRate is captured at create and applied at finish."
+       },
+       {
+        "kind": "spec",
+        "title": "XLS-0085: Token-Enabled Escrows — xls.xrpl.org",
+        "url": "https://xls.xrpl.org/xls/XLS-0085-token-escrow.html",
+        "claim": "XLS-85 extends native escrow to all trustline-based tokens (IOUs) and MPTs; issuer-level flags gate escrow eligibility; deep freeze / MPT lock prevent finish but allow cancel and clawback is not available within active escrows."
+       },
+       {
+        "kind": "announcement",
+        "title": "RippleX Launches XLS-85 Token Escrow on XRPL Mainnet — Coinpedia",
+        "url": "https://coinpedia.org/news/xrp-ledger-news-token-escrow-xls-85-goes-live-on-xrpl-mainnet/",
+        "claim": "Token Escrow (XLS-85) went live on XRPL Mainnet on 2026-02-12, extending escrow beyond XRP to Trustline-based tokens (IOUs) and Multi-Purpose Tokens (MPTs)."
+       }
+      ]
+     },
+     {
+      "name": "fixTokenEscrowV1 — MPT transfer-fee accounting fix",
+      "slug": "fix-token-escrow-v1",
+      "kind": "concept",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "fixTokenEscrowV1",
+      "enabled_date": "2026-02-12",
+      "maturity_tier": "emerging",
+      "status": "stable",
+      "builder_fit": 2,
+      "summary": "A corrective amendment, shipped in rippled v3.0.0 (Dec-2025), that repairs an MPT accounting error in token escrow: when an escrow unlocked MPTs carrying a transfer fee, the original code reduced the MPT issuer's locked-token balance by the GROSS amount (pre-fee) instead of the NET amount (post-fee), corrupting supply tracking. This bug is why the original XLS-85 vote collapsed from ~29 to 16 validators in late 2025 — a validator pulled support after finding the MPT incompatibility. fixTokenEscrowV1 restored validator confidence and the pair activated together with TokenEscrow on 2026-02-12. For a builder this is mostly context, but it carries one operating lesson: if you are issuing MPTs with a transfer fee and using escrow, your correctness depends on this fix being active — which it is on mainnet, but matters when testing against older devnet/standalone builds or third-party infra that may lag.",
+      "key_fields": [
+       "fixTokenEscrowV1",
+       "rippled v3.0.0",
+       "MPT TransferFee",
+       "locked token balance",
+       "TokenEscrow"
+      ],
+      "gotchas": [
+       "Activation history matters for testing: a node or sidechain running pre-v3.0.0 rippled can reproduce the gross-vs-net MPT escrow accounting bug. Verify the amendment is enabled before trusting MPT-with-fee escrow math in any non-mainnet environment.",
+       "This is a fix amendment, not a feature you call — there are no new transaction fields. Its absence silently corrupts MPT supply on finish, it does not error.",
+       "Only relevant if your MPT has a non-zero TransferFee; fee-free MPTs were unaffected."
+      ],
+      "tracks": [
+       "payments"
+      ],
+      "best_for": [
+       {
+        "purpose": "Trusting MPT-with-transfer-fee escrow supply accounting on a given node/network",
+        "track": "payments",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "announcement",
+        "title": "Introducing XRP Ledger version 3.0.0 — XRPL.org blog",
+        "url": "https://xrpl.org/blog/2025/rippled-3.0.0",
+        "claim": "rippled v3.0.0 introduced fixTokenEscrowV1 (alongside fixMPTDeliveredAmount and other fixes) correcting token-escrow behavior."
+       },
+       {
+        "kind": "article",
+        "title": "Ripple Rolls Out XRPL 3.0.0 With Major Escrow Accounting Breakthrough — TronWeekly",
+        "url": "https://www.tronweekly.com/ripple-rolls-out-xrpl-3-0-0-with-major-escrow/",
+        "claim": "fixTokenEscrowV1 fixes an accounting error where unlocking MPTs with a transfer fee reduced the issuer's locked balance by the gross amount rather than the net amount; it restored validator confidence in XLS-85."
+       }
+      ]
+     },
+     {
+      "name": "Vesting / lockup schedule via escrow ladder",
+      "slug": "vesting-lockup-escrow-ladder",
+      "kind": "pattern",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "XLS-85",
+      "amendment_name": "TokenEscrow",
+      "enabled_date": "2026-02-12",
+      "maturity_tier": "emerging",
+      "status": "stable",
+      "builder_fit": 4,
+      "summary": "Treasury and team-allocation lockups implemented as a LADDER of time-based escrows: instead of one escrow, create N escrows to the same beneficiary with staggered FinishAfter times (e.g. monthly cliffs over a 4-year vest), each releasable when its tranche matures. With XLS-85 the locked asset can be your own issued game token, RLUSD, or an MPT, so a studio can put team and treasury allocations under on-ledger, publicly-auditable time-locks denominated in the project token rather than XRP. RippleX explicitly calls out 'secure vesting and grants — teams can schedule token releases or conditional distributions' as a headline XLS-85 use case. Combine FinishAfter (cliff) with a Condition to add a 'release only if milestone secret revealed' gate per tranche. Because anyone can finish a Ready escrow, the beneficiary (or a keeper bot) submits EscrowFinish per matured tranche; funds always route to the fixed Destination.",
+      "key_fields": [
+       "EscrowCreate",
+       "FinishAfter",
+       "CancelAfter",
+       "Destination",
+       "Amount (token/XRP)",
+       "asfAllowTrustLineLocking",
+       "owner reserve"
+      ],
+      "gotchas": [
+       "A ladder is N owned objects = N x 0.2 XRP owner reserve locked on the GRANTOR for the life of the vest. A 48-tranche monthly vest = 9.6 XRP reserve per beneficiary; multiply across a team.",
+       "There is no on-ledger 'revocable vesting' switch: a plain time-locked escrow WILL release at FinishAfter. To retain a clawback/cancel option you must set CancelAfter and rely on cancel before finish, or use crypto-conditions so a tranche only releases on a secret you control — but a finishable tranche is irrevocable.",
+       "Token vesting needs the issuer's escrow opt-in (asfAllowTrustLineLocking / tfMPTCanEscrow). If the studio is the issuer, enable it once; if vesting a third-party token, confirm the issuer has enabled locking.",
+       "No native linear/continuous streaming — vesting is discrete tranches. Fine-grained vesting means many escrow objects and many EscrowFinish transactions (each with a fee).",
+       "Ripple-epoch time math applies to every FinishAfter; an off-by-946684800 error puts the whole schedule in the wrong decade.",
+       "Token escrows force a CancelAfter, so each tranche has a hard expiry — if a keeper never finishes a matured tranche before CancelAfter, it can be cancelled back to the grantor instead of delivered. Set CancelAfter generously past FinishAfter."
+      ],
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "On-ledger, auditable team/treasury token vesting with staggered cliffs",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Locking up a studio's issued in-game/governance token for contributors",
+        "track": "game-economies",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "EscrowFinish — XRPL.org",
+        "url": "https://xrpl.org/docs/references/protocol/transactions/types/escrowfinish",
+        "claim": "EscrowCreate is available to any account and is commonly used for vesting schedules, payment agreements, and token launch lockups; a time-based escrow becomes finishable after its FinishAfter passes."
+       },
+       {
+        "kind": "announcement",
+        "title": "RippleX: Token Escrow (XLS-85) is now live — bitcoinist",
+        "url": "https://bitcoinist.com/xrp-ledger-activates-token-escrow/",
+        "claim": "RippleX highlights secure vesting and grants — teams can schedule token releases or conditional distributions — as a primary XLS-85 use case, with assets including RLUSD and tokenized RWAs."
+       }
+      ]
+     },
+     {
+      "name": "Escrow as marketplace / trade settlement (counterparty-risk-free)",
+      "slug": "escrow-trade-settlement",
+      "kind": "pattern",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "XLS-85",
+      "amendment_name": "TokenEscrow",
+      "enabled_date": "2026-02-12",
+      "maturity_tier": "emerging",
+      "status": "stable",
+      "builder_fit": 4,
+      "summary": "Settle a private, non-market trade between two specific parties by having each side lock its asset in an escrow keyed to a SHARED PREIMAGE-SHA-256 condition: seller escrows the item-token, buyer escrows the agreed price (token-for-token now possible under XLS-85), and the party holding the fulfillment finishes BOTH legs with the same secret; a shared CancelAfter refunds both if the deal stalls. This delivers a guaranteed exchange off the DEX order book — no liquidity, no front-running, exact 1:1 terms between named players — which is exactly what an in-game marketplace or OTC desk wants. It is the right primitive when OfferCreate's market matching is too loose and you need a specific A<->B settlement. The honest limitation: two escrows are NOT one atomic transaction. The shared condition tightly couples them (one secret unlocks both), but there is still a window where one leg is finished and the other is not, and the on-ledger all-or-nothing primitive (Batch / XLS-56) remains disabled on mainnet, so true single-transaction atomicity is not yet available.",
+      "key_fields": [
+       "EscrowCreate",
+       "Condition",
+       "Fulfillment",
+       "CancelAfter",
+       "EscrowFinish",
+       "EscrowCancel",
+       "Amount (token/XRP)",
+       "DestinationTag"
+      ],
+      "gotchas": [
+       "NOT atomic: two escrows = two transactions. The shared preimage means whoever reveals it can finish both, but a malicious or absent counterparty can leave one leg locked until CancelAfter. Pick CancelAfter windows that bound your exposure.",
+       "Whoever first broadcasts an EscrowFinish reveals the fulfillment on-ledger; the counterparty can then immediately finish the other leg. Design which side reveals first and accept that the secret becomes public the instant either leg is finished.",
+       "Both tokens need their issuers' escrow opt-in. A trade pairing two issued tokens fails unless BOTH issuers enabled locking.",
+       "Each leg is its own 0.2 XRP owner reserve on its creator, plus the 330-drop+ conditional finish fee on each EscrowFinish — budget four+ on-ledger actions per trade (2 create, 2 finish).",
+       "Transfer fees apply per leg: if either token has a TransferRate, the recipient of that leg gets less than face. Quote trades net of fees.",
+       "No built-in dispute/arbitration — the only outcomes are 'both finished' or 'cancelled back after expiry'. Partial-fill or renegotiation must happen off-ledger before new escrows."
+      ],
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Guaranteed item-for-currency trade between two named players, no DEX liquidity needed",
+        "track": "game-economies",
+        "fitness": 5
+       },
+       {
+        "purpose": "OTC / private settlement of an agreed token-for-token deal off the order book",
+        "track": "payments",
+        "fitness": 4
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Escrow — XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/payment-types/escrow",
+        "claim": "A conditional escrow can only be finished by supplying the matching fulfillment, and an Expired escrow can be cancelled back to the sender — enabling shared-condition two-leg settlement with a refund path."
+       },
+       {
+        "kind": "announcement",
+        "title": "RippleX Launches XLS-85 Token Escrow on XRPL Mainnet — Coinpedia",
+        "url": "https://coinpedia.org/news/xrp-ledger-news-token-escrow-xls-85-goes-live-on-xrpl-mainnet/",
+        "claim": "XLS-85 enables peer-to-peer token swaps and conditional payments / OTC-style swaps using token escrow as listed use cases."
+       }
+      ]
+     },
+     {
+      "name": "Anyone-can-finish & owner-reserve mechanics of escrow",
+      "slug": "escrow-finish-permission-reserve",
+      "kind": "concept",
+      "network_status": "mainnet",
+      "chain": "XRPL",
+      "xls_standard": "",
+      "amendment_name": "",
+      "enabled_date": "",
+      "maturity_tier": "battle-tested",
+      "status": "stable",
+      "builder_fit": 4,
+      "summary": "Two operating realities of every escrow that change how you build around it. (1) PERMISSION: escrow has no identity gate on completion. Once a time-based escrow is Ready (past FinishAfter), ANY account may submit EscrowFinish; once Expired (past CancelAfter), ANY account may submit EscrowCancel. The submitter only pays the fee — funds always go to the fixed Destination on finish and back to the sender on cancel. There is no FinishFunction / credential-gated finisher today; the access control is the crypto-condition (must hold the fulfillment) and the clock, not WHO signs. (2) RESERVE: each Escrow is one owned ledger object costing the SENDER 0.2 XRP of owner reserve, locked from create until finish/cancel (the reserve was lowered to 0.2 XRP per object on 2024-12-02). These two facts mean release is not automatic (you need a keeper to crank EscrowFinish), recipients should never assume they are the finisher, and high-volume escrow designs must budget real XRP reserve plus a finisher bot.",
+      "key_fields": [
+       "EscrowFinish",
+       "EscrowCancel",
+       "FinishAfter",
+       "CancelAfter",
+       "Destination",
+       "owner reserve (0.2 XRP/object)",
+       "Ready state",
+       "Expired state"
+      ],
+      "gotchas": [
+       "Funds do NOT auto-release at FinishAfter. If neither the recipient nor a keeper submits EscrowFinish, the value sits locked. Run a crank/bot or expect support tickets.",
+       "Anyone-can-cancel after expiry: a third party (or your own cleanup bot) can refund an expired escrow to the sender, freeing the sender's 0.2 XRP reserve. Conversely, until someone cancels, the reserve stays locked.",
+       "No identity gating on finish means you cannot restrict WHO completes — only the condition (preimage) and time gate access. Don't model 'only the recipient can claim' on finisher identity.",
+       "Owner reserve is on the SENDER, not the recipient. A service that creates many escrows on behalf of users must hold 0.2 XRP per live escrow itself.",
+       "fix1571 (2018) closed the old loophole where a cancel-after-only XRP escrow could be finished by anyone at any time — modern escrows require a proper finish gate (FinishAfter and/or Condition).",
+       "A failed EscrowFinish/EscrowCancel that still claims a result code consumes a fee; budget for retry costs in keeper logic."
+      ],
+      "tracks": [
+       "payments",
+       "game-economies"
+      ],
+      "best_for": [
+       {
+        "purpose": "Designing a keeper/crank bot to release matured escrows and reclaim reserve",
+        "track": "payments",
+        "fitness": 5
+       },
+       {
+        "purpose": "Sizing XRP reserve cost for an escrow-heavy in-game economy",
+        "track": "game-economies",
+        "fitness": 3
+       }
+      ],
+      "sources": [
+       {
+        "kind": "docs",
+        "title": "Escrow — XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/payment-types/escrow",
+        "claim": "After FinishAfter passes the escrow becomes Ready and anyone can finish it; after expiration anyone can cancel it, returning funds to the sender; conditional escrows require the correct fulfillment to finish."
+       },
+       {
+        "kind": "docs",
+        "title": "Reserves — XRPL.org",
+        "url": "https://xrpl.org/docs/concepts/accounts/reserves",
+        "claim": "Accounts hold a base reserve plus an owner reserve of 0.2 XRP per owned ledger object (including escrows); the per-object owner reserve was lowered to 0.2 XRP on 2024-12-02."
+       }
+      ]
+     }
+    ]
+   },
+   "cloud_verify": {
+    "model": "deepseek-v3.1:671b",
+    "verdicts": [
+     {
+      "capability": "Time-based escrow (FinishAfter / CancelAfter)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live (since 2017)",
+      "currency": "current",
+      "fixes": "",
+      "note": "Native XRP escrow with time-based conditions has been live on mainnet since 2017."
+     },
+     {
+      "capability": "Conditional escrow via PREIMAGE-SHA-256 crypto-condition",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live (since 2017)",
+      "currency": "current",
+      "fixes": "",
+      "note": "PREIMAGE-SHA-256 crypto-conditions for escrow have been supported on mainnet since original escrow implementation."
+     },
+     {
+      "capability": "TokenEscrow — escrow of IOUs and MPTs (XLS-85)",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live (since 2026-02-12)",
+      "currency": "current",
+      "fixes": "",
+      "note": "XLS-85 TokenEscrow amendment enabled IOU and MPT escrow on mainnet as confirmed by multiple sources."
+     },
+     {
+      "capability": "fixTokenEscrowV1 — MPT transfer-fee accounting fix",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live (since rippled v3.0.0)",
+      "currency": "current",
+      "fixes": "",
+      "note": "fixTokenEscrowV1 amendment corrected MPT transfer fee accounting in token escrows and is live on mainnet."
+     },
+     {
+      "capability": "Vesting / lockup schedule via escrow ladder",
+      "overall": "confirmed-with-fixes",
+      "network_status_check": "mainnet-live (via XLS-85)",
+      "currency": "current",
+      "fixes": "Pattern enabled by TokenEscrow amendment, not the amendment itself",
+      "note": "Vesting patterns are implemented using time-based escrow ladders enabled by TokenEscrow functionality."
+     },
+     {
+      "capability": "Escrow as marketplace / trade settlement (counterparty-risk-free)",
+      "overall": "confirmed-with-fixes",
+      "network_status_check": "mainnet-live (via XLS-85)",
+      "currency": "current",
+      "fixes": "Pattern enabled by conditional escrow features, not specific to XLS-85",
+      "note": "Marketplace settlement patterns use conditional escrow capabilities that predate but are enhanced by TokenEscrow."
+     },
+     {
+      "capability": "Anyone-can-finish & owner-reserve mechanics of escrow",
+      "overall": "confirmed",
+      "network_status_check": "mainnet-live",
+      "currency": "current",
+      "fixes": "",
+      "note": "Anyone-can-finish mechanics and 0.2 XRP owner reserve for escrow objects are correct current mainnet behavior."
+     }
+    ]
+   }
+  }
+ ]
+}

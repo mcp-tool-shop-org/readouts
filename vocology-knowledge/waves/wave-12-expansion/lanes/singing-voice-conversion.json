@@ -1,0 +1,148 @@
+{
+  "laneSlug": "singing-voice-conversion",
+  "title": "Singing voice conversion & vocal identity",
+  "findings": [
+    {
+      "n": 1,
+      "authors": "RVC-Project",
+      "year": 2026,
+      "title": "Retrieval-based-Voice-Conversion-WebUI",
+      "id": "github:RVC-Project/Retrieval-based-Voice-Conversion-WebUI",
+      "url": "https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI",
+      "finding": "MIT-licensed, not archived, last push 2026-08-04 (created 2023-03-27, 38,174 stars) — the only large-community SVC trainer still alive. Repo tagline is 'Easily train a good VC model with voice data <= 10 mins!' and the English README qualifies it as 'Training with a small amounts of data (>=10min low noise speech recommended)'. For streaming it claims 'We have achieved an end-to-end latency of 170ms. With the use of ASIO input and output devices, we have managed to achieve an end-to-end latency of 90ms.' F0 extraction defaults to RMVPE, which the README says 'Provides the best results (significantly) and is faster with lower resource consumption than Crepe_full'.",
+      "implication": "RVC is the default identity layer for a commercial product on one 5090: MIT on code and weights, ~10 min of a target singer, and sub-200 ms streaming that a practice companion can run live over a score-locked render."
+    },
+    {
+      "n": 2,
+      "authors": "RVC-Project",
+      "year": 2026,
+      "title": "Retrieval-based-Voice-Conversion (library) — documented inference parameters",
+      "id": "github:RVC-Project/Retrieval-based-Voice-Conversion",
+      "url": "https://github.com/RVC-Project/Retrieval-based-Voice-Conversion",
+      "finding": "The documented parameter contract states exactly what survives conversion and what does not: `f0_up_key` (default 0) is 'Transpose (integer, number of semitones, raise by an octave: 12, lower by an octave: -12)' — the source F0 contour is copied and shifted only by whole semitones, never re-predicted; `protect` (default 0.33) exists to 'Protect voiceless consonants and breath sounds to prevent artifacts such as tearing in electronic music'; `index_rate` (default 0.75) is 'Search feature ratio (controls accent strength, too high has artifacting)'; `rms_mix_rate` (default 0.25) 'Adjust the volume envelope scaling. Closer to 0, the more it mimicks the volume of the original vocals.'",
+      "implication": "RVC composes with a score-locked pipeline rather than replacing it — pitch and timing are passed through untouched — but the defaults ship at 25% source loudness envelope and a named consonant/breath protection knob, so breath and dynamics are the two things a singing product must explicitly dial back in."
+    },
+    {
+      "n": 3,
+      "authors": "svc-develop-team",
+      "year": 2023,
+      "title": "so-vits-svc — SoftVC VITS Singing Voice Conversion (4.1-Stable)",
+      "id": "github:svc-develop-team/so-vits-svc",
+      "url": "https://github.com/svc-develop-team/so-vits-svc",
+      "finding": "ARCHIVED by the owner on 2023-11-11 and read-only; licence is AGPL-3.0. The README states the model preserves 'the pitch and intonations of the original audio', that the vocoder was replaced with NSF HiFiGAN 'to solve the problem of sound interruption', that training clips should be '5s - 15s', and — decisively for score work — that the `-a` / `--auto_predict_f0` flag should 'not enable this when converting singing voices as it can cause serious pitch issues'. Optional clustering/feature retrieval reduces timbre leakage but 'may slightly reduce clarity'.",
+      "implication": "The archetypal SVC repo is dead and AGPL-3.0, so it is not a commercial base — but its two documented rules generalise: an F0 predictor must be switched off for singing, and a source-filter (NSF) vocoder is what stops the pitch line from breaking up."
+    },
+    {
+      "n": 4,
+      "authors": "Liu (Plachtaa)",
+      "year": 2025,
+      "title": "seed-vc: zero-shot voice conversion & singing voice conversion, with real-time support",
+      "id": "github:Plachtaa/seed-vc",
+      "url": "https://github.com/Plachtaa/seed-vc",
+      "finding": "ARCHIVED (GitHub API: archived=true, last push 2025-04-20, 3,889 stars), licence GPL-3.0. While live it was the strongest zero-shot route: clone from 1–30 s of reference with no training; the SVC checkpoint `seed-uvit-whisper-base` runs at 44,100 Hz with explicit F0 conditioning and 30–50 recommended diffusion steps; measured real-time on an RTX 3060 Laptop GPU at ~300 ms algorithm delay + ~100 ms device delay = 430 ms total with 150 ms inference per chunk; optional fine-tune needs a minimum of 1 utterance and 100 steps (~2 min on a T4). Backing paper: 'Zero-shot Voice Conversion with Diffusion Transformers', arXiv:2411.09943.",
+      "implication": "The best-documented zero-shot singing route on consumer hardware is now abandoned AND GPL-3.0 — treat its numbers as the benchmark to beat, not as a dependency, and note that even it needed explicit F0 conditioning to do singing at all."
+    },
+    {
+      "n": 5,
+      "authors": "Baas, van Niekerk & Kamper",
+      "year": 2023,
+      "title": "Voice Conversion With Just Nearest Neighbors (kNN-VC)",
+      "id": "DOI:10.21437/Interspeech.2023-419",
+      "url": "https://www.isca-archive.org/interspeech_2023/baas23_interspeech.html",
+      "finding": "Interspeech 2023, pp. 2053–2057; reference implementation github:bshall/knn-vc is MIT. The method replaces each source frame's WavLM layer-6 feature with the mean of its k nearest neighbours in the reference set, then vocodes with HiFi-GAN — a strictly frame-for-frame substitution, so source duration and phrasing are preserved exactly. The repo states the operative data law: 'The longer the cumulative duration of all reference waveforms, the better the quality will be (but the slower it will take to run). The improvement in quality diminishes beyond 5 minutes of reference speech.' Training the vocoder on pre-matched features gives the paper's best model at 6.29% WER vs 6.39% for standard HiFi-GAN.",
+      "implication": "Sets the honest floor for 'how much target audio': ~5 minutes, after which more data buys almost nothing — and because the substitution is frame-synchronous, a kNN-family converter cannot drift off a MIDI-locked timing grid."
+    },
+    {
+      "n": 6,
+      "authors": "yxlllc",
+      "year": 2026,
+      "title": "DDSP-SVC — real-time end-to-end singing voice conversion based on DDSP",
+      "id": "github:yxlllc/DDSP-SVC",
+      "url": "https://github.com/yxlllc/DDSP-SVC",
+      "finding": "MIT, not archived, last push 2026-08-12 (2,668 stars, v6.x). Data recipe is stated as clip count rather than minutes: 'The total number of the audio clips for training dataset is recommended to be about 1000' with each clip at least 2 seconds. Claims 'training time can be shortened by orders of magnitude' versus SO-VITS-SVC with hardware requirements 'significantly lower', and the real-time GUI uses 'sliding window, cross-fading, SOLA-based splicing and contextual semantic reference'. Explicitly concedes the trade: the 'original synthesis quality of DDSP is not ideal' and needs a vocoder/diffusion/rectified-flow enhancement stage to be competitive.",
+      "implication": "The one live SVC family whose core is an explicit harmonic-plus-noise source-filter model — so F0 is a first-class control input rather than something inferred — at the documented cost of needing a second enhancement stage before it sounds finished."
+    },
+    {
+      "n": 7,
+      "authors": "Huang, Violeta, Liu, Shi & Toda",
+      "year": 2023,
+      "title": "The Singing Voice Conversion Challenge 2023",
+      "id": "arXiv:2306.14422",
+      "url": "https://arxiv.org/abs/2306.14422",
+      "finding": "26 submissions (24 systems + 2 baselines). Target-singer data supplied was 11.84–12.72 minutes of singing (150–159 phrases) per target for the in-domain task, and only 4.31–6.75 minutes of SPEECH (150–161 phrases, no singing at all) for the cross-domain task. The top system reached roughly 4.0 naturalness MOS against ground truth ~4.1 — human-level — but the best similarity score was ~2.6 on the 4-point speaker-likeness scale against ground truth ~3.0, a gap no team closed. Cross-domain was harder than in-domain specifically in similarity.",
+      "implication": "Naturalness is a solved problem in SVC and identity is not: budget ~12 minutes of clean target singing as the real requirement (not 10 minutes of speech), and expect the converted voice to be judged as 'not quite that singer' even when it sounds entirely human."
+    },
+    {
+      "n": 8,
+      "authors": "Violeta, Zhang, Shi, Yasuda, Huang, Wu & Toda",
+      "year": 2025,
+      "title": "An Extensive Analysis of the Singing Voice Conversion Challenge 2025 Evaluation Results",
+      "id": "arXiv:2509.15629",
+      "url": "https://arxiv.org/abs/2509.15629",
+      "finding": "SVCC 2025 (training data released 2025-04-28, submissions due 2025-06-30) moved the target from singer identity to singing STYLE conversion: 7 teams, 26 systems evaluated (18 submissions, 6 baselines, 2 ground truth). XAB style-accuracy results name the hard cases exactly: 'difficult singing styles to model were breathy, glissando, and vibrato, achieving only 37.3%, 42.6%, and 43.9% style accuracy scores, respectively', versus the easiest — pharyngeal 44.8%, mixed voice 48.3%, falsetto 48.8%. Best-system naturalness fell back to ~3.7 MOS against ground truth ~3.9, i.e. below the human parity SVCC 2023 had reached.",
+      "implication": "Everything time-varying in a sung voice — breath noise, portamento between notes, vibrato modulation — is where SVC measurably fails, which is precisely the material a practice companion has to render correctly for the feedback to mean anything."
+    },
+    {
+      "n": 9,
+      "authors": "Chen, Gu, Cui, Zhang, Chen & Dai",
+      "year": 2024,
+      "title": "LCM-SVC: Latent Diffusion Model Based Singing Voice Conversion with Inference Acceleration via Latent Consistency Distillation",
+      "id": "arXiv:2408.12354",
+      "url": "https://arxiv.org/abs/2408.12354",
+      "finding": "Measured real-time factors on an NVIDIA A100: DiffSVC 0.166, the teacher LDM (LCM-SVC-T) 0.369, and the distilled students 0.010 at 4 steps, 0.007 at 2 steps and 0.004 at 1 step — roughly a 92x speedup over the teacher. Quality barely moves across the step counts: seen-singer NMOS 3.880±0.073 (4 steps), 3.877±0.075 (2 steps), 3.827±0.078 (1 step), with SMOS 4.119 / 4.136 / 4.125.",
+      "implication": "Diffusion SVC is not inherently too slow for interactive use — consistency distillation buys two orders of magnitude of RTF for ~0.05 MOS, so a single 5090 can plausibly run a diffusion-quality identity layer inside a practice loop rather than only offline."
+    },
+    {
+      "n": 10,
+      "authors": "Bai, Geng, Wang, Wang, Guo, Gao & Li",
+      "year": 2025,
+      "title": "HQ-SVC: Towards High-Quality Zero-Shot Singing Voice Conversion in Low-Resource Scenarios",
+      "id": "arXiv:2511.08496",
+      "url": "https://arxiv.org/abs/2511.08496",
+      "finding": "Accepted to AAAI 2026 (submitted 2025-11-11). The stated headline in the official repo (github:ShawnPi233/HQ-SVC) is 'Low-resource training (single consumer-grade GPU, <80h data)'. The abstract's diagnosis is architectural rather than about data volume: 'Existing methods model speaker timbre and vocal content separately, losing essential acoustic information that degrades output quality while requiring significant computational resources.' HQ-SVC instead extracts content and speaker features jointly through a decoupled codec, then models pitch and volume explicitly to preserve 'critical acoustic information typically lost in separate modeling approaches'.",
+      "implication": "The most current peer-reviewed result says the standard disentangle-then-recombine design is itself the quality ceiling, and that a whole zero-shot SVC system is now trainable on one consumer GPU with under 80 hours — a 5090 is inside the training envelope, not just the inference one."
+    },
+    {
+      "n": 11,
+      "authors": "Project Beatrice / fierce-cats",
+      "year": 2025,
+      "title": "beatrice-trainer (Beatrice 2, v2.0.0-rc.0)",
+      "id": "hf:fierce-cats/beatrice-trainer",
+      "url": "https://huggingface.co/fierce-cats/beatrice-trainer",
+      "finding": "Released 2025-08-31. The card states in Japanese that 'the source code and trained models in this repository are released under the MIT License' — MIT covers the pretrained weights, not just the code. Training completes in about 40 minutes on a GeForce RTX 4090 and consumes about 9 GB of VRAM at default settings. Inference is CPU-viable: RTF < 0.2 single-threaded on an Intel Core i7-1165G7, with about 50 ms of latency measured through external recording equipment. It is one of only two model families still supported in w-okada/voice-changer v2 (the other being RVC); so-vits-svc, DDSP-SVC and MMVC were v1-only.",
+      "implication": "The cheapest commercially clean identity layer measured anywhere in this lane: 40 GPU-minutes and 9 GB to train a voice, then real-time on CPU alone — which frees the entire 5090 for the score-locked synthesis stage upstream."
+    },
+    {
+      "n": 12,
+      "authors": "Zhang, Zhang, Wang, Wang, Chen, Jia, Chen & Wu",
+      "year": 2025,
+      "title": "Vevo2: A Unified and Controllable Framework for Speech and Singing Voice Generation",
+      "id": "arXiv:2508.16332",
+      "url": "https://arxiv.org/abs/2508.16332",
+      "finding": "Submitted 2025-08-22, revised 2026-03-05, accepted to IEEE/ACM TASLP 2026; shipped inside the Amphion toolkit (github:open-mmlab/Amphion, MIT, last push 2026-03-25). It separates a prosody/melody tokenizer (VQ-VAE, 512 vocabulary, 6.25 Hz) from a content-style tokenizer (16,384 vocabulary, 12.5 Hz) with timbre disentanglement, and a flow-matching acoustic stage 'that allows for timbre control'. Crucially it names 'style-preserved voice conversion' and 'style-converted voice conversion' as two distinct supported tasks, plus humming-to-singing and instrument-to-singing. Trained on Emilia-101k (~101,000 h speech) + SingNet-7k (~7,000 h singing). LICENCE TRAP: the Amphion code is MIT, but the Vevo2 checkpoints at hf:RMSnow/Vevo2 are CC-BY-NC-ND-4.0 — non-commercial AND no-derivatives, so even fine-tuning them is out.",
+      "implication": "The state of the art now treats 'keep the performance, change the voice' and 'change the performance too' as separate switches — exactly the distinction a score-locked product needs — but the only released weights that do it cannot be used or adapted commercially."
+    },
+    {
+      "n": 13,
+      "authors": "Liu & Akama",
+      "year": 2026,
+      "title": "Self-supervised restoration of singing voice degraded by pitch shifting using shallow diffusion",
+      "id": "arXiv:2601.10345",
+      "url": "https://arxiv.org/abs/2601.10345",
+      "finding": "Submitted 2026-01-15 (CC-BY-SA 4.0). Frames conventional pitch shifting as a degradation to be repaired rather than a transform, on the grounds that it carries 'well known trade offs such as formant shifts and robotic coloration that becomes more severe at larger transposition jumps'. The fix is a lightweight mel-domain diffusion model conditioned on F0, volume and content features, with training pairs made self-supervised by applying a pitch shift and reversing it so the untouched original is the reference; it 'substantially reduces pitch shift artifacts compared to representative classical baselines' on both statistical and pairwise acoustic measures (no numeric values given in the abstract).",
+      "implication": "Confirms that transposing a performance to fit a target singer's range is a per-semitone quality tax, not a free operation — so a practice companion should re-render the line at the target pitch from the score wherever it can, and reserve transposition for small intervals."
+    },
+    {
+      "n": 14,
+      "authors": "Choi, Byun & Lee",
+      "year": 2026,
+      "title": "Vibrato Expression Control for Singing Voice Conversion with Improving Independent Control (VibE-SVC2)",
+      "id": "arXiv:2606.17126",
+      "url": "https://arxiv.org/abs/2606.17126",
+      "finding": "Submitted 2026-06-15, accepted to IEEE TASLP. Names two concrete breakages in singing style conversion and fixes each: pitch–energy entanglement (addressed with an 'Energy Style Converter'), and F0 extraction collapse on non-modal phonation — 'Addressing specific styles such as vocal fry poses a challenge, as conventional F0 extraction often fails due to their inherent subharmonic characteristics', handled by a Subharmonic Correction algorithm on the F0 contour. It also adds vibrato rate scaling for independent control of vibrato extent, a capability absent from its own predecessor.",
+      "implication": "The F0 tracker, not the converter, is the first thing that fails on real singing — any score-locked pipeline that trusts an extracted F0 contour must detect subharmonic/fry regions or it will silently mis-transcribe the very passages a singer most needs feedback on."
+    }
+  ],
+  "licence_notes": "BLOCKED OR ENCUMBERED FOR COMMERCIAL USE: (1) hf:RMSnow/Vevo2 — the Vevo2 pretrained checkpoints are CC-BY-NC-ND-4.0, i.e. NonCommercial AND NoDerivatives, so they cannot be shipped commercially and cannot legally be fine-tuned, even though the surrounding Amphion toolkit (github:open-mmlab/Amphion) is MIT. (2) github:svc-develop-team/so-vits-svc — AGPL-3.0, network-copyleft, and archived read-only since 2023-11-11. (3) github:Plachtaa/seed-vc — GPL-3.0 (copyleft, not a permissive base) and archived, last push 2025-04-20. (4) github:thuhcsi/NeuCoSVC — NO LICENCE FILE AT ALL (GitHub API returns license: null; last code push 2024-05-22), which under default copyright means all rights reserved: unusable commercially despite being public. (5) Beatrice needs care because the name covers two different artefacts — hf:fierce-cats/beatrice-trainer (Beatrice 2) states MIT for source code AND trained models, but the earlier 'Beatrice JVS Corpus Edition' distributed via w-okada/voice-changer is flagged in that repo's README as 'NOT MIT License'; verify which artefact is in hand before shipping. CLEAN PERMISSIVE (verified MIT, code and weights, actively maintained): github:RVC-Project/Retrieval-based-Voice-Conversion-WebUI, github:yxlllc/DDSP-SVC, github:bshall/knn-vc, github:open-mmlab/Amphion (code only). Separately, licences say nothing about the vocal-identity consent question: RVC, so-vits-svc and Beatrice all attach terms-of-use text making the user responsible for the rights to any voice they train on.",
+  "gaps": "I could not find any published real-time-factor or VRAM measurement for singing voice conversion on an RTX 5090, or on any RTX 40/50-series card — every hard RTF number in this lane is measured on an A100 (LCM-SVC), an RTX 3060 Laptop (Seed-VC), or a CPU (Beatrice, RT-VC), so 5090 throughput for a score-locked pipeline has to be measured locally rather than cited. I also could not find a controlled study that sweeps target-singer training minutes against conversion quality for SINGING specifically: the three numbers available are a repo recommendation (RVC, >=10 min speech), a repo observation on speech references (kNN-VC, plateau beyond 5 min), and a challenge's fixed allocation (SVCC 2023, ~12 min singing / ~5 min speech) — none of them is a measured curve, and none isolates how much of that budget must be singing rather than speech. Finally, two recent systems publish claims I could not verify with numbers: R2-SVC (arXiv:2510.20677, Zheng et al., 2025-10-23) claims state-of-the-art results under clean and noisy conditions via F0 perturbation and music-separation-artifact simulation but reports no figures in its abstract and names no code release or licence; and HQ-SVC's '<80h data, single consumer-grade GPU' claim appears only as a repo bullet, with no GPU model, VRAM figure, wall-clock training time, or baseline comparison table retrievable from the repo or abstract."
+}

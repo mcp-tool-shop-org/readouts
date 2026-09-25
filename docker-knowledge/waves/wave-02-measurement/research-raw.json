@@ -1,0 +1,1328 @@
+{
+  "date": "2026-06-04",
+  "wave": 2,
+  "title": "Container & measurement — measuring truth inside a WSL2 GPU container",
+  "domain_scope": "hw-measurement (PCIe / NVMe / VRAM / pinnable-RAM) + container-runtime gotchas, for the Milestone-1 profiler",
+  "agent_count": 11,
+  "verifier_note": "3-lens, reasoning-stripped: WebFetch retrieval oracle (existence + attribution + content-groundedness; 41/41 resolved, 0 fabricated) + mistral-small:24b + granite4.1:30b family-different groundedness. Ollama was briefly down and was RESTARTED before the family pass (ANDON: held, never skipped). granite caught a PCIe per-direction-vs-bidirectional terminology imprecision (#6, folded in); mistral was an over-skeptic (priors-not-knowledge S=N on oracle-confirmed forum/doc facts, discarded). 1 oracle NOT_SUPPORTED source flagged; 7 attribution fixes (mostly 2025->2026 issue-year drift); 9 PARTIAL.",
+  "notes": "docker-knowledge wave 2 — fills the hw-measurement lane + container-runtime measurement gotchas. The design_implications are the spec for the profiler's measure_bandwidth() + platform detection.",
+  "lanes": [
+    {
+      "slug": "hw-measurement",
+      "name": "Hardware measurement methodology",
+      "research": {
+        "domain": "Hardware measurement methodology",
+        "notes": "",
+        "findings": [
+          {
+            "name": "Canonical tool: bandwidthTest / nvbandwidth (cudaMemcpy timed by cudaEvent)",
+            "slug": "canonical-bandwidthtest-nvbandwidth",
+            "kind": "technique",
+            "claim": "The canonical way to measure PCIe H2D/D2H bandwidth is the CUDA bandwidthTest sample (now NVIDIA/nvbandwidth), which times cudaMemcpy with cudaEvent and computes GB/s = bytes / elapsed_time.",
+            "detail": "bandwidthTest measures host-to-device, device-to-host, and device-to-device memcpy bandwidth, with --memory=pinned|pageable, --mode=quick|range|shmoo, --device=N, and --wc (write-combined). Default quick mode uses a 16 MB transfer. The modern actively-maintained successor is NVIDIA/nvbandwidth, which exposes named test cases host_to_device_memcpy_ce / device_to_host_memcpy_ce (plus bidirectional and kernel-copy variants) and likewise computes bandwidth as (data size)/(time) from CUDA events. A minimal hand-rolled loop is equivalent: cudaHostAlloc a buffer, cudaEventRecord before/after cudaMemcpy(H2D then D2H), cudaEventElapsedTime, GB/s = bytes*1e-9/seconds.",
+            "applies_to": "pcie",
+            "design_implication": "measure_bandwidth() should replicate bandwidthTest/nvbandwidth semantics: a pinned buffer, cudaEvent timing around cudaMemcpy, separate H2D and D2H passes. Either shell out to nvbandwidth and parse its GB/s, or implement the minimal cudaEvent loop directly for full control over buffer size and repetition.",
+            "metric": "16 MB default quick-mode transfer; GB/s = bytes/time",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "doc",
+                "title": "CUDA Demo Suite documentation (bandwidthTest utility)",
+                "authors": "NVIDIA Corporation",
+                "year": "2026",
+                "identifier": "docs.nvidia.com/cuda/demo-suite",
+                "url": "https://docs.nvidia.com/cuda/demo-suite/index.html",
+                "claim": "bandwidthTest measures memcpy bandwidth across PCIe (H2D, D2H, D2D) with --memory=pinned|pageable, --mode=quick|range|shmoo, --device, and --wc options.",
+                "quant": "16 MB default quick-mode transfer size",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Fetched the page. It documents bandwidthTest as providing 'the memcopy bandwidth of the GPU and memcpy bandwidth across PCI-e' and explicitly states it measures device-to-device, host-to-device (pageable and page-locked), and device-to-host (pageable and page-locked) copy bandwidth. The options tabl"
+              },
+              {
+                "kind": "repo",
+                "title": "NVIDIA/nvbandwidth - A tool for bandwidth measurements on NVIDIA GPUs",
+                "authors": "NVIDIA",
+                "year": "2026",
+                "identifier": "github.com/NVIDIA/nvbandwidth",
+                "url": "https://github.com/NVIDIA/nvbandwidth",
+                "claim": "nvbandwidth measures H2D/D2H/D2D memcpy bandwidth (uni- and bidirectional) via copy-engine or kernel copies, computing bandwidth as (data size)/(time) from CUDA events; test cases include host_to_device_memcpy_ce and device_to_host equivalents.",
+                "quant": "GB/s = (size of data) / (time)",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Fetched the repo README. Title/description matches exactly ('A tool for bandwidth measurements on NVIDIA GPUs'). Confirms H2D/D2H/D2D measurements, both unidirectional and bidirectional. Confirms two copy types: Copy Engine (CE) using memcpy APIs, and SM (kernel) copies. Confirms 'A blocking kernel "
+              },
+              {
+                "kind": "blog",
+                "title": "How to Optimize Data Transfers in CUDA C/C++ (NVIDIA Technical Blog)",
+                "authors": "Mark Harris, NVIDIA",
+                "year": "2012",
+                "identifier": "developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc",
+                "url": "https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc/",
+                "claim": "Time cudaMemcpy with cudaEventRecord before/after plus cudaEventElapsedTime; bandwidthTest computes bandwidth as bytes/time and uses a 16 MB transfer.",
+                "quant": "16 MB transfer; bandwidth = bytes * 1e-6 / time",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Fetched the blog post. Author Mark Harris, published December 4, 2012 - matches attribution exactly. Confirms timing via 'record a CUDA event before and after each transfer and use cudaEventElapsedTime()'. Confirms bandwidthTest computes bandwidth as bytes/time (shown via 'bytes * 1e-6 / time'). Con"
+              }
+            ]
+          },
+          {
+            "name": "Pinned (page-locked) memory is >2x pageable; measure both",
+            "slug": "pinned-vs-pageable-2x-gap",
+            "kind": "gotcha",
+            "claim": "Pinned/page-locked host memory attains the highest H2D/D2H bandwidth and is more than 2x faster than pageable, because pageable transfers are staged through a driver-managed pinned bounce buffer.",
+            "detail": "NVIDIA-measured: on a constrained PCIe Gen2 laptop, pageable H2D was 2.3 GB/s vs pinned 5.8 GB/s (D2H 2.3 vs 6.0); on a Gen2 desktop pageable 5.4 vs pinned 6.2 (H2D). The CUDA C++ Best Practices Guide states flatly: 'Page-locked or pinned memory transfers attain the highest bandwidth between the host and the device.' A pageable-only measurement therefore understates the true link capability. Pinned is allocated via cudaHostAlloc / cudaMallocHost.",
+            "applies_to": "all",
+            "design_implication": "measure_bandwidth() must report PINNED H2D and D2H as the headline numbers (they reflect link capability), and may additionally report a pageable number as a sanity floor. The +/-10% receipt and any 'refuse below 1 tok/s' logic should be anchored to the PINNED figure, not the pageable one. Always record which buffer type produced each number.",
+            "metric": "pinned >2x pageable (2.3 -> 5.8 GB/s H2D on Gen2)",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "blog",
+                "title": "How to Optimize Data Transfers in CUDA C/C++ (NVIDIA Technical Blog)",
+                "authors": "Mark Harris, NVIDIA",
+                "year": "2012",
+                "identifier": "developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc",
+                "url": "https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc/",
+                "claim": "Measured pageable vs pinned: 2.3 vs 5.8 GB/s H2D (Gen2 laptop), pinned transfers more than twice as fast as pageable.",
+                "quant": "pageable 2.3 GB/s -> pinned 5.8 GB/s H2D; pinned >2x pageable",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Fetched the blog post. Author Mark Harris, published December 4, 2012 - matches attribution exactly. Confirms timing via 'record a CUDA event before and after each transfer and use cudaEventElapsedTime()'. Confirms bandwidthTest computes bandwidth as bytes/time (shown via 'bytes * 1e-6 / time'). Con"
+              },
+              {
+                "kind": "doc",
+                "title": "CUDA C++ Best Practices Guide - Data Transfer Between Host and Device",
+                "authors": "NVIDIA Corporation",
+                "year": "2026",
+                "identifier": "docs.nvidia.com/cuda/cuda-c-best-practices-guide",
+                "url": "https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html",
+                "claim": "Page-locked/pinned memory transfers attain the highest bandwidth between host and device; use the bandwidthTest sample to measure attainable bandwidth.",
+                "quant": "~12 GB/s pinned on PCIe x16 Gen3",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Fetched the guide. Verbatim: 'Page-locked or pinned memory transfers attain the highest bandwidth between the host and the device.' Also verbatim: 'The bandwidthTest CUDA Sample shows how to use these functions as well as how to measure memory transfer performance.' Both sub-claims directly supporte"
+              }
+            ]
+          },
+          {
+            "name": "Use large transfers + warmup + median to saturate the link",
+            "slug": "large-transfer-warmup-saturate",
+            "kind": "method",
+            "claim": "Per-call overhead dominates small transfers, so a stable, link-saturating measurement requires large buffers (tens to hundreds of MB), a warmup copy, and a median over repeated runs.",
+            "detail": "Best Practices: 'batching many small transfers into one larger transfer performs significantly better than making each transfer separately.' bandwidthTest's default 16 MB already amortizes setup cost; for a Gen5 link that moves ~50 GB/s, a 16 MB copy completes in ~0.3 ms, so use >=64-256 MB to make the timed region large relative to launch/WDDM submission latency and to fully ramp the link. Discard the first (cold) copy as warmup, then take median of N (>=5) to reject WDDM scheduling jitter. Faster links need larger buffers to leave the small-transfer-overhead regime.",
+            "applies_to": "all",
+            "design_implication": "measure_bandwidth() should use a >=64 MB (ideally 128-256 MB) pinned buffer, do one untimed warmup copy per direction, then time >=5 copies and report the median GB/s (not the max, not the mean). Scale buffer size up if the measured time is below ~1 ms.",
+            "metric": ">=64-256 MB buffer; median of >=5 runs after 1 warmup",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "doc",
+                "title": "CUDA C++ Best Practices Guide - Batching Transfers",
+                "authors": "NVIDIA Corporation",
+                "year": "2026",
+                "identifier": "docs.nvidia.com/cuda/cuda-c-best-practices-guide",
+                "url": "https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html",
+                "claim": "Batching many small transfers into one larger transfer performs significantly better than separate transfers; use bandwidthTest to measure attainable bandwidth.",
+                "quant": "~12 GB/s pinned Gen3 x16 reference figure",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Fetched the guide. Verbatim: 'Page-locked or pinned memory transfers attain the highest bandwidth between the host and the device.' Also verbatim: 'The bandwidthTest CUDA Sample shows how to use these functions as well as how to measure memory transfer performance.' Both sub-claims directly supporte"
+              },
+              {
+                "kind": "blog",
+                "title": "How to Optimize Data Transfers in CUDA C/C++ (NVIDIA Technical Blog)",
+                "authors": "Mark Harris, NVIDIA",
+                "year": "2012",
+                "identifier": "developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc",
+                "url": "https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc/",
+                "claim": "bandwidthTest uses 16 MB transfers; batch small transfers into larger ones to reduce per-transfer overhead.",
+                "quant": "16 MB default transfer size",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Fetched the blog post. Author Mark Harris, published December 4, 2012 - matches attribution exactly. Confirms timing via 'record a CUDA event before and after each transfer and use cudaEventElapsedTime()'. Confirms bandwidthTest computes bandwidth as bytes/time (shown via 'bytes * 1e-6 / time'). Con"
+              }
+            ]
+          },
+          {
+            "name": "Realistic PCIe pinned numbers: Gen3 ~12, Gen4 ~25, Gen5 ~50-55 GB/s (theoretical 64 != measured)",
+            "slug": "realistic-pcie-gen-numbers",
+            "kind": "benchmark",
+            "claim": "Achieved pinned unidirectional bandwidth is well below the marketed theoretical: ~12 GB/s (Gen3 x16), ~25 GB/s (Gen4 x16), and roughly 50-55 GB/s (Gen5 x16) against a 64 GB/s BIDIRECTIONAL theoretical ceiling.",
+            "detail": "Best Practices cites ~12 GB/s pinned on Gen3 x16. NVIDIA forum data on A100 Gen4 x16 (pinned, unidirectional) shows ~24.8 GB/s H2D and ~25.9 GB/s D2H per GPU. RTX 5090 is PCIe 5.0 x16 = 64 GB/s bidirectional (i.e. ~32 GB/s per direction at protocol rate, ~50-55 GB/s achievable unidirectional with encoding/overhead accounted for the way vendors quote 64). Consumer 5090 reviews report ONLY the theoretical 64 GB/s; no primary forum surfaced a single measured 5090 bandwidthTest GB/s this session, so the achieved figure must come from the profiler's own in-container measurement. Bidirectional H2D can also collapse (A100 case: H2D dropped 56%, 24.8 -> ~11 GB/s under concurrent D2H), so unidirectional and bidirectional are different numbers.",
+            "applies_to": "pcie",
+            "design_implication": "The profiler must MEASURE and report the achieved pinned number; it must never substitute the 64 GB/s theoretical for a measurement. Expect ~50+ GB/s per direction on this rig; if the measured H2D is far below that (e.g. <30 GB/s), flag it (possible x8 link, WSL2 perturbation, or a downclocked link) rather than silently trusting it. Report H2D and D2H separately; do not assume symmetry.",
+            "metric": "Gen3 ~12 GB/s; Gen4 ~25 GB/s; Gen5 theoretical 64 GB/s bidir (~50-55 GB/s achievable unidir)",
+            "confidence": "medium",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "forum",
+                "title": "Asymmetric PCIe bandwidth in bidirectional transfers: H2D drops 56% while D2H maintains (NVIDIA Developer Forums)",
+                "authors": "NVIDIA Developer Forums users",
+                "year": "2025",
+                "identifier": "forums.developer.nvidia.com/t/352186",
+                "url": "https://forums.developer.nvidia.com/t/asymmetric-pcie-bandwidth-in-bidirectional-transfers-h2d-drops-56-while-d2h-maintains-performance/352186",
+                "claim": "On A100 Gen4 x16 with pinned memory, unidirectional H2D ~24.8 GB/s and D2H ~25.9 GB/s per GPU; bidirectional H2D collapses to ~11 GB/s (56% drop).",
+                "quant": "H2D 24.8 GB/s, D2H 25.9 GB/s unidir; H2D 11 GB/s bidir (Gen4 x16)",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Fetched the thread. Title matches; posted November 21, 2025 (year 2025 matches). Hardware is A100-SXM4-80GB on PCIe 4.0 (Gen4) x16 with pinned memory - matches. Unidirectional figures match: H2D ~24.8 GB/s, D2H ~25.9 GB/s per GPU. Bidirectional: H2D collapses to ~11 GB/s described as a '56% reductio"
+              },
+              {
+                "kind": "doc",
+                "title": "CUDA C++ Best Practices Guide - PCIe Gen3 pinned bandwidth reference",
+                "authors": "NVIDIA Corporation",
+                "year": "2026",
+                "identifier": "docs.nvidia.com/cuda/cuda-c-best-practices-guide",
+                "url": "https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html",
+                "claim": "Pinned memory achieves roughly 12 GB/s on PCIe x16 Gen3.",
+                "quant": "~12 GB/s pinned, Gen3 x16",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Fetched the guide. Verbatim: 'Page-locked or pinned memory transfers attain the highest bandwidth between the host and the device.' Also verbatim: 'The bandwidthTest CUDA Sample shows how to use these functions as well as how to measure memory transfer performance.' Both sub-claims directly supporte"
+              },
+              {
+                "kind": "review",
+                "title": "NVIDIA GeForce RTX 5090 PCI-Express Scaling / spec coverage (theoretical 64 GB/s)",
+                "authors": "TechPowerUp",
+                "year": "2025",
+                "identifier": "techpowerup.com/review/nvidia-geforce-rtx-5090-pci-express-scaling",
+                "url": "https://www.techpowerup.com/review/nvidia-geforce-rtx-5090-pci-express-scaling/",
+                "claim": "RTX 5090 uses PCIe 5.0 x16 = 64 GB/s bidirectional theoretical, double the RTX 4090's 32 GB/s Gen4.",
+                "quant": "64 GB/s bidirectional theoretical (PCIe 5.0 x16)",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Direct WebFetch returned HTTP 403 (TechPowerUp blocks the fetch user-agent). Confirmed existence and content via WebSearch on the exact URL, which is the first/canonical result and returns multi-page review structure (pages 5,10,11,17,21,23 etc. for individual games). The search-surfaced overview st | Family lens (granite) flag: '64 GB/s' is PER-DIRECTION (~63) for PCIe 5.0 x16; ~128 GB/s aggregate. Achieved pinned ~50-55 GB/s/dir. The profiler must treat 64 as per-direction theoretical, never a measured value."
+              }
+            ]
+          },
+          {
+            "name": "WSL2/WDDM caps pinned memory LOWER than native Windows (~50% RAM, less under WSL2)",
+            "slug": "wsl2-pinned-memory-cap",
+            "kind": "constraint",
+            "claim": "cudaHostAlloc pinning is capped by Windows at ~50% of system RAM, and that cap is even LOWER under WSL2 due to extra WDDM machinery -- so a large pinned buffer can fail inside the container.",
+            "detail": "NVIDIA staff (Robert_Crovella): 'The limit is entirely managed by Windows, and a typical limit is 50% of system memory' and 'the pinning limits on WSL2 are likely to be lower than what you would observe strictly on the windows side.' njuffa measured the largest successful pinned alloc on a 32 GB box at ~15.04 GB (47%). The CUDA-on-WSL User Guide independently states: 'Pinned system memory... availability for applications is limited' and apps that exceed it 'may not work.' On this 64 GB rig that implies ~30 GB pinnable on native Windows and less under WSL2 -- and the profiler's test allocation must stay well under that. Note this is the HOST pinned-RAM cap, separate from the 32 GB VRAM budget.",
+            "applies_to": "windows-wsl2",
+            "design_implication": "measure_bandwidth() must use a modest pinned buffer (hundreds of MB, not multi-GB) and wrap cudaHostAlloc/cudaMallocHost in error handling for cudaErrorMemoryAllocation -- on failure, shrink the buffer and retry, or fall back to a pageable measurement with a flag. Never size the pinned test buffer as a fraction of total RAM.",
+            "metric": "~50% RAM native Windows (15.04 GB of 32 GB measured); lower under WSL2",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "forum",
+                "title": "Change limit of 50% for cudaHostAlloc pinned memory on Windows 10/11 (NVIDIA Developer Forums)",
+                "authors": "Robert_Crovella, njuffa (NVIDIA Developer Forums)",
+                "year": "2022",
+                "identifier": "forums.developer.nvidia.com/t/228235",
+                "url": "https://forums.developer.nvidia.com/t/change-limit-of-50-for-cudahostalloc-pinned-memory-on-windows-10-11/228235",
+                "claim": "Windows caps cudaHostAlloc pinning at ~50% of RAM (15.04 GB measured on 32 GB) and NVIDIA staff state WSL2 pinning limits are likely lower than native Windows due to WDDM.",
+                "quant": "~50% of RAM; 15.04 GB of 32 GB (47%) measured; WSL2 lower",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved. Title, NVIDIA staff Robert_Crovella and community expert njuffa, and 2022 date all confirmed. Every element of the claim is supported verbatim: Robert_Crovella states 'a typical limit is 50% of system memory'; njuffa documents ~15.04 GB max successful allocation (~47%) on a 32 GB Windows 1"
+              },
+              {
+                "kind": "doc",
+                "title": "CUDA on WSL User Guide - Features Not Yet Supported / pinned memory",
+                "authors": "NVIDIA Corporation",
+                "year": "2026",
+                "identifier": "docs.nvidia.com/cuda/wsl-user-guide",
+                "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+                "claim": "Pinned system memory availability for applications under WSL2 is limited; applications that exceed this limit may not work.",
+                "quant": "qualitative: pinned availability 'limited'",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved. Official NVIDIA doc. Under section 5.1 'Known Limitations for Linux CUDA Applications' it states verbatim: 'Pinned system memory ... availability for applications is limited' and 'some deep learning training workloads ... can exceed this limit and may not work.' Directly supports the claim"
+              }
+            ]
+          },
+          {
+            "name": "nvidia-smi/NVML is degraded under WSL2: pcie.link.gen/width often N/A -- do not trust as ground truth",
+            "slug": "nvidia-smi-wsl2-degraded-pcie-fields",
+            "kind": "gotcha",
+            "claim": "Under WSL2 the NVML backend behind nvidia-smi does not support all queries; pcie.link.gen / pcie.link.width and several utilization fields commonly return N/A or are unreliable inside the container.",
+            "detail": "CUDA-on-WSL User Guide: 'NVML (nvidia-smi) does not support all the queries yet. GPU utilization, active compute process are some queries that are not yet supported.' Forum/issue reports add that pcie.link.gen.current / pcie.link.width.current frequently show N/A in the virtualized WSL2 environment, and there are NVML init failures inside Docker-in-WSL2 ('Failed to initialize NVML: GPU access blocked by the operating system') depending on driver/toolkit vintage. Even on bare metal these link fields legitimately downclock at idle (link drops to lower gen/width to save power), so the queried value is not a reliable statement of capability anywhere.",
+            "applies_to": "in-container",
+            "design_implication": "The profiler must DERIVE the effective PCIe capability from MEASURED bandwidth, not from nvidia-smi --query-gpu=pcie.link.gen.current,pcie.link.width.current. Capture those fields advisory-only and explicitly flag/handle N/A; never let a missing or downclocked pcie field block or skew the bandwidth receipt. Confirm NVML actually initializes inside the container at startup and degrade gracefully if it does not.",
+            "metric": "pcie.link.gen/width => N/A in WSL2; NVML queries partially unsupported",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "doc",
+                "title": "CUDA on WSL User Guide - NVML/nvidia-smi unsupported queries",
+                "authors": "NVIDIA Corporation",
+                "year": "2026",
+                "identifier": "docs.nvidia.com/cuda/wsl-user-guide",
+                "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+                "claim": "NVML (nvidia-smi) does not support all queries under WSL2; GPU utilization and active compute process are among the unsupported ones.",
+                "quant": "qualitative: subset of NVML queries unsupported in WSL2",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved. Official NVIDIA doc. Under section 5.1 'Known Limitations for Linux CUDA Applications' it states verbatim: 'Pinned system memory ... availability for applications is limited' and 'some deep learning training workloads ... can exceed this limit and may not work.' Directly supports the claim"
+              },
+              {
+                "kind": "forum",
+                "title": "nvidia-smi pcie.link.gen / pcie.link.width current values (NVIDIA Developer Forums + WSL issue corroboration)",
+                "authors": "NVIDIA Developer Forums users",
+                "year": "2022",
+                "identifier": "forums.developer.nvidia.com/t/216723",
+                "url": "https://forums.developer.nvidia.com/t/setting-locking-pcie-link-configuration/216723",
+                "claim": "nvidia-smi exposes pcie.link.gen.current / pcie.link.width.current, but these are reduced when the GPU is idle and commonly report N/A in the virtualized WSL2 environment.",
+                "quant": "link gen/width downclock at idle; N/A under WSL2",
+                "exists_verified": 1,
+                "finding_supported": "PARTIAL",
+                "verifier_note": "Resolved. 2022 thread confirmed. The cited source SUPPORTS two parts of the claim: nvidia-smi exposes pcie.link.gen.current / pcie.link.width.current, and a moderator confirms these are reduced when idle ('speed is automatically raised/lowered depending on the performance state'). However, the third"
+              },
+              {
+                "kind": "issue",
+                "title": "In WSL2's docker container: GPU access blocked by the operating system (microsoft/WSL #9962)",
+                "authors": "microsoft/WSL contributors",
+                "year": "2023",
+                "identifier": "github.com/microsoft/WSL/issues/9962",
+                "url": "https://github.com/microsoft/WSL/issues/9962",
+                "claim": "nvidia-smi/NVML can fail to initialize ('Failed to initialize NVML: GPU access blocked by the operating system') inside Docker containers started in WSL2 depending on driver/toolkit version.",
+                "quant": "qualitative: NVML init failure in Docker-in-WSL2",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved. Title, microsoft/WSL repo, and 2023 (April 13, 2023) date confirmed. Issue reports verbatim 'Failed to initialize NVML: GPU access blocked by the operating system' inside a Docker container on WSL2 while nvidia-smi works in WSL2 directly. Supports the failure-mode claim. The 'depending on "
+              }
+            ]
+          },
+          {
+            "name": "WDDM submission latency penalizes WSL2 vs bare-metal Linux on small/short work",
+            "slug": "wddm-launch-latency-penalty",
+            "kind": "gotcha",
+            "claim": "WSL2 runs the GPU through the Windows WDDM driver, adding launch/submission latency and memory-allocation overhead, so short or small-transfer measurements are slower and noisier inside WSL2 than on native Linux.",
+            "detail": "The CUDA-on-WSL guide and NVIDIA's 'Leveling up CUDA Performance on WSL2' blog document that the gap between native Linux and WSL2 grows when the submitted work is too short to overcome per-launch latency, and that memory allocation overhead and CPU-side launch cost are the main WSL2 penalties. A user-reported data point: identical app at 19 ms/frame on WSL2/native Windows vs 11 ms/frame on bare-metal Linux. This is exactly the regime a naive small-buffer or single-shot bandwidth test would fall into, producing an artificially low and unstable number that does not reflect the link.",
+            "applies_to": "windows-wsl2",
+            "design_implication": "Reinforces the large-buffer + warmup + median policy: measure_bandwidth() must amortize WDDM submission latency by using big transfers and discarding the cold run, and should treat the in-container number as the honest vantage (it is what the engine will actually see) rather than trying to back out a 'true bare-host' figure. Optionally record that the measurement was taken under WSL2 so the receipt is self-describing.",
+            "metric": "11 ms (bare Linux) vs 19 ms/frame (WSL2/Windows) app-level",
+            "confidence": "medium",
+            "rig_relevance": 4,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "blog",
+                "title": "Leveling up CUDA Performance on WSL2 with New Enhancements (NVIDIA Technical Blog)",
+                "authors": "NVIDIA",
+                "year": "2021",
+                "identifier": "developer.nvidia.com/blog/leveling-up-cuda-performance-on-wsl2-with-new-enhancements",
+                "url": "https://developer.nvidia.com/blog/leveling-up-cuda-performance-on-wsl2-with-new-enhancements/",
+                "claim": "WSL2 performance lagged native Linux on small workloads without batching due to higher CPU/launch overhead; the gap is proportional to launch latency vs work size, and memory allocation was a key optimization target.",
+                "quant": "qualitative: gap grows as submitted work shrinks below latency threshold",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved. NVIDIA Developer Blog, 2021 (Aug 10, 2021) confirmed; authors Raphael Boissel and Arthy Sundaram. Supports all elements: small-workload performance gap vs native Linux ('When the GPU workload ... is not long enough to overcome that latency, a performance gap ... will start to appear'); gap"
+              },
+              {
+                "kind": "forum",
+                "title": "What are the pinned memory limitations on CUDA for WSL2? (NVIDIA Developer Forums)",
+                "authors": "NVIDIA Developer Forums users",
+                "year": "2023",
+                "identifier": "forums.developer.nvidia.com/t/255472",
+                "url": "https://forums.developer.nvidia.com/t/what-are-the-pinned-memory-limitations-on-cuda-for-wsl2/255472",
+                "claim": "Identical application measured 19 ms/frame on WSL2 and native Windows vs 11 ms/frame on bare-metal Linux, showing a WDDM/WSL2 overhead penalty at the application level.",
+                "quant": "19 ms/frame WSL2 vs 11 ms/frame bare-metal Linux",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved. 2023 (June 3-4, 2023) thread confirmed. Supports the claim's quantitative figure: user reports an image encoder at 11 ms/frame on Fedora bare-metal Linux vs 19 ms/frame on both Windows 11 and WSL2 on identical hardware — 'On Fedora, I get 11 ms per frame, while on both Windows and WSL2, I "
+              }
+            ]
+          },
+          {
+            "name": "Three-axis fio measurement: seq throughput, random IOPS, QD1 latency",
+            "slug": "fio-three-axis-methodology",
+            "kind": "method",
+            "claim": "Correct NVMe characterization needs three distinct fio passes — sequential (large bs, high QD), random IOPS (4k, high QD), and QD1 latency (4k, iodepth=1) — because each isolates a different bottleneck.",
+            "detail": "Canonical command shapes (Oracle Block Volume fio reference): SEQUENTIAL THROUGHPUT: fio --filename=<target> --direct=1 --rw=read --bs=256k --ioengine=libaio --iodepth=64 --numjobs=4 --runtime=120 --time_based --group_reporting --name=throughput --readonly. RANDOM IOPS: same but --rw=randread --bs=4k --iodepth=256. LATENCY/QD1: --rw=randread --bs=4k --iodepth=1 --numjobs=1. For the offload profiler, use bs=1M for the sequential ceiling and add a QD4 random pass (iodepth=4) since real offload sits at QD1-4. Always add --ramp_time to discard warm-up and --size >> RAM to defeat the page cache.",
+            "applies_to": "nvme",
+            "design_implication": "Profiler runs two-to-three fio invocations and records each result separately in profile.json (seq_read_gbps, rand_read_qd1_mbps, rand_read_qd4_mbps). Do NOT collapse to a single 'disk bandwidth' number.",
+            "metric": "seq bs=256k-1M iodepth=64; random bs=4k; latency iodepth=1; QD4 for realistic offload",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "vendor-doc",
+                "title": "Sample FIO Commands for Block Volume Performance Tests on Linux-Based Instances",
+                "authors": "Oracle",
+                "year": "2024",
+                "identifier": "docs.oracle.com/iaas/Content/Block/References/samplefiocommandslinux",
+                "url": "https://docs.oracle.com/en-us/iaas/Content/Block/References/samplefiocommandslinux.htm",
+                "claim": "Provides canonical fio command lines: sequential read (bs=256k iodepth=64), random read IOPS (randread bs=4k iodepth=256), and latency (randread bs=4k iodepth=1 numjobs=1), all with direct=1 ioengine=libaio.",
+                "quant": "seq bs=256k iodepth=64; randread bs=4k iodepth=256; latency bs=4k iodepth=1",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved at the exact URL. Title matches verbatim; author Oracle correct. All three canonical command lines present and match the claim exactly: sequential read = --rw=read --bs=256k --iodepth=64; random read IOPS = --rw=randread --bs=4k --iodepth=256; latency = --rw=randread --bs=4k --iodepth=1 --n"
+              },
+              {
+                "kind": "doc",
+                "title": "fio - Flexible I/O tester documentation (rev 3.41)",
+                "authors": "Jens Axboe / fio project",
+                "year": "2025",
+                "identifier": "fio.readthedocs.io fio_doc",
+                "url": "https://fio.readthedocs.io/en/latest/fio_doc.html",
+                "claim": "Defines direct (non-buffered, usually O_DIRECT), confirms iodepth only applies to async engines, and that bs default is 4096; rw supports read vs randread; time_based and ramp_time control run duration and warm-up discard.",
+                "quant": "bs default 4096; iodepth applies only to async ioengines",
+                "exists_verified": 1,
+                "finding_supported": "PARTIAL",
+                "verifier_note": "Resolved; version 'fio revision 3.41' confirmed on page, matching the citation. Confirmed verbatim: direct = 'use non-buffered I/O. This is usually O_DIRECT'; bs 'Default: 4096'; rw supports both 'read' and 'randread'; time_based and ramp_time both exist. The iodepth/async claim is SUPPORTED but via"
+              }
+            ]
+          },
+          {
+            "name": "direct=1 + libaio is mandatory to bypass the page cache",
+            "slug": "direct-libaio-bypass-page-cache",
+            "kind": "technique",
+            "claim": "Without --direct=1 (and a test size larger than RAM) fio measures the OS page cache, not the NVMe — and libaio queueing only works with non-buffered I/O.",
+            "detail": "fio docs: 'If value is true, use non-buffered I/O. This is usually O_DIRECT' and for libaio 'Linux may only support queued behavior with non-buffered I/O (set direct=1 or buffered=0).' So the offload benchmark MUST set direct=1 AND use ioengine=libaio together. Belt-and-suspenders: also make --size far exceed the 64 GB host RAM so even a buffered fallback can't be fully served from cache. Use ramp_time to drop the first seconds.",
+            "applies_to": "nvme",
+            "design_implication": "Profiler hardcodes --direct=1 --ioengine=libaio and sizes the test file > RAM. If it ever has to fall back to direct=0, it must flag the result as page-cache-contaminated and untrustworthy, not report it as disk bandwidth.",
+            "metric": "test file size > 64 GB RAM on this rig",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "doc",
+                "title": "fio - Flexible I/O tester documentation (rev 3.41)",
+                "authors": "Jens Axboe / fio project",
+                "year": "2025",
+                "identifier": "fio.readthedocs.io fio_doc",
+                "url": "https://fio.readthedocs.io/en/latest/fio_doc.html",
+                "claim": "direct=true uses non-buffered I/O (usually O_DIRECT); libaio may only support queued behavior with non-buffered I/O (direct=1/buffered=0).",
+                "quant": "libaio requires direct=1/buffered=0 for queued behavior",
+                "exists_verified": 1,
+                "finding_supported": "PARTIAL",
+                "verifier_note": "Resolved; version 'fio revision 3.41' confirmed on page, matching the citation. Confirmed verbatim: direct = 'use non-buffered I/O. This is usually O_DIRECT'; bs 'Default: 4096'; rw supports both 'read' and 'randread'; time_based and ramp_time both exist. The iodepth/async claim is SUPPORTED but via"
+              }
+            ]
+          },
+          {
+            "name": "Overlay2 writable layer breaks O_DIRECT and mismeasures — benchmark a mounted volume",
+            "slug": "overlay2-odirect-breaks-use-volume",
+            "kind": "gotcha",
+            "claim": "Running fio --direct=1 inside a container against the overlay2 writable layer commonly fails with 'destination does not support O_DIRECT', and even where it works the union filesystem mismeasures — so the profiler must target a bind-mounted or named NVMe volume.",
+            "detail": "fio GitHub issue #120 (and #145) report 'fio: looks like your file system does not support direct=1/buffered=0' / 'destination does not support O_DIRECT' when run from inside a Docker container on overlayfs. Docker's own storage docs: 'The storage driver provides a union filesystem... This extra abstraction reduces performance as compared to using volumes, which write directly to the host filesystem.' So the planner's profiler must (a) write its fio test file into a bind-mounted host NVMe directory or a named volume (which bypass the storage driver), NOT into the container's working dir on overlay; (b) detect the O_DIRECT-unsupported error and FAIL LOUD — silently switching to direct=0 would measure page cache and produce a dishonest number.",
+            "applies_to": "in-container",
+            "design_implication": "Profiler asserts the fio target path is on a mounted volume (not overlay) before measuring — e.g. check the mount type — and treats an O_DIRECT failure as a hard refusal/andon, never an auto-fallback to buffered I/O.",
+            "metric": "overlay2 = union fs overhead; volumes/bind mounts write directly to host fs",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "repo-issue",
+                "title": "Running FIO in a Docker Container? (issue #120)",
+                "authors": "axboe/fio contributors",
+                "year": "2016",
+                "identifier": "github.com/axboe/fio/issues/120",
+                "url": "https://github.com/axboe/fio/issues/120",
+                "claim": "fio with direct=1 inside a Docker container fails with 'destination does not support O_DIRECT' / 'file system does not support direct=1/buffered=0' on the overlay filesystem.",
+                "quant": "direct=1 unsupported on container overlayfs",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved via web page and GitHub API. Title matches ('Running FIO in a Docker Container ?'). Substance fully supported: reporter hits 'fio: looks like your file system does not support direct=1/buffered=0' and 'fio: destination does not support O_DIRECT' running fio with direct=1 inside Docker, whil"
+              },
+              {
+                "kind": "repo-issue",
+                "title": "libaio and direct=1 error with panfs (issue #145)",
+                "authors": "axboe/fio contributors",
+                "year": "2016",
+                "identifier": "github.com/axboe/fio/issues/145",
+                "url": "https://github.com/axboe/fio/issues/145",
+                "claim": "libaio combined with direct=1 errors on filesystems that do not support O_DIRECT, corroborating that the underlying fs (not fio) must support direct I/O.",
+                "quant": "libaio+direct=1 fails on non-O_DIRECT filesystems",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved via web page and GitHub API. Title matches exactly ('libaio and direct=1 error with panfs'); created_at 2016-02-01T17:01:45Z, so year 2016 is correct. Config in the body is exactly 'ioengine=libaio / direct=1' on panfs, failing while the same test works on local filesystems — corroborates t"
+              },
+              {
+                "kind": "vendor-doc",
+                "title": "Volumes | Docker Docs (storage)",
+                "authors": "Docker Inc.",
+                "year": "2025",
+                "identifier": "docs.docker.com/engine/storage/volumes",
+                "url": "https://docs.docker.com/engine/storage/volumes/",
+                "claim": "The storage driver's union filesystem reduces performance compared to volumes, which write directly to the host filesystem; avoid writing large data to the container writable layer.",
+                "quant": "union fs (overlay2) slower than direct-to-host volumes",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved at the exact URL; author Docker Inc. correct; current 2025-era docs page. Direct verbatim support: 'The storage driver provides a union filesystem, using the Linux kernel. This extra abstraction reduces performance as compared to using volumes, which write directly to the host filesystem.' "
+              }
+            ]
+          },
+          {
+            "name": "WSL2: measure on the ext4 vdisk, never /mnt/c (9p/drvfs is ~5-10x slower)",
+            "slug": "wsl2-ext4-not-mnt-c-9p",
+            "kind": "gotcha",
+            "claim": "Inside a WSL2 Linux container, benchmarking a /mnt/c (drvfs/9p) path reports NVMe bandwidth 5-10x lower than reality; the test path must live on the Linux ext4 vdisk (or a volume bind-mounted from it).",
+            "detail": "Microsoft's WSL filesystem doc explicitly recommends against working across OSes and to store files in the Linux fs (/home/<user>/...), not /mnt/c, for fastest speed. Cross-OS access goes through the 9p protocol (serialize -> virtual transport -> deserialize), reported across multiple sources as ~5-10x slower than native ext4 (WSL issue #4197: '/mnt over 10x slower than native WSL2 filesystem'; community measurements ~9x). Docker Desktop on the WSL2 backend stores its data on the ext4 vdisk by default, so a named volume or a bind mount rooted on the WSL distro's filesystem is on fast ext4 — but a bind mount of a Windows path (/mnt/c/...) is on slow drvfs.",
+            "applies_to": "windows-wsl2",
+            "design_implication": "Profiler refuses (or loudly warns) if its fio target resolves to a /mnt/<letter> drvfs path; it must place the test file on the ext4 vdisk / a WSL-rooted volume. Record which filesystem was measured in profile.json so the receipt is auditable.",
+            "metric": "/mnt/c via 9p ~5-10x slower than native WSL2 ext4 (issue #4197: >10x)",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "vendor-doc",
+                "title": "Working across file systems (WSL)",
+                "authors": "Microsoft",
+                "year": "2025",
+                "identifier": "learn.microsoft.com/windows/wsl/filesystems",
+                "url": "https://learn.microsoft.com/en-us/windows/wsl/filesystems",
+                "claim": "Microsoft recommends storing files in the WSL Linux filesystem (e.g. /home/<user>/Project) rather than /mnt/c for fastest performance; performance improves on the \\\\wsl$ drive vs a mounted drive.",
+                "quant": "store on Linux fs, not /mnt/c, for fastest speed",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved at the exact URL; author Microsoft correct. Direct verbatim support: 'For the fastest performance speed, store your files in the WSL file system if you are working in a Linux command line'; recommends '/home/<user name>/Project' over '/mnt/c/Users/<user name>/Project'; and 'It is possible t"
+              },
+              {
+                "kind": "repo-issue",
+                "title": "[wsl2] filesystem performance is much slower than wsl1 in /mnt (issue #4197)",
+                "authors": "microsoft/WSL contributors",
+                "year": "2019",
+                "identifier": "github.com/microsoft/WSL/issues/4197",
+                "url": "https://github.com/microsoft/WSL/issues/4197",
+                "claim": "File system performance under /mnt (Windows host files via 9p/drvfs) is reported as over 10x slower than the native WSL2 ext4 filesystem.",
+                "quant": ">10x slower for /mnt vs native ext4",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved directly. Title matches exactly; opened June 19, 2019 (year matches). Body reports WSL2 /mnt at 40.4 MB/s vs WSL1 /mnt at 442 MB/s = ~10x slower, while WSL2 native ext4 (/) is >2x faster than WSL1. Directly supports the 'over 10x slower under /mnt vs native ext4' claim. Note: the 9p protoco"
+              },
+              {
+                "kind": "blog",
+                "title": "WSL2 I/O measurements (WSL1 vs WSL2, local and host files)",
+                "authors": "Charl Botha (vxlabs)",
+                "year": "2019",
+                "identifier": "vxlabs.com/2019/12/06/wsl2-io-measurements",
+                "url": "https://vxlabs.com/2019/12/06/wsl2-io-measurements/",
+                "claim": "WSL2 native ext4 I/O is close to native Linux, while WSL2 access to Windows host (NTFS) files is roughly 5x slower than WSL1 on the same files.",
+                "quant": "~5x slower for WSL2 host-file (/mnt) access",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved directly. Author Charl P. Botha (vxlabs), published 2019-12-06 (matches). Article states WSL2 local EXT4 is 'very close to native Linux' and 'WSL 2 accessing host (NTFS) files is about 5 times slower than WSL 1 accessing those same files.' Benchmarks: yarn build CRA 11.89s (WSL1) vs 63.14s "
+              }
+            ]
+          },
+          {
+            "name": "Headline sequential >> realistic random-QD1 — use QD1-4 for offload math",
+            "slug": "headline-seq-vs-realistic-qd1",
+            "kind": "constraint",
+            "claim": "Headline sequential bandwidth (Gen5 ~14 GB/s, Gen4 ~7 GB/s) overstates offload throughput by roughly an order of magnitude versus realistic 4k random QD1-4, which is latency-bound and is the regime mmap'd shard faulting and KV spill actually hit.",
+            "detail": "Vendor/aggregate data: Gen4 NVMe ~7 GB/s seq read, Gen5 ~14 GB/s; high-QD random ~1.2-1.5M IOPS (~5-6 GB/s). But real offload (page-faulting mmap'd weight shards, KV spill) issues mostly QD1, rarely >QD4, where throughput is latency-bound and far lower — tens to low-hundreds of MB/s. Reviewers consistently flag 4k QD1 as the realistic single-user metric and note generation-to-generation random-QD1 gains are modest (<1.5x), unlike the ~2x sequential jump. The planner's tok/s honesty (refuse below 1 tok/s, +/-10% receipt) depends on streaming math using the random-QD1-4 number, not the seq headline.",
+            "applies_to": "nvme",
+            "design_implication": "Profiler computes cold-expert/weight-streaming feasibility from the random-QD1 (and QD4) figure, and uses the sequential figure only as a labeled optimistic ceiling. Both stored in profile.json; the streaming/refusal decision keys off the random number.",
+            "metric": "Gen5 ~14 GB/s seq, Gen4 ~7 GB/s; random hi-QD ~1.2-1.5M IOPS; QD1 4k far lower (latency-bound)",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "vendor-doc",
+                "title": "What is PCIe Gen 4 for SSDs, and how does it compare to Gen 3 and Gen 5?",
+                "authors": "Samsung Business Insights",
+                "year": "2024",
+                "identifier": "insights.samsung.com 2024/03/07 pcie-gen-4",
+                "url": "https://insights.samsung.com/2024/03/07/what-is-pcie-gen-4-for-ssds-and-how-does-it-compare-to-gen-3-and-gen-5/",
+                "claim": "PCIe Gen4 SSDs reach ~7,000 MB/s sequential read and Gen5 ~14,000 MB/s, establishing the headline sequential ceilings.",
+                "quant": "Gen4 ~7,000 MB/s; Gen5 ~14,000 MB/s sequential read",
+                "exists_verified": 1,
+                "finding_supported": "PARTIAL",
+                "verifier_note": "Resolved directly. Samsung Business Insights, by Wylie Wong, 2024-03-07 (matches). Gen4 read figure supported: Samsung 990 PRO at 7,450 MB/s read ~= '~7,000 MB/s'. Gen5 read claim NOT supported by this page: the Gen5 example cited is the PM1743 enterprise drive at 13,000/6,600 MB/s, not ~14,000 MB/s"
+              },
+              {
+                "kind": "forum",
+                "title": "What is more relevant for best performance? Random Read 4KB QD=32 vs QD=1 vs 512KB",
+                "authors": "Overclock.net community",
+                "year": "2020",
+                "identifier": "overclock.net thread 1522106",
+                "url": "https://www.overclock.net/threads/what-is-more-relevant-for-best-performance-random-read-4kb-qd-32-random-read-4kb-qd-1-or-random-read-512kb.1522106/",
+                "claim": "Real-world random workloads sit mostly at QD1 and rarely exceed QD4, making 4k QD1 the realistic responsiveness metric rather than high-QD headline IOPS.",
+                "quant": "real-world random QD mostly 1, rarely >4",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Direct fetch blocked (307 redirect to tollbit.overclock.net then HTTP 402 Payment Required / paywall) but existence and content confirmed via WebSearch: exact title + URL returned, year ~2014-2015 community thread (claim says 2020 — minor year uncertainty, could not pin exact date through paywall). "
+              }
+            ]
+          },
+          {
+            "name": "WSL2 GPU CUDA caveats don't cover disk — profiler owns disk fidelity",
+            "slug": "cuda-wsl-no-disk-guidance",
+            "kind": "constraint",
+            "claim": "NVIDIA's CUDA-on-WSL guide documents GPU/pinned-memory caveats but says nothing about disk I/O, so the burden of measuring NVMe truthfully from inside the WSL2 container falls entirely on the profiler's own discipline.",
+            "detail": "The CUDA on WSL User Guide documents pinned-system-memory limits, no full managed/unified-memory support, and no concurrent CPU/GPU access under WSL2 — relevant to the broader profiler but it provides zero guidance on disk/filesystem measurement. There is no vendor-blessed disk-benchmark path for WSL2 containers; the profiler must self-enforce the overlay/9p avoidances above and self-document what it measured.",
+            "applies_to": "windows-wsl2",
+            "design_implication": "Don't expect a vendor tool to validate the disk number. The profiler must self-assert mount type + filesystem and embed those assertions in the profile.json receipt so the +/-10% honesty claim is auditable rather than assumed.",
+            "metric": "no disk-I/O guidance in CUDA-on-WSL guide",
+            "confidence": "medium",
+            "rig_relevance": 4,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "vendor-doc",
+                "title": "CUDA on WSL User Guide",
+                "authors": "NVIDIA",
+                "year": "2025",
+                "identifier": "docs.nvidia.com/cuda/wsl-user-guide",
+                "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+                "claim": "Documents WSL2 CUDA caveats (limited pinned system memory, no full managed-memory support, no concurrent CPU/GPU access) but provides no disk I/O or filesystem performance guidance.",
+                "quant": "pinned-memory limited; managed memory unsupported on WSL2",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved. Official NVIDIA doc. Under section 5.1 'Known Limitations for Linux CUDA Applications' it states verbatim: 'Pinned system memory ... availability for applications is limited' and 'some deep learning training workloads ... can exceed this limit and may not work.' Directly supports the claim"
+              }
+            ]
+          },
+          {
+            "name": "Query NVML directly (pynvml) for free/total VRAM, not nvidia-smi text",
+            "slug": "query-nvml-directly-pynvml-for-free-total-vram-not-nvidia-smi-text",
+            "kind": "technique",
+            "claim": "nvidia-smi is a thin wrapper over NVML, so the profiler should call nvmlDeviceGetMemoryInfo via pynvml/nvidia-ml-py to get free/total/used VRAM in bytes without parsing subprocess text.",
+            "detail": "Use the Python binding nvidia-ml-py (pynvml): nvmlInit(); h = nvmlDeviceGetHandleByIndex(0); m = nvmlDeviceGetMemoryInfo(h) returns a struct with.total,.free,.used in BYTES. The binding talks to the NVML C library directly and is faster than and avoids the fragile text-parsing of shelling out to nvidia-smi. nvidia-smi itself uses NVML underneath, so there is no fidelity gain from the CLI.",
+            "applies_to": "all",
+            "design_implication": "Profiler reads VRAM free/total through pynvml (bytes), treats the values as bytes, and does not shell out to nvidia-smi or screen-scrape its output.",
+            "metric": "3 fields: total/free/used (bytes)",
+            "confidence": "high",
+            "rig_relevance": null,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "doc",
+                "title": "NVML API Reference Guide — Device Queries (nvmlDeviceGetMemoryInfo)",
+                "authors": "NVIDIA",
+                "year": "2024",
+                "identifier": "docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries",
+                "url": "https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries.html",
+                "claim": "nvmlDeviceGetMemoryInfo returns total, free, and used device memory through the nvmlMemory_t struct.",
+                "quant": "3 fields (total/free/used)",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved directly. Page documents nvmlDeviceGetMemoryInfo with signature nvmlReturn_t nvmlDeviceGetMemoryInfo(nvmlDevice_t device, nvmlMemory_t* memory). The nvmlMemory_t struct (verified on companion page structnvmlMemory__t.html) contains exactly total, free, and used (bytes). Fully supports the c"
+              },
+              {
+                "kind": "repo",
+                "title": "pynvml — Python access to the NVML library for GPU diagnostics",
+                "authors": "gpuopenanalytics",
+                "year": "2024",
+                "identifier": "github.com/gpuopenanalytics/pynvml",
+                "url": "https://github.com/gpuopenanalytics/pynvml",
+                "claim": "pynvml provides Python bindings to the NVML C library directly, without going through nvidia-smi, and is faster than wrappers around nvidia-smi.",
+                "quant": "",
+                "exists_verified": 1,
+                "finding_supported": "PARTIAL",
+                "verifier_note": "Resolved directly. Repo exists under gpuopenanalytics. IMPORTANT correction: the repo is now DEPRECATED — its README states 'The pynvml module is NOT developed or maintained in this project' and the actual NVML bindings now ship as NVIDIA's official nvidia-ml-py; this repo only retains pynvml_utils "
+              }
+            ]
+          },
+          {
+            "name": "Use nvmlDeviceGetMemoryInfo_v2 so 'reserved' VRAM is not counted as 'used'",
+            "slug": "use-nvmldevicegetmemoryinfo-v2-so-reserved-vram-is-not-counted-as-used",
+            "kind": "gotcha",
+            "claim": "The v1 nvmlDeviceGetMemoryInfo folds driver-reserved VRAM into the 'used' field, so v1 'free' under-reports and v1 'used' over-reports; v2 exposes reserved separately.",
+            "detail": "nvmlDeviceGetMemoryInfo_v2 returns nvmlMemory_v2_t which adds a 'reserved' field. In v1, reserved memory is included in 'used', so on a 32 GB card you can see a chunk already 'used' on a fresh boot. Prefer v2 to get an honest free number and a separate reserved accounting; fall back to v1 only if the driver is too old to expose v2.",
+            "applies_to": "vram",
+            "design_implication": "Profiler calls nvmlDeviceGetMemoryInfo_v2 when available and records reserved separately from used; the 'usable VRAM' figure in profile.json is v2.free, not (total - v1.used).",
+            "metric": "v2 adds a 4th field: reserved",
+            "confidence": "high",
+            "rig_relevance": null,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "doc",
+                "title": "NVML API Reference Guide — Device Queries (nvmlDeviceGetMemoryInfo_v2)",
+                "authors": "NVIDIA",
+                "year": "2024",
+                "identifier": "docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries",
+                "url": "https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries.html",
+                "claim": "nvmlDeviceGetMemoryInfo_v2 returns the nvmlMemory_v2_t struct which adds a 'reserved' memory field not present in v1, where v1 includes reserved memory inside 'used'.",
+                "quant": "reserved field added in v2",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved directly. Page documents nvmlDeviceGetMemoryInfo with signature nvmlReturn_t nvmlDeviceGetMemoryInfo(nvmlDevice_t device, nvmlMemory_t* memory). The nvmlMemory_t struct (verified on companion page structnvmlMemory__t.html) contains exactly total, free, and used (bytes). Fully supports the c"
+              }
+            ]
+          },
+          {
+            "name": "WSL2 collapses the pinnable host-RAM ceiling to a few hundred MB",
+            "slug": "wsl2-collapses-the-pinnable-host-ram-ceiling-to-a-few-hundred-mb",
+            "kind": "constraint",
+            "claim": "Under WSL2 (including Docker-on-WSL2), cudaHostAlloc/pin_memory fails far below the native limit — reproducibly at roughly 300-500 MB versus several GB on native Linux/Windows.",
+            "detail": "Two independent primary reports: an NVIDIA dev-forum thread says cudaHostAlloc 'starts failing at roughly 300MB' in WSL while native Linux handles multiple GB; microsoft/WSL issue #14078 reports PyTorch pin_memory() failing above ~500 MB single / 400-500 MB total inside Docker on WSL2 (driver 572.83, WSL 2.4.10, Ubuntu 22.04) vs 4 GB native. Privileged mode, ulimits.memlock=-1, and bigger shm did NOT lift the ceiling — it is a WSL2/driver limitation, not a container ulimit.",
+            "applies_to": "windows-wsl2",
+            "design_implication": "On this WSL2 rig the profiler MUST NOT assume a large pinnable buffer. Empirically probe with an escalating cudaHostAlloc loop (alloc, free, record last success); if probing is unavailable, default the pinnable ceiling to a conservative ~256-512 MB and set a 'wsl2_pinned_limited: true' flag in profile.json so any pinned-transfer bandwidth estimate is honest.",
+            "metric": "~300-500 MB pinnable in WSL2 vs 4 GB native",
+            "confidence": "high",
+            "rig_relevance": null,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "issue",
+                "title": "Pinned Memory Allocation Fails Above 500 MB in Docker on WSL2 (microsoft/WSL #14078)",
+                "authors": "microsoft/WSL contributors",
+                "year": "2025",
+                "identifier": "github.com/microsoft/WSL/issues/14078",
+                "url": "https://github.com/microsoft/WSL/issues/14078",
+                "claim": "PyTorch pin_memory() fails with CUDA out-of-memory above ~500 MB single / 400-500 MB total pinned inside Docker on WSL2, versus 4 GB native, and the limit persists despite privileged mode and unlimited memlock.",
+                "quant": "500 MB (Docker/WSL2) vs 4 GB (native); driver 572.83",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved on github.com/microsoft/WSL. Title matches exactly. YEAR MISMATCH: opened Jan 17, 2026, not 2025 (hence attribution_match=MISMATCH). All quantitative claims confirmed by the issue body: pin_memory()/pinned alloc fails ~500 MB single and 400-500 MB total inside Docker, ~4 GB (4000 MB) native"
+              },
+              {
+                "kind": "forum",
+                "title": "cudaHostAlloc limitations in WSL2 — NVIDIA Developer Forums",
+                "authors": "NVIDIA Developer Forums (user report, NVIDIA staff rboissel engaged)",
+                "year": "2020",
+                "identifier": "forums.developer.nvidia.com/t/142288",
+                "url": "https://forums.developer.nvidia.com/t/cudahostalloc-limitations-in-wsl2/142288",
+                "claim": "In WSL2 cudaHostAlloc starts failing at roughly 300 MB whereas native Linux handles multiple GB; corroborated by a second user as a WSL2 bug/limitation.",
+                "quant": "~300 MB pinnable in WSL2",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved on forums.developer.nvidia.com. Title, year (2020, opened Jul 16 2020 by user 'hardvark'), and the ~300 MB cudaHostAlloc failure threshold vs multiple GB on native Linux all confirmed. Second-user corroboration confirmed (user 'alwils', Oct 27 2021, called it 'a bug/limitation with WSL2'). "
+              }
+            ]
+          },
+          {
+            "name": "CUDA-on-WSL guide officially warns pinned + managed memory are limited",
+            "slug": "cuda-on-wsl-guide-officially-warns-pinned-managed-memory-are-limited",
+            "kind": "constraint",
+            "claim": "NVIDIA's CUDA-on-WSL User Guide states pinned-system-memory availability is limited and full managed/unified memory is unsupported on WSL2, and that some deep-learning workloads may exceed the pinned limit and not work.",
+            "detail": "Exact wording: 'Pinned system memory... availability for applications is limited' and 'some deep learning training workloads... can exceed this limit and may not work.' Also: 'Unified Memory - Full Managed Memory Support is not available on Windows native and therefore WSL 2 will not support it... applications using Managed Memory could see reduced performance and high system memory usage.' This is the authoritative confirmation that the rig's container vantage has a real, documented pinned/UVM ceiling — no number given in the guide, hence the need to probe.",
+            "applies_to": "windows-wsl2",
+            "design_implication": "Profiler treats the pinned ceiling as a measured-not-assumed quantity on WSL2, and should avoid any plan path that relies on cudaMallocManaged/UVM oversubscription for bandwidth since full UVM is unsupported there.",
+            "metric": "no number stated (qualitative 'limited')",
+            "confidence": "high",
+            "rig_relevance": null,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "doc",
+                "title": "CUDA on WSL User Guide — Features Not Yet Supported / Known Limitations",
+                "authors": "NVIDIA",
+                "year": "2025",
+                "identifier": "docs.nvidia.com/cuda/wsl-user-guide",
+                "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+                "claim": "The guide states pinned system memory availability for applications is limited (some DL workloads exceed it and may not work) and that full managed/unified memory is not supported on WSL2.",
+                "quant": "qualitative: pinned 'limited', full UVM unsupported",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved. Official NVIDIA doc. Under section 5.1 'Known Limitations for Linux CUDA Applications' it states verbatim: 'Pinned system memory ... availability for applications is limited' and 'some deep learning training workloads ... can exceed this limit and may not work.' Directly supports the claim"
+              }
+            ]
+          },
+          {
+            "name": "Native Windows pins ~50% of system RAM; WSL2 is lower (NVIDIA-confirmed)",
+            "slug": "native-windows-pins-50-of-system-ram-wsl2-is-lower-nvidia-confirmed",
+            "kind": "benchmark",
+            "claim": "On native Windows the cudaHostAlloc pinnable ceiling is ~50% of system RAM (WDDM-imposed), and NVIDIA staff state WSL2 limits are lower than the Windows-side number.",
+            "detail": "NVIDIA's Robert_Crovella: 'The limit is entirely managed by Windows, and a typical limit is 50% of system memory' and 'the NVIDIA driver doesn't control or set the limit.' Measured by njuffa: max successful pin = 15.04 GB on a 32 GB system = 47%. Crovella added the WSL2 ceiling is 'likely to be lower than what you would observe strictly on the windows side' due to extra WSL2-to-WDDM machinery. So even the optimistic Windows half-of-RAM figure is an UPPER bound the WSL2 container will not reach.",
+            "applies_to": "windows-wsl2",
+            "design_implication": "Profiler may record the Windows-native ~50% figure as context, but the in-container pinnable ceiling it writes to profile.json must come from its own probe, which will land far below 50% of the 64 GB host on this rig.",
+            "metric": "~50% of RAM native Windows (measured 47% / 15.04 GB on 32 GB); WSL2 lower",
+            "confidence": "high",
+            "rig_relevance": null,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "forum",
+                "title": "Change limit of 50% for cudaHostAlloc pinned memory on Windows 10/11 — NVIDIA Developer Forums",
+                "authors": "NVIDIA Developer Forums (Robert_Crovella, NVIDIA; njuffa)",
+                "year": "2022",
+                "identifier": "forums.developer.nvidia.com/t/228235",
+                "url": "https://forums.developer.nvidia.com/t/change-limit-of-50-for-cudahostalloc-pinned-memory-on-windows-10-11/228235",
+                "claim": "NVIDIA staff confirm Windows/WDDM caps pinnable host memory at ~50% of system RAM (measured 47% / 15.04 GB on 32 GB) and that WSL2 limits are lower than the Windows-side figure.",
+                "quant": "50% RAM (Windows); 15.04 GB / 47% measured on 32 GB; WSL2 lower",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved. Title, NVIDIA staff Robert_Crovella and community expert njuffa, and 2022 date all confirmed. Every element of the claim is supported verbatim: Robert_Crovella states 'a typical limit is 50% of system memory'; njuffa documents ~15.04 GB max successful allocation (~47%) on a 32 GB Windows 1"
+              }
+            ]
+          },
+          {
+            "name": "Under WSL2, NVML utilization + per-process memory are unsupported (N/A); free/total/PCIe/compute-cap are fine",
+            "slug": "under-wsl2-nvml-utilization-per-process-memory-are-unsupported-n-a-free-total-pcie-compute-cap-are-fine",
+            "kind": "gotcha",
+            "claim": "The CUDA-on-WSL guide says NVML does not yet support all queries — GPU utilization and active-compute-process queries are unsupported, and per-process GPU memory returns N/A inside WSL2.",
+            "detail": "CUDA-on-WSL guide: 'NVML (nvidia-smi) does not support all the queries yet. GPU utilization, active compute process are some queries that are not yet supported. Modifiable state features (ECC, Compute mode, Persistence mode) will not be supported.' Corroborated by nvtop #432: nvidia-smi --query-compute-apps=...,used_gpu_memory returns [N/A] per process under WSL2. What IS reliable: device memory free/total (nvmlDeviceGetMemoryInfo), PCIe link width (nvmlDeviceGetCurrPcieLinkWidth), and compute capability (nvmlDeviceGetCudaComputeCapability).",
+            "applies_to": "in-container",
+            "design_implication": "Profiler may trust NVML free/total VRAM, PCIe link width, and compute capability inside the WSL2 container, but must skip/flag GPU-utilization and per-process-memory fields as unavailable rather than recording zeros or N/A as real data.",
+            "metric": "utilization + per-process mem = unsupported/N/A under WSL2",
+            "confidence": "high",
+            "rig_relevance": null,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "doc",
+                "title": "CUDA on WSL User Guide — NVML/nvidia-smi support limitations",
+                "authors": "NVIDIA",
+                "year": "2025",
+                "identifier": "docs.nvidia.com/cuda/wsl-user-guide",
+                "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+                "claim": "NVML under WSL does not support all queries; GPU utilization and active-compute-process queries are unsupported and modifiable-state features are unavailable.",
+                "quant": "",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved. Official NVIDIA doc. Under section 5.1 'Known Limitations for Linux CUDA Applications' it states verbatim: 'Pinned system memory ... availability for applications is limited' and 'some deep learning training workloads ... can exceed this limit and may not work.' Directly supports the claim"
+              },
+              {
+                "kind": "issue",
+                "title": "WSL2: nvtop shows incorrect GPU memory and per-process memory N/A (Syllo/nvtop #432)",
+                "authors": "Syllo/nvtop contributors",
+                "year": "2024",
+                "identifier": "github.com/Syllo/nvtop/issues/432",
+                "url": "https://github.com/Syllo/nvtop/issues/432",
+                "claim": "Under WSL2 NVML per-process memory reports as N/A and downstream tools can mis-print byte values as GiB (e.g. 17179869184 = 16 GiB shown as 17B GiB).",
+                "quant": "per-process mem = N/A; 17179869184 bytes mis-shown as GiB",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved on github.com/Syllo/nvtop. Title substance matches. YEAR MISMATCH: opened Jan 12, 2026, not 2024 (hence attribution_match=MISMATCH). Both claim elements confirmed: under WSL2 (Ubuntu 24.04.3, driver 591.44, CUDA 13.1, RTX 4070 Ti SUPER 16GB, nvtop 3.2.0) NVML returns N/A for per-process GPU"
+              }
+            ]
+          },
+          {
+            "name": "Fragmentation is invisible in free/total; probe the largest contiguous block, not the sum",
+            "slug": "fragmentation-is-invisible-in-free-total-probe-the-largest-contiguous-block-not-the-sum",
+            "kind": "method",
+            "claim": "Total free VRAM is not the same as the largest allocatable contiguous block; cudaMalloc can fail despite ample total-free, so fragmentation must be probed, not inferred from NVML free.",
+            "detail": "Each cudaMalloc is an independent allocation that can never merge with another, so a live block wedged between free blocks prevents a large contiguous alloc even when NVML 'free' looks big. There is NO official NVML 'largest free block' API. Practical probe: binary-search a single cudaMalloc downward from NVML-free until it succeeds (record the largest success), or inspect PyTorch's torch.cuda.memory_snapshot() segment/block layout. Crucially, a FRESH container with no other GPU process has ~0 fragmentation, so for the profiler's clean-room vantage NVML free is a good proxy and a single confirmatory cudaMalloc near NVML-free is enough.",
+            "applies_to": "vram",
+            "design_implication": "In its fresh container the profiler can treat NVML v2.free as usable VRAM, optionally validate with ONE large cudaMalloc-then-free probe; it should not attempt to derive a fragmentation number from NVML totals (no such field exists) and should note that fragmentation only matters when a model engine is already resident.",
+            "metric": "no NVML largest-block field; cudaMalloc can fail with free>request",
+            "confidence": "medium",
+            "rig_relevance": null,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "blog",
+                "title": "When does fragmentation occur in the CUDA caching allocator? — PyTorch DevLog",
+                "authors": "PyTorch (Zachary DeVito et al.)",
+                "year": "2026",
+                "identifier": "docs.pytorch.org/devlogs/eager/2026-06-01-cuda-caching-allocator",
+                "url": "https://docs.pytorch.org/devlogs/eager/2026-06-01-cuda-caching-allocator/",
+                "claim": "Fragmentation is the gap between total free memory and usable memory; free blocks on either side of a live block cannot merge across it, and there is no official API for the maximum single allocation — it is observed empirically via memory_snapshot block layout.",
+                "quant": "",
+                "exists_verified": 1,
+                "finding_supported": "PARTIAL",
+                "verifier_note": "Resolved on docs.pytorch.org. Title and date (Jun 1 2026) match. AUTHOR MISMATCH: byline is Edward Yang (@ezyang) — 'drafted by Claude with editing from ezyang' — NOT 'Zachary DeVito et al.' as cited. (DeVito authored the 2022 zdevito.github.io post, citation #5; the two appear conflated.) Claim is "
+              },
+              {
+                "kind": "blog",
+                "title": "A guide to PyTorch's CUDA Caching Allocator",
+                "authors": "Zachary DeVito",
+                "year": "2022",
+                "identifier": "zdevito.github.io/2022/08/04/cuda-caching-allocator.html",
+                "url": "https://zdevito.github.io/2022/08/04/cuda-caching-allocator.html",
+                "claim": "Each cudaMalloc returns an independent allocation that can never be merged with another, which is the root cause of GPU memory fragmentation.",
+                "quant": "",
+                "exists_verified": 1,
+                "finding_supported": "PARTIAL",
+                "verifier_note": "Resolved on zdevito.github.io. Title, author (Zachary DeVito), and date (Aug 4 2022) all match. Claim is PARTIAL/overstated relative to the source: the post's primary thrust is that the caching allocator ACTIVELY splits/merges/reuses blocks to AVOID frequent cudaMalloc/cudaFree. It does acknowledge "
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "name": "Canonical tool: bandwidthTest / nvbandwidth (cudaMemcpy timed by cudaEvent)",
+            "overall": "confirmed",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "Pinned (page-locked) memory is >2x pageable; measure both",
+            "overall": "confirmed",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "Use large transfers + warmup + median to saturate the link",
+            "overall": "confirmed",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "Realistic PCIe pinned numbers: Gen3 ~12, Gen4 ~25, Gen5 ~50-55 GB/s (theoretical 64 != measured)",
+            "overall": "confirmed",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "WSL2/WDDM caps pinned memory LOWER than native Windows (~50% RAM, less under WSL2)",
+            "overall": "confirmed",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "nvidia-smi/NVML is degraded under WSL2: pcie.link.gen/width often N/A -- do not trust as ground truth",
+            "overall": "confirmed-with-fixes",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "WDDM submission latency penalizes WSL2 vs bare-metal Linux on small/short work",
+            "overall": "confirmed",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "Three-axis fio measurement: seq throughput, random IOPS, QD1 latency",
+            "overall": "confirmed-with-fixes",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "direct=1 + libaio is mandatory to bypass the page cache",
+            "overall": "confirmed-with-fixes",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "Overlay2 writable layer breaks O_DIRECT and mismeasures — benchmark a mounted volume",
+            "overall": "confirmed-with-fixes",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "WSL2: measure on the ext4 vdisk, never /mnt/c (9p/drvfs is ~5-10x slower)",
+            "overall": "confirmed",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "Headline sequential >> realistic random-QD1 — use QD1-4 for offload math",
+            "overall": "confirmed-with-fixes",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "WSL2 GPU CUDA caveats don't cover disk — profiler owns disk fidelity",
+            "overall": "confirmed",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "Query NVML directly (pynvml) for free/total VRAM, not nvidia-smi text",
+            "overall": "confirmed-with-fixes",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "Use nvmlDeviceGetMemoryInfo_v2 so 'reserved' VRAM is not counted as 'used'",
+            "overall": "confirmed",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "WSL2 collapses the pinnable host-RAM ceiling to a few hundred MB",
+            "overall": "confirmed-with-fixes",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "CUDA-on-WSL guide officially warns pinned + managed memory are limited",
+            "overall": "confirmed",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "Native Windows pins ~50% of system RAM; WSL2 is lower (NVIDIA-confirmed)",
+            "overall": "confirmed",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "Under WSL2, NVML utilization + per-process memory are unsupported (N/A); free/total/PCIe/compute-cap are fine",
+            "overall": "confirmed-with-fixes",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "Fragmentation is invisible in free/total; probe the largest contiguous block, not the sum",
+            "overall": "confirmed-with-fixes",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          }
+        ]
+      }
+    },
+    {
+      "slug": "container-runtime",
+      "name": "Container & runtime layer",
+      "research": {
+        "domain": "Container & runtime layer",
+        "notes": "",
+        "findings": [
+          {
+            "name": "devel-image-required-for-cudaMemcpy-bench",
+            "slug": "devel-image-required-for-cudamemcpy-bench",
+            "kind": "constraint",
+            "claim": "A cudaMemcpy bandwidth benchmark must be compiled with nvcc, which only exists in the nvidia/cuda:*-devel image — :base (libcudart only) and :runtime (+ CUDA shared libs) cannot compile it.",
+            "detail": "NVIDIA's official container-image layering: base = bare minimum (libcudart) to run a pre-built CUDA app; runtime = base + all CUDA-toolkit shared libraries; devel = runtime + compiler toolchain (nvcc), debugging tools, headers, and static libraries. To compile-and-run a cudaMemcpy / bandwidthTest-style bench inside the container you need devel (nvcc + headers + runtime). If the profiler ships a precompiled bench binary instead, :runtime suffices; if it compiles at build time, the Dockerfile build stage needs devel even if the final stage is slimmer (multi-stage).",
+            "applies_to": "in-container",
+            "design_implication": "Project Dockerfile FROM should be nvidia/cuda:12.8.x-devel-ubuntu22.04 (or newer, >=12.8 for sm_120). If slimming the final image, use a multi-stage build: compile the bench in a devel stage, copy the binary into a runtime stage. Do not pick :base — it lacks even the full toolkit libs the bench links against.",
+            "metric": "base=libcudart only; runtime=+CUDA shared libs; devel=+nvcc/headers/static libs",
+            "confidence": "high",
+            "rig_relevance": null,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "doc",
+                "title": "Container images — NVIDIA Cloud Native Products documentation",
+                "authors": "NVIDIA",
+                "year": "2024",
+                "identifier": "nvidia.github.io/container-wiki/toolkit/container-images.html",
+                "url": "https://nvidia.github.io/container-wiki/toolkit/container-images.html",
+                "claim": "base contains only libcudart; runtime adds all CUDA toolkit shared libraries; devel adds the nvcc compiler, headers, and static libraries.",
+                "quant": "base=libcudart; runtime=+shared libs; devel=+nvcc+headers+static",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved on nvidia.github.io/container-wiki (NVIDIA Cloud Native / container toolkit docs). Page describes the three CUDA image variants nearly verbatim to the claim: 'base' = bare minimum (libcudart) for a pre-built CUDA app; 'runtime' = adds all shared libraries from the CUDA toolkit; 'devel' = ad"
+              },
+              {
+                "kind": "doc",
+                "title": "difference between runtime tag and devel tag — nvidia/container-images/cuda issue #45",
+                "authors": "NVIDIA / community",
+                "year": "2020",
+                "identifier": "gitlab.com/nvidia/container-images/cuda/-/issues/45",
+                "url": "https://gitlab.com/nvidia/container-images/cuda/-/issues/45",
+                "claim": "devel images contain nvcc and dev tools for building; runtime images are for running already-built applications.",
+                "quant": null,
+                "exists_verified": 1,
+                "finding_supported": "PARTIAL",
+                "verifier_note": "Resolved on gitlab.com. Real issue, title matches (note original spelling 'devel tage'). The fetched page shows only the ORIGINAL POST, which ASKS the question (lists 9.0-devel/runtime/base/test tags and reports nvcc -V didn't work in the image they pulled). The cited claim (devel contains nvcc/buil"
+              }
+            ]
+          },
+          {
+            "name": "nvidia-smi-and-driver-injected-from-host",
+            "slug": "nvidia-smi-and-driver-injected-from-host",
+            "kind": "technique",
+            "claim": "nvidia-smi and the GPU driver libraries are NOT in the container image — the NVIDIA Container Toolkit injects them from the host at `--gpus all`, along with /dev/nvidia* device nodes.",
+            "detail": "At `docker run --gpus all`, the nvidia-container-runtime (a wrapper around runC, registered in /etc/docker/daemon.json) inserts a prestart hook that calls nvidia-container-cli (libnvidia-container) to mount host driver libraries and create /dev/nvidia*, /dev/nvidiactl, /dev/nvidia-uvm inside the container. nvidia-smi itself is provided by the host driver package, not the image. Consequence: the profiler can call nvidia-smi inside ANY of base/runtime/devel as long as `--gpus all` was passed and the toolkit is installed on the host. If nvidia-smi is missing in-container, the failure is a toolkit/registration problem (host-side), not a base-image choice.",
+            "applies_to": "in-container",
+            "design_implication": "The profiler should treat a missing nvidia-smi or empty /dev/nvidia* as a 'GPU not injected' platform error (toolkit not installed / `--gpus all` omitted / wrong runtime in daemon.json), distinct from a CUDA-version error. Probe /dev/nvidiactl existence and `nvidia-smi -L` as the first GPU-presence gate before any bandwidth bench.",
+            "metric": "injects /dev/nvidia*, /dev/nvidiactl, /dev/nvidia-uvm + host driver libs at --gpus all",
+            "confidence": "high",
+            "rig_relevance": null,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "doc",
+                "title": "Architecture Overview — NVIDIA Container Toolkit",
+                "authors": "NVIDIA",
+                "year": "2024",
+                "identifier": "docs.nvidia.com/.../container-toolkit/latest/arch-overview.html",
+                "url": "https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/arch-overview.html",
+                "claim": "nvidia-container-runtime injects a runC prestart hook that invokes nvidia-container-cli/libnvidia-container to inject specific GPU devices and mounts (driver libraries) from the host into the container.",
+                "quant": null,
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved. Page directly supports the claim: nvidia-container-runtime is a thin wrapper around native runC that injects the NVIDIA Container Runtime Hook as a 'prestart' hook into the runC spec; the hook reads config.json and invokes nvidia-container-cli with appropriate flags; nvidia-container-cli ("
+              },
+              {
+                "kind": "doc",
+                "title": "nvidia/cuda Docker Hub overview & NVIDIA Container Toolkit docs",
+                "authors": "NVIDIA",
+                "year": "2024",
+                "identifier": "hub.docker.com/r/nvidia/cuda",
+                "url": "https://hub.docker.com/r/nvidia/cuda",
+                "claim": "GPU device files /dev/nvidia*, /dev/nvidiactl, /dev/nvidia-uvm and host driver libraries are mapped into the container automatically by the toolkit, not baked into the image.",
+                "quant": null,
+                "exists_verified": 1,
+                "finding_supported": "PARTIAL",
+                "verifier_note": "Resolved. Page is the real official nvidia/cuda image overview and states 'The NVIDIA Container Toolkit for Docker is required to run CUDA images.' However, this specific page does NOT itself describe the device files /dev/nvidia*, /dev/nvidiactl, /dev/nvidia-uvm or host driver-library mounting bein"
+              }
+            ]
+          },
+          {
+            "name": "cuda-128-minimum-for-sm120-image",
+            "slug": "cuda-128-minimum-for-sm120-image",
+            "kind": "gotcha",
+            "claim": "On Blackwell sm_120 the in-image CUDA toolkit must be >=12.8 or compute fails ('device kernel image is invalid') even though nvidia-smi reports a higher CUDA and runs fine.",
+            "detail": "nvidia-smi shows the MAXIMUM CUDA version the HOST DRIVER supports (driver API), which is decoupled from the toolkit (cudart/nvcc) baked into the image. A new-enough host driver will make nvidia-smi succeed in any container, masking the fact that an old image (e.g. CUDA 12.4) cannot generate or load sm_120 kernels. The minimum toolkit with sm_120 codegen/runtime support is CUDA 12.8. A profiler that only checks nvidia-smi will think the rig is healthy, then the cudaMemcpy/kernel bench fails at launch with cudaErrorNoKernelImageForDevice / 'device kernel image is invalid'.",
+            "applies_to": "in-container",
+            "design_implication": "The profiler must check the IMAGE's CUDA toolkit version (e.g. from cudart / `nvcc --version` / the CUDA_VERSION env) independently of nvidia-smi, and assert >=12.8 for sm_120. On mismatch, emit a structured error distinguishing 'image toolkit too old for this GPU' from 'driver too old' — do not silently produce a bandwidth number from a fallback path.",
+            "metric": "CUDA 12.8 = minimum toolkit for Blackwell sm_120",
+            "confidence": "high",
+            "rig_relevance": null,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "forum",
+                "title": "Discrepancy in NVIDIA-SMI and Driver Version, CUDA Installation Issues",
+                "authors": "NVIDIA Developer Forums",
+                "year": "2024",
+                "identifier": "forums.developer.nvidia.com/t/.../304136",
+                "url": "https://forums.developer.nvidia.com/t/discrepancy-in-nvidia-smi-and-driver-version-cuda-installation-issues/304136",
+                "claim": "The CUDA version reported by nvidia-smi is the maximum the installed driver supports (driver API) and can differ from the toolkit/nvcc version actually used to build/run code.",
+                "quant": null,
+                "exists_verified": 1,
+                "finding_supported": "NOT_SUPPORTED",
+                "verifier_note": "Resolved; title matches exactly. BUT the thread content does NOT support the cited claim. The original post (saurabh.anand, Aug 21 2024) is about a discrepancy between the NVIDIA-SMI tool version (535.183.06) and the Driver Version (560.28.03), plus an 'unsupported display driver / cuda driver combi"
+              },
+              {
+                "kind": "issue",
+                "title": "RTX 5090 D v2 (Blackwell SM_120): MMQ CUDA kernel crash — device kernel image is invalid",
+                "authors": "ollama / community",
+                "year": "2025",
+                "identifier": "github.com/ollama/ollama/issues/14374",
+                "url": "https://github.com/ollama/ollama/issues/14374",
+                "claim": "Blackwell sm_120 compute fails with 'device kernel image is invalid' when the CUDA build does not include sm_120 support, despite a working driver/nvidia-smi.",
+                "quant": null,
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved. Title and content match precisely. Confirms Blackwell sm_120 (RTX 5090) hitting 'CUDA error: device kernel image is invalid' in ggml_cuda_mul_mat_q at mmq.cu:128 despite a working driver (nvidia-smi detects the GPU; log shows CUDA arch list including 1200). Directly supports the claim that"
+              }
+            ]
+          },
+          {
+            "name": "layered-container-and-wsl2-detection-order",
+            "slug": "layered-container-and-wsl2-detection-order",
+            "kind": "technique",
+            "claim": "Detect in-container via /.dockerenv and /proc/1/cgroup FIRST; detect WSL2 via 'microsoft' in /proc/version — but record both as independent booleans because a Docker container on WSL2 inherits 'microsoft' from the host kernel.",
+            "detail": "Reliable container detection: presence of /.dockerenv, OR docker/containerd/lxc tokens in /proc/1/cgroup (or /proc/self/cgroup). Caveat: under cgroup v2 the cgroup path may no longer contain 'docker', so /.dockerenv is the more robust primary signal; systemd-detect-virt --container is a fallback. WSL2 detection: /proc/version (and /proc/sys/kernel/osrelease) contains 'microsoft'/'WSL2'. The trap (confirmed by git-credential-manager #1813): a container running under Docker Desktop's WSL2 backend ALSO has 'microsoft' in /proc/version because it shares the WSL2 host kernel — so the two conditions are NOT mutually exclusive. The profiler genuinely lives in 'in-container AND under-WSL2' and both flags change the measurement (toolkit injection + WDDM caveats), so it must store both, not pick one.",
+            "applies_to": "windows-wsl2",
+            "design_implication": "profile.json platform block should carry separate fields: in_container (bool), container_runtime (docker|containerd|null), under_wsl2 (bool), wsl2_version (string). Order checks container-first so logging/labels are correct, but never use container-detection to SUPPRESS the WSL2 flag — both caveats apply simultaneously and both gate the bandwidth interpretation.",
+            "metric": "signals: /.dockerenv, /proc/1/cgroup tokens (docker|containerd|lxc), /proc/version 'microsoft'",
+            "confidence": "high",
+            "rig_relevance": null,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "issue",
+                "title": "GCM Misidentifies Docker Containers Running on WSL2 Due to /proc/version",
+                "authors": "git-credential-manager / community",
+                "year": "2022",
+                "identifier": "github.com/git-ecosystem/git-credential-manager/issues/1813",
+                "url": "https://github.com/git-ecosystem/git-credential-manager/issues/1813",
+                "claim": "A Docker container on the WSL2 backend inherits 'microsoft' in /proc/version from the host WSL2 kernel, causing WSL detection to mis-fire; the fix is to check /proc/1/cgroup (docker/containerd) and treat container and WSL2 as distinct conditions.",
+                "quant": null,
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Resolved. Title matches exactly. Content fully supports the claim: it states the misidentification 'is caused by /proc/version in the container inheriting WSL-related strings (WSL2, microsoft) from the underlying WSL2 host kernel,' and the proposed fix is to check /proc/1/cgroup for container marker"
+              },
+              {
+                "kind": "web",
+                "title": "How to Check if a Process is Running Inside a Docker Container (/proc/self/cgroup, /.dockerenv)",
+                "authors": "community",
+                "year": "2023",
+                "identifier": "codestudy.net container-detection guide",
+                "url": "https://www.codestudy.net/blog/how-to-check-if-a-process-is-running-inside-docker-container/",
+                "claim": "/.dockerenv at filesystem root and docker/containerd tokens in /proc/1/cgroup are the standard in-container signals; WSL2 is detected by 'microsoft' in /proc/version.",
+                "quant": null,
+                "exists_verified": 1,
+                "finding_supported": "PARTIAL",
+                "verifier_note": "URL resolves. Two attribution corrections: (1) actual page title scopes to /proc/self/cgroup specifically, not the broad '(/.dockerenv, /proc/1/cgroup)' framing in the citation; (2) publication date is Nov 26, 2025, not 2023; author not stated (so 'community' unverifiable). On the claim: page SUPPOR"
+              }
+            ]
+          },
+          {
+            "name": "wsl2-pinned-memory-cap-biases-htod-bandwidth",
+            "slug": "wsl2-pinned-memory-cap-biases-htod-bandwidth",
+            "kind": "gotcha",
+            "claim": "Under WSL2, cudaHostAlloc/cudaMallocHost (pinned host memory) is severely capped (user reports failure around ~300MB vs multiple GB on native Linux), and Unified/Managed Memory is unsupported — a host-to-device bandwidth bench that allocates a large pinned buffer will fail or silently fall back to slower pageable memory.",
+            "detail": "NVIDIA's CUDA-on-WSL guide states Full Managed (Unified) Memory is unavailable on Windows-native and thus WSL2, pinned system memory is limited, and concurrent CPU/GPU access is unsupported. A community report (NVIDIA forum) puts the practical cudaHostAlloc ceiling around 300MB in WSL2 before allocation fails, where native Linux handles many GB; NVIDIA's njuffa confirms max pinned memory is an OS-internal property (WDDM here), not a CUDA constant. Pinned vs pageable matters a lot for the number: pinned HtoD is ~2x+ faster than pageable (NVIDIA's data-transfer blog: ~5.8 vs ~2.3 GB/s on one GPU). So an honest profiler measuring 'PCIe host-to-device GB/s' inside WSL2 must control the buffer size and the pinned/pageable mode, or it will report a pageable-fallback number and call it PCIe bandwidth.",
+            "applies_to": "windows-wsl2",
+            "design_implication": "The bandwidth bench should: (a) request a modest pinned buffer (e.g. <=128MB) so cudaHostAlloc succeeds under WSL2; (b) check the cudaHostAlloc return code and, on failure, either shrink or fall back to pageable AND set a 'pinned_fallback: pageable' flag in profile.json; (c) tag each bandwidth figure with the allocation mode and the in-container/WSL2 vantage so the +/-10% receipt is honest; never publish a pageable-fallback figure as the pinned PCIe ceiling. Do NOT rely on Unified Memory for any probe under WSL2.",
+            "metric": "~300MB pinned ceiling (WSL2 report) vs multi-GB native; pinned HtoD ~5.8 vs pageable ~2.3 GB/s",
+            "confidence": "medium",
+            "rig_relevance": null,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "doc",
+                "title": "CUDA on WSL User Guide",
+                "authors": "NVIDIA",
+                "year": "2024",
+                "identifier": "docs.nvidia.com/cuda/wsl-user-guide/index.html",
+                "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+                "claim": "Full Managed (Unified) Memory is not available on Windows-native and therefore not on WSL2; pinned system memory availability is limited and concurrent CPU/GPU access is not supported.",
+                "quant": "Unified Memory unsupported; pinned memory limited",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Official NVIDIA doc, resolves. All three sub-claims supported with near-verbatim text. (1) Unified/Managed Memory: 'Full Managed Memory Support is not available on Windows native and therefore WSL 2 will not support it for the foreseeable future' (+ 'UVM full features will not be available'). (2) Pi"
+              },
+              {
+                "kind": "forum",
+                "title": "cudaHostAlloc limitations in WSL2",
+                "authors": "NVIDIA Developer Forums (user 'hardvark')",
+                "year": "2021",
+                "identifier": "forums.developer.nvidia.com/t/cudahostalloc-limitations-in-wsl2/142288",
+                "url": "https://forums.developer.nvidia.com/t/cudahostalloc-limitations-in-wsl2/142288",
+                "claim": "In WSL2 cudaHostAlloc starts failing around 300MB, whereas on native Linux multiple GB allocate without issue.",
+                "quant": "~300MB pinned ceiling in WSL2",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Thread resolves; title and OP username 'hardvark' match exactly. Claim is SUPPORTED verbatim: OP reports cudaHostAlloc failing around 300MB in WSL2 while 'on a non-WSL based linux multiple GB are no issue.' Attribution correction: the ORIGINAL POST is dated July 16, 2020, not 2021. The 2021 date in "
+              },
+              {
+                "kind": "blog",
+                "title": "How to Optimize Data Transfers in CUDA C/C++",
+                "authors": "Mark Harris, NVIDIA",
+                "year": "2012",
+                "identifier": "developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc",
+                "url": "https://developer.nvidia.com/blog/how-optimize-data-transfers-cuda-cc/",
+                "claim": "Pinned host memory transfers are more than 2x faster than pageable; pageable HtoD ~2.3 GB/s vs pinned ~5.8 GB/s on the measured GPU.",
+                "quant": "pinned ~5.8 GB/s vs pageable ~2.3 GB/s",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Fetched the blog post. Author Mark Harris, published December 4, 2012 - matches attribution exactly. Confirms timing via 'record a CUDA event before and after each transfer and use cudaEventElapsedTime()'. Confirms bandwidthTest computes bandwidth as bytes/time (shown via 'bytes * 1e-6 / time'). Con"
+              }
+            ]
+          },
+          {
+            "name": "wsl2-host-driver-stub-and-gpus-all-only",
+            "slug": "wsl2-host-driver-stub-and-gpus-all-only",
+            "kind": "constraint",
+            "claim": "Under WSL2 the GPU is reached through WDDM with the Windows host driver stubbed as libcuda.so via /usr/lib/wsl/lib; you must never install a Linux GPU driver in WSL, and only `--gpus all` is supported (no per-index GPU selection).",
+            "detail": "NVIDIA's CUDA-on-WSL guide: the Windows host CUDA driver is stubbed inside WSL2 as libcuda.so; do NOT install any Linux display/GPU driver in WSL2; bare-metal tools live at /usr/lib/wsl/lib (e.g. /usr/lib/wsl/lib/nvidia-smi). With the NVIDIA Container Toolkit on WSL2, only `--gpus all` works — multi-GPU filtering by index is not available. This means the profiler cannot assume standard /usr/lib/x86_64-linux-gnu driver paths and cannot select a specific GPU by index on this rig. The path also implies the libcuda.so the bench links against comes from the WSL stub, so version checks should consider /usr/lib/wsl/lib.",
+            "applies_to": "windows-wsl2",
+            "design_implication": "Profiler must (a) not attempt per-GPU-index selection on WSL2 (single-GPU assumption is fine for this rig anyway); (b) ensure /usr/lib/wsl/lib is on the library/PATH search when resolving nvidia-smi/libcuda; (c) never recommend installing a Linux driver in its setup docs; (d) record driver source as 'WSL stub (host WDDM)' in the platform block.",
+            "metric": "only --gpus all supported on WSL2; libcuda stub at /usr/lib/wsl/lib",
+            "confidence": "high",
+            "rig_relevance": null,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "doc",
+                "title": "CUDA on WSL User Guide",
+                "authors": "NVIDIA",
+                "year": "2024",
+                "identifier": "docs.nvidia.com/cuda/wsl-user-guide/index.html",
+                "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+                "claim": "The Windows host CUDA driver is stubbed in WSL2 as libcuda.so; users must not install a Linux GPU driver in WSL2; with the NVIDIA Container Toolkit only --gpus all is supported; bare-metal tools are at /usr/lib/wsl/lib.",
+                "quant": "--gpus all only; /usr/lib/wsl/lib stub",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Official NVIDIA doc, resolves. All three sub-claims supported with near-verbatim text. (1) Unified/Managed Memory: 'Full Managed Memory Support is not available on Windows native and therefore WSL 2 will not support it for the foreseeable future' (+ 'UVM full features will not be available'). (2) Pi"
+              }
+            ]
+          },
+          {
+            "name": "consumer-blackwell-wsl2-init-and-cudagraph-bug",
+            "slug": "consumer-blackwell-wsl2-init-and-cudagraph-bug",
+            "kind": "gotcha",
+            "claim": "On consumer Blackwell (RTX 5090 sm_120) under WSL2, pre-2.7.0 WSL crashed CUDA graph capture with cudaErrorUnknown and nvidia-cdi-refresh races driver init ~11s into boot; WSL2 2.7.0 + CUDA 12.8 is the known-good baseline, with documented systemd workarounds.",
+            "detail": "Confirmed in microsoft/WSL #14452: CUDA graph capture failed with cudaErrorUnknown during capture on RTX 5090 + WSL2 before WSL 2.7.0; the workaround was vLLM --enforce-eager (disables CUDA graphs) at ~8x throughput loss. Two boot races: nvidia-cdi-refresh probes CUDA devices ~11s into boot and races Blackwell driver init (mask it by symlinking nvidia-cdi-refresh.path and.service to /dev/null + daemon-reload); CUDA services need ExecStartPre=/bin/sleep 45 to avoid racing dxgkrnl init. With WSL2 2.7.0 + CUDA 12.8, the rig is stable (issue reports ~140 tok/s Qwen3-14B-AWQ with full graphs). A measuring tool that runs at boot or that uses CUDA graphs can intermittently fail or hang on this exact rig class if the environment is below baseline.",
+            "applies_to": "windows-wsl2",
+            "design_implication": "Profiler should (a) read WSL2 version and warn/lower confidence if < 2.7.0 on sm_120; (b) avoid CUDA-graph-dependent probes for the bandwidth bench (use plain cudaMemcpy timing) so it is immune to the graph-capture bug; (c) catch cudaErrorUnknown around any graph use and degrade gracefully rather than hang; (d) document the nvidia-cdi-refresh mask + ExecStartPre sleep 45 in setup notes if the profiler is ever run as a boot service; (e) if it cannot confirm a known-good environment, emit a low-confidence receipt rather than a falsely precise number.",
+            "metric": "WSL2 2.7.0 fix; nvidia-cdi-refresh race ~11s; ExecStartPre sleep 45s; --enforce-eager ~8x throughput loss",
+            "confidence": "high",
+            "rig_relevance": null,
+            "status": "watch",
+            "sources": [
+              {
+                "kind": "issue",
+                "title": "WSL2 2.7.0 enables CUDA graph capture on RTX 5090 (Blackwell sm_120) — nvidia-cdi-refresh fix documented",
+                "authors": "microsoft/WSL community",
+                "year": "2025",
+                "identifier": "github.com/microsoft/WSL/issues/14452",
+                "url": "https://github.com/Microsoft/WSL/issues/14452",
+                "claim": "CUDA graph capture failed with cudaErrorUnknown on RTX 5090 + WSL2 until WSL 2.7.0; nvidia-cdi-refresh probes CUDA devices ~11s into boot racing Blackwell driver init (workaround: symlink its.path/.service units to /dev/null), CUDA services need ExecStartPre=/bin/sleep 45, and --enforce-eager workaround cost ~8x throughput.",
+                "quant": "WSL2 2.7.0; ~11s boot race; sleep 45; ~8x throughput loss; ~140 tok/s Qwen3-14B-AWQ after fix",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Issue #14452 resolves; title matches the citation closely. Author is 'Kyzcreig'. Attribution correction: issue was opened in 2026, not 2025 (consistent with WSL 2.7.0 + RTX 5090 Blackwell timeframe and today's date 2026-06). All four technical sub-claims SUPPORTED with near-verbatim text: (1) 'CUDA "
+              },
+              {
+                "kind": "doc",
+                "title": "CUDA on WSL User Guide — WDDM mode / supported GPUs",
+                "authors": "NVIDIA",
+                "year": "2024",
+                "identifier": "docs.nvidia.com/cuda/wsl-user-guide/index.html",
+                "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+                "claim": "WSL2 GPU acceleration requires WDDM mode (Pascal and later GeForce/Quadro), R495+ Windows driver; TCC-mode and Tesla not supported.",
+                "quant": "Pascal+; R495+ driver; WDDM only",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Official NVIDIA doc, resolves. All three sub-claims supported with near-verbatim text. (1) Unified/Managed Memory: 'Full Managed Memory Support is not available on Windows native and therefore WSL 2 will not support it for the foreseeable future' (+ 'UVM full features will not be available'). (2) Pi"
+              }
+            ]
+          },
+          {
+            "name": "wsl2-host-interaction-overhead-tag-the-vantage",
+            "slug": "wsl2-host-interaction-overhead-tag-the-vantage",
+            "kind": "benchmark",
+            "claim": "WSL2 adds host-interaction overhead vs native Linux even when GPU kernel time is identical — one report measured ~73% slower application-level frame time (19ms vs 11ms) — so every in-container/WSL2 bandwidth/latency number must be labeled with its vantage, not presented as bare-host truth.",
+            "detail": "NVIDIA forum (pinned-memory thread) and the WSL guide together establish that GPU kernel execution under WSL2 is expected to match native, but anything crossing the WDDM/host boundary (transfers, allocations, submission latency) can be markedly slower; a cited case shows ~73% higher per-frame application time under WSL2 (19ms vs 11ms) on identical hardware. This is exactly the regime a host-to-device PCIe bandwidth and small-copy-latency probe measures. The profiler's stated honesty contract (+/-10% receipt, refuse below 1 tok/s) is only honest if the receipt carries the vantage label, because the same rig can read meaningfully different transfer numbers in-container/WSL2 vs bare host.",
+            "applies_to": "in-container",
+            "design_implication": "profile.json must stamp every bandwidth/latency measurement with vantage = 'wsl2-container' (and WSL2 version + container runtime). Do not extrapolate a bare-host number from a WSL2 measurement. Where possible, run a fixed warm-up + multiple iterations and report median +/- spread so the +/-10% receipt reflects measured variance in THIS vantage rather than an assumed native figure.",
+            "metric": "~73% slower app-level frame time under WSL2 (19ms vs 11ms); kernel time ~equal",
+            "confidence": "medium",
+            "rig_relevance": null,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "forum",
+                "title": "What are the pinned memory limitations on CUDA for WSL2?",
+                "authors": "NVIDIA Developer Forums (incl. NVIDIA 'njuffa')",
+                "year": "2023",
+                "identifier": "forums.developer.nvidia.com/t/.../255472",
+                "url": "https://forums.developer.nvidia.com/t/what-are-the-pinned-memory-limitations-on-cuda-for-wsl2/255472",
+                "claim": "Max pinned host memory is an OS-internal property not a CUDA constant; WSL2 showed ~73% slower application-level performance (19ms vs 11ms/frame) vs native on identical hardware while kernel times were equivalent.",
+                "quant": "~73% slower app time (19ms vs 11ms); pinned cap is OS-dependent",
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Thread #255472 resolves; title, year 2023, and NVIDIA staff participation by 'njuffa' all confirmed. Both sub-claims SUPPORTED. (1) Pinned memory as OS property -- njuffa: 'The maximum available amount of pinned host memory depends on internal details of the operating system, not CUDA.' (2) Applicat"
+              },
+              {
+                "kind": "doc",
+                "title": "CUDA on WSL User Guide — performance caveats",
+                "authors": "NVIDIA",
+                "year": "2024",
+                "identifier": "docs.nvidia.com/cuda/wsl-user-guide/index.html",
+                "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+                "claim": "WSL2 GPU support carries caveats (no Unified Memory, limited pinned memory, no concurrent CPU/GPU access) implying host-boundary operations differ from native Linux.",
+                "quant": null,
+                "exists_verified": 1,
+                "finding_supported": "SUPPORTED",
+                "verifier_note": "Official NVIDIA doc, resolves. All three sub-claims supported with near-verbatim text. (1) Unified/Managed Memory: 'Full Managed Memory Support is not available on Windows native and therefore WSL 2 will not support it for the foreseeable future' (+ 'UVM full features will not be available'). (2) Pi"
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "name": "devel-image-required-for-cudaMemcpy-bench",
+            "overall": "confirmed-with-fixes",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "nvidia-smi-and-driver-injected-from-host",
+            "overall": "confirmed-with-fixes",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "cuda-128-minimum-for-sm120-image",
+            "overall": "confirmed-with-fixes",
+            "note": "a source NOT_SUPPORTED (flagged); oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "layered-container-and-wsl2-detection-order",
+            "overall": "confirmed-with-fixes",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "wsl2-pinned-memory-cap-biases-htod-bandwidth",
+            "overall": "confirmed-with-fixes",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "wsl2-host-driver-stub-and-gpus-all-only",
+            "overall": "confirmed",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "consumer-blackwell-wsl2-init-and-cudagraph-bug",
+            "overall": "confirmed-with-fixes",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          },
+          {
+            "name": "wsl2-host-interaction-overhead-tag-the-vantage",
+            "overall": "confirmed",
+            "note": "oracle retrieval + family-different (mistral + granite)"
+          }
+        ]
+      }
+    }
+  ],
+  "measurements": []
+}

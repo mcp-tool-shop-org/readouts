@@ -1,0 +1,1594 @@
+{
+  "laneSlug": "unsafe-ffi",
+  "title": "Unsafe Rust, UB & FFI",
+  "tier": "advanced",
+  "recipes": [
+    {
+      "name": "Read unsafe as a short list of unlocked operations, never as a switch that turns the borrow checker off",
+      "what": "An unsafe block unlocks a fixed set of operations and nothing else: every other check keeps running inside it, and the code must still never produce a value that breaks its type's validity invariant.",
+      "how": "The Book names five unlocked operations: dereference a raw pointer, call an unsafe fn, read or write a static mut, implement an unsafe trait, read a union field. The Reference's list adds calling a #[target_feature] fn from code without that feature, declaring an extern block (edition 2024) and applying an unsafe attribute. Outside unsafe, dereferencing, calling an unsafe fn, touching a static mut and reading a union field are each E0133; implementing an unsafe trait without `unsafe impl` is E0200; the extern-block and attribute cases have their own errors (see the unsafe-attribute recipe); assigning to a union field needs no unsafe. Inside the block the borrow checker still reports E0499 and the rest. Keep two invariants apart: the validity invariant must hold whenever a typed value is produced (bool is 0 or 1, a reference is non-null, aligned and points to a valid value, integers and floats are initialized), and breaking it is immediate UB; a safety invariant is a library promise (str is UTF-8, a Vec's len <= capacity) that unsafe code may break inside its own boundary but must restore before safe code can observe it. Put only the unlocked operation inside the block, not the safe logic around it.",
+      "rust_version": "any; the Reference's list includes the edition-2024 extern-block and unsafe-attribute entries",
+      "gotchas": "'It is inside unsafe, so the checker is off' is wrong: E0499 still fires inside the block, and a block with nothing unsafe in it earns unused_unsafe. The const evaluator enforces validity (a bool made from 2 is E0080) but accepts a non-UTF-8 &str constant, because UTF-8 is a library invariant: std says building such a str is not immediate UB, but any str function may then cause UB. A literal with invalid bytes passed to from_utf8_unchecked is caught separately by the deny-by-default invalid_from_utf8_unchecked lint; bytes computed by a const fn are not. The UCG glossary that defines validity vs safety invariant is not normative; the Reference's invalid-values list is the binding text.",
+      "engine_note": "solver/src/lib.rs `step` wraps its whole ~120-line body in one unsafe block although only the `&mut BODIES` / `&COLLIDERS` borrows need it. After the static-mut rewrite (next recipes) the unsafe shrinks to those two borrows, and the integration, face selection, pair resolution and NaN refusal become ordinary checked Rust.",
+      "checks": [
+        {
+          "label": "Dereferencing a raw pointer outside unsafe is E0133",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0133"
+          ],
+          "source": "pub fn read(p: *const f64) -> f64 {\n    *p\n}\n"
+        },
+        {
+          "label": "Calling an unsafe fn outside unsafe is E0133",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0133"
+          ],
+          "stderr_contains": [
+            "call to unsafe function `quantum_unchecked` is unsafe"
+          ],
+          "source": "/// # Safety\n/// Callers must pass a quantum count below 64.\npub unsafe fn quantum_unchecked(n: u32) -> u32 {\n    n\n}\n\npub fn quantum() -> u32 {\n    quantum_unchecked(3)\n}\n"
+        },
+        {
+          "label": "Reading a static mut outside unsafe is E0133",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0133"
+          ],
+          "stderr_contains": [
+            "use of mutable static is unsafe and requires unsafe block"
+          ],
+          "source": "static mut QUANTA: u32 = 0;\n\npub fn quanta() -> u32 {\n    QUANTA\n}\n"
+        },
+        {
+          "label": "Reading a union field outside unsafe is E0133",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0133"
+          ],
+          "stderr_contains": [
+            "access to union field is unsafe"
+          ],
+          "source": "pub union Bits {\n    pub f: f64,\n    pub u: u64,\n}\n\npub fn bits(b: Bits) -> u64 {\n    b.u\n}\n"
+        },
+        {
+          "label": "Assigning to a union field needs no unsafe block",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "pub union Bits {\n    pub f: f64,\n    pub u: u64,\n}\n\npub fn one() -> Bits {\n    let mut b = Bits { u: 0 };\n    b.f = 1.0;\n    b\n}\n"
+        },
+        {
+          "label": "Implementing an unsafe trait without `unsafe impl` is E0200",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0200"
+          ],
+          "source": "/// # Safety\n/// Implementors must be plain old data.\npub unsafe trait Pod {}\n\npub struct Pose;\n\nimpl Pod for Pose {}\n"
+        },
+        {
+          "label": "Borrowck still runs inside unsafe (E0499); a block with nothing unsafe gets unused_unsafe",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0499"
+          ],
+          "lints": [
+            "unused_unsafe"
+          ],
+          "source": "pub fn push_twice(v: &mut Vec<f64>) {\n    unsafe {\n        let a = &mut *v;\n        let b = &mut *v;\n        a.push(1.0);\n        b.push(2.0);\n    }\n}\n"
+        },
+        {
+          "label": "Validity invariant: a bool built from 2 is rejected by const eval (E0080)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "constructing invalid value",
+            "expected a boolean"
+          ],
+          "source": "pub const FLAG: bool = unsafe { core::mem::transmute::<u8, bool>(2) };\n"
+        },
+        {
+          "label": "Safety invariant: const eval accepts a non-UTF-8 &str (UTF-8 is a library promise)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "const fn bytes() -> [u8; 2] {\n    [0xFF, 0xFE]\n}\n\nconst BYTES: [u8; 2] = bytes();\n\n// Compiles: validity of str only requires initialized bytes. Calling str methods on it\n// could be UB later, so nothing here does.\npub const NOT_UTF8: &str = unsafe { core::str::from_utf8_unchecked(&BYTES) };\n"
+        },
+        {
+          "label": "An invalid UTF-8 literal given to from_utf8_unchecked is caught by a deny lint instead",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "lints": [
+            "invalid_from_utf8_unchecked"
+          ],
+          "source": "pub const NOT_UTF8: &str = unsafe { core::str::from_utf8_unchecked(&[0xFF]) };\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Programming Language, 20.1 Unsafe Rust",
+          "url": "https://doc.rust-lang.org/book/ch20-01-unsafe-rust.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Lists the five unsafe superpowers and states that unsafe does not turn off the borrow checker or disable Rust's other safety checks.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Unsafety",
+          "url": "https://doc.rust-lang.org/stable/reference/unsafety.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Lists every operation that needs an unsafe context, including union field access other than assignment, target_feature calls, extern block declarations (2024) and unsafe attributes.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Behavior considered undefined (invalid values)",
+          "url": "https://doc.rust-lang.org/stable/reference/behavior-considered-undefined.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Defines valid values per type: bool must be 0 or 1, references aligned, non-null and non-dangling, integers and floats initialized, and a str treated like [u8] (initialized).",
+          "retrieved": true
+        },
+        {
+          "title": "std primitive str: Invariant",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.str.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Libraries may assume str is UTF-8; constructing a non-UTF-8 str is not immediate UB but can lead to UB when any str function is called on it.",
+          "retrieved": true
+        },
+        {
+          "title": "Unsafe Code Guidelines Reference: Glossary",
+          "url": "https://rust-lang.github.io/unsafe-code-guidelines/glossary.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Defines the validity invariant (must hold whenever data is accessed or copied at its type) against the safety invariant (what safe code may assume), and a sound library as one whose public API cannot let safe code cause UB.",
+          "retrieved": true
+        },
+        {
+          "title": "rustc book: Deny-by-default lints (invalid_from_utf8_unchecked)",
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "invalid_from_utf8_unchecked checks for calls to std::str::from_utf8_unchecked and from_utf8_unchecked_mut with a known invalid UTF-8 value.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Probe UB with const evaluation, which rejects invalid values and bad accesses with E0080; runtime is unchecked",
+      "what": "The Reference lists the UB classes (data races, dangling or misaligned access, aliasing violations, mutating immutable bytes, wrong call ABI or unwinding through a non-unwind frame, invalid values) and std adds library UB such as reaching unreachable_unchecked; rustc's const evaluator rejects the invalid-value, uninitialized, null, misaligned, dangling and unreachable cases it executes with E0080, while the same operations in runtime code compile silently.",
+      "how": "Invalid values to know by heart: a bool other than 0/1; an enum tag the type does not declare; a char that is a surrogate (0xD800..=0xDFFF) or above char::MAX; any integer, float or raw pointer read from uninitialized memory; a null, dangling or misaligned reference or Box; wide-pointer metadata that does not match the tail. Producing such a value is UB even if nothing uses it (assigning, passing and returning all count as producing). To settle a doubt about one operation, evaluate it in a const item: rustc 1.98.1 names the violation ('expected a valid enum tag', 'memory is uninitialized', 'entering unreachable code', 'alignment 2 is required', 'this pointer is dangling'). Data races and aliasing violations are not in reach of this trick. Runtime code needs Miri (see the Miri recipe); at compile time only pattern lints remain, such as the warn-by-default invalid_value (obvious mem::zeroed / MaybeUninit::uninit().assume_init() misuse) and deny-by-default ones like deref_nullptr and invalid_reference_casting, and each sees only the shapes it matches. Prefer unreachable!() to unreachable_unchecked unless a benchmark shows a gain.",
+      "rust_version": "any; diagnostic wording measured on 1.98.1",
+      "gotchas": "The Reference says its list is not exhaustive and that there is no formal model of unsafe Rust yet; the const evaluator's own note says its check 'might be overzealous'. A clean const-eval run proves nothing about runtime code: `transmute::<u8, bool>(2)` inside a fn compiles with no diagnostic at all. 'Integers accept every bit pattern, so an uninitialized u8 is fine' is wrong: MaybeUninit's docs call it UB. Reaching unreachable_unchecked lets the optimizer miscompile unrelated code. 'Dangling' means the bytes are not all inside one live allocation, which includes a stack local after its function returned.",
+      "engine_note": "Every ABI slot of the solver is an f64, and floats are only required to be initialized, so whatever bits JS writes into the Float64Array views over BODIES / COLLIDERS / HEIGHTS (NaN included) are valid values: the NaN refusals in `step` and `write_body` are law rules, not UB guards. Keep flags such as DRIVEN as f64 compared with `!= 0.0`, as lib.rs does; a future u8 / bool / enum field decoded from shared memory must go through a match on the integer, never a transmute or a pointer cast to bool or an enum.",
+      "checks": [
+        {
+          "label": "Const eval rejects an undeclared enum tag (5 in a 3-variant repr(u8) enum)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "expected a valid enum tag"
+          ],
+          "source": "#[derive(Clone, Copy)]\n#[repr(u8)]\npub enum Axis {\n    X = 0,\n    Y = 1,\n    Z = 2,\n}\n\npub const BAD: Axis = unsafe { core::mem::transmute::<u8, Axis>(5) };\n"
+        },
+        {
+          "label": "Const eval rejects a surrogate char (0xD800)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "expected a valid unicode scalar value"
+          ],
+          "source": "pub const C: char = unsafe { char::from_u32_unchecked(0xD800) };\n"
+        },
+        {
+          "label": "Const eval rejects reading an uninitialized u8",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "memory is uninitialized"
+          ],
+          "source": "use core::mem::MaybeUninit;\n\npub const U: u8 = unsafe { MaybeUninit::<u8>::uninit().assume_init() };\n"
+        },
+        {
+          "label": "Reaching unreachable_unchecked during const eval is E0080",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "entering unreachable code"
+          ],
+          "source": "pub const X: () = unsafe { core::hint::unreachable_unchecked() };\n"
+        },
+        {
+          "label": "Const eval rejects a null reference",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "encountered a null reference"
+          ],
+          "source": "pub const R: &u32 = unsafe { &*core::ptr::null::<u32>() };\n"
+        },
+        {
+          "label": "Const eval rejects a misaligned u16 load",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "alignment 2 is required"
+          ],
+          "source": "static BYTES: [u8; 4] = [1, 2, 3, 4];\n\npub const P: u16 = unsafe { *(BYTES.as_ptr().add(1) as *const u16) };\n"
+        },
+        {
+          "label": "Const eval rejects a read through a pointer to a dead local",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "this pointer is dangling"
+          ],
+          "source": "const fn dangling() -> *const u32 {\n    let x = 5u32;\n    &x as *const u32\n}\n\npub const D: u32 = unsafe { *dangling() };\n"
+        },
+        {
+          "label": "The same invalid-bool transmute in a runtime fn compiles with no diagnostic",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "// UB if ever called; rustc says nothing. Only Miri would report it at run time.\npub fn flag() -> bool {\n    unsafe { core::mem::transmute::<u8, bool>(2) }\n}\n"
+        },
+        {
+          "label": "invalid_value only warns on mem::zeroed for a reference type",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "lints": [
+            "invalid_value"
+          ],
+          "stderr_contains": [
+            "does not permit zero-initialization"
+          ],
+          "source": "pub fn null_ref() -> &'static i32 {\n    unsafe { core::mem::zeroed() }\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Reference: Behavior considered undefined",
+          "url": "https://doc.rust-lang.org/stable/reference/behavior-considered-undefined.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Lists data races, dangling or misaligned access, aliasing violations, mutating immutable bytes, wrong call ABI or unwinding through a non-unwind frame and producing invalid values as UB, warns the list is not exhaustive, and defines each type's valid values.",
+          "retrieved": true
+        },
+        {
+          "title": "std::hint::unreachable_unchecked",
+          "url": "https://doc.rust-lang.org/stable/std/hint/fn.unreachable_unchecked.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Reaching this function is UB; the compiler may then emit nonsensical code, including in unrelated code, and unreachable!() is the checked alternative.",
+          "retrieved": true
+        },
+        {
+          "title": "std::mem::MaybeUninit (Initialization invariant; assume_init)",
+          "url": "https://doc.rust-lang.org/stable/std/mem/union.MaybeUninit.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Zero-initialized references and uninitialized bool are immediate UB, and uninitialized integers are UB even though integers accept every fixed bit pattern.",
+          "retrieved": true
+        },
+        {
+          "title": "rustc book: Warn-by-default lints (invalid_value)",
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "invalid_value detects creating an invalid value such as a null reference through mem::zeroed, mem::uninitialized, transmute or MaybeUninit::assume_init.",
+          "retrieved": true
+        },
+        {
+          "title": "rustc book: Deny-by-default lints (deref_nullptr, invalid_reference_casting)",
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "deref_nullptr detects dereferencing a null pointer and invalid_reference_casting detects casts of &T to &mut T without interior mutability; both are deny by default.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Make raw pointers with &raw const / &raw mut, move bytes with std::ptr, and change addresses with map_addr",
+      "what": "&raw const / &raw mut (1.82) point at a place without the intermediate reference that makes `&packed.field` or a reference to uninitialized memory UB; std::ptr's read, write and copy_nonoverlapping carry stated preconditions that debug builds partly assert (1.78); the strict-provenance APIs (1.84) change an address without an integer round trip.",
+      "how": "Write `&raw const place` / `&raw mut place` wherever the place may be unaligned (repr(packed) fields), uninitialized (a MaybeUninit field) or must not be claimed by a reference; addr_of! / addr_of_mut! are the older macro spelling of the same pointer. Read an unaligned place with read_unaligned. ptr::copy_nonoverlapping(src, dst, count) is memcpy with the arguments swapped and count in elements: both pointers valid and aligned (even for count 0) and the two ranges disjoint, otherwise use ptr::copy. ptr::read makes a bitwise copy, so a non-Copy T now has two owners (double-drop trap); ptr::write overwrites without dropping the old value. With debug-assertions on (dev and test profiles) a violated precondition aborts with 'unsafe precondition(s) violated'; with them off (the release default) these checks are skipped. For address arithmetic use p.addr(), p.with_addr(a) and p.map_addr(|a| a | TAG), which keep the pointer's provenance, instead of `p as usize` and back; ptr::without_provenance(n) makes a pointer that can serve as a tag or sentinel but cannot access memory (zero-sized accesses aside). On a raw slice pointer call p.len(), not (*p).len().",
+      "rust_version": "&raw 1.82+; strict-provenance APIs 1.84+; debug precondition checks 1.78+",
+      "gotchas": "`&packed.x as *const f64` is E0793: the reference is the UB even when a pointer is all you wanted. `*p` on a misaligned raw pointer is still UB; only read_unaligned / write_unaligned tolerate it (the E0793 help says so). The debug precondition checks are optional and cannot be relied on for safety (the panic text says so; the 1.78 notes say how much is checked is not stable), and they are off in release. std calls exposed provenance (expose_provenance, with_exposed_provenance, integer-to-pointer casts) poorly specified and incompatible with Miri: use it only when an integer address is unavoidable. `(*p).len()` on a *const [T] is denied by the dangerous_implicit_autorefs lint because it silently creates a reference.",
+      "engine_note": "The solver's release profile keeps debug assertions off, so these precondition checks never run in the wasm; a native dev-profile test of the law gets them. T2's `solver_restore` will parse snapshot bytes that `push_f64` wrote with to_le_bytes: read each value back with f64::from_le_bytes on an 8-byte slice (safe, no alignment question), not by casting a pointer into the Vec<u8> to *const f64, which is misaligned unless the offset happens to be a multiple of 8 from an 8-aligned base.",
+      "checks": [
+        {
+          "label": "A reference to a packed struct's f64 field is E0793; *p through a raw pointer must be aligned",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0793"
+          ],
+          "stderr_contains": [
+            "creating a misaligned reference is undefined behavior",
+            "must be properly aligned even when using raw pointers"
+          ],
+          "source": "#[repr(C, packed)]\npub struct Rec {\n    pub tag: u8,\n    pub x: f64,\n}\n\npub fn x_ref(r: &Rec) -> &f64 {\n    &r.x\n}\n"
+        },
+        {
+          "label": "&raw const equals addr_of! and read_unaligned reads the packed field",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "true 2.5 1",
+          "source": "#[repr(C, packed)]\nstruct Rec {\n    tag: u8,\n    x: f64,\n}\n\nfn main() {\n    let r = Rec { tag: 1, x: 2.5 };\n    let p: *const f64 = &raw const r.x;\n    let q: *const f64 = core::ptr::addr_of!(r.x);\n    // SAFETY: p points at an initialized f64 inside r; read_unaligned tolerates the packing.\n    let x = unsafe { p.read_unaligned() };\n    let tag = r.tag;\n    println!(\"{} {} {}\", p == q, x, tag);\n}\n"
+        },
+        {
+          "label": "copy_nonoverlapping, read_unaligned and write move f64 bits exactly",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "[1.0, -0.0, 3.25] 1 7.5",
+          "source": "use std::ptr;\n\nfn main() {\n    let src = [1.0f64, -0.0, 3.25];\n    let mut dst = [0.0f64; 3];\n    // SAFETY: two distinct live arrays of 3 f64, both 8-aligned, so the ranges cannot overlap.\n    unsafe { ptr::copy_nonoverlapping(src.as_ptr(), dst.as_mut_ptr(), 3) };\n    let bytes: [u8; 9] = [0xAA, 0, 0, 0, 0, 0, 0, 0xF0, 0x3F];\n    // SAFETY: 8 initialized bytes start at offset 1; read_unaligned accepts any alignment.\n    let one = unsafe { ptr::read_unaligned(bytes.as_ptr().add(1).cast::<f64>()) };\n    let mut slot = 0.0f64;\n    // SAFETY: slot is a valid, aligned, writable f64 with no destructor.\n    unsafe { ptr::write(&raw mut slot, 7.5) };\n    println!(\"{:?} {} {}\", dst, one, slot);\n}\n"
+        },
+        {
+          "label": "Debug assertions abort an overlapping copy_nonoverlapping before it runs (Windows 0xC0000409)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "rustc_flags": [
+            "-C",
+            "debug-assertions=on"
+          ],
+          "stdout": "before",
+          "exit_code": 3221226505,
+          "source": "fn main() {\n    let mut buf = [1.0f64, 2.0, 3.0, 4.0, 5.0];\n    let p = buf.as_mut_ptr();\n    println!(\"before\");\n    // Violates the precondition: [0..3) and [1..4) overlap. The debug check aborts first.\n    unsafe { std::ptr::copy_nonoverlapping(p, p.add(1), 3) };\n    println!(\"after {:?}\", buf);\n}\n"
+        },
+        {
+          "label": "map_addr tags and untags a pointer without losing provenance",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "1 2.5 true 8",
+          "source": "fn main() {\n    let v: [f64; 2] = [1.5, 2.5];\n    let p: *const f64 = v.as_ptr();\n    // f64 is 8-aligned, so the low address bits are free for a tag.\n    let tagged = p.map_addr(|a| a | 1);\n    let flag = tagged.addr() & 1;\n    let untagged = tagged.map_addr(|a| a & !1);\n    // SAFETY: untagged has p's provenance and address; index 1 is in bounds.\n    let x = unsafe { *untagged.add(1) };\n    let sentinel = std::ptr::without_provenance::<f64>(8); // an address only, never dereferenced\n    println!(\"{} {} {} {}\", flag, x, untagged == p, sentinel.addr());\n}\n"
+        },
+        {
+          "label": "(*p).len() on a raw slice pointer is denied by dangerous_implicit_autorefs",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "lints": [
+            "dangerous_implicit_autorefs"
+          ],
+          "source": "pub fn count(p: *const [f64]) -> usize {\n    unsafe { (*p).len() }\n}\n"
+        },
+        {
+          "label": "p.len() on the raw slice pointer needs no reference and no unsafe",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "pub fn count(p: *const [f64]) -> usize {\n    p.len()\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Announcing Rust 1.82.0 (native syntax for creating a raw pointer)",
+          "url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Introduces &raw const / &raw mut as the native syntax replacing addr_of! / addr_of_mut!, with the packed-struct example where &p.field would be UB.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Raw borrow operators",
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "The raw borrow operators must be used whenever the place may be unaligned or hold an invalid value, because a borrow there creates an invalid reference; shows the packed and MaybeUninit examples.",
+          "retrieved": true
+        },
+        {
+          "title": "std::ptr::copy_nonoverlapping",
+          "url": "https://doc.rust-lang.org/stable/std/ptr/fn.copy_nonoverlapping.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Safety: src valid for reads, dst valid for writes, both aligned even for a zero-size copy, and the two regions must not overlap (use copy for regions that might); semantically memcpy with the arguments swapped.",
+          "retrieved": true
+        },
+        {
+          "title": "std::ptr::read",
+          "url": "https://doc.rust-lang.org/stable/std/ptr/fn.read.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "src must be valid, aligned and point to an initialized T; read makes a bitwise copy, so using both copies of a non-Copy T can double-drop; read_unaligned for misaligned sources.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.78.0 (asserting unsafe preconditions)",
+          "url": "https://blog.rust-lang.org/2024/05/02/Rust-1.78.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Unsafe preconditions are checked according to the user's debug-assertions setting (on by default in debug and test builds), and how much is checked is not stable.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.84.0 (strict provenance APIs)",
+          "url": "https://blog.rust-lang.org/2025/01/09/Rust-1.84.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilizes addr, with_addr, map_addr, without_provenance, dangling, expose_provenance and with_exposed_provenance, so pointer tagging needs no pointer-integer-pointer cast.",
+          "retrieved": true
+        },
+        {
+          "title": "std::ptr module (Safety, Alignment, Provenance, Strict Provenance)",
+          "url": "https://doc.rust-lang.org/stable/std/ptr/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Defines valid pointers, says without_provenance pointers cannot access memory, shows map_addr tagging, and warns exposed provenance is poorly specified and incompatible with Miri.",
+          "retrieved": true
+        },
+        {
+          "title": "rustc book: Deny-by-default lints (dangerous_implicit_autorefs)",
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "dangerous_implicit_autorefs checks for implicitly taken references to dereferences of raw pointers.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Replace every reference to a static mut with &raw mut before edition 2024 turns static_mut_refs into deny",
+      "what": "Taking & or &mut of a static mut, including hidden autorefs such as B.as_mut_ptr(), B.len() or S.field.as_ptr(), warns in edition 2021 and is denied in 2024; cargo fix --edition does not rewrite it; the sound form is a raw pointer from &raw mut (no unsafe needed since 1.82), with at most one short-lived reference made from it per call.",
+      "how": "The exact rewrite for a single-threaded, non-reentrant module: (1) pointer exports return `(&raw mut BODIES).cast::<f64>()` with no unsafe block; (2) an export that needs a slice takes `let bodies: &mut [f64; N] = unsafe { &mut *(&raw mut BODIES) };` and `let colliders: &[f64; M] = unsafe { &*(&raw const COLLIDERS) };`, each under a // SAFETY: line naming the invariant (one thread; no export calls another while the borrow lives; JS touches the buffers only between calls); (3) a field of a struct static is reached as `unsafe { (*(&raw const SOLVER)).snapshot.as_ptr() }`; (4) element access such as `BODIES[i]` creates no reference and is not linted. The Edition Guide's other routes: atomics for integer or bool state (`static N: AtomicU32`, no unsafe at all), Mutex or RwLock, OnceLock or LazyLock for one-time init, and a #[repr(transparent)] wrapper over UnsafeCell with `unsafe impl Sync` (std's own SyncUnsafeCell is unstable on 1.98.1, E0658). Keep every reference made from a static short-lived: pointers are the default unit, references are made on demand.",
+      "rust_version": "&raw 1.82+; static_mut_refs warns in edition 2021 and is deny-by-default in edition 2024 (1.85+)",
+      "gotchas": "The lint is syntactic, not a soundness proof: `&mut *(&raw mut B)` and `(*(&raw const S)).v.as_ptr()` pass it silently and are exactly as unsound if two such references overlap (the Edition Guide: you still need to uphold the aliasing constraints). Merely creating an overlapping reference is instantaneous UB even if it is never used. #![allow(static_mut_refs)] also silences the 2024 deny: unlike the unsafe attribute and extern-block changes it is a lint, not a hard error. A plain `static` of UnsafeCell is E0277 (UnsafeCell is not Sync); the wrapper's `unsafe impl Sync` promises no two threads touch it, a promise a native host must keep by serialising every call on one thread. Edition-2024 migration leaves these sites for you.",
+      "engine_note": "solver/src/lib.rs: `bodies_ptr` (BODIES.as_mut_ptr()), `colliders_ptr` (COLLIDERS.as_mut_ptr()) and `step` (`let bodies = &mut BODIES; let colliders = &COLLIDERS;`); solver/src/rapier_law.rs: `heights_ptr` (HEIGHTS.as_mut_ptr()), `snapshot_ptr` and `snapshot_len` (SOLVER.snapshot.as_ptr() / .len()). These shapes, compiled as extracted snippets (the crate itself was not built here), are static_mut_refs warnings under edition 2021 on 1.98.1 and errors under 2024. `ensure`, `solver_step` and `solver_clear_warmstart` already use `&mut *core::ptr::addr_of_mut!(SOLVER)`, and `body_at` / `collider_at` / `write_body` index the statics directly; the lint accepts both. The rewrite compiles clean under 2021, so it can land before the edition bump; re-pin fixtures/solver.sha256 if the bytes move and require the golden hash unchanged.",
+      "checks": [
+        {
+          "label": "Edition 2021: B.as_mut_ptr() on a static mut compiles with a static_mut_refs warning",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "lints": [
+            "static_mut_refs"
+          ],
+          "stderr_contains": [
+            "creating a mutable reference to mutable static"
+          ],
+          "source": "static mut BODIES: [f64; 4] = [0.0; 4];\n\n#[no_mangle]\npub extern \"C\" fn bodies_ptr() -> *mut f64 {\n    unsafe { BODIES.as_mut_ptr() }\n}\n"
+        },
+        {
+          "label": "Edition 2024: as_mut_ptr() and a field's as_ptr() on static muts are denied",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "lints": [
+            "static_mut_refs"
+          ],
+          "stderr_contains": [
+            "creating a mutable reference to mutable static",
+            "creating a shared reference to mutable static"
+          ],
+          "source": "static mut BODIES: [f64; 4] = [0.0; 4];\nstruct Solver {\n    snapshot: Vec<u8>,\n}\nstatic mut SOLVER: Solver = Solver { snapshot: Vec::new() };\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn bodies_ptr() -> *mut f64 {\n    unsafe { BODIES.as_mut_ptr() }\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn snapshot_ptr() -> *const u8 {\n    unsafe { SOLVER.snapshot.as_ptr() }\n}\n"
+        },
+        {
+          "label": "The &raw rewrite of the solver's access shapes is warning-free under edition 2024",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "const N: usize = 4;\nstatic mut BODIES: [f64; N] = [0.0; N];\nstatic mut COLLIDERS: [f64; N] = [0.0; N];\nstruct Solver {\n    snapshot: Vec<u8>,\n}\nstatic mut SOLVER: Solver = Solver { snapshot: Vec::new() };\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn bodies_ptr() -> *mut f64 {\n    // No unsafe: taking a raw pointer to a static mut creates no reference.\n    (&raw mut BODIES).cast::<f64>()\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn snapshot_ptr() -> *const u8 {\n    // SAFETY: one thread; no &mut SOLVER is live during this call.\n    unsafe { (*(&raw const SOLVER)).snapshot.as_ptr() }\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn snapshot_len() -> u32 {\n    // SAFETY: as in snapshot_ptr.\n    unsafe { (*(&raw const SOLVER)).snapshot.len() as u32 }\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn step(n: u32) -> u32 {\n    if n as usize > N {\n        return 0;\n    }\n    // SAFETY: one thread, no export re-enters another, and JS touches the buffers only\n    // between calls, so these are the only references to BODIES and COLLIDERS while step runs.\n    let bodies: &mut [f64; N] = unsafe { &mut *(&raw mut BODIES) };\n    let colliders: &[f64; N] = unsafe { &*(&raw const COLLIDERS) };\n    bodies[0] += colliders[0];\n    1\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn solver_clear() -> u32 {\n    // The shape ensure / solver_step already use (lint-free): a reference that lives\n    // only inside this call.\n    // SAFETY: one thread, no re-entry: the only reference to SOLVER while this runs.\n    let solver = unsafe { &mut *core::ptr::addr_of_mut!(SOLVER) };\n    solver.snapshot.clear();\n    1\n}\n"
+        },
+        {
+          "label": "The same rewrite is warning-free under edition 2021, so it can land before the bump",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "const N: usize = 4;\nstatic mut BODIES: [f64; N] = [0.0; N];\nstatic mut COLLIDERS: [f64; N] = [0.0; N];\nstruct Solver {\n    snapshot: Vec<u8>,\n}\nstatic mut SOLVER: Solver = Solver { snapshot: Vec::new() };\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn bodies_ptr() -> *mut f64 {\n    // No unsafe: taking a raw pointer to a static mut creates no reference.\n    (&raw mut BODIES).cast::<f64>()\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn snapshot_ptr() -> *const u8 {\n    // SAFETY: one thread; no &mut SOLVER is live during this call.\n    unsafe { (*(&raw const SOLVER)).snapshot.as_ptr() }\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn snapshot_len() -> u32 {\n    // SAFETY: as in snapshot_ptr.\n    unsafe { (*(&raw const SOLVER)).snapshot.len() as u32 }\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn step(n: u32) -> u32 {\n    if n as usize > N {\n        return 0;\n    }\n    // SAFETY: one thread, no export re-enters another, and JS touches the buffers only\n    // between calls, so these are the only references to BODIES and COLLIDERS while step runs.\n    let bodies: &mut [f64; N] = unsafe { &mut *(&raw mut BODIES) };\n    let colliders: &[f64; N] = unsafe { &*(&raw const COLLIDERS) };\n    bodies[0] += colliders[0];\n    1\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn solver_clear() -> u32 {\n    // The shape ensure / solver_step already use (lint-free): a reference that lives\n    // only inside this call.\n    // SAFETY: one thread, no re-entry: the only reference to SOLVER while this runs.\n    let solver = unsafe { &mut *core::ptr::addr_of_mut!(SOLVER) };\n    solver.snapshot.clear();\n    1\n}\n"
+        },
+        {
+          "label": "Indexing a static mut array directly (BODIES[i]) makes no reference and is not linted",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "static mut BODIES: [f64; 4] = [0.0; 4];\n\npub fn get(i: usize) -> f64 {\n    // SAFETY: one thread; no reference to BODIES is live.\n    unsafe { BODIES[i] }\n}\n\npub fn set(i: usize, x: f64) {\n    // SAFETY: as in get.\n    unsafe { BODIES[i] = x };\n}\n"
+        },
+        {
+          "label": "wasm32 build of the rewrite exports its names, imports nothing, and step mutates",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "no_warnings": true,
+          "wasm_exports": [
+            "memory",
+            "bodies_ptr",
+            "step",
+            "probe"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "probe",
+            "args": []
+          },
+          "stdout": "3",
+          "source": "const N: usize = 4;\nstatic mut BODIES: [f64; N] = [0.0; N];\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn bodies_ptr() -> *mut f64 {\n    (&raw mut BODIES).cast::<f64>()\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn step(n: u32) -> u32 {\n    if n as usize > N {\n        return 0;\n    }\n    // SAFETY: one thread, no re-entry: the only reference to BODIES while step runs.\n    let bodies: &mut [f64; N] = unsafe { &mut *(&raw mut BODIES) };\n    bodies[0] += 1.5;\n    1\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn probe() -> f64 {\n    step(1);\n    step(1);\n    // SAFETY: the &mut taken inside step ended when step returned.\n    unsafe { *bodies_ptr() }\n}\n"
+        },
+        {
+          "label": "A plain static UnsafeCell is E0277: UnsafeCell is not Sync",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "cannot be shared between threads safely"
+          ],
+          "source": "use std::cell::UnsafeCell;\n\nstatic BODIES: UnsafeCell<[f64; 4]> = UnsafeCell::new([0.0; 4]);\n\npub fn bodies_ptr() -> *mut f64 {\n    BODIES.get().cast::<f64>()\n}\n"
+        },
+        {
+          "label": "std's SyncUnsafeCell is still unstable on 1.98.1 (E0658)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0658"
+          ],
+          "stderr_contains": [
+            "sync_unsafe_cell"
+          ],
+          "source": "use std::cell::SyncUnsafeCell;\n\nstatic BODIES: SyncUnsafeCell<[f64; 4]> = SyncUnsafeCell::new([0.0; 4]);\n\npub fn bodies_ptr() -> *mut f64 {\n    BODIES.get().cast::<f64>()\n}\n"
+        },
+        {
+          "label": "An UnsafeCell wrapper with unsafe impl Sync works as a static buffer",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "2 2.5",
+          "source": "use std::cell::UnsafeCell;\n\n#[repr(transparent)]\npub struct Buf<const N: usize>(UnsafeCell<[f64; N]>);\n\n// SAFETY: only one thread ever calls into this module, and no call re-enters another,\n// so no two accesses to a Buf overlap. A native host must keep that promise.\nunsafe impl<const N: usize> Sync for Buf<N> {}\n\nimpl<const N: usize> Buf<N> {\n    pub const fn new() -> Self {\n        Buf(UnsafeCell::new([0.0; N]))\n    }\n    pub fn ptr(&self) -> *mut f64 {\n        self.0.get().cast::<f64>()\n    }\n}\n\npub static BODIES: Buf<{ 64 * 17 }> = Buf::new();\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn bodies_ptr() -> *mut f64 {\n    BODIES.ptr()\n}\n\nfn step() -> f64 {\n    // SAFETY: no other reference into BODIES is live while step runs.\n    let b: &mut [f64; 64 * 17] = unsafe { &mut *BODIES.0.get() };\n    b[0] += 1.0;\n    b[0]\n}\n\nfn main() {\n    step();\n    // SAFETY: slot 1 is in bounds and no reference into BODIES is live.\n    unsafe { *bodies_ptr().add(1) = 2.5 };\n    let second = step();\n    // SAFETY: as above.\n    let slot1 = unsafe { *bodies_ptr().add(1) };\n    println!(\"{} {}\", second, slot1);\n}\n"
+        },
+        {
+          "label": "An atomic replaces a scalar static mut with no unsafe at all",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "2",
+          "source": "use std::sync::atomic::{AtomicU32, Ordering};\n\nstatic LOADS: AtomicU32 = AtomicU32::new(0);\n\nfn load() -> u32 {\n    LOADS.fetch_add(1, Ordering::Relaxed) + 1\n}\n\nfn main() {\n    load();\n    println!(\"{}\", load());\n}\n"
+        },
+        {
+          "label": "#![allow(static_mut_refs)] silences the 2024 deny: a lint, not a soundness check",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "#![allow(static_mut_refs)]\n\nstatic mut BODIES: [f64; 4] = [0.0; 4];\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn bodies_ptr() -> *mut f64 {\n    unsafe { BODIES.as_mut_ptr() }\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Rust Edition Guide: Disallow references to static mut",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "static_mut_refs is deny by default in 2024; merely taking such a reference is instantaneous UB; lists atomics, Mutex/RwLock, OnceLock/LazyLock, raw borrows and an UnsafeCell wrapper with Sync as alternatives; no automatic migration.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.82.0 (safely addressing unsafe statics)",
+          "url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Taking a raw pointer to a static mut with &raw mut no longer needs unsafe, because it only creates a pointer.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, 20.1 Unsafe Rust (mutable static variables)",
+          "url": "https://doc.rust-lang.org/book/ch20-01-unsafe-rust.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The compiler denies references to a mutable static by default; opt out with #[allow(static_mut_refs)] or access it through a raw pointer from a raw borrow operator.",
+          "retrieved": true
+        },
+        {
+          "title": "rustc book: Warn-by-default lints (static_mut_refs)",
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "static_mut_refs detects use of mutable statics, which can be non-thread-safe or unsafe if written, and recommends interior mutability instead.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.85.0 and Rust 2024",
+          "url": "https://blog.rust-lang.org/2025/02/20/Rust-1.85.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilizes the 2024 edition, in which references to static mut items are a deny-by-default error.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Put each unsafe operation in its own unsafe block under a // SAFETY: line, even inside an unsafe fn",
+      "what": "Edition 2024 turns unsafe_op_in_unsafe_fn to warn, so an unsafe fn's body is no longer one implicit unsafe block: each unsafe operation gets an explicit block and a // SAFETY: comment, and clippy's restriction lints can enforce both.",
+      "how": "Write `/// # Safety` on the fn (what the caller must guarantee), then inside it `// SAFETY: <why this operation meets its preconditions>` directly above `unsafe { *p }`. In Cargo.toml ([lints] is honoured from Rust 1.74): `[lints.rust] unsafe_op_in_unsafe_fn = \"warn\"` (the edition-2024 default anyway) and `[lints.clippy] undocumented_unsafe_blocks = \"warn\"`, `multiple_unsafe_ops_per_block = \"warn\"`; both clippy lints are in the restriction group, which is allow by default and which clippy's README says not to enable as a whole, so name them one by one. clippy's missing_safety_doc (style group) flags a public unsafe fn without a # Safety section. To confine unsafe to one module, put #![deny(unsafe_code)] at the crate root and #[allow(unsafe_code)] on that module.",
+      "rust_version": "unsafe_op_in_unsafe_fn warns by default in edition 2024 (1.85+); [lints] table 1.74+",
+      "gotchas": "The 2024 diagnostic prints as `warning[E0133]`, the same code as the hard error outside unsafe, so a grep for 'error[E0133]' misses it. In edition 2021 the lint is allow-by-default and the same fn compiles in silence. #![forbid(unsafe_code)] cannot be relaxed by an inner allow (E0453): use deny when one module needs unsafe. The clippy lints here are cited from clippy's source; clippy is not installed for the pinned 1.98.1 toolchain on this rig, so the oracle cannot run them.",
+      "engine_note": "The solver has no unsafe fn, and none of its unsafe blocks carries a // SAFETY: line: lib.rs `bodies_ptr`, `colliders_ptr`, `step`; rapier_law.rs `heights_ptr`, `body_at`, `collider_at`, `write_body`, `signature`, `build_world`, `ensure`, `solver_step`, `snapshot_ptr`, `snapshot_len`, `solver_clear_warmstart`. The last one argues its safety in a prose comment, and that argument is the one the aliasing recipe shows to be insufficient. Write the SAFETY lines with the static-mut rewrite and gate them with undocumented_unsafe_blocks in the solver's CI (the job itself is the ci-reproducible-builds lane's).",
+      "checks": [
+        {
+          "label": "Edition 2024: a raw deref directly in an unsafe fn body warns unsafe_op_in_unsafe_fn",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "lints": [
+            "unsafe_op_in_unsafe_fn"
+          ],
+          "stderr_contains": [
+            "warning[E0133]"
+          ],
+          "source": "/// # Safety\n/// `p` must be valid for reads of one aligned, initialized f64.\npub unsafe fn read_one(p: *const f64) -> f64 {\n    *p\n}\n"
+        },
+        {
+          "label": "Edition 2021: the same unsafe fn compiles with no warning (lint allow-by-default)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "/// # Safety\n/// `p` must be valid for reads of one aligned, initialized f64.\npub unsafe fn read_one(p: *const f64) -> f64 {\n    *p\n}\n"
+        },
+        {
+          "label": "An explicit unsafe block under a SAFETY comment is warning-free in 2024",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "/// # Safety\n/// `p` must be valid for reads of one aligned, initialized f64.\npub unsafe fn read_one(p: *const f64) -> f64 {\n    // SAFETY: the caller guarantees `p` is valid, aligned and initialized.\n    unsafe { *p }\n}\n"
+        },
+        {
+          "label": "#![deny(unsafe_code)] rejects any unsafe block in the crate",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "usage of an `unsafe` block"
+          ],
+          "source": "#![deny(unsafe_code)]\n\npub fn read(p: *const f64) -> f64 {\n    unsafe { *p }\n}\n"
+        },
+        {
+          "label": "deny(unsafe_code) plus #[allow(unsafe_code)] on one module compiles",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "#![deny(unsafe_code)]\n\n#[allow(unsafe_code)]\npub mod ffi {\n    /// # Safety\n    /// `p` must be valid for reads of one aligned, initialized f64.\n    pub unsafe fn read(p: *const f64) -> f64 {\n        // SAFETY: the caller guarantees `p` is valid, aligned and initialized.\n        unsafe { *p }\n    }\n}\n\npub fn safe_sum(v: &[f64]) -> f64 {\n    v.iter().sum()\n}\n"
+        },
+        {
+          "label": "forbid(unsafe_code) cannot be relaxed by an inner allow (E0453)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0453"
+          ],
+          "source": "#![forbid(unsafe_code)]\n\n#[allow(unsafe_code)]\npub fn read(p: *const f64) -> f64 {\n    unsafe { *p }\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Rust Edition Guide: unsafe_op_in_unsafe_fn warning",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-op-in-unsafe-fn.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "In the 2024 edition unsafe_op_in_unsafe_fn warns by default and fires on unsafe operations in an unsafe fn without an explicit unsafe block.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, 20.1 Unsafe Rust (SAFETY comments)",
+          "url": "https://doc.rust-lang.org/book/ch20-01-unsafe-rust.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Unsafe operations inside an unsafe fn still need an unsafe block and the compiler warns if one is missing; it is idiomatic to write a comment starting with SAFETY for every unsafe fn and unsafe operation.",
+          "retrieved": true
+        },
+        {
+          "title": "rust-clippy source: undocumented_unsafe_blocks",
+          "url": "https://raw.githubusercontent.com/rust-lang/rust-clippy/master/clippy_lints/src/undocumented_unsafe_blocks.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "undocumented_unsafe_blocks (restriction, since 1.58.0) checks for unsafe blocks and impls without a // SAFETY: comment.",
+          "retrieved": true
+        },
+        {
+          "title": "rust-clippy source: multiple_unsafe_ops_per_block",
+          "url": "https://raw.githubusercontent.com/rust-lang/rust-clippy/master/clippy_lints/src/multiple_unsafe_ops_per_block.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "multiple_unsafe_ops_per_block (restriction, since 1.69.0) checks for unsafe blocks with more than one unsafe operation, so each is justified separately.",
+          "retrieved": true
+        },
+        {
+          "title": "rust-clippy source: missing_safety_doc",
+          "url": "https://raw.githubusercontent.com/rust-lang/rust-clippy/master/clippy_lints/src/doc/mod.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "missing_safety_doc (style, since 1.39.0) warns when a publicly visible unsafe fn has no # Safety doc section.",
+          "retrieved": true
+        },
+        {
+          "title": "rust-clippy README (lint categories)",
+          "url": "https://github.com/rust-lang/rust-clippy",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "clippy::restriction lints are allow by default and the category should not be enabled as a whole; clippy::style is warn by default.",
+          "retrieved": true
+        },
+        {
+          "title": "The Cargo Book: the [lints] section",
+          "url": "https://doc.rust-lang.org/cargo/reference/manifest.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "[lints.rust] and [lints.clippy] tables set lint levels (e.g. unsafe_code = \"forbid\") for the current package only; respected as of Rust 1.74.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Write #[unsafe(no_mangle)], #[unsafe(export_name)], #[unsafe(link_section)] and unsafe extern blocks now",
+      "what": "Edition 2024 makes the bare no_mangle / export_name / link_section attributes and unmarked extern blocks hard errors; the unsafe(...) attribute form and `unsafe extern` blocks with per-item `safe fn` / `unsafe fn` are accepted by every edition since 1.82, so the rewrite can land before the edition bump.",
+      "how": "Exports: `#[unsafe(no_mangle)] pub extern \"C\" fn step(n: u32) -> u32` and `#[unsafe(export_name = \"law_version\")]`; sections: `#[unsafe(link_section = \"...\")]`. Imports: `unsafe extern \"C\" { pub safe fn sqrt(x: f64) -> f64; pub unsafe fn strlen(p: *const c_char) -> usize; }`: an item with no qualifier defaults to unsafe (callers need an unsafe block, E0133), a `safe` item is callable from safe code, and the author of the block vouches for every signature. safe / unsafe qualifiers are only allowed inside an `unsafe extern` block. Migration: cargo fix --edition applies both; to see the sites early under 2021, enable #![warn(unsafe_attr_outside_unsafe, missing_unsafe_on_extern)].",
+      "rust_version": "1.82+ in all editions; required from edition 2024",
+      "gotchas": "Both are hard errors in 2024 (rustc: 'accepted in the current edition (Rust 2021) but is a hard error in Rust 2024'), not lints you can allow, unlike static_mut_refs. The errors carry no E-code: 'unsafe attribute used without unsafe', 'extern blocks must be unsafe'. `safe fn` moves the proof onto whoever wrote the block: a wrong signature marked safe is UB reachable from safe code. The Edition Guide's `#[export_name = \"malloc\"]` example shows why the attribute is unsafe at all: a symbol clash that crashes with no unsafe block in sight. cargo fix cannot check the signatures it wraps.",
+      "engine_note": "All ten exports use a bare #[no_mangle]: lib.rs `bodies_ptr`, `colliders_ptr`, `step`; rapier_law.rs `heights_ptr`, `canon_zero`, `solver_load`, `solver_step`, `snapshot_ptr`, `snapshot_len`, `solver_clear_warmstart`. The crate's edition 2021 accepts that; each becomes a hard error at the edition bump. #[unsafe(no_mangle)] compiles clean under 2021 on 1.98.1 and keeps the export names, so switch now. The solver declares no extern blocks (the module imports nothing), so unsafe extern first matters for host bindings; a law-version custom section through #[unsafe(link_section)] is wasm-raw-abi's topic.",
+      "checks": [
+        {
+          "label": "Edition 2024: a bare #[no_mangle] is a hard error with no error code",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "unsafe attribute used without unsafe",
+            "#[unsafe(no_mangle)]"
+          ],
+          "source": "#[no_mangle]\npub extern \"C\" fn step(n: u32) -> u32 {\n    n\n}\n"
+        },
+        {
+          "label": "Edition 2024: bare export_name and link_section fail the same way",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "unsafe attribute used without unsafe",
+            "#[unsafe(export_name = \"law_version\")]",
+            "#[unsafe(link_section = \".law\")]"
+          ],
+          "source": "#[export_name = \"law_version\"]\npub extern \"C\" fn version() -> u32 {\n    2\n}\n\n#[link_section = \".law\"]\n#[used]\npub static LAW: [u8; 2] = [1, 0];\n"
+        },
+        {
+          "label": "Edition 2021 accepts all three unsafe(...) attribute forms with no warning",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn step(n: u32) -> u32 {\n    n\n}\n\n#[unsafe(export_name = \"law_version\")]\npub extern \"C\" fn version() -> u32 {\n    2\n}\n\n#[unsafe(link_section = \".law\")]\n#[used]\npub static LAW: [u8; 2] = [1, 0];\n"
+        },
+        {
+          "label": "Migration lints under 2021 say both forms are hard errors in Rust 2024",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "stderr_contains": [
+            "is a hard error in Rust 2024",
+            "extern blocks should be unsafe",
+            "unsafe attribute used without unsafe"
+          ],
+          "source": "#![warn(unsafe_attr_outside_unsafe, missing_unsafe_on_extern)]\n\n#[no_mangle]\npub extern \"C\" fn step() -> u32 {\n    1\n}\n\nextern \"C\" {\n    pub fn abs(x: i32) -> i32;\n}\n"
+        },
+        {
+          "label": "Edition 2024: an extern block without unsafe is an error",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "extern blocks must be unsafe"
+          ],
+          "source": "extern \"C\" {\n    pub fn abs(x: i32) -> i32;\n}\n"
+        },
+        {
+          "label": "A `safe fn` in an unsafe extern block is callable without unsafe",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "3",
+          "source": "unsafe extern \"C\" {\n    // abs from the C runtime accepts any i32 except i32::MIN, which we never pass.\n    safe fn abs(x: i32) -> i32;\n}\n\nfn main() {\n    println!(\"{}\", abs(-3));\n}\n"
+        },
+        {
+          "label": "An extern item with no qualifier defaults to unsafe: calling it bare is E0133",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0133"
+          ],
+          "source": "unsafe extern \"C\" {\n    fn abs(x: i32) -> i32;\n}\n\nfn main() {\n    println!(\"{}\", abs(-3));\n}\n"
+        },
+        {
+          "label": "safe / unsafe item qualifiers are refused in an extern block not marked unsafe",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "cannot have safety qualifiers"
+          ],
+          "source": "extern \"C\" {\n    pub safe fn abs(x: i32) -> i32;\n}\n"
+        },
+        {
+          "label": "wasm32: #[unsafe(no_mangle)] and #[unsafe(export_name)] export the expected names",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "no_warnings": true,
+          "wasm_exports": [
+            "memory",
+            "step",
+            "law_version"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "law_version",
+            "args": []
+          },
+          "stdout": "2",
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn step(n: u32) -> u32 {\n    n\n}\n\n#[unsafe(export_name = \"law_version\")]\npub extern \"C\" fn version() -> u32 {\n    2\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Rust Edition Guide: Unsafe attributes",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-attributes.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "export_name, link_section and no_mangle must be marked unsafe from edition 2024; the unsafe(...) syntax exists since 1.82 in all editions; lint unsafe_attr_outside_unsafe; cargo fix --edition migrates.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust Edition Guide: Unsafe extern blocks",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-extern.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Edition 2024 requires unsafe on extern blocks; items may be marked safe (callable without unsafe) or unsafe, unmarked items default to unsafe; lint missing_unsafe_on_extern.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.82.0 (unsafe extern, unsafe attributes)",
+          "url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Adds unsafe extern blocks with safe items and the #[unsafe(...)] attribute syntax for no_mangle, link_section and export_name; the extern block's author is responsible for the signatures.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Unsafety",
+          "url": "https://doc.rust-lang.org/stable/reference/unsafety.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Declaring an extern block requires unsafe as of the 2024 edition (optional before), and applying an unsafe attribute is an unsafe operation.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, 20.1 Unsafe Rust (extern functions)",
+          "url": "https://doc.rust-lang.org/book/ch20-01-unsafe-rust.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Shows unsafe extern \"C\" imports, safe fn items callable without unsafe, and exporting with #[unsafe(no_mangle)] pub extern \"C\" fn, which is unsafe because unmangled names can collide.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Choose extern \"C\" (a panic aborts, 1.81+) or extern \"C-unwind\" (a panic unwinds) for every boundary fn",
+      "what": "Since 1.81 a panic that reaches an extern \"C\" function aborts the process instead of unwinding into the caller; extern \"C-unwind\" (added in 1.71) lets it unwind; under panic=abort nothing unwinds anywhere; a foreign exception entering Rust through a \"C\" frame is UB.",
+      "how": "Default every export to extern \"C\" and never use a panic as the error channel: return a status such as u32 1/0, and, in a panic=unwind build whose host must survive, run the body under catch_unwind inside the export. Use \"C-unwind\" only where unwinding across the boundary is intended (a Rust callback allowed to panic through C++ frames, or a C++ exception passing through Rust), and declare imported functions that can throw as \"C-unwind\" too: calling a \"C-unwind\" function through a \"C\" declaration or fn pointer is UB. Under -C panic=abort (the solver's profile, and the default of wasm32-unknown-unknown on 1.98.1) a panic aborts whichever ABI is written and catch_unwind never catches.",
+      "rust_version": "\"C-unwind\" 1.71+; abort on a panic escaping extern \"C\" 1.81+",
+      "gotchas": "Code from before 1.81 that let panics unwind out of extern \"C\" relied on UB; it now aborts with 'panic in a function that cannot unwind'. The Reference's table: panic=unwind with a non-unwinding ABI aborts on a Rust panic but is UB for a foreign unwind; panic=abort aborts every panic without unwinding. On this Windows host an abort exits 0xC0000409 (3221226505, measured); other hosts report other codes. catch_unwind is no safety net in a panic=abort build.",
+      "engine_note": "Every solver export is extern \"C\", the release profile sets panic = \"abort\", and wasm32-unknown-unknown defaults to panic=abort (measured below), so a panic inside an export (for example the .unwrap() on the plan lookup in rapier_law.rs) aborts inside the module and never unwinds into JS; \"C-unwind\" would add nothing. Refusals already travel as u32 0 (the errors-panics lane owns that policy; wasm-raw-abi owns what the JS caller sees on an abort). A future native Godot or Unreal build compiled with panic=unwind must keep \"C\" or wrap each export body in catch_unwind and return 0.",
+      "checks": [
+        {
+          "label": "A panic escaping extern \"C\" aborts; catch_unwind never returns (Windows exit 0xC0000409)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "before",
+          "exit_code": 3221226505,
+          "source": "extern \"C\" fn law(x: u32) -> u32 {\n    if x == 0 {\n        panic!(\"zero\");\n    }\n    x\n}\n\nfn main() {\n    println!(\"before\");\n    let r = std::panic::catch_unwind(|| law(0));\n    println!(\"after {}\", r.is_err());\n}\n"
+        },
+        {
+          "label": "A panic escaping extern \"C-unwind\" unwinds and catch_unwind catches it",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "caught true",
+          "source": "extern \"C-unwind\" fn law(x: u32) -> u32 {\n    if x == 0 {\n        panic!(\"zero\");\n    }\n    x\n}\n\nfn main() {\n    std::panic::set_hook(Box::new(|_| {}));\n    let r = std::panic::catch_unwind(|| law(0));\n    println!(\"caught {}\", r.is_err());\n}\n"
+        },
+        {
+          "label": "Under -C panic=abort even C-unwind plus catch_unwind aborts (Windows exit 0xC0000409)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "rustc_flags": [
+            "-C",
+            "panic=abort"
+          ],
+          "stdout": "",
+          "exit_code": 3221226505,
+          "source": "extern \"C-unwind\" fn law(x: u32) -> u32 {\n    if x == 0 {\n        panic!(\"zero\");\n    }\n    x\n}\n\nfn main() {\n    std::panic::set_hook(Box::new(|_| {}));\n    let r = std::panic::catch_unwind(|| law(0));\n    println!(\"caught {}\", r.is_err());\n}\n"
+        },
+        {
+          "label": "wasm32-unknown-unknown builds with cfg(panic = \"abort\") by default on 1.98.1",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "wasm_exports": [
+            "panic_strategy"
+          ],
+          "wasm_call": {
+            "export": "panic_strategy",
+            "args": []
+          },
+          "stdout": "1",
+          "source": "#[cfg(panic = \"abort\")]\n#[unsafe(no_mangle)]\npub extern \"C\" fn panic_strategy() -> u32 {\n    1\n}\n\n#[cfg(panic = \"unwind\")]\n#[unsafe(no_mangle)]\npub extern \"C\" fn panic_strategy() -> u32 {\n    2\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Announcing Rust 1.81.0 (abort on uncaught panics in extern \"C\" functions)",
+          "url": "https://blog.rust-lang.org/2024/09/05/Rust-1.81.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Non-unwind ABIs such as \"C\" now abort on an uncaught unwind, completing the transition begun in 1.71 with the -unwind ABI variants; code relying on unwinding should use them.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Functions (extern function qualifier, unwinding)",
+          "url": "https://doc.rust-lang.org/stable/reference/items/functions.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Gives the table: under panic=unwind a Rust panic at a non-unwinding ABI aborts and a foreign unwind is UB; under panic=abort a panic aborts without unwinding for both ABI kinds.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rustonomicon: FFI (FFI and unwinding)",
+          "url": "https://doc.rust-lang.org/nomicon/ffi.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "A Rust panic reaching an ABI boundary that may not unwind safely aborts the process; a foreign exception entering Rust that way is UB; C-unwind permits unwinding across the boundary.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Behavior considered undefined (wrong call ABI)",
+          "url": "https://doc.rust-lang.org/stable/reference/behavior-considered-undefined.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Calling a function with the wrong call ABI, or unwinding past a frame that does not allow it (e.g. a C-unwind function called as \"C\"), is UB.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Cross the C ABI only with repr(C) types, scalars and raw pointers; pass strings as &CStr, c\"\" or CString",
+      "what": "Give C only types with a C-compatible layout (#[repr(C)] or #[repr(transparent)] structs, primitive numbers, raw pointers, Option of a non-null pointer or fn); improper_ctypes_definitions warns when an extern \"C\" fn takes Vec, &[T], &str or a default-repr struct; c\"...\" literals (1.77, edition 2021+) are &'static CStr with the NUL added, and CString owns one.",
+      "how": "Pass arrays as (ptr, len) pairs and strings as *const c_char, from CStr::as_ptr when borrowed or CString::into_raw when ownership goes to C (it must come back through CString::from_raw, never C's free). CString::new returns NulError on an interior NUL; a c\"\" literal cannot contain one. Option<extern \"C\" fn(..)> and Option<&T> are the nullable-pointer forms. Generate a C/C++ header from a Rust library with cbindgen, and Rust declarations for a C/C++ library with bindgen; cbindgen's changelog records parsing of unsafe attributes from 0.28.0 (PR #1020), so pin at least that for an edition-2024 crate.",
+      "rust_version": "c\"\" literals 1.77+ and edition 2021+; repr(C) any",
+      "gotchas": "improper_ctypes_definitions only warns: the crate still builds and the layout is still unspecified. A default-repr struct passed by value is flagged even when every field is FFI-safe. c\"\" does not parse in edition 2018 ('c-string literals require Rust 2021 or later'). `CString::new(..).unwrap().as_ptr()` dangles when the statement ends (the dangling_pointers_from_temporaries lint warns; bind the CString first). A CString handed out with into_raw must come back through CString::from_raw, and a string C allocated is only borrowed as &CStr, never freed as a CString. Inference, not verified: a cbindgen older than 0.28 may skip #[unsafe(no_mangle)] items; the changelog entry is the only evidence.",
+      "engine_note": "The solver's exports pass only u32, f64, *mut f64 and *const u8, all FFI-safe, which is why the crate is lint-clean; no strings cross. The body, collider and height buffers are f64 arrays addressed by index constants (BODY_STRIDE 17, COLLIDER_STRIDE 10), not repr(C) structs. If a C-header host binding (Unreal, host-embedding lane) wants a struct view, add #[repr(C)] structs whose size matches the stride and assert it at compile time (macros-const lane).",
+      "checks": [
+        {
+          "label": "improper_ctypes_definitions flags Vec<f64>, &[f64], &str and a default-repr struct",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "lints": [
+            "improper_ctypes_definitions"
+          ],
+          "stderr_contains": [
+            "`Vec<f64>`, which is not FFI-safe",
+            "`[f64]`, which is not FFI-safe",
+            "`str`, which is not FFI-safe",
+            "`Pose`, which is not FFI-safe",
+            "consider adding a `#[repr(C)]` or `#[repr(transparent)]` attribute"
+          ],
+          "source": "pub struct Pose {\n    pub x: f64,\n    pub y: f64,\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn load(v: Vec<f64>) -> u32 {\n    v.len() as u32\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn sum(v: &[f64]) -> f64 {\n    v.iter().sum()\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn name() -> &'static str {\n    \"law\"\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn pose_x(p: Pose) -> f64 {\n    p.x\n}\n"
+        },
+        {
+          "label": "A repr(C) struct, scalars and a (ptr, len) pair pass the lint cleanly",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "#[repr(C)]\npub struct Pose {\n    pub x: f64,\n    pub y: f64,\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn pose_x(p: Pose) -> f64 {\n    p.x\n}\n\n/// # Safety\n/// `ptr` must be valid for reads of `len` initialized, aligned f64.\n#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn sum(ptr: *const f64, len: usize) -> f64 {\n    // SAFETY: the caller guarantees ptr/len describe live, initialized f64s.\n    let v = unsafe { core::slice::from_raw_parts(ptr, len) };\n    v.iter().sum()\n}\n"
+        },
+        {
+          "label": "c\"law\" is a &'static CStr with a NUL; CString::new rejects an interior NUL",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "4 Ok(\"law\")\ntrue\ntrue",
+          "source": "use std::ffi::{CStr, CString};\n\nfn main() {\n    let lit: &'static CStr = c\"law\";\n    println!(\"{} {:?}\", lit.to_bytes_with_nul().len(), lit.to_str());\n    println!(\"{}\", CString::new(\"a\\0b\").is_err());\n    let owned = CString::new(\"law\").unwrap();\n    println!(\"{}\", owned.as_c_str() == lit);\n}\n"
+        },
+        {
+          "label": "as_ptr on a temporary CString dangles: dangling_pointers_from_temporaries warns",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "lints": [
+            "dangling_pointers_from_temporaries"
+          ],
+          "stderr_contains": [
+            "temporary `CString` is dropped at end of statement"
+          ],
+          "source": "use std::ffi::{c_char, CString};\n\npub fn name() -> *const c_char {\n    CString::new(\"law\").unwrap().as_ptr()\n}\n"
+        },
+        {
+          "label": "c\"\" literals do not parse in edition 2018",
+          "edition": "2018",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "c-string literals require Rust 2021 or later"
+          ],
+          "source": "fn main() {\n    let lit = c\"law\";\n    println!(\"{}\", lit.count_bytes());\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rustonomicon: FFI",
+          "url": "https://doc.rust-lang.org/nomicon/ffi.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "A struct's layout is C-compatible only with #[repr(C)]; Option<extern \"C\" fn> and other two-variant enums over a non-nullable type use the nullable pointer optimization.",
+          "retrieved": true
+        },
+        {
+          "title": "rustc book: Warn-by-default lints (improper_ctypes_definitions, improper_ctypes, dangling_pointers_from_temporaries)",
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "improper_ctypes_definitions flags parameter and return types in extern fn definitions that are not compatible with the ABI, improper_ctypes does the same for extern blocks, and dangling_pointers_from_temporaries flags a pointer taken from a temporary that is dropped at once.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.77.0 (C-string literals)",
+          "url": "https://blog.rust-lang.org/2024/03/21/Rust-1.77.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "c\"abc\" literals expand to a nul-terminated string of type &'static CStr, with interior nul bytes checked at compile time.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Tokens (C string literals)",
+          "url": "https://doc.rust-lang.org/stable/reference/tokens.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "C string literals are &'static CStr with an implicit 0x00 terminator, may not contain another 0x00, and are accepted in the 2021 edition or later.",
+          "retrieved": true
+        },
+        {
+          "title": "std::ffi::CString",
+          "url": "https://doc.rust-lang.org/stable/std/ffi/struct.CString.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "CString is an owned nul-terminated string with no interior nul; CString::new returns NulError on an internal 0 byte; into_raw memory must return through from_raw, not C's free.",
+          "retrieved": true
+        },
+        {
+          "title": "The bindgen User Guide",
+          "url": "https://rust-lang.github.io/rust-bindgen/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "bindgen automatically generates Rust FFI bindings to C and C++ libraries (the C to Rust direction).",
+          "retrieved": true
+        },
+        {
+          "title": "cbindgen README",
+          "url": "https://github.com/mozilla/cbindgen",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "cbindgen creates C/C++11 headers for Rust libraries which expose a public C API.",
+          "retrieved": true
+        },
+        {
+          "title": "cbindgen CHANGES",
+          "url": "https://raw.githubusercontent.com/mozilla/cbindgen/master/CHANGES",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Version 0.28.0 lists 'Parse unsafe attributes' (PR #1020), and 0.29.0 adds a test for the unsafe(no_mangle) attribute.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Run Miri on the law natively: Stacked Borrows is its default aliasing model, Tree Borrows is opt-in",
+      "what": "Miri (a nightly component) interprets a test suite and reports the UB it executes: out-of-bounds and use-after-free, uninitialized reads, misalignment, invalid values, data races and, experimentally, aliasing violations under Stacked Borrows (default) or Tree Borrows (-Zmiri-tree-borrows); it supports tier-1 hosts, has almost no FFI, and checks only what the tests run.",
+      "how": "`rustup +nightly component add miri`, then `cargo +nightly miri test` on a pinned nightly; run a second pass with MIRIFLAGS=\"-Zmiri-tree-borrows\"; -Zmiri-many-seeds reruns under different RNG seeds. Skip what Miri cannot or should not interpret with #[cfg_attr(miri, ignore)]; cfg(miri) is set only when cargo miri compiles the crate, and rustc lists miri among its well-known cfg names. Cheaper, weaker nightly checks: cargo careful (std rebuilt with debug assertions; faster than Miri, runs FFI, catches less) and -Zsanitizer=address|memory|thread (unstable; the Unstable Book lists AddressSanitizer targets such as x86_64-unknown-linux-gnu, and x86_64-pc-windows-msvc is not among them).",
+      "rust_version": "nightly only; the pinned stable 1.98.1 refuses #![feature] (E0554)",
+      "gotchas": "Miri is dynamic: code a test does not execute is not checked, and the README says it does not catch every violation. -Zmiri-disable-stacked-borrows turns the aliasing checks off (the README calls that unsound). Tree Borrows accepts more real code (its PLDI 2025 evaluation over the 30,000 most-used crates rejects 54% fewer test cases than Stacked Borrows), so the two models can disagree: run both. Exposed-provenance casts are incompatible with Miri (std ptr docs). Miri is not installed on this rig: nothing in this KB reports Miri output.",
+      "engine_note": "Miri's README promises tier-1 targets and warns that targets on other operating systems might fail before reaching main; it never mentions wasm, and wasm32-unknown-unknown's OS is `unknown`. So check the law on the host: unit tests of `canon`, `canon_quat`, `mix_f64`, `js_min` / `js_max` and `write_body`'s NaN refusal, plus one small product world that calls `solver_step` and `solver_clear_warmstart` so Miri executes the static-mut paths and the &ContactPair-to-*mut cast from the aliasing recipe. Full Rapier worlds are slow to interpret: mark them #[cfg_attr(miri, ignore)]. Where those tests live in a cdylib-only crate is the testing-tooling lane's call; the pinned-nightly CI job is ci-reproducible-builds'.",
+      "checks": [
+        {
+          "label": "cfg!(miri) is false when rustc itself compiles the crate",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "false",
+          "source": "fn main() {\n    // Set only when `cargo miri` builds the crate for interpretation.\n    println!(\"{}\", cfg!(miri));\n}\n"
+        },
+        {
+          "label": "A pure law-helper test plus a cfg_attr(miri, ignore) test both run under rustc --test",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout_contains": [
+            "2 passed"
+          ],
+          "source": "// Same rule as lib.rs js_min: JavaScript Math.min semantics for signed zero.\nfn js_min(a: f64, b: f64) -> f64 {\n    if b < a || (a == 0.0 && b == 0.0 && b.is_sign_negative() && !a.is_sign_negative()) {\n        b\n    } else {\n        a\n    }\n}\n\n#[cfg(test)]\nmod tests {\n    use super::js_min;\n\n    #[test]\n    fn min_keeps_negative_zero() {\n        assert!(js_min(0.0, -0.0).is_sign_negative());\n        assert!(js_min(-0.0, 0.0).is_sign_negative());\n        assert_eq!(js_min(1.0, 2.0), 1.0);\n    }\n\n    #[test]\n    #[cfg_attr(miri, ignore)] // stands in for a full-world test too slow to interpret\n    fn many_quanta() {\n        let mut m = f64::INFINITY;\n        for i in 0..100_000 {\n            m = js_min(m, (i % 977) as f64);\n        }\n        assert_eq!(m, 0.0);\n    }\n}\n"
+        },
+        {
+          "label": "The pinned stable compiler refuses nightly features: #![feature] is E0554",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0554"
+          ],
+          "source": "#![feature(cfg_sanitize)]\n\nfn main() {}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Miri README (rust-lang/miri)",
+          "url": "https://github.com/rust-lang/miri",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Lists the UB Miri detects, says Stacked Borrows is on by default and -Zmiri-tree-borrows replaces it with Tree Borrows, supports all tier-1 targets (other operating systems might fail before main), has no access to most platform APIs or FFI, and sets cfg(miri) under cargo miri.",
+          "retrieved": true
+        },
+        {
+          "title": "Miri README (raw text, flags section)",
+          "url": "https://raw.githubusercontent.com/rust-lang/miri/master/README.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "-Zmiri-disable-stacked-borrows disables the aliasing checks, -Zmiri-many-seeds reruns under several seeds, and Miri does not catch every violation of the Rust specification.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, 20.1 Unsafe Rust (Miri)",
+          "url": "https://doc.rust-lang.org/book/ch20-01-unsafe-rust.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Miri needs a nightly toolchain (rustup +nightly component add miri; cargo +nightly miri test) and is a dynamic tool that only catches problems in code that actually runs.",
+          "retrieved": true
+        },
+        {
+          "title": "Tree Borrows (Villani, Hostert, Dreyer, Jung; PLDI 2025)",
+          "url": "https://pldi25.sigplan.org/details/pldi-2025-papers/42/Tree-Borrows",
+          "year": 2025,
+          "kind": "paper",
+          "identifier": "10.1145/3735592",
+          "claim": "Replaces Stacked Borrows' stack with a tree; on the 30,000 most widely used crates it rejects 54% fewer test cases than Stacked Borrows.",
+          "retrieved": true
+        },
+        {
+          "title": "cargo-careful README",
+          "url": "https://github.com/RalfJung/cargo-careful",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "cargo +nightly careful test builds std with debug assertions and extra checks; faster than Miri and works with C FFI, but detects less; -Zcareful-sanitizer enables a sanitizer.",
+          "retrieved": true
+        },
+        {
+          "title": "The Unstable Book: sanitizer",
+          "url": "https://doc.rust-lang.org/unstable-book/compiler-flags/sanitizer.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "-Zsanitizer=address/memory/thread/... are unstable nightly flags, -Zbuild-std is recommended, and the AddressSanitizer target list does not include x86_64-pc-windows-msvc.",
+          "retrieved": true
+        },
+        {
+          "title": "rustc book: Checking conditional configurations (well-known names)",
+          "url": "https://doc.rust-lang.org/rustc/check-cfg.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "miri is in the list of well-known cfg names rustc checks, along with debug_assertions, panic, target_feature and ub_checks.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Never write through a pointer cast from &T: the solver's warm-start clear does, and rustc's lint misses it",
+      "what": "solver_clear_warmstart turns each &ContactPair from NarrowPhase::contact_pairs() into *mut and reborrows it as &mut to zero warm-start impulses; a pointer derived from a shared reference never carries write permission, whoever holds the owner, rustc documents the &T-to-&mut T cast as UB, and its lint catches only the one-expression forms, not this Vec hop.",
+      "how": "Why it is UB even though the caller holds `&mut Loaded`: permission travels with the pointer, not with the owner. std's ptr docs say a shared reference only ever has provenance that permits reads (outside UnsafeCell); `contact_pairs(&self)` hands out such references, and a raw pointer cast from one keeps that read-only permission (in Tree Borrows a raw pointer simply inherits its parent's tag). Stacked Borrows (Miri's default) has no reservation phase: a new &mut is immediately Unique, and its paper counts creating it as a write access of the source pointer, which a pointer with only read permission cannot perform, so `&mut *ptr` is itself the violation. Tree Borrows gives a shared reference the Frozen permission and a new &mut the Reserved one; the first write through that &mut to bytes the &T covered is a local write to a Frozen tag, which is UB. What the lint does: invalid_reference_casting (deny by default) rejects `&mut *(from_ref(p) as *mut T)` and `*(from_ref(p) as *mut T) = v` written in one place; it lets through a field write `(*(from_ref(p) as *mut T)).f = v` and the same cast split across a Vec of pointers, which is the solver's shape. The fix is a &mut path that starts at the owner, never a cast: `for pair in narrow.contact_pairs_mut() { zero_manifolds(&mut pair.manifolds); }` needs no unsafe at all. rapier3d-f64 0.35.3 exposes no such accessor, so the path must come from a pinned [patch.crates-io] fork that adds `&mut self` access (the crate's own contact_pair_at_index reads self.contact_graph.graph.edges[i].weight), from another rapier API that hands out &mut (not assessed in this lane), or the cache is not mutated at all.",
+      "rust_version": "rapier3d-f64 0.35.3; the rule holds in every Rust version",
+      "gotchas": "'One thread owns the world, so it is fine' answers data races, not aliasing. The Reference still calls its aliasing rules an outline ('not determined yet'); the operative texts are rustc's lint documentation (the cast is UB, and the diagnostic adds 'even if the reference is unused') and std's provenance rule. ContactPair's fields (two ColliderHandles, manifolds and solver_clusters as Vec<ContactManifold>) contain no interior mutability, so no UnsafeCell exemption applies. A clean compile is no evidence: the lint matches expression shapes. Analysis, not run (Miri is not installed here): the solver writes only into the Vec buffers behind each pair, never into the pair's own bytes, so Tree Borrows may not flag this exact shape while Stacked Borrows flags the reborrow; a pass under -Zmiri-tree-borrows would not make it sound. UB means the golden hash surviving today is no guarantee across a toolchain or dependency bump.",
+      "engine_note": "solver/src/rapier_law.rs `solver_clear_warmstart`: `core::ptr::from_ref(pair) as *mut ContactPair` for each pair of `loaded.world.narrow_phase.contact_pairs()`, pushed into a Vec<*mut ContactPair>, then `&mut *ptr` and `zero_manifolds` on `manifolds` and `solver_clusters`. T2's `solver_restore` needs the same kind of write (docs/rust-kb-requests.md, request 1). At 0.35.3 docs.rs lists only &self accessors, `contact_pairs_mut` is E0599 and the `contact_graph` field is E0616, so both jobs need a &mut route from outside today's public API; which warm-start fields must be written is the restore-internals lane's question.",
+      "checks": [
+        {
+          "label": "rustc rejects &mut *(from_ref(p) as *mut T): 'UB, even if the reference is unused'",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "lints": [
+            "invalid_reference_casting"
+          ],
+          "stderr_contains": [
+            "casting `&T` to `&mut T` is undefined behavior, even if the reference is unused"
+          ],
+          "source": "pub struct ContactPair {\n    pub manifolds: Vec<f64>,\n}\n\npub fn clear(pair: &ContactPair) {\n    let p = unsafe { &mut *(core::ptr::from_ref(pair) as *mut ContactPair) };\n    p.manifolds.clear();\n}\n"
+        },
+        {
+          "label": "rustc rejects a whole-value write through the cast: 'assigning to `&T` is UB'",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "lints": [
+            "invalid_reference_casting"
+          ],
+          "stderr_contains": [
+            "assigning to `&T` is undefined behavior"
+          ],
+          "source": "pub struct Manifold {\n    pub warmstart_impulse: f64,\n}\n\npub fn clear(m: &Manifold) {\n    unsafe { *(core::ptr::from_ref(m) as *mut Manifold) = Manifold { warmstart_impulse: 0.0 } };\n}\n"
+        },
+        {
+          "label": "Lint blind spot 1: a field write through the same cast, in one expression, compiles silently",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "pub struct Manifold {\n    pub warmstart_impulse: f64,\n}\n\n// UB exactly like the rejected forms; rustc says nothing.\npub fn clear(m: &Manifold) {\n    unsafe { (*(core::ptr::from_ref(m) as *mut Manifold)).warmstart_impulse = 0.0 };\n}\n"
+        },
+        {
+          "label": "Lint blind spot 2: the solver's Vec-of-pointers form compiles with no diagnostic",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "pub struct Manifold {\n    pub warmstart_impulse: f64,\n}\n\npub struct ContactPair {\n    pub manifolds: Vec<Manifold>,\n}\n\npub struct NarrowPhase {\n    pairs: Vec<ContactPair>,\n}\n\nimpl NarrowPhase {\n    pub fn contact_pairs(&self) -> impl Iterator<Item = &ContactPair> {\n        self.pairs.iter()\n    }\n}\n\nfn zero_manifolds(manifolds: &mut [Manifold]) -> u32 {\n    let mut n = 0;\n    for m in manifolds {\n        m.warmstart_impulse = 0.0;\n        n += 1;\n    }\n    n\n}\n\n// The shape of solver_clear_warmstart: UB, and rustc says nothing.\npub fn clear_warmstart(narrow: &mut NarrowPhase) -> u32 {\n    let mut ptrs: Vec<*mut ContactPair> = Vec::new();\n    for pair in narrow.contact_pairs() {\n        ptrs.push(core::ptr::from_ref(pair) as *mut ContactPair);\n    }\n    let mut n = 0u32;\n    for ptr in ptrs {\n        unsafe {\n            let pair = &mut *ptr;\n            n += zero_manifolds(&mut pair.manifolds);\n        }\n    }\n    n\n}\n"
+        },
+        {
+          "label": "The sound shape: a &mut accessor that starts at the owner makes the clear safe code",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "2 0",
+          "source": "pub struct Manifold {\n    pub warmstart_impulse: f64,\n}\n\npub struct ContactPair {\n    pub manifolds: Vec<Manifold>,\n}\n\npub struct NarrowPhase {\n    pairs: Vec<ContactPair>,\n}\n\nimpl NarrowPhase {\n    // What a pinned patch would add: &mut self in, &mut pairs out. No cast anywhere.\n    pub fn contact_pairs_mut(&mut self) -> impl Iterator<Item = &mut ContactPair> {\n        self.pairs.iter_mut()\n    }\n}\n\nfn zero_manifolds(manifolds: &mut [Manifold]) -> u32 {\n    let mut n = 0;\n    for m in manifolds {\n        m.warmstart_impulse = 0.0;\n        n += 1;\n    }\n    n\n}\n\nfn main() {\n    let mut narrow = NarrowPhase {\n        pairs: vec![\n            ContactPair { manifolds: vec![Manifold { warmstart_impulse: 0.5 }] },\n            ContactPair { manifolds: vec![Manifold { warmstart_impulse: -1.0 }] },\n        ],\n    };\n    let mut n = 0;\n    for pair in narrow.contact_pairs_mut() {\n        n += zero_manifolds(&mut pair.manifolds);\n    }\n    let left: f64 = narrow\n        .pairs\n        .iter()\n        .flat_map(|p| p.manifolds.iter())\n        .map(|m| m.warmstart_impulse.abs())\n        .sum();\n    println!(\"{} {}\", n, left);\n}\n"
+        },
+        {
+          "label": "rapier3d-f64 0.35.3 has no NarrowPhase::contact_pairs_mut (E0599)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0599"
+          ],
+          "stderr_contains": [
+            "no method named `contact_pairs_mut`"
+          ],
+          "source": "use rapier3d_f64::geometry::NarrowPhase;\n\npub fn clear(n: &mut NarrowPhase) -> usize {\n    let mut k = 0;\n    for pair in n.contact_pairs_mut() {\n        for m in &mut pair.manifolds {\n            k += m.points.len();\n        }\n    }\n    k\n}\n"
+        },
+        {
+          "label": "NarrowPhase's contact_graph field is private in 0.35.3 (E0616)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0616"
+          ],
+          "source": "use rapier3d_f64::geometry::NarrowPhase;\n\npub fn edges(n: &mut NarrowPhase) -> usize {\n    n.contact_graph.raw_graph().raw_edges().len()\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "std::ptr module: Provenance",
+          "url": "https://doc.rust-lang.org/stable/std/ptr/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Provenance has a mutability component, and a shared reference only ever has provenance that permits reading from memory, never writes, except inside UnsafeCell.",
+          "retrieved": true
+        },
+        {
+          "title": "rustc book: Deny-by-default lints (invalid_reference_casting)",
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Casting &T to &mut T without interior mutability is undefined behavior as a violation of reference aliasing requirements; UnsafeCell is the only way to obtain aliasable data considered mutable.",
+          "retrieved": true
+        },
+        {
+          "title": "std::ptr::from_ref",
+          "url": "https://doc.rust-lang.org/stable/std/ptr/fn.from_ref.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The pointer from_ref returns must not be used, directly or through derived pointers, to write the memory it points to (except inside an UnsafeCell); use from_mut to mutate.",
+          "retrieved": true
+        },
+        {
+          "title": "Tree Borrows (Villani, Hostert, Dreyer, Jung; PLDI 2025), full text",
+          "url": "https://iris-project.org/pdfs/2025-pldi-treeborrows.pdf",
+          "year": 2025,
+          "kind": "paper",
+          "identifier": "10.1145/3735592",
+          "claim": "Frozen is the initial permission for shared references and a local write to it is UB; raw pointers inherit the tag of the reference they come from; a mutable reference starts Reserved (retags only perform implicit reads) and is activated by its first local write, whereas Stacked Borrows considers every mutable reference immediately Unique.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Behavior considered undefined (aliasing)",
+          "url": "https://doc.rust-lang.org/stable/reference/behavior-considered-undefined.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "&T must point to memory that is not mutated while live except inside UnsafeCell; the exact aliasing rules are not determined yet.",
+          "retrieved": true
+        },
+        {
+          "title": "docs.rs: rapier3d-f64 0.35.3, struct NarrowPhase",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.NarrowPhase.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "At the pinned version every contact-pair accessor (contact_pairs, contact_pair, contact_pair_at_index, contact_graph) takes &self and returns shared references; none returns &mut ContactPair.",
+          "retrieved": true
+        },
+        {
+          "title": "docs.rs: rapier3d-f64 0.35.3, struct ContactPair",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ContactPair.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "ContactPair's fields are collider1 and collider2 (ColliderHandle) and manifolds and solver_clusters (Vec<ContactManifold>), with no Cell, RefCell or UnsafeCell.",
+          "retrieved": true
+        },
+        {
+          "title": "The Cargo Book: Overriding dependencies ([patch])",
+          "url": "https://doc.rust-lang.org/cargo/reference/overriding-dependencies.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A [patch.crates-io] table replaces a crates.io dependency with another copy, such as a git repository, and the patched version must still satisfy the version requirement.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [
+        {
+          "title": "Stacked Borrows: An Aliasing Model for Rust (Jung, Dang, Kang, Dreyer; POPL 2020)",
+          "url": "https://plv.mpi-sws.org/rustbelt/stacked-borrows/paper.pdf",
+          "year": 2020,
+          "kind": "paper",
+          "identifier": "10.1145/3371109",
+          "claim": "Creating a reference counts as a write access of the pointer it is created from, and a pointer whose item is SharedRO cannot be used to write, which needs Unique or SharedRW.",
+          "retrieved": true
+        }
+      ]
+    }
+  ]
+}

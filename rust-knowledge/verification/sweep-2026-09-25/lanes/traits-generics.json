@@ -1,0 +1,192 @@
+{
+  "bucket": "traits-generics",
+  "verifier_note": "Checked all 55 unique warrant sources by retrieval (WebFetch, near-verbatim quote match against every claim sentence), ran all 48 checks[] myself through the real oracle (python scripts/compile_oracle.py check, rustc 1.98.1 + rapier3d-f64 0.35.3/enhanced-determinism) with 48/48 passing their exact expect/stdout/error_codes/lints metadata, and verified every engine_note against si-rpg-engine at origin/main via gh api (solver/src/lib.rs, solver/src/rapier_law.rs, solver/Cargo.toml, solver/rust-toolchain.toml, commit history for 4782a8a and 2c2631f, and docs/dispatch-t2-restore.md for the T2/solver_restore reference). No source was unfindable, no API or lint name was wrong, no check tested a different claim than its prose, and no engine fact was wrong; one non-obvious detail (parry3d-f64's Vector coming from glam DVec3 'via glamx') was independently confirmed true rather than assumed. The lane's one systemic weakness is citation hygiene, not content: the ordered-float source uses an unpinned docs.rs '/latest/' URL (every other external-crate citation in the lane is version-pinned), so a future ordered-float release could silently change what that link shows even though it is accurate today; a second, softer weakness is that several 'what/how' claims about docs.rs-hosted external crates (rapier3d-f64, parry3d-f64, glam) depend on those third-party pages staying live at their pinned versions rather than on Rust's own infrastructure.",
+  "verdicts": [
+    {
+      "slug": "define-traits-with-required-and-default-methods-state-generic-bounds-inline-or-in-a-where-clause",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Book ch10.2, Reference traits.html/trait-bounds.html, E0046, E0277 verbatim-match every claim. Oracle: 4/4 checks pass on rustc 1.98.1. Engine note (no trait/impl/derive in solver/src) confirmed by direct read at main.",
+      "evidence_url": "https://doc.rust-lang.org/stable/book/ch10-02-traits.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/book/ch10-02-traits.html", "supported": true, "note": "Verbatim: default calls required method; override can't call default; where clauses."},
+        {"url": "https://doc.rust-lang.org/stable/reference/items/traits.html", "supported": true, "note": "Verbatim: body=default for non-overriding impls; no body must be defined by impl."},
+        {"url": "https://doc.rust-lang.org/stable/reference/trait-bounds.html", "supported": true, "note": "Verbatim: 'fn f<A: Copy>() {} is the same as fn f<A>() where A: Copy {}'."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0046.html", "supported": true, "note": "Exact: 'not all trait items implemented, missing: foo'."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0277.html", "supported": true, "note": "Exact: type not implementing a required trait bound is E0277."}
+      ]
+    },
+    {
+      "slug": "prefer-monomorphized-generics-use-box-dyn-trait-for-mixed-type-collections-or-to-cut-code-size",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Book ch10.1/18.2, trait-object.html, edition-guide 2021, rustc-dev-guide, Effective Rust It.12 verbatim-match. Oracle: 5/5 checks pass across editions 2015-2024. BODY_STRIDE=17, zero 'dyn' in solver/src confirmed at main.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/types/trait-object.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/book/ch10-01-syntax.html", "supported": true, "note": "Verbatim: monomorphization means generics have no runtime cost."},
+        {"url": "https://doc.rust-lang.org/stable/book/ch18-02-trait-objects.html", "supported": true, "note": "Verbatim: dynamic dispatch blocks inlining; generic T is one type, dyn allows many."},
+        {"url": "https://doc.rust-lang.org/stable/reference/types/trait-object.html", "supported": true, "note": "Verbatim: pointer+vtable, DST behind a pointer, dyn required from 2021."},
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2021/warnings-promoted-to-error.html", "supported": true, "note": "Verbatim: bare_trait_objects errors in 2021, dyn mandatory."},
+        {"url": "https://rustc-dev-guide.rust-lang.org/backend/monomorph.html", "supported": true, "note": "Verbatim: rustc 'stamps out' a copy per type; cost = compile time + binary size."},
+        {"url": "https://effective-rust.com/generics.html", "supported": true, "note": "Confirmed Item 12, David Drysdale, 2024; matches size/speed/heterogeneity tradeoff text."}
+      ]
+    },
+    {
+      "slug": "use-impl-trait-to-accept-any-implementor-or-return-one-hidden-type-return-box-dyn-trait-for-two-types",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "reference/types/impl-trait.html and Book ch10.2 verbatim-confirm arg-vs-return position, turbofish breakage, single-concrete-type rule, and 2024 lifetime capture (use<..>). Oracle: 5/5 checks pass incl. exact E0107/E0562/E0308 messages.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/types/impl-trait.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/book/ch10-02-traits.html", "supported": true, "note": "Verbatim: impl Trait is 'syntax sugar' for a trait bound; single-type return rule."},
+        {"url": "https://doc.rust-lang.org/stable/reference/types/impl-trait.html", "supported": true, "note": "Verbatim: anonymous param type, breaking-change note, avoids boxed-trait-object cost, use<..>."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0107.html", "supported": true, "note": "Confirmed: wrong generic-argument count; general definition matches (turbofish shown in check)."},
+        {"url": "https://effective-rust.com/generics.html", "supported": true, "note": "Verbatim footnote: impl-Trait param removes caller's ability to specify the type via turbofish."}
+      ]
+    },
+    {
+      "slug": "derive-debug-clone-copy-partialeq-and-default-on-plain-data-implement-display-by-hand",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Copy/Clone/Debug/Display/Default/appendix-03/E0204/Effective-Rust It.10 verbatim-match; 1.62.0 post confirms enum #[default]. Oracle 4/4 pass. push_f64/canon verbatim in rapier_law.rs; 1.98.1 pin confirmed in rust-toolchain.toml.",
+      "evidence_url": "https://doc.rust-lang.org/stable/book/appendix-03-derivable-traits.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/marker/trait.Copy.html", "supported": true, "note": "Verbatim: bitwise, Clone supertrait, E0204 on non-Copy field, Drop excludes Copy, public API."},
+        {"url": "https://doc.rust-lang.org/stable/std/clone/trait.Clone.html", "supported": true, "note": "Verbatim: derive needs all-Clone fields, adds bound to generics, Copy clone()==*y."},
+        {"url": "https://doc.rust-lang.org/stable/std/fmt/trait.Debug.html", "supported": true, "note": "Verbatim: derivable if all fields Debug; derived format 'not stable' across versions."},
+        {"url": "https://doc.rust-lang.org/stable/std/fmt/trait.Display.html", "supported": true, "note": "Verbatim: user-facing, cannot be derived, gives ToString, prefer over ToString."},
+        {"url": "https://doc.rust-lang.org/stable/std/default/trait.Default.html", "supported": true, "note": "Verbatim: derive needs all-Default fields; #[default] unit-variant only; ..Default::default()."},
+        {"url": "https://blog.rust-lang.org/2022/06/30/Rust-1.62.0/", "supported": true, "note": "Confirmed: enum #[derive(Default)] with #[default] unit variant, this release."},
+        {"url": "https://doc.rust-lang.org/stable/book/appendix-03-derivable-traits.html", "supported": true, "note": "Verbatim: Display can't be derived, Copy needs Clone+all-Copy, Default needs all fields."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0204.html", "supported": true, "note": "Verbatim: Copy on a type with a non-Copy field (Vec, &mut) is E0204."},
+        {"url": "https://effective-rust.com/std-traits.html", "supported": true, "note": "Confirmed Item 10, Drysdale: Debug derivable/Display hand-written; derive Copy when possible."}
+      ]
+    },
+    {
+      "slug": "derive-only-partialeq-and-partialord-on-structs-with-f64-fields-derived-eq-hash-and-ord-fail-with-e0277",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Eq/PartialEq/PartialOrd/f64-primitive/Hash/appendix-03/Effective-Rust Item 10 verbatim-match the NaN/Eq/Ord story. Oracle: 6/6 checks pass incl. HashSet-holds-NaN-twice and the assert_eq! panic (exit 101).",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/cmp/trait.Eq.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/cmp/trait.Eq.html", "supported": true, "note": "Verbatim: f32/f64 only PartialEq (NaN!=NaN); derive needs all-Eq; no methods; logic error."},
+        {"url": "https://doc.rust-lang.org/stable/std/cmp/trait.PartialEq.html", "supported": true, "note": "Verbatim: floats PartialEq not Eq; derive = all-fields-equal; violation is a logic error."},
+        {"url": "https://doc.rust-lang.org/stable/std/cmp/trait.PartialOrd.html", "supported": true, "note": "Verbatim: f64 PartialOrd not Ord; NAN.partial_cmp(&1.0)==None; lexicographic derive."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f64.html", "supported": true, "note": "Confirmed: trait list shows PartialEq/PartialOrd only, no Eq/Ord/Hash for f64."},
+        {"url": "https://doc.rust-lang.org/stable/std/hash/trait.Hash.html", "supported": true, "note": "Verbatim: derive needs all-Hash fields; k1==k2 implies hash(k1)==hash(k2)."},
+        {"url": "https://doc.rust-lang.org/stable/book/appendix-03-derivable-traits.html", "supported": true, "note": "Verbatim: NaN!=NaN blocks Eq; partial_cmp(NaN)=None; Eq/Ord needed for HashMap/BTreeSet."},
+        {"url": "https://effective-rust.com/std-traits.html", "supported": true, "note": "Confirmed Item 10: nothing equals NaN incl. itself; manual Eq must be checked against Hash."}
+      ]
+    },
+    {
+      "slug": "key-f64-values-by-their-bits-eq-and-hash-from-to-bits-ord-from-total-cmp-never-partial-cmp-unwrap",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "total_cmp docs + source match the to_bits/XOR-mask/i64-compare algorithm. rapier3d-f64 0.35.3 confirms ColliderHandle Eq+Hash, no Ord. Oracle: 7/7 pass incl. live E0277 vs the real crate + a 1,000,196-pair fuzz test.",
+      "evidence_url": "https://doc.rust-lang.org/stable/src/core/num/f64.rs.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/core/primitive.f64.html", "supported": true, "note": "Verbatim: totalOrder sequence incl. neg/pos zero and NaN kinds; disagrees with PartialOrd."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f64.html", "supported": true, "note": "Confirmed to_bits/from_bits since 1.20.0 (const since 1.83.0)."},
+        {"url": "https://doc.rust-lang.org/stable/src/core/num/f64.rs.html", "supported": true, "note": "Actual source read: to_bits as i64, XOR sign-derived mask on both, then integer cmp."},
+        {"url": "https://doc.rust-lang.org/stable/std/hash/trait.Hash.html", "supported": true, "note": "Verbatim: k1==k2 -> hash equal; std hashing 'not portable'/'not stable' across versions."},
+        {"url": "https://doc.rust-lang.org/stable/std/cmp/trait.Ord.html", "supported": true, "note": "Verbatim: partial_cmp==Some(cmp); page itself names total_cmp for floats not forming a total order."},
+        {"url": "https://blog.rust-lang.org/2022/06/30/Rust-1.62.0/", "supported": true, "note": "Confirmed: f32::total_cmp / f64::total_cmp stabilized in 1.62.0."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ColliderHandle.html", "supported": true, "note": "Confirmed at 0.35.3: Copy/Clone/Debug/PartialEq/Eq/Hash/Default; no PartialOrd/Ord; into_raw_parts->(u32,u32)."},
+        {"url": "https://docs.rs/ordered-float/latest/ordered_float/struct.OrderedFloat.html", "supported": true, "note": "Confirmed v5.5.0 (matches claim): NaN==itself & greatest, -0.0==+0.0 -- opposite of total_cmp."}
+      ]
+    },
+    {
+      "slug": "implement-from-for-lossless-conversions-and-tryfrom-for-checked-ones-never-into-accept-asref-or-borrow",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "From/TryFrom/AsRef/Borrow/E0119/C-CONV-TRAITS verbatim-match, incl. AsRef's absent blanket impl and TryFrom/TryInto's 2021-prelude membership (cross-checked vs edition-guide/rust-2021/prelude.html). Oracle: 2/2 pass.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/convert/trait.TryFrom.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/convert/trait.From.html", "supported": true, "note": "Verbatim: prefer From (blanket Into), must not fail/lossy, ? uses From::from."},
+        {"url": "https://doc.rust-lang.org/stable/std/convert/trait.TryFrom.html", "supported": true, "note": "Verbatim: since 1.34.0, implies TryInto, prefer TryInto bound, as truncates vs try_from errors."},
+        {"url": "https://doc.rust-lang.org/stable/std/convert/trait.AsRef.html", "supported": true, "note": "Verbatim: cheap/must-not-fail; confirmed NO reflexive blanket impl<T> AsRef<T> for T."},
+        {"url": "https://doc.rust-lang.org/stable/std/borrow/trait.Borrow.html", "supported": true, "note": "Verbatim: Eq/Ord/Hash equivalence required; HashMap::get<Q> example; CaseInsensitiveString example."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0119.html", "supported": true, "note": "Confirmed: overlapping impl vs an existing blanket impl for the same type is E0119."},
+        {"url": "https://rust-lang.github.io/api-guidelines/interoperability.html", "supported": true, "note": "Confirmed C-CONV-TRAITS: use From/TryFrom/AsRef/AsMut, never implement Into/TryInto."}
+      ]
+    },
+    {
+      "slug": "overload-vector-math-with-std-ops-on-a-copy-vec3-or-reuse-rapier-s-glam-dvec3-that-already-has-the-ops",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "std::ops, ch20.2, E0369, E0382, C-OVERLOAD match. docs.rs confirms glam 0.33.10 DVec3, parry3d-f64 0.30.2 Vector=DVec3; 'via glamx' verified true (glamx is parry3d-f64's real dep, re-exports glam). Oracle 5/5 pass incl. -0.0 Neg.",
+      "evidence_url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/math/type.Vector.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/ops/index.html", "supported": true, "note": "Verbatim: only trait-backed ops overload; by-value operands; unsurprising; && / || excluded."},
+        {"url": "https://doc.rust-lang.org/stable/book/ch20-02-advanced-traits.html", "supported": true, "note": "Verbatim Add<Rhs=Self> definition and impl Add<Meters> for Millimeters example."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0369.html", "supported": true, "note": "Confirmed: binary op on an unsupporting type is E0369; std::ops overloading noted."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0382.html", "supported": true, "note": "Confirmed: use-after-move is E0382; Copy types copied when all members are Copy."},
+        {"url": "https://docs.rs/glam/0.33.10/glam/f64/struct.DVec3.html", "supported": true, "note": "0.33.10: Add/Sub/Neg/Mul<f64>/Mul<DVec3>-for-f64/AddAssign/Copy/PartialEq/Default/Display; no Eq/Hash/PartialOrd."},
+        {"url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/math/type.Vector.html", "supported": true, "note": "Confirmed at 0.30.2: 'pub type Vector = DVec3;' -- and DVec3 arrives via the glamx re-export dependency."},
+        {"url": "https://rust-lang.github.io/api-guidelines/predictability.html", "supported": true, "note": "Confirmed C-OVERLOAD: Mul should resemble multiplication and share its properties."}
+      ]
+    },
+    {
+      "slug": "satisfy-the-orphan-rule-with-a-local-newtype-and-forward-its-methods-deref-does-not-confer-trait-impls",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "ch10.2, ch20.2, implementations.html, E0117, Deref docs, the anti-pattern page, Effective Rust It.6 match orphan-rule + Deref-doesn't-forward-traits claims. Oracle 6/6 pass, incl. paired autoderef-works/bound-fails(E0277).",
+      "evidence_url": "https://doc.rust-lang.org/stable/error_codes/E0117.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/book/ch10-02-traits.html", "supported": true, "note": "Verbatim: trait-or-type-local rule (coherence/orphan rule); explicit Display-on-Vec<T> example."},
+        {"url": "https://doc.rust-lang.org/stable/book/ch20-02-advanced-traits.html", "supported": true, "note": "Verbatim newtype Wrapper(Vec<String>)/Display example; wrapper loses inner methods."},
+        {"url": "https://doc.rust-lang.org/stable/reference/items/implementations.html", "supported": true, "note": "Confirmed orphan-rule wording (local trait OR local type before uncovered params) and coherence rationale."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0117.html", "supported": true, "note": "Verbatim: only local traits on arbitrary types; fix = local type or local trait."},
+        {"url": "https://doc.rust-lang.org/stable/std/ops/trait.Deref.html", "supported": true, "note": "Verbatim should/should-not-implement lists, incl. method-collision and public-API cautions."},
+        {"url": "https://rust-lang.github.io/api-guidelines/predictability.html", "supported": true, "note": "Confirmed C-DEREF: only smart pointers should implement Deref/DerefMut."},
+        {"url": "https://rust-unofficial.github.io/patterns/anti_patterns/deref.html", "supported": true, "note": "Verbatim: no real subtyping; target's traits not auto-implemented for wrapper; use facade/delegation."},
+        {"url": "https://effective-rust.com/newtype.html", "supported": true, "note": "Confirmed Item 6: newtype enables foreign-trait-on-foreign-type; costs are .0 access + lost trait impls."}
+      ]
+    },
+    {
+      "slug": "implement-iterator-for-your-own-type-with-type-item-and-next-the-adapters-and-for-loops-come-free",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Iterator/iter-index/ch13.2/rust-by-example/ChunksExact match. Oracle 4/4 pass, incl. fuse()-vs-plain-resume and the chunks_exact cross-check the gotcha calls for. body_at copying a BODY_STRIDE=17 row confirmed in rapier_law.rs.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/iter/trait.Iterator.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/iter/trait.Iterator.html", "supported": true, "note": "Verbatim: one required Item+next; iterator may resume after None; size_hint default/unsafe caution."},
+        {"url": "https://doc.rust-lang.org/stable/std/iter/index.html", "supported": true, "note": "Verbatim: struct+next pattern; blanket impl<I:Iterator> IntoIterator for I; exact lazy-adapter warning text."},
+        {"url": "https://doc.rust-lang.org/stable/book/ch13-02-iterators.html", "supported": true, "note": "Verbatim: Iterator requires only next(), returning Some(item)/None."},
+        {"url": "https://doc.rust-lang.org/rust-by-example/trait/iter.html", "supported": true, "note": "Confirmed Fibonacci next()+Item example; take/skip become available after impl."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0046.html", "supported": true, "note": "Verbatim: every required trait item, methods and assoc. types, must be implemented."},
+        {"url": "https://doc.rust-lang.org/stable/std/slice/struct.ChunksExact.html", "supported": true, "note": "Confirmed stabilized 1.31.0; non-overlapping chunks with tail via remainder()."}
+      ]
+    }
+  ]
+}

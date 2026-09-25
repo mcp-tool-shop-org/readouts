@@ -1,0 +1,1271 @@
+{
+  "bucket": "sim-architecture",
+  "title": "Deterministic simulation architecture in Rust",
+  "tier": "si-rpg-engine",
+  "count": 10,
+  "recipes": [
+    {
+      "slug": "run-the-law-on-integer-quanta-from-a-host-owned-accumulator-keep-render-interpolation-out-of-the-state",
+      "name": "Run the law on integer quanta from a host-owned accumulator; keep render interpolation out of the state",
+      "what": "A 1/64 s quantum is exact in binary, so the law counts time as an integer tick; the host's accumulator, kept in integer nanoseconds, decides how many quanta a frame runs and the render alpha, and neither the alpha nor any clock value reaches the hashed state.",
+      "how": "Give the law `tick: u64` and `const DT: f64 = 1.0 / 64.0`; derive seconds as `tick as f64 * DT`, never by `t += DT`. Keep the accumulator in the host: `acc_ns += frame_ns; while acc_ns >= 15_625_000 { law.step(&inputs_for(tick)); tick += 1; acc_ns -= 15_625_000; }`, then draw with `alpha = acc_ns as f64 / 15_625_000.0`. Presentation receives shared references to committed state and returns a pose, e.g. `fn draw(prev: &State, cur: &State, alpha: f64) -> f64 { prev.y + (cur.y - prev.y) * alpha }`; an assignment through `&State` is E0594, so safe code cannot write a smoothed pose back. Bevy 0.19.1 makes the same choices: `Time<Fixed>` defaults to 64 Hz (15625 µs), keeps its accumulated `overstep()` as a `Duration`, may run the fixed schedule 0, 1 or more times per frame, and offers `overstep_fraction()` for interpolation.",
+      "rust_version": "any (checked on 1.98.1); bevy_time 0.19.1 for the comparison",
+      "gotchas": "1/60 is not exact: sixty 1/60 steps accumulate to 1.0000000000000013 and an hour of them to 3600.0000000182276, while `ticks as f64 * dt` gives 3600.0; with 1/64 both give exactly 3600.0. An f64-seconds accumulator fed 1/60, 1/120 or 1/144 s frames ran 63 quanta after one second of frames (64 at 240 Hz), while the integer-nanosecond accumulator ran 64 at every pacing: which frame a quantum lands in then depends on pacing, harmless only when inputs are stamped with their quantum (next recipe). `Duration::from_secs_f64` rounds (1/60 s becomes 16.666667ms), so convert a frame time once and accumulate integers. E0594 guards safe code holding `&State` only: an `extern \"C\"` export that returns a pointer into a `static mut` buffer gives the host a writable view, so the law re-checks every value it reads on every call.",
+      "engine_note": "packages/tick/tick.js runs the 1/64 s quantum in JavaScript and mixes `hasher.u32(tick)`, so time enters the hash as an integer; solver/src/lib.rs and rapier_law.rs hold `DT = 1.0 / 64.0` as a constant and read no clock. README: 'Presentation has no path back into the hash', and packages/frame/frame.js freezes the committed frame the host receives. The gap is the ABI: `bodies_ptr`, `colliders_ptr` and `heights_ptr` hand JavaScript writable f64 views, so on the Rust side the rule rests on signature()'s per-call checks, not on types. A Godot or Unreal host keeps its own accumulator and drives the law by quantum count, never by frame delta.",
+      "checks": [
+        {
+          "label": "64 steps of 1/64 sum to exactly 1.0; 60 of 1/60 do not, and an hour of 1/60 drifts",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "64 x 1/64 = 1.0 exact=true\n60 x 1/60 = 1.0000000000000013 exact=false\n1h of 1/60: accumulated 3600.0000000182276 vs ticks*dt 3600.0\n1h of 1/64: accumulated 3600.0 vs ticks*dt 3600.0 same=true\n64 x 15625000ns = 1s\n1/60 s as Duration = 16.666667ms",
+          "source": "fn main() {\n    let q64: f64 = 1.0 / 64.0;\n    let q60: f64 = 1.0 / 60.0;\n    let mut t64 = 0.0f64;\n    let mut t60 = 0.0f64;\n    for _ in 0..64 { t64 += q64; }\n    for _ in 0..60 { t60 += q60; }\n    println!(\"64 x 1/64 = {:?} exact={}\", t64, t64 == 1.0);\n    println!(\"60 x 1/60 = {:?} exact={}\", t60, t60 == 1.0);\n    // drift after one hour of quanta, accumulated vs tick * dt\n    let mut acc = 0.0f64;\n    let n: u64 = 60 * 60 * 60;\n    for _ in 0..n { acc += q60; }\n    println!(\"1h of 1/60: accumulated {:?} vs ticks*dt {:?}\", acc, n as f64 * q60);\n    let mut acc64 = 0.0f64;\n    let n64: u64 = 64 * 60 * 60;\n    for _ in 0..n64 { acc64 += q64; }\n    println!(\"1h of 1/64: accumulated {:?} vs ticks*dt {:?} same={}\", acc64, n64 as f64 * q64, acc64 == n64 as f64 * q64);\n    // Duration: 1/64 s is 15_625_000 ns exactly\n    let d = std::time::Duration::from_nanos(15_625_000);\n    println!(\"64 x 15625000ns = {:?}\", d * 64);\n    println!(\"1/60 s as Duration = {:?}\", std::time::Duration::from_secs_f64(q60));\n}\n"
+        },
+        {
+          "label": "Integer-ns accumulator runs 64 quanta at 60-240 Hz; an f64 one runs 63 at 60, 120 and 144 Hz",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "int ns  60 Hz: 64 quanta, law hash 88201fb960ff6465\nint ns 120 Hz: 64 quanta, law hash 88201fb960ff6465\nint ns 144 Hz: 64 quanta, law hash 88201fb960ff6465\nint ns 240 Hz: 64 quanta, law hash 88201fb960ff6465\nf64 s   60 Hz: 63 quanta\nf64 s  120 Hz: 63 quanta\nf64 s  144 Hz: 63 quanta\nf64 s  240 Hz: 64 quanta",
+          "source": "// The host owns the clock: an integer nanosecond accumulator turns frame deltas\n// into whole quanta of 1/64 s. The law sees only the quantum count.\nconst QUANTUM_NS: u64 = 15_625_000; // 1/64 s, exact\n\nfn law_hash(quanta: u64) -> u64 {\n    let (mut y, mut vy) = (2.0f64, 0.0f64);\n    for _ in 0..quanta {\n        vy += -8.0 / 64.0;\n        y += vy / 64.0;\n        if y < 0.0 { y = 0.0; vy = 0.0; }\n    }\n    let mut h: u64 = 0xcbf29ce484222325;\n    for b in y.to_le_bytes().into_iter().chain(vy.to_le_bytes()) {\n        h = (h ^ b as u64).wrapping_mul(0x100000001b3);\n    }\n    h\n}\n\nfn quanta_int(frame_ns: u64, frames: u64) -> u64 {\n    let (mut acc, mut n) = (0u64, 0u64);\n    for _ in 0..frames {\n        acc += frame_ns;\n        while acc >= QUANTUM_NS { acc -= QUANTUM_NS; n += 1; }\n    }\n    n\n}\n\nfn quanta_f64(frame_s: f64, frames: u64) -> u64 {\n    let (mut acc, mut n) = (0.0f64, 0u64);\n    let dt = 1.0 / 64.0;\n    for _ in 0..frames {\n        acc += frame_s;\n        while acc >= dt { acc -= dt; n += 1; }\n    }\n    n\n}\n\nfn main() {\n    // One second of wall time at 60, 120, 144 and 240 Hz, with frame times in whole ns.\n    for (hz, frame_ns) in [(60u64, 16_666_667u64), (120, 8_333_334), (144, 6_944_445), (240, 4_166_667)] {\n        let n = quanta_int(frame_ns, hz);\n        println!(\"int ns {hz:>3} Hz: {n} quanta, law hash {:016x}\", law_hash(n));\n    }\n    for hz in [60u64, 120, 144, 240] {\n        let n = quanta_f64(1.0 / hz as f64, hz);\n        println!(\"f64 s  {hz:>3} Hz: {n} quanta\");\n    }\n}\n"
+        },
+        {
+          "label": "Presentation writing a smoothed pose back through &State is E0594",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0594"
+          ],
+          "stderr_contains": [
+            "which is behind a `&` reference"
+          ],
+          "source": "pub struct State { pub y: f64, pub vy: f64 }\n\n// Presentation reads the law's state through a shared reference.\npub fn draw(state: &State, alpha: f64) -> f64 {\n    state.y = state.y + state.vy * alpha / 64.0; // tries to write the smoothed pose back\n    state.y\n}\n"
+        },
+        {
+          "label": "Interpolating between two committed states through shared references compiles clean",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "pub struct State { pub y: f64, pub vy: f64 }\n\n// Presentation blends the last two committed states by the host's alpha.\n// It reads the law's state and returns a pose; nothing flows back.\npub fn draw(prev: &State, cur: &State, alpha: f64) -> f64 {\n    prev.y + (cur.y - prev.y) * alpha\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "bevy_time 0.19.1 — struct Fixed",
+          "url": "https://docs.rs/bevy_time/0.19.1/bevy_time/struct.Fixed.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Time<Fixed> defaults to 64 hertz (15625 microseconds), chosen over 60 Hz to avoid alternating two and zero fixed steps per frame; the fixed schedule may run 0, 1 or more times per update and delta() equals timestep()."
+        },
+        {
+          "title": "bevy_time 0.19.1 — struct Time (Time<Fixed> methods)",
+          "url": "https://docs.rs/bevy_time/0.19.1/bevy_time/struct.Time.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Time<Fixed>::overstep() returns the overstep accumulated toward new steps as a Duration, and overstep_fraction() / overstep_fraction_f64() return it as a fraction of the timestep."
+        },
+        {
+          "title": "The Rust Programming Language — 4.2 References and Borrowing",
+          "url": "https://doc.rust-lang.org/stable/book/ch04-02-references-and-borrowing.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "References are immutable by default: 'We're not allowed to modify something we have a reference to.'"
+        },
+        {
+          "title": "Rust error codes index — E0594",
+          "url": "https://doc.rust-lang.org/stable/error_codes/E0594.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "E0594",
+          "claim": "E0594 is the error for assigning to a non-mutable value."
+        },
+        {
+          "title": "std::time::Duration (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/time/struct.Duration.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A Duration is a whole number of seconds and a fractional part in nanoseconds; from_secs_f64 notes that f64 cannot represent every Duration, so rounding may occur."
+        },
+        {
+          "title": "si-rpg-engine README.md at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/README.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "The quantum is 1/64 s and every quantum is hashed; replay is the seed plus the log of what was admitted; presentation has no path back into the hash."
+        },
+        {
+          "title": "si-rpg-engine packages/tick/tick.js at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/packages/tick/tick.js",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "The tick mixes hasher.u32(seed) at load and hasher.u32(tick) each quantum, and mixSnapshot feeds the snapshot length and every snapshot byte through u32()."
+        }
+      ],
+      "background_sources": [
+        {
+          "title": "Fix Your Timestep! (Glenn Fiedler)",
+          "url": "https://gafferongames.com/post/fix_your_timestep/",
+          "year": 2004,
+          "kind": "blog",
+          "identifier": "",
+          "claim": "The accumulator loop (while accumulator >= dt) and render interpolation with alpha = accumulator / dt.",
+          "retrieved": true
+        }
+      ]
+    },
+    {
+      "slug": "prove-the-record-complete-twice-replay-seed-plus-stamped-inputs-and-save-restore-rerun-every-quantum",
+      "name": "Prove the record complete twice: replay seed plus stamped inputs, and save-restore-rerun every quantum",
+      "what": "Replay from the seed and the tick-stamped admitted inputs proves the inputs are the whole cause; saving, restoring into a fresh world and resimulating proves the snapshot is the whole state, and only an every-quantum sync test (GGRS's SyncTestSession, check distance of at least 2) cannot pass vacuously.",
+      "how": "Record `seed` plus `Vec<(tick, input)>`, the tick being the quantum the input applies to; replay reruns the law, compares the per-quantum hash chain and reports the first differing quantum. For the snapshot: every quantum, save the bytes and step; then restore a fresh world from the bytes saved `d` quanta back and resimulate, comparing each resimulated hash with the original. GGRS 0.13.0 packages this loop: `SessionBuilder::with_check_distance(2)` (the default; 0 or 1 disables the comparison), `start_synctest_session()`, fulfil each `GgrsRequest::SaveGameState` with `cell.save(frame, Some(state), Some(checksum))`, and `SyncTestSession::advance_frame()` returns `Err(GgrsError::MismatchedChecksum { current_frame, mismatched_frames })`. Hash the snapshot bytes plus every observable flag (the sleep flag in the check), not positions alone.",
+      "rust_version": "any; ggrs 0.13.0",
+      "gotchas": "GGRS keeps `checksum_history: HashMap<Frame, Option<u128>>` and tests `cs == latest_cell.checksum()`, so saving with `checksum: None` makes every comparison `None == None`: the sync test runs and checks nothing. One restore point can pass vacuously: in the check, a snapshot that omits a per-body rest counter restores cleanly at quantum 20 (no body has landed, every counter is 0) and differs at quantum 53 when restored at 40; the every-quantum sync test finds quantum 53 on its own. An input stamped one quantum late diverges from quantum 40 on, a different seed from quantum 0. backroll, another Rust port of GGPO, last released 0.6.0 on 2022-11-13, was last pushed 2023-03-13 and calls itself early beta; GGRS 0.13.0 shipped 2026-06-26. Rollback needs the engine's cooperation: Box2D's author states Box2D does not provide roll-back determinism because its internal state has no restoration mechanism.",
+      "engine_note": "README: 'Replay is the seed plus the log of what was admitted'; `npx replay` fails on the first differing hash, and T5's nightly bundle (seed, world, log, hash chain) is this record. T2 (docs/dispatch-t2-restore.md pin 5, PR #43) restores once, 'a third of the way', under harness/first-difference.js; the check shows a single point can miss state that is still at its default there, so restore at several points per fixture or run an every-quantum sync test with distance 2, which is cheap at 64 bodies. rapier_law.rs rebuild_snapshot already writes `time_since_can_sleep / DT` and the sleeping flag, the kind of counter the check shows a snapshot can drop.",
+      "checks": [
+        {
+          "label": "Replay from seed plus tick-stamped inputs matches; an input one quantum late diverges at 40",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "replay: None\ninput stamped one quantum late: first difference at tick Some(40)\nother seed: first difference at tick Some(0)",
+          "source": "// The record is the seed plus the admitted inputs, each stamped with the quantum\n// it applies to. Replay reruns the law from that record and compares the hash chain.\n#[derive(Clone, Copy)]\nstruct Input { tick: u64, body: usize, dvy: f64 }\n\nfn fnv(h: u64, bytes: &[u8]) -> u64 {\n    let mut h = h;\n    for &b in bytes { h = (h ^ b as u64).wrapping_mul(0x100000001b3); }\n    h\n}\n\nfn run(seed: u64, log: &[Input], ticks: u64) -> Vec<u64> {\n    // The seed fixes the initial heights through a fixed integer generator.\n    let mut s = seed;\n    let mut y = [0.0f64; 4];\n    for yi in y.iter_mut() {\n        s ^= s << 13; s ^= s >> 7; s ^= s << 17;\n        *yi = (s % 1024) as f64 / 256.0; // 0 .. 4 m in steps of 1/256\n    }\n    let mut vy = [0.0f64; 4];\n    let mut chain = Vec::new();\n    let mut h: u64 = 0xcbf29ce484222325;\n    for tick in 0..ticks {\n        for inp in log.iter().filter(|i| i.tick == tick) {\n            vy[inp.body] += inp.dvy;\n        }\n        for i in 0..4 {\n            vy[i] += -8.0 / 64.0;\n            y[i] += vy[i] / 64.0;\n            if y[i] < 0.0 { y[i] = 0.0; vy[i] = 0.0; }\n            h = fnv(h, &y[i].to_le_bytes());\n            h = fnv(h, &vy[i].to_le_bytes());\n        }\n        chain.push(h);\n    }\n    chain\n}\n\nfn first_difference(a: &[u64], b: &[u64]) -> Option<usize> {\n    a.iter().zip(b).position(|(x, y)| x != y)\n}\n\nfn main() {\n    let seed = 0x5eed;\n    let log = [Input { tick: 40, body: 2, dvy: 3.0 }, Input { tick: 90, body: 0, dvy: 2.5 }];\n    let played = run(seed, &log, 256);\n    let replayed = run(seed, &log, 256);\n    println!(\"replay: {:?}\", first_difference(&played, &replayed));\n    let shifted = [Input { tick: 41, body: 2, dvy: 3.0 }, log[1]];\n    println!(\"input stamped one quantum late: first difference at tick {:?}\", first_difference(&played, &run(seed, &shifted, 256)));\n    println!(\"other seed: first difference at tick {:?}\", first_difference(&played, &run(seed + 1, &log, 256)));\n}\n"
+        },
+        {
+          "label": "A snapshot missing a rest counter passes a restore at 20, fails at 40; the sync test finds 53",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "restore at 20, rest counter left out: None\nrestore at 40, rest counter left out: Some(53)\nrestore at 40, complete snapshot: None\nsync test distance 2, rest counter left out: Some(53)\nsync test distance 2, complete snapshot: None",
+          "source": "// Save / restore / rerun as a completeness test. The law keeps a per-body\n// rest counter (like a solver's time-since-can-sleep): a body at rest for 32\n// quanta falls asleep, and the trace records the sleep flag.\nconst SLEEP_QUANTA: u32 = 32;\n\n#[derive(Clone, PartialEq, Debug)]\nstruct World { y: Vec<f64>, vy: Vec<f64>, rest: Vec<u32>, asleep: Vec<bool> }\n\nimpl World {\n    fn new(heights: &[f64]) -> World {\n        let n = heights.len();\n        World { y: heights.to_vec(), vy: vec![0.0; n], rest: vec![0; n], asleep: vec![false; n] }\n    }\n    fn step(&mut self) {\n        for i in 0..self.y.len() {\n            if self.asleep[i] { continue; }\n            self.vy[i] += -8.0 / 64.0;\n            self.y[i] += self.vy[i] / 64.0;\n            if self.y[i] <= 0.0 { self.y[i] = 0.0; self.vy[i] = 0.0; }\n            if self.y[i] == 0.0 && self.vy[i] == 0.0 { self.rest[i] += 1 } else { self.rest[i] = 0 }\n            if self.rest[i] >= SLEEP_QUANTA { self.asleep[i] = true; }\n        }\n    }\n    // What the trace hashes each quantum: pose, velocity, sleep flag.\n    fn trace_hash(&self) -> u64 {\n        let mut h: u64 = 0xcbf29ce484222325;\n        let mut put = |bytes: &[u8]| for &b in bytes { h = (h ^ b as u64).wrapping_mul(0x100000001b3) };\n        for i in 0..self.y.len() {\n            put(&self.y[i].to_le_bytes());\n            put(&self.vy[i].to_le_bytes());\n            put(&[self.asleep[i] as u8]);\n        }\n        h\n    }\n    // A snapshot as little-endian bytes. `with_rest` decides whether the counter is saved.\n    fn save(&self, with_rest: bool) -> Vec<u8> {\n        let mut out = Vec::new();\n        for i in 0..self.y.len() {\n            out.extend_from_slice(&self.y[i].to_le_bytes());\n            out.extend_from_slice(&self.vy[i].to_le_bytes());\n            out.push(self.asleep[i] as u8);\n            if with_rest { out.extend_from_slice(&self.rest[i].to_le_bytes()); }\n        }\n        out\n    }\n    fn restore(n: usize, bytes: &[u8], with_rest: bool) -> World {\n        let mut w = World::new(&vec![0.0; n]);\n        let mut at = 0;\n        let mut take = |len: usize| { let s = &bytes[at..at + len]; at += len; s };\n        for i in 0..n {\n            w.y[i] = f64::from_le_bytes(take(8).try_into().unwrap());\n            w.vy[i] = f64::from_le_bytes(take(8).try_into().unwrap());\n            w.asleep[i] = take(1)[0] == 1;\n            if with_rest { w.rest[i] = u32::from_le_bytes(take(4).try_into().unwrap()); }\n        }\n        w\n    }\n}\n\n// Run to `total`, save at `at`, restore into a fresh world, rerun, name the first differing quantum.\nfn restore_rerun(with_rest: bool, at: usize, total: usize) -> Option<usize> {\n    let heights = [0.5, 1.0, 2.0];\n    let mut w = World::new(&heights);\n    let mut trace = Vec::new();\n    let mut snap = Vec::new();\n    for q in 0..total {\n        if q == at { snap = w.save(with_rest); }\n        w.step();\n        trace.push(w.trace_hash());\n    }\n    let mut r = World::restore(heights.len(), &snap, with_rest);\n    (at..total).find(|&q| { r.step(); r.trace_hash() != trace[q] })\n}\n\n// GGRS-style: every quantum, save, step, then roll back `distance` quanta and resimulate.\nfn sync_test(with_rest: bool, distance: usize, total: usize) -> Option<usize> {\n    let heights = [0.5, 1.0, 2.0];\n    let mut w = World::new(&heights);\n    let mut saves: Vec<Vec<u8>> = Vec::new();\n    let mut hashes: Vec<u64> = Vec::new();\n    for q in 0..total {\n        saves.push(w.save(with_rest));\n        w.step();\n        hashes.push(w.trace_hash());\n        if q + 1 >= distance {\n            let from = q + 1 - distance;\n            let mut r = World::restore(heights.len(), &saves[from], with_rest);\n            for k in from..=q {\n                r.step();\n                if r.trace_hash() != hashes[k] { return Some(k); }\n            }\n        }\n    }\n    None\n}\n\nfn main() {\n    println!(\"restore at 20, rest counter left out: {:?}\", restore_rerun(false, 20, 200));\n    println!(\"restore at 40, rest counter left out: {:?}\", restore_rerun(false, 40, 200));\n    println!(\"restore at 40, complete snapshot: {:?}\", restore_rerun(true, 40, 200));\n    println!(\"sync test distance 2, rest counter left out: {:?}\", sync_test(false, 2, 200));\n    println!(\"sync test distance 2, complete snapshot: {:?}\", sync_test(true, 2, 200));\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "ggrs 0.13.0 — struct SyncTestSession",
+          "url": "https://docs.rs/ggrs/0.13.0/ggrs/struct.SyncTestSession.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "advance_frame advances one frame, then rolls back check_distance frames, resimulates and compares checksums with the originals, returning MismatchedChecksum if they differ."
+        },
+        {
+          "title": "ggrs 0.13.0 — struct SessionBuilder",
+          "url": "https://docs.rs/ggrs/0.13.0/ggrs/struct.SessionBuilder.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "with_check_distance defaults to 2 and a value of 0 or 1 disables checksum comparison; start_synctest_session returns InvalidRequest if check_distance >= max_prediction_window or sparse saving is enabled."
+        },
+        {
+          "title": "ggrs 0.13.0 source — src/sessions/sync_test_session.rs",
+          "url": "https://docs.rs/crate/ggrs/0.13.0/source/src/sessions/sync_test_session.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "checksum_history is a HashMap<Frame, Option<u128>> and a frame is consistent when `cs == latest_cell.checksum()`, so two None checksums compare equal."
+        },
+        {
+          "title": "ggrs 0.13.0 — struct GameStateCell",
+          "url": "https://docs.rs/ggrs/0.13.0/ggrs/struct.GameStateCell.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "GameStateCell::save(&self, frame: Frame, data: Option<T>, checksum: Option<u128>) stores the state and an optional u128 checksum."
+        },
+        {
+          "title": "crates.io API — ggrs 0.13.0",
+          "url": "https://crates.io/api/v1/crates/ggrs/0.13.0",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "ggrs 0.13.0 was published 2026-06-26."
+        },
+        {
+          "title": "crates.io API — backroll",
+          "url": "https://crates.io/api/v1/crates/backroll",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "The newest backroll release is 0.6.0, published 2022-11-13."
+        },
+        {
+          "title": "HouraiTeahouse/backroll-rs (GitHub repository)",
+          "url": "https://github.com/HouraiTeahouse/backroll-rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Backroll is a pure Rust implementation of GGPO; its README says it is still in an early beta stage."
+        },
+        {
+          "title": "GitHub API — repos/HouraiTeahouse/backroll-rs",
+          "url": "https://api.github.com/repos/HouraiTeahouse/backroll-rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "The repository is not archived and was last pushed 2023-03-13."
+        },
+        {
+          "title": "Determinism (Erin Catto, box2d.org)",
+          "url": "https://box2d.org/posts/2024/08/determinism/",
+          "year": 2024,
+          "kind": "blog",
+          "identifier": "",
+          "claim": "Box2D does not provide roll-back determinism because its internal state has no restoration mechanism; its CI determinism test requires two numbers to match every run: the step count to sleep and a hash of the body transforms once all sleep."
+        },
+        {
+          "title": "si-rpg-engine docs/dispatch-t2-restore.md at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/docs/dispatch-t2-restore.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "solver_restore refuses a length that does not match the layout, any NaN, and a quaternion not unit within 1e-9; the restore test runs to a third of the way, saves, restores into a fresh world and requires first-difference to report identical."
+        },
+        {
+          "title": "si-rpg-engine README.md at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/README.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "The quantum is 1/64 s and every quantum is hashed; replay is the seed plus the log of what was admitted; presentation has no path back into the hash."
+        }
+      ],
+      "background_sources": [
+        {
+          "title": "GGPO Developer Guide",
+          "url": "https://github.com/pond3r/ggpo/blob/master/doc/DeveloperGuide.md",
+          "year": 2019,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "ggpo_start_synctest executes a 1-frame rollback for every frame and raises an error when the rollback state differs from the first execution.",
+          "retrieved": true
+        }
+      ]
+    },
+    {
+      "slug": "encode-snapshots-canonically-to-le-bytes-in-a-fixed-field-order-sorted-pairs-no-padding-a-version-tag",
+      "name": "Encode snapshots canonically: to_le_bytes in a fixed field order, sorted pairs, no padding, a version tag",
+      "what": "A snapshot is a byte string the law defines — explicit little-endian numbers in a declared order, collections sorted by a total key, and a header with a magic, a law version and counts — never a struct's memory image, whose field order and padding belong to the compiler.",
+      "how": "Write every field with `to_le_bytes()` into a `Vec<u8>`: the header `b\"SIRS\"`, `LAW_VERSION.to_le_bytes()` (u32) and the counts, then per body pose and velocity in one order, then pairs after `sort_by_key(|p| (p.a, p.b))`. The decoder refuses a foreign magic, another law version, and any length that is not the layout (`16 + 48 * bodies + 24 * pairs` in the check). If a record is cast to bytes, make it `#[repr(C)]` and derive `bytemuck::Pod`, which refuses padding at compile time; spell padding as a zeroed field (`_pad: u32`) so the layout is explicit (16 bytes, `0700000000000000000000000000e03f` in the check).",
+      "rust_version": "any; bytemuck 1.25.2 for the Pod derive",
+      "gotchas": "`#[repr(C)] struct { flag: u8, impulse: f64, kind: u8 }` is 24 bytes, 14 of them padding (offsets 0, 8, 16), and the same fields under the default representation are 16 bytes, because the default representation guarantees only what soundness needs and may reorder fields. Deriving Pod on `{ pair: u32, impulse: f64 }` fails with `error[E0080]: evaluation panicked: derive(Pod) was applied to a type with padding`. `to_ne_bytes` is native order, and the std docs say portable code should use `to_be_bytes` or `to_le_bytes`; wasm memory is little-endian, so the two agree there and part ways on a big-endian host. Without a version word a layout change shows only as a length change, and a same-length change of meaning passes. Canonicalise -0.0 before writing (the float-determinism lane owns that detail).",
+      "engine_note": "rapier_law.rs rebuild_snapshot already follows most of this: `push_f64` writes `canon(x).to_le_bytes()` per field in a fixed per-body order (pose, velocity, quaternion, spin, sleep counter in quanta, sleeping flag), then the pair count, then pairs sorted by `(collider1.into_raw_parts(), collider2.into_raw_parts())` with seven warm-start f64s per manifold point; counts and ids go in as f64, exact below 2^53. It has no magic and no version word, which is why T3 records length plus digest to notice a layout change. T2's solver_restore must refuse a foreign snapshot; a version word in the header is the direct way, and adding one moves the product golden once.",
+      "checks": [
+        {
+          "label": "Versioned little-endian snapshot: pair order cannot change bytes; old version, truncation refused",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "160 bytes, header [53, 49, 52, 53, 03, 00, 00, 00, 02, 00, 00, 00, 02, 00, 00, 00], same bytes for either pair order: true\ncheck: Ok((2, 2))\nolder law: Err(\"law version 2 is not 3\")\ntruncated: Err(\"152 bytes where the layout needs 160\")\n0.5 to_le_bytes [00, 00, 00, 00, 00, 00, e0, 3f], to_be_bytes [3f, e0, 00, 00, 00, 00, 00, 00]",
+          "source": "// A canonical snapshot: magic, law version, counts, then fields in one fixed\n// order, every number written with to_le_bytes, pairs sorted by their ids.\nconst MAGIC: [u8; 4] = *b\"SIRS\";\nconst LAW_VERSION: u32 = 3;\n\nstruct Body { pos: [f64; 3], vel: [f64; 3] }\n#[derive(Clone, Copy)]\nstruct Pair { a: (u32, u32), b: (u32, u32), impulse: f64 }\n\nfn encode(bodies: &[Body], pairs: &[Pair]) -> Vec<u8> {\n    let mut out = Vec::new();\n    out.extend_from_slice(&MAGIC);\n    out.extend_from_slice(&LAW_VERSION.to_le_bytes());\n    out.extend_from_slice(&(bodies.len() as u32).to_le_bytes());\n    out.extend_from_slice(&(pairs.len() as u32).to_le_bytes());\n    for b in bodies {\n        for x in b.pos.iter().chain(&b.vel) {\n            out.extend_from_slice(&x.to_le_bytes());\n        }\n    }\n    let mut sorted = pairs.to_vec();\n    sorted.sort_by_key(|p| (p.a, p.b));\n    for p in sorted {\n        for w in [p.a.0, p.a.1, p.b.0, p.b.1] {\n            out.extend_from_slice(&w.to_le_bytes());\n        }\n        out.extend_from_slice(&p.impulse.to_le_bytes());\n    }\n    out\n}\n\n// Refuses a foreign magic, another law version, or a length that is not the layout.\nfn check(bytes: &[u8]) -> Result<(u32, u32), String> {\n    if bytes.len() < 16 || bytes[0..4] != MAGIC {\n        return Err(\"not a snapshot\".to_string());\n    }\n    let word = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());\n    if word(4) != LAW_VERSION {\n        return Err(format!(\"law version {} is not {}\", word(4), LAW_VERSION));\n    }\n    let (n_bodies, n_pairs) = (word(8), word(12));\n    let expected = 16 + n_bodies as usize * 48 + n_pairs as usize * 24;\n    if bytes.len() != expected {\n        return Err(format!(\"{} bytes where the layout needs {}\", bytes.len(), expected));\n    }\n    Ok((n_bodies, n_pairs))\n}\n\nfn main() {\n    let bodies = [Body { pos: [0.0, 0.5, 0.0], vel: [0.0, -0.125, 0.0] }, Body { pos: [1.0, 0.5, 0.0], vel: [0.0; 3] }];\n    let p = Pair { a: (1, 0), b: (2, 0), impulse: 0.25 };\n    let q = Pair { a: (0, 0), b: (2, 0), impulse: 0.5 };\n    let one = encode(&bodies, &[p, q]);\n    let two = encode(&bodies, &[q, p]);\n    println!(\"{} bytes, header {:02x?}, same bytes for either pair order: {}\", one.len(), &one[..16], one == two);\n    println!(\"check: {:?}\", check(&one));\n    let mut old = one.clone();\n    old[4..8].copy_from_slice(&2u32.to_le_bytes());\n    println!(\"older law: {:?}\", check(&old));\n    println!(\"truncated: {:?}\", check(&one[..one.len() - 8]));\n    println!(\"0.5 to_le_bytes {:02x?}, to_be_bytes {:02x?}\", 0.5f64.to_le_bytes(), 0.5f64.to_be_bytes());\n}\n"
+        },
+        {
+          "label": "repr(C) pads { u8, f64, u8 } to 24 bytes; the default representation packs it into 16",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "repr(C): size 24 offsets 0 8 16; repr(Rust): size 16",
+          "source": "use std::mem::{offset_of, size_of};\n\n#[repr(C)]\nstruct CContact { flag: u8, impulse: f64, kind: u8 }\n\nstruct RustContact { flag: u8, impulse: f64, kind: u8 }\n\nfn main() {\n    println!(\n        \"repr(C): size {} offsets {} {} {}; repr(Rust): size {}\",\n        size_of::<CContact>(),\n        offset_of!(CContact, flag),\n        offset_of!(CContact, impulse),\n        offset_of!(CContact, kind),\n        size_of::<RustContact>()\n    );\n    let r = RustContact { flag: 1, impulse: 0.5, kind: 2 };\n    let c = CContact { flag: 1, impulse: 0.5, kind: 2 };\n    let _ = (r.flag, r.impulse, r.kind, c.flag, c.impulse, c.kind);\n}\n"
+        },
+        {
+          "label": "bytemuck derive(Pod) refuses a struct with padding: E0080 at compile time",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "bytemuck"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "derive(Pod) was applied to a type with padding"
+          ],
+          "source": "use bytemuck::{Pod, Zeroable};\n\n// 4 bytes of padding sit between `pair` and `impulse`.\n#[derive(Clone, Copy, Pod, Zeroable)]\n#[repr(C)]\npub struct ContactRecord {\n    pub pair: u32,\n    pub impulse: f64,\n}\n"
+        },
+        {
+          "label": "Padding spelled as a zeroed field makes the record Pod, and its 16 bytes are explicit",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "bytemuck"
+          ],
+          "expect": "runs",
+          "stdout": "16 0700000000000000000000000000e03f",
+          "source": "use bytemuck::{Pod, Zeroable};\n\n// The padding is a named, zeroed field, so the struct has no uninit bytes.\n#[derive(Clone, Copy, Pod, Zeroable)]\n#[repr(C)]\npub struct ContactRecord {\n    pub pair: u32,\n    pub _pad: u32,\n    pub impulse: f64,\n}\n\nfn main() {\n    let r = ContactRecord { pair: 7, _pad: 0, impulse: 0.5 };\n    let bytes: &[u8] = bytemuck::bytes_of(&r);\n    let hex: Vec<String> = bytes.iter().map(|b| format!(\"{b:02x}\")).collect();\n    println!(\"{} {}\", std::mem::size_of::<ContactRecord>(), hex.join(\"\"));\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "core f64 doc comments, rust-lang/rust tag 1.98.1 (library/core/src/num/f64.rs)",
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/core/src/num/f64.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "to_le_bytes returns the memory representation in little-endian byte order; to_ne_bytes uses native order and 'portable code should use to_be_bytes or to_le_bytes'; is_finite returns true if the number is neither infinite nor NaN."
+        },
+        {
+          "title": "The Rust Reference — Type layout",
+          "url": "https://doc.rust-lang.org/stable/reference/type-layout.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "The default representation guarantees only soundness-required layout and field order need not follow declaration order; repr(C) adds padding before each field to reach its alignment and rounds the size up to the struct's alignment."
+        },
+        {
+          "title": "bytemuck 1.25.2 — trait Pod",
+          "url": "https://docs.rs/bytemuck/1.25.2/bytemuck/trait.Pod.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A Pod type must not contain any uninit (or padding) bytes and must be repr(C) or repr(transparent)."
+        },
+        {
+          "title": "bytemuck 1.25.2 — derive macro Pod",
+          "url": "https://docs.rs/bytemuck/1.25.2/bytemuck/derive.Pod.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The Pod derive requires the struct to contain no padding bytes, all fields Pod, and repr(C) or repr(transparent), and rejects violations at compile time."
+        },
+        {
+          "title": "WebAssembly Specification 3.0 — Instructions (memory instructions)",
+          "url": "https://webassembly.github.io/spec/core/syntax/instructions.html",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "All values are read and written in little endian byte order."
+        },
+        {
+          "title": "si-rpg-engine solver/src/rapier_law.rs at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/solver/src/rapier_law.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "canon maps both zeros to +0.0, bad() is x.is_nan(), mix_u64 is h.wrapping_mul(0x100000001b3).wrapping_add(x), push_f64 writes canon(x).to_le_bytes(), and rebuild_snapshot sorts pairs by into_raw_parts() and pushes both colliders' index and generation."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "persist-hashes-of-explicit-little-endian-bytes-never-derive-hash-streams-or-defaulthasher-output",
+      "name": "Persist hashes of explicit little-endian bytes, never #[derive(Hash)] streams or DefaultHasher output",
+      "what": "What `Hash` feeds a hasher is not portable (usize length prefixes, native endianness) and `DefaultHasher`'s algorithm is unspecified across releases, so any hash that is stored, compared across hosts or pinned in a golden is a named function (FNV-1a, xxh3, BLAKE3) over bytes the law encoded itself.",
+      "how": "Choose by job. FNV-1a (RFC 9923; 32-bit prime 0x01000193, basis 0x811C9DC5; 64-bit prime 0x100000001B3, basis 0xCBF29CE484222325) is a few lines with no dependency. xxh3 (`xxhash_rust::xxh3::xxh3_64` or `xxh3_128`, feature `xxh3`) is the fast choice; its output was declared stable in xxHash v0.8.0 (2020) and is identical on little- and big-endian systems, and the streaming `Xxh3::new()` / `update` / `digest()` gives the one-shot value (checked over five chunkings). BLAKE3 (`blake3::hash`, 32-byte output, crate 1.8.7) when a digest must resist deliberate forgery, such as a replay bundle someone else hands you. Hash `encode(&state)` (previous recipe): the same FNV-1a 64 over the same 35 bytes returned 845153761026826623 on x86_64 and on wasm32. Keep `Hash`, `DefaultHasher` and `RandomState` for in-process maps.",
+      "rust_version": "any; xxhash-rust 0.8.18, blake3 1.8.7",
+      "gotchas": "The std `Hash` docs: data fed by `Hash` 'should not be considered portable across platforms' and 'tests shouldn't probe hard-coded hash values'; `DefaultHasher`: 'The internal algorithm is not specified, and so it and its hashes should not be relied upon over releases'; HashMap's SipHash 1-3 is 'subject to change at any point in the future'. Measured: `#[derive(Hash)]` on `{ id: u32, name: String, cells: Vec<u8> }` feeds 18 bytes on x86_64 and 14 on wasm32, because the Vec's length prefix is a usize (a str ends with a 0xff byte instead). Neither FNV nor xxHash resists an adversary (RFC 9923: NOT RECOMMENDED where collision or preimage attacks must be infeasible; the xxHash README: not a cryptographic hash). A word-wise mixer `h = h * P + x` with FNV's constants is not FNV-1a, which XORs one octet and then multiplies, and it collides algebraically: (x1 + 1, x2 - P) gives the same value as (x1, x2).",
+      "engine_note": "rapier_law.rs signature() folds half-extents, collider fields and heights into `geom` with `mix_u64(h, x) = h.wrapping_mul(0x100000001b3).wrapping_add(x)` from basis 0xcbf29ce484222325: FNV-64 constants, not FNV-1a. The check finds half-extents (0.5, 0.5) and (0.5000000000000001, 0.49993896484372585) with the same `geom`, where FNV-1a 64 and xxh3_64 over the same bytes differ. `geom` only decides whether ensure() rebuilds the world, but equal `geom` does not prove equal geometry: keep the canonical geometry values and compare their bits (a few KB at 64 bodies, 64 colliders and 256 heights), or hash their little-endian bytes with FNV-1a 64 or xxh3. The JavaScript frame hash is the next recipe.",
+      "checks": [
+        {
+          "label": "#[derive(Hash)] feeds 18 bytes on x86_64: a u32, str bytes plus 0xff, an 8-byte Vec length",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "18 bytes: 07 00 00 00 61 62 ff 03 00 00 00 00 00 00 00 01 02 03\nusize is 8 bytes here",
+          "source": "use std::hash::{Hash, Hasher};\n\n// Records every byte that Hash feeds to a Hasher.\nstruct Recorder(Vec<u8>);\nimpl Hasher for Recorder {\n    fn write(&mut self, bytes: &[u8]) { self.0.extend_from_slice(bytes); }\n    fn finish(&self) -> u64 { 0 }\n}\n\n#[derive(Hash)]\nstruct Body { id: u32, name: String, cells: Vec<u8> }\n\nfn main() {\n    let b = Body { id: 7, name: \"ab\".to_string(), cells: vec![1, 2, 3] };\n    let mut r = Recorder(Vec::new());\n    b.hash(&mut r);\n    let hex: Vec<String> = r.0.iter().map(|x| format!(\"{x:02x}\")).collect();\n    println!(\"{} bytes: {}\", r.0.len(), hex.join(\" \"));\n    println!(\"usize is {} bytes here\", std::mem::size_of::<usize>());\n}\n"
+        },
+        {
+          "label": "The same #[derive(Hash)] value feeds 14 bytes on wasm32: the usize prefix is 4 bytes",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "14",
+          "wasm_call": {
+            "export": "fed_bytes",
+            "args": []
+          },
+          "source": "use std::hash::{Hash, Hasher};\n\nstruct Recorder(Vec<u8>);\nimpl Hasher for Recorder {\n    fn write(&mut self, bytes: &[u8]) { self.0.extend_from_slice(bytes); }\n    fn finish(&self) -> u64 { 0 }\n}\n\n#[derive(Hash)]\nstruct Body { id: u32, name: String, cells: Vec<u8> }\n\n/// How many bytes #[derive(Hash)] feeds for the same value on this target.\n#[unsafe(no_mangle)]\npub extern \"C\" fn fed_bytes() -> u32 {\n    let b = Body { id: 7, name: \"ab\".to_string(), cells: vec![1, 2, 3] };\n    let mut r = Recorder(Vec::new());\n    b.hash(&mut r);\n    r.0.len() as u32\n}\n"
+        },
+        {
+          "label": "FNV-1a 64 over 35 explicit little-endian bytes returns 845153761026826623 on x86_64",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "35 bytes, fnv1a64 845153761026826623",
+          "source": "// FNV-1a 64 (RFC 9923) over an explicit little-endian encoding of one body record.\nfn fnv1a64(bytes: &[u8]) -> u64 {\n    let mut h: u64 = 0xcbf29ce484222325;\n    for &b in bytes {\n        h = (h ^ b as u64).wrapping_mul(0x100000001b3);\n    }\n    h\n}\n\nfn encode(id: u32, pos: [f64; 3], cells: &[u8]) -> Vec<u8> {\n    let mut out = Vec::new();\n    out.extend_from_slice(&id.to_le_bytes());\n    for x in pos {\n        out.extend_from_slice(&x.to_le_bytes());\n    }\n    out.extend_from_slice(&(cells.len() as u32).to_le_bytes()); // a fixed-width length, not usize\n    out.extend_from_slice(cells);\n    out\n}\n\nfn main() {\n    let bytes = encode(7, [0.5, -8.0, 1.0 / 64.0], &[1, 2, 3]);\n    println!(\"{} bytes, fnv1a64 {}\", bytes.len(), fnv1a64(&bytes));\n}\n"
+        },
+        {
+          "label": "The same FNV-1a 64 over the same bytes returns the same value on wasm32",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "845153761026826623",
+          "wasm_call": {
+            "export": "record_hash",
+            "args": []
+          },
+          "source": "fn fnv1a64(bytes: &[u8]) -> u64 {\n    let mut h: u64 = 0xcbf29ce484222325;\n    for &b in bytes {\n        h = (h ^ b as u64).wrapping_mul(0x100000001b3);\n    }\n    h\n}\n\nfn encode(id: u32, pos: [f64; 3], cells: &[u8]) -> Vec<u8> {\n    let mut out = Vec::new();\n    out.extend_from_slice(&id.to_le_bytes());\n    for x in pos {\n        out.extend_from_slice(&x.to_le_bytes());\n    }\n    out.extend_from_slice(&(cells.len() as u32).to_le_bytes());\n    out.extend_from_slice(cells);\n    out\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn record_hash() -> u64 {\n    fnv1a64(&encode(7, [0.5, -8.0, 1.0 / 64.0], &[1, 2, 3]))\n}\n"
+        },
+        {
+          "label": "The signature's word mixer collides on two half-extent pairs; FNV-1a 64 and xxh3 do not",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "xxhash_rust"
+          ],
+          "expect": "runs",
+          "stdout": "half-extents (0.5, 0.5) vs (0.5000000000000001, 0.49993896484372585)\nword mixer:  d1b28807b4eb6fed d1b28807b4eb6fed equal=true\nFNV-1a 64:   271be7d4e51a6a45 4ed1ef0e2cfee083 equal=false\nxxh3_64:     f956a9443ccfc63f 122a8aa8f2a6507a equal=false",
+          "source": "use xxhash_rust::xxh3::xxh3_64;\n\nconst P: u64 = 0x100000001b3;\nconst BASIS: u64 = 0xcbf29ce484222325;\n\n// The solver's signature mixer (solver/src/rapier_law.rs): multiply, then add a whole word.\nfn mix_u64(h: u64, x: u64) -> u64 { h.wrapping_mul(P).wrapping_add(x) }\n\n// FNV-1a 64 as RFC 9923 defines it: XOR one octet, then multiply.\nfn fnv1a64(bytes: &[u8]) -> u64 {\n    let mut h = BASIS;\n    for &b in bytes {\n        h = (h ^ b as u64).wrapping_mul(P);\n    }\n    h\n}\n\nfn le(xs: &[f64]) -> Vec<u8> { xs.iter().flat_map(|x| x.to_le_bytes()).collect() }\n\nfn main() {\n    let (hx, hy) = (0.5f64, 0.5f64);\n    // Next float above hx, and hy's bit pattern minus the prime.\n    let hx2 = f64::from_bits(hx.to_bits() + 1);\n    let hy2 = f64::from_bits(hy.to_bits().wrapping_sub(P));\n    let a = mix_u64(mix_u64(BASIS, hx.to_bits()), hy.to_bits());\n    let b = mix_u64(mix_u64(BASIS, hx2.to_bits()), hy2.to_bits());\n    println!(\"half-extents ({hx:?}, {hy:?}) vs ({hx2:?}, {hy2:?})\");\n    println!(\"word mixer:  {:016x} {:016x} equal={}\", a, b, a == b);\n    let (fa, fb) = (fnv1a64(&le(&[hx, hy])), fnv1a64(&le(&[hx2, hy2])));\n    println!(\"FNV-1a 64:   {:016x} {:016x} equal={}\", fa, fb, fa == fb);\n    let (xa, xb) = (xxh3_64(&le(&[hx, hy])), xxh3_64(&le(&[hx2, hy2])));\n    println!(\"xxh3_64:     {:016x} {:016x} equal={}\", xa, xb, xa == xb);\n}\n"
+        },
+        {
+          "label": "xxh3 streamed in five chunkings equals the one-shot xxh3_64 of the same 1840 bytes",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "xxhash_rust"
+          ],
+          "expect": "runs",
+          "stdout": "1840 bytes, xxh3_64 bd87493de0eb502a, streamed in 5 chunkings equal: true",
+          "source": "use xxhash_rust::xxh3::{xxh3_64, Xxh3};\n\nfn main() {\n    // A 1840-byte stand-in for a snapshot: 230 little-endian f64 words.\n    let snap: Vec<u8> = (0..230).flat_map(|i| (i as f64 * 0.125 - 7.0).to_le_bytes()).collect();\n    let one_shot = xxh3_64(&snap);\n    let mut all_same = true;\n    for chunk in [1usize, 7, 8, 64, 1000] {\n        let mut h = Xxh3::new();\n        for piece in snap.chunks(chunk) {\n            h.update(piece);\n        }\n        all_same &= h.digest() == one_shot;\n    }\n    println!(\"{} bytes, xxh3_64 {:016x}, streamed in 5 chunkings equal: {}\", snap.len(), one_shot, all_same);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "std::hash::Hash (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/hash/trait.Hash.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Data fed by Hash to a Hasher should not be considered portable across platforms or stable between compiler versions, tests shouldn't probe hard-coded hash values, and the str impl writes an extra 0xFF byte to stay prefix-free."
+        },
+        {
+          "title": "std::hash::DefaultHasher (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/hash/struct.DefaultHasher.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The internal algorithm is not specified, and so it and its hashes should not be relied upon over releases."
+        },
+        {
+          "title": "std::collections::HashMap (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/collections/struct.HashMap.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The default hashing algorithm is randomly seeded and is currently SipHash 1-3, 'subject to change at any point in the future'; iter visits pairs 'in arbitrary order'."
+        },
+        {
+          "title": "RFC 9923 — The FNV Non-Cryptographic Hash Algorithm (Noll, Vo, Eastlake, Hansen)",
+          "url": "https://www.rfc-editor.org/rfc/rfc9923.html",
+          "year": 2026,
+          "kind": "rfc",
+          "identifier": "RFC 9923",
+          "claim": "FNV-1a XORs each octet into the hash and then multiplies by FNV_Prime; the 32-bit prime is 0x01000193 with offset basis 0x811C9DC5 and the 64-bit prime is 0x100000001B3 with basis 0xCBF29CE484222325; FNV is NOT RECOMMENDED where collision or preimage attacks must be infeasible."
+        },
+        {
+          "title": "xxhash-rust 0.8.18 — module xxh3",
+          "url": "https://docs.rs/xxhash-rust/0.8.18/xxhash_rust/xxh3/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The xxh3 module provides xxh3_64, xxh3_64_with_seed, xxh3_128 and the streaming Xxh3 hasher."
+        },
+        {
+          "title": "xxhash-rust 0.8.18 — struct Xxh3",
+          "url": "https://docs.rs/xxhash-rust/0.8.18/xxhash_rust/xxh3/struct.Xxh3.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Xxh3 exposes new(), update(&mut self, input: &[u8]) and digest(&self) -> u64 for streaming."
+        },
+        {
+          "title": "Cyan4973/xxHash README",
+          "url": "https://github.com/Cyan4973/xxHash",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "XXH3 is available since v0.8.0 and produces identical hashes on all platforms, including little- and big-endian systems; xxHash is not a cryptographic hash function."
+        },
+        {
+          "title": "blake3 1.8.7 — crate documentation",
+          "url": "https://docs.rs/blake3/1.8.7/blake3/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The official Rust implementation of the BLAKE3 cryptographic hash function; the default Hash output is 32 bytes."
+        },
+        {
+          "title": "si-rpg-engine solver/src/rapier_law.rs at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/solver/src/rapier_law.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "canon maps both zeros to +0.0, bad() is x.is_nan(), mix_u64 is h.wrapping_mul(0x100000001b3).wrapping_add(x), push_f64 writes canon(x).to_le_bytes(), and rebuild_snapshot sorts pairs by into_raw_parts() and pushes both colliders' index and generation."
+        }
+      ],
+      "background_sources": [
+        {
+          "title": "xxHash v0.8.0 - Stable XXH3 (release)",
+          "url": "https://github.com/Cyan4973/xxHash/releases/tag/v0.8.0",
+          "year": 2020,
+          "kind": "release-notes",
+          "identifier": "v0.8.0",
+          "claim": "From v0.8.0 (2020-07-27) the output values produced by XXH3 for a given input and parameter set remain identical across systems and across future versions.",
+          "retrieved": true
+        }
+      ]
+    },
+    {
+      "slug": "stop-feeding-u32-only-streams-to-both-fnv-1a-lanes-such-a-digest-repeats-one-32-bit-half",
+      "name": "Stop feeding u32-only streams to both FNV-1a lanes: such a digest repeats one 32-bit half",
+      "what": "packages/frame/hash.js mixes every u32 into both lanes from the same basis, so a digest built only from u32 input — the T1 trace's snapshot digest and the snapshot digests T3 adds to the behaviour file — has identical halves and carries 32 bits; frame hashes keep the lanes apart because each double's low and high words go to different lanes.",
+      "how": "Confirmed in hash.js: `u32(w)` runs `h0 = mix(h0, v); h1 = mix(h1, v)`, both lanes start at 0x811c9dc5 (RFC 9923's 32-bit offset basis), `float(x)` sends the low little-endian word to lane 0 and the high word to lane 1, and `digest()` is `hex(h0) + hex(h1)`; harness/trace-line.mjs `snapshotField` feeds `u32(snap.length)` and then `u32(snap[i])` for every byte. Fix options, cheapest first. (A) At the u32-only digest sites only, split the byte stream across the lanes the way a double is split (the low four bytes of each 8-byte word to lane 0, the high four to lane 1): the frame hash, the product golden fd2f6c03fb982d77 and the arithmetic golden 0d38671370d12d1e stay, and the trace's `snap` digests and the behaviour file's snapshot digests move once. (B) Change `u32()` so the lanes see different images of each word (lane 1 takes it bit-reversed, or one lane its 8-byte widening): every frame hash mixes u32 and text input (seed, tick, ids, zone and link indices, snapshot bytes), so the product golden and every fixture's frame hashes move once; the float-only arithmetic golden does not. (C) A real 64-bit function, FNV-1a 64 or xxh3 over the bytes: one 64-bit state, but JavaScript needs BigInt or 16-bit-limb multiplication in all three shells (or the law computes and exports the digest), and every digest it replaces moves.",
+      "rust_version": "any (the checks are a Rust port of the JavaScript hasher)",
+      "gotchas": "Birthday arithmetic: 32 bits give an even chance of some collision among about 77,000 distinct snapshots, 64 bits among about 5 billion; in the check two of 125,346 arbitrary one-word snapshots share f7da4862f7da4862, and each of the three fixes separates them. Option A still leaves each lane guarding only the half of every word it sees, so a change confined to low words is protected by 32 bits; option C has no such split. The frame hash's own snapshot section (tick.js `mixSnapshot`) also feeds bytes as u32 to both lanes, and its halves differ only because floats were mixed earlier. Identical halves make a cheap tripwire: a test that fails when a digest's first eight hex digits equal its last eight catches a regression of any digest meant to carry 64 bits.",
+      "engine_note": "packages/frame/hash.js `u32()` and `digest()`; harness/trace-line.mjs `snapshotField`, the T1 trace's `snap <len> <digest>` token; and the behaviour-file digests: the T3 branch (PR #44, head b99a636) records `snapshotDigest` load 52bfc19452bfc194 and last 41b1e63f41b1e63f in fixtures/golden-behaviour.json, both with identical halves. S1 pin 13 (docs/dispatch-s1-soundness.md) takes option A and states that the product golden and every frame hash stay while the behaviour-file digests move once with that reason.",
+      "checks": [
+        {
+          "label": "A Rust port of the two-lane FNV-1a prints the digest hash.js prints for the same input",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "81b14261d3a75682\n811c9dc5811c9dc5\nfalse",
+          "source": "// A Rust port of the engine's frame hash (packages/frame/hash.js): two FNV-1a\n// 32-bit lanes; a double's low little-endian word feeds lane 0, its high word\n// lane 1; words and text feed both lanes; NaN is refused.\nstruct FrameHash { h0: u32, h1: u32 }\n\nimpl FrameHash {\n    const BASIS: u32 = 0x811c_9dc5;\n    const PRIME: u32 = 0x0100_0193;\n    fn new() -> Self { FrameHash { h0: Self::BASIS, h1: Self::BASIS } }\n    fn mix(mut h: u32, word: u32) -> u32 {\n        for b in word.to_le_bytes() {\n            h = (h ^ b as u32).wrapping_mul(Self::PRIME);\n        }\n        h\n    }\n    fn u32(&mut self, w: u32) {\n        self.h0 = Self::mix(self.h0, w);\n        self.h1 = Self::mix(self.h1, w);\n    }\n    fn float(&mut self, x: f64) -> bool {\n        if x.is_nan() {\n            return false;\n        }\n        let bits = x.to_bits();\n        self.h0 = Self::mix(self.h0, bits as u32);\n        self.h1 = Self::mix(self.h1, (bits >> 32) as u32);\n        true\n    }\n    fn text(&mut self, s: &str) {\n        let units: Vec<u16> = s.encode_utf16().collect();\n        self.u32(units.len() as u32);\n        for u in units {\n            self.u32(u as u32);\n        }\n    }\n    fn digest(&self) -> String { format!(\"{:08x}{:08x}\", self.h0, self.h1) }\n}\n\nfn main() {\n    let mut h = FrameHash::new();\n    h.u32(7);\n    for x in [0.5, -8.0, 1.0 / 64.0, 1e-300, 3.141592653589793, -0.0] {\n        assert!(h.float(x));\n    }\n    h.text(\"box\");\n    println!(\"{}\", h.digest());\n    println!(\"{}\", FrameHash::new().digest());\n    println!(\"{}\", FrameHash::new().float(f64::NAN));\n}\n"
+        },
+        {
+          "label": "u32-only input repeats a half, a double splits them, fixes A-C differ, and 32 bits collide",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "u32-only input:   d990006dd990006d\nwith a double:    3e80124425092999\nfix A split:      51fd4f1de54696bd\nfix B distinct:   d990006d08bb077e\nfix C FNV-1a 64:  05d863786a65fcad\ncollision after 125346 snapshots: 8220cf3a85ffb426 and 5dc9a5eb1913825d both digest to f7da4862f7da4862\n  still equal under fix A false, fix B false, fix C false",
+          "source": "use std::collections::HashMap;\n\n// The engine's frame hasher (packages/frame/hash.js), ported: two FNV-1a 32-bit\n// lanes; u32 words go to BOTH lanes; a double's low word goes to lane 0, its high word to lane 1.\n#[derive(Clone, Copy)]\nstruct Lanes { h0: u32, h1: u32 }\nconst BASIS: u32 = 0x811c_9dc5;\nconst PRIME: u32 = 0x0100_0193;\nfn mix(mut h: u32, word: u32) -> u32 {\n    for b in word.to_le_bytes() { h = (h ^ b as u32).wrapping_mul(PRIME); }\n    h\n}\nimpl Lanes {\n    fn new() -> Self { Lanes { h0: BASIS, h1: BASIS } }\n    fn u32(&mut self, w: u32) { self.h0 = mix(self.h0, w); self.h1 = mix(self.h1, w); }\n    fn float(&mut self, x: f64) { let b = x.to_bits(); self.h0 = mix(self.h0, b as u32); self.h1 = mix(self.h1, (b >> 32) as u32); }\n    fn digest(&self) -> u64 { ((self.h0 as u64) << 32) | self.h1 as u64 }\n}\n\n// Today's snapshot digest (harness/trace-line.mjs snapshotField): length, then every byte as a u32.\nfn digest_today(snap: &[u8]) -> u64 {\n    let mut h = Lanes::new();\n    h.u32(snap.len() as u32);\n    for &b in snap { h.u32(b as u32); }\n    h.digest()\n}\n// Fix A: split the stream across the lanes the way a double is split (low 4 bytes lane 0, high 4 lane 1).\nfn digest_split(snap: &[u8]) -> u64 {\n    let mut h = Lanes::new();\n    h.u32(snap.len() as u32);\n    for w in snap.chunks(8) {\n        let mut word = [0u8; 8];\n        word[..w.len()].copy_from_slice(w);\n        h.h0 = mix(h.h0, u32::from_le_bytes(word[0..4].try_into().unwrap()));\n        h.h1 = mix(h.h1, u32::from_le_bytes(word[4..8].try_into().unwrap()));\n    }\n    h.digest()\n}\n// Fix B: give each lane a different image of a u32 (lane 1 sees it bit-reversed).\nfn digest_distinct(snap: &[u8]) -> u64 {\n    let mut h = Lanes::new();\n    let mut put = |w: u32| { h.h0 = mix(h.h0, w); h.h1 = mix(h.h1, w.reverse_bits()); };\n    put(snap.len() as u32);\n    for &b in snap { put(b as u32); }\n    h.digest()\n}\n// Fix C: FNV-1a 64 (RFC 9923) over the length and the bytes.\nfn digest_fnv64(snap: &[u8]) -> u64 {\n    let mut h: u64 = 0xcbf2_9ce4_8422_2325;\n    for b in (snap.len() as u32).to_le_bytes().iter().chain(snap) { h = (h ^ *b as u64).wrapping_mul(0x0000_0100_0000_01b3); }\n    h\n}\n\nfn main() {\n    let snap: Vec<u8> = [0.25f64, -8.0, 1.0 / 64.0].iter().flat_map(|x| x.to_le_bytes()).collect();\n    println!(\"u32-only input:   {:016x}\", digest_today(&snap));\n    let mut frame = Lanes::new();\n    frame.u32(1);\n    frame.float(0.25);\n    println!(\"with a double:    {:016x}\", frame.digest());\n    println!(\"fix A split:      {:016x}\", digest_split(&snap));\n    println!(\"fix B distinct:   {:016x}\", digest_distinct(&snap));\n    println!(\"fix C FNV-1a 64:  {:016x}\", digest_fnv64(&snap));\n    // 32 bits of state: search one-word snapshots (arbitrary bit patterns from a\n    // fixed xorshift sequence) for two that share today's digest.\n    let mut seen: HashMap<u64, [u8; 8]> = HashMap::new();\n    let mut x: u64 = 0x9e37_79b9_7f4a_7c15;\n    for n in 1u32..=1_000_000 {\n        x ^= x << 13; x ^= x >> 7; x ^= x << 17;\n        let s = x.to_le_bytes();\n        let d = digest_today(&s);\n        if let Some(t) = seen.get(&d) {\n            println!(\"collision after {n} snapshots: {:016x} and {:016x} both digest to {d:016x}\", u64::from_le_bytes(*t), x);\n            println!(\"  still equal under fix A {}, fix B {}, fix C {}\", digest_split(&s) == digest_split(t), digest_distinct(&s) == digest_distinct(t), digest_fnv64(&s) == digest_fnv64(t));\n            break;\n        }\n        seen.insert(d, s);\n    }\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "RFC 9923 — The FNV Non-Cryptographic Hash Algorithm (Noll, Vo, Eastlake, Hansen)",
+          "url": "https://www.rfc-editor.org/rfc/rfc9923.html",
+          "year": 2026,
+          "kind": "rfc",
+          "identifier": "RFC 9923",
+          "claim": "FNV-1a XORs each octet into the hash and then multiplies by FNV_Prime; the 32-bit prime is 0x01000193 with offset basis 0x811C9DC5 and the 64-bit prime is 0x100000001B3 with basis 0xCBF29CE484222325; FNV is NOT RECOMMENDED where collision or preimage attacks must be infeasible."
+        },
+        {
+          "title": "si-rpg-engine packages/frame/hash.js at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/packages/frame/hash.js",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "Two FNV-1a lanes: a double's low little-endian word feeds lane 0 and its high word lane 1, while u32() mixes the same word into both lanes; digest() is hex(h0) + hex(h1)."
+        },
+        {
+          "title": "si-rpg-engine harness/trace-line.mjs at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/harness/trace-line.mjs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "snapshotField creates a hasher and feeds u32(snap.length) and then u32(snap[i]) for every byte, printing 'snap <len> <digest>'."
+        },
+        {
+          "title": "si-rpg-engine fixtures/golden-behaviour.json on the T3 branch (PR #44, head b99a636)",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/b99a6365272feac90fcb557f56ffe6ddbe10cf15/fixtures/golden-behaviour.json",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "b99a636",
+          "claim": "The T3 behaviour file records snapshotDigest load 52bfc19452bfc194 and last 41b1e63f41b1e63f, each with identical halves."
+        },
+        {
+          "title": "si-rpg-engine docs/dispatch-s1-soundness.md at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/docs/dispatch-s1-soundness.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "S1 validates the mode slot (pin 2), keeps the stable pair sort (pin 6), tests removal history (pin 9), refuses non-finite values (pin 10), fixes canon_quat (pin 11) and splits u32-only digest input across the lanes so the halves differ (pin 13)."
+        },
+        {
+          "title": "si-rpg-engine packages/tick/tick.js at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/packages/tick/tick.js",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "The tick mixes hasher.u32(seed) at load and hasher.u32(tick) each quantum, and mixSnapshot feeds the snapshot length and every snapshot byte through u32()."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "key-records-by-stable-ids-keep-insertion-and-removal-history-in-the-record-and-sort-by-a-total-id-key",
+      "name": "Key records by stable ids, keep insertion and removal history in the record, and sort by a total id key",
+      "what": "Generational handles encode history — Rapier's generation is one counter per set, raised on every removal, and slotmap reuses slots under new versions — so persisted ids are the world file's own, handles are reproduced only by replaying the same inserts and removals, and every order-sensitive step iterates in sorted full-key order, never container order.",
+      "how": "Key the record by world-file ids; treat `ColliderHandle` and `RigidBodyHandle`, slotmap keys and `bevy_ecs::Entity` as process-local. Insert into Rapier in file order and record removals, because both decide `into_raw_parts()`. Before any order-sensitive step (a reduction, a snapshot, event dispatch) sort by a key that cannot tie: `pairs.sort_by_key(|p| (p.collider1.into_raw_parts(), p.collider2.into_raw_parts()))`; `ColliderHandle` has no `Ord` at 0.35.3, so calling `.sort()` on handle tuples is E0277. Iterate law-side maps as `BTreeMap` (key order) or as `IndexMap` with explicit `shift_remove` and `sort_keys`; never iterate a `HashMap` in the law.",
+      "rust_version": "any; rapier3d-f64 0.35.3, slotmap 1.1.1, indexmap 2.14.2",
+      "gotchas": "Rapier 0.35.3: three colliders get (0,0), (1,0), (2,0) in insertion order, so reordering the file reassigns them; after one removal every new handle carries generation 1, even in a fresh slot (a(0,0) b(1,0) c(0,1) d(2,1) e(1,2) f(3,2)), because the arena's `remove` does `self.generation += 1` and each insert takes `generation: self.generation`. slotmap: after a remove and an insert, iteration runs a, d, c (slot order, not insertion order); a map rebuilt from its live values has different keys, and `KeyData::as_ffi` promises nothing about its value beyond round-tripping through `from_ffi`. IndexMap's `remove` is deprecated because it is `swap_remove` (30,40,20); `shift_remove` keeps order (30,20,40). Two HashMaps holding the same 64 keys in one process iterate in different orders. The same four impulses summed in three orders give 1.0, 0.0 and 2.0. A stable sort on a key that can tie keeps the incoming order of the tied items, so container order leaks through: sorted by body only, two input orders stay different; sorted by the full pair they agree.",
+      "engine_note": "rapier_law.rs build_world inserts the static colliders, then the heightfield, then the bodies, in record order; rebuild_snapshot sorts pairs with `sort_by` on `into_raw_parts()` and pushes both colliders' index and generation as f64, so insertion and removal history sit inside the hashed bytes. Today nothing is removed without a reload (a carried body changes the signature and ensure() rebuilds the world), so generations stay 0. S1 pins 6 and 9 keep the stable sort and add a removal-and-reinsertion case to T3's insertion-order test (T3 pin 5); T2's restore must reproduce the removal count as well as the live set.",
+      "checks": [
+        {
+          "label": "Rapier handles follow insertion order, and each removal raises the generation of later handles",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "file order  [(\"crate\", (1, 0)), (\"slab\", (0, 0)), (\"wall\", (2, 0))]\nother order [(\"crate\", (1, 0)), (\"slab\", (2, 0)), (\"wall\", (0, 0))]\na(0, 0) b(1, 0) c(0, 1) d(2, 1) e(1, 2) f(3, 2)",
+          "source": "use rapier3d_f64::prelude::*;\n\n// The same three colliders inserted in two orders: which (index, generation) each gets.\nfn build(order: &[&str]) -> Vec<(String, (u32, u32))> {\n    let mut colliders = ColliderSet::new();\n    let mut out = Vec::new();\n    for name in order {\n        let half = match *name { \"slab\" => 4.0, \"crate\" => 0.5, _ => 1.0 };\n        let h = colliders.insert(ColliderBuilder::cuboid(half, 0.25, half).build());\n        out.push((name.to_string(), h.into_raw_parts()));\n    }\n    out.sort();\n    out\n}\n\nfn main() {\n    println!(\"file order  {:?}\", build(&[\"slab\", \"crate\", \"wall\"]));\n    println!(\"other order {:?}\", build(&[\"wall\", \"crate\", \"slab\"]));\n    // Removal history: every handle inserted after a removal carries the new generation,\n    // in a reused slot or a fresh one.\n    let mut islands = IslandManager::new();\n    let mut bodies = RigidBodySet::new();\n    let mut colliders = ColliderSet::new();\n    let ball = || ColliderBuilder::ball(0.5).build();\n    let a = colliders.insert(ball());\n    let b = colliders.insert(ball());\n    colliders.remove(a, &mut islands, &mut bodies, false);\n    let c = colliders.insert(ball());\n    let d = colliders.insert(ball());\n    colliders.remove(b, &mut islands, &mut bodies, false);\n    let e = colliders.insert(ball());\n    let f = colliders.insert(ball());\n    let parts: Vec<String> = [(\"a\", a), (\"b\", b), (\"c\", c), (\"d\", d), (\"e\", e), (\"f\", f)]\n        .iter()\n        .map(|(n, h)| format!(\"{n}{:?}\", h.into_raw_parts()))\n        .collect();\n    println!(\"{}\", parts.join(\" \"));\n}\n"
+        },
+        {
+          "label": "ColliderHandle has no Ord at 0.35.3: sorting handle pairs directly is E0277",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "source": "use rapier3d_f64::prelude::*;\n\npub fn canonical(mut pairs: Vec<(ColliderHandle, ColliderHandle)>) -> Vec<(ColliderHandle, ColliderHandle)> {\n    pairs.sort();\n    pairs\n}\n"
+        },
+        {
+          "label": "Sorting contact pairs by their into_raw_parts() tuples compiles",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compiles",
+          "source": "use rapier3d_f64::prelude::*;\n\npub fn canonical(mut pairs: Vec<(ColliderHandle, ColliderHandle)>) -> Vec<(ColliderHandle, ColliderHandle)> {\n    pairs.sort_by_key(|(a, b)| (a.into_raw_parts(), b.into_raw_parts()));\n    pairs\n}\n"
+        },
+        {
+          "label": "slotmap reuses a freed slot under a new version; a map rebuilt from live values has other keys",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "slotmap"
+          ],
+          "expect": "runs",
+          "stdout": "iteration after remove+insert: a,d,c\nold key b finds: None\nb=DefaultKey(2v1) d=DefaultKey(2v3) a=DefaultKey(1v1)\nrebuilt keys [DefaultKey(1v1), DefaultKey(2v1), DefaultKey(3v1)]; original d key still valid in rebuilt: false",
+          "source": "use slotmap::{DefaultKey, SlotMap};\n\nfn order(m: &SlotMap<DefaultKey, &'static str>) -> String {\n    m.values().copied().collect::<Vec<_>>().join(\",\")\n}\n\nfn main() {\n    let mut m: SlotMap<DefaultKey, &'static str> = SlotMap::new();\n    let a = m.insert(\"a\");\n    let b = m.insert(\"b\");\n    let _c = m.insert(\"c\");\n    m.remove(b);\n    let d = m.insert(\"d\");\n    // d reuses b's slot with a new version; the old key for b is dead.\n    println!(\"iteration after remove+insert: {}\", order(&m));\n    println!(\"old key b finds: {:?}\", m.get(b));\n    println!(\"b={:?} d={:?} a={:?}\", b, d, a);\n    // Rebuilding from the live values in insertion order does not give back the same keys.\n    let mut rebuilt: SlotMap<DefaultKey, &'static str> = SlotMap::new();\n    let mut keys = Vec::new();\n    for v in [\"a\", \"c\", \"d\"] {\n        keys.push(rebuilt.insert(v));\n    }\n    println!(\"rebuilt keys {:?}; original d key still valid in rebuilt: {}\", keys, rebuilt.get(d).is_some());\n}\n"
+        },
+        {
+          "label": "IndexMap: swap_remove perturbs order, shift_remove keeps it, sort_keys restores key order",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "indexmap"
+          ],
+          "expect": "runs",
+          "stdout": "insertion order: 30,10,20,40\nswap_remove(10): 30,40,20\nshift_remove(10): 30,20,40\nafter sort_keys: 20,30,40",
+          "source": "use indexmap::IndexMap;\n\nfn keys(m: &IndexMap<u32, f64>) -> String {\n    m.keys().map(|k| k.to_string()).collect::<Vec<_>>().join(\",\")\n}\n\nfn main() {\n    let mut a: IndexMap<u32, f64> = IndexMap::new();\n    for id in [30, 10, 20, 40] {\n        a.insert(id, id as f64);\n    }\n    let mut b = a.clone();\n    println!(\"insertion order: {}\", keys(&a));\n    a.swap_remove(&10);\n    b.shift_remove(&10);\n    println!(\"swap_remove(10): {}\", keys(&a));\n    println!(\"shift_remove(10): {}\", keys(&b));\n    a.sort_keys();\n    println!(\"after sort_keys: {}\", keys(&a));\n}\n"
+        },
+        {
+          "label": "Sums depend on order, HashMap orders differ per map, a stable sort on a tying key leaks order",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "sum in one order 1.0, reversed 0.0, sorted by id 2.0\nHashMap orders equal: false; BTreeMap orders equal: true\nsorted by body only equal: false\nsorted by full pair equal: true",
+          "source": "use std::collections::{BTreeMap, HashMap};\n\nfn main() {\n    // An order-sensitive reduction: the f64 sum of the same four impulses.\n    let impulses: [(u32, f64); 4] = [(3, 1e16), (1, 1.0), (4, -1e16), (2, 1.0)];\n    let mut container_order = impulses.to_vec();\n    let a: f64 = container_order.iter().map(|p| p.1).sum();\n    container_order.reverse();\n    let b: f64 = container_order.iter().map(|p| p.1).sum();\n    container_order.sort_by_key(|p| p.0);\n    let sorted: f64 = container_order.iter().map(|p| p.1).sum();\n    println!(\"sum in one order {a:?}, reversed {b:?}, sorted by id {sorted:?}\");\n\n    // Two HashMaps with fresh RandomState keys, same 64 entries: compare iteration orders.\n    let h1: HashMap<u32, f64> = (0..64).map(|i| (i, i as f64)).collect();\n    let h2: HashMap<u32, f64> = (0..64).map(|i| (i, i as f64)).collect();\n    let o1: Vec<u32> = h1.keys().copied().collect();\n    let o2: Vec<u32> = h2.keys().copied().collect();\n    let b1: BTreeMap<u32, f64> = h1.clone().into_iter().collect();\n    let b2: BTreeMap<u32, f64> = h2.clone().into_iter().collect();\n    let k1: Vec<u32> = b1.keys().copied().collect();\n    let k2: Vec<u32> = b2.keys().copied().collect();\n    println!(\"HashMap orders equal: {}; BTreeMap orders equal: {}\", o1 == o2, k1 == k2);\n\n    // A stable sort on a key that is not unique keeps the incoming order of ties.\n    let contacts_a = vec![(5u32, 9u32), (2, 7), (5, 1)];\n    let contacts_b = vec![(5u32, 1u32), (2, 7), (5, 9)];\n    let by_body = |mut v: Vec<(u32, u32)>| { v.sort_by_key(|c| c.0); v };\n    let by_pair = |mut v: Vec<(u32, u32)>| { v.sort_by_key(|c| (c.0, c.1)); v };\n    println!(\"sorted by body only equal: {}\", by_body(contacts_a.clone()) == by_body(contacts_b.clone()));\n    println!(\"sorted by full pair equal: {}\", by_pair(contacts_a) == by_pair(contacts_b));\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "rapier3d-f64 0.35.3 — struct ColliderHandle",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ColliderHandle.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "into_raw_parts converts the handle into its (index, generation) components; the listed trait implementations include Eq and Hash but not Ord or PartialOrd."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source — src/data/arena.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/data/arena.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Arena holds one `generation: u32`; remove does `self.generation += 1`, and a new entry is created with `generation: self.generation`."
+        },
+        {
+          "title": "slotmap 1.1.1 — crate documentation",
+          "url": "https://docs.rs/slotmap/1.1.1/slotmap/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Each slot is a (value, version) pair; a key is valid only when its version matches, which lets freed slots be reused without old keys reaching new elements."
+        },
+        {
+          "title": "slotmap 1.1.1 — struct KeyData",
+          "url": "https://docs.rs/slotmap/1.1.1/slotmap/struct.KeyData.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "as_ffi makes no guarantees about its value other than that from_ffi returns an equal key, and is not a substitute for proper serialization."
+        },
+        {
+          "title": "indexmap 2.14.2 — struct IndexMap",
+          "url": "https://docs.rs/indexmap/2.14.2/indexmap/map/struct.IndexMap.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Order is determined by the sequence of insertion and removal calls; swap_remove perturbs the position of the former last element, shift_remove preserves relative order, and remove is deprecated as equivalent to swap_remove."
+        },
+        {
+          "title": "std::collections::HashMap (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/collections/struct.HashMap.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The default hashing algorithm is randomly seeded and is currently SipHash 1-3, 'subject to change at any point in the future'; iter visits pairs 'in arbitrary order'."
+        },
+        {
+          "title": "std::hash::RandomState (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/hash/struct.RandomState.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "RandomState::new is initialized with random keys, and hashers from two different RandomState instances are unlikely to produce the same result for the same values."
+        },
+        {
+          "title": "std::collections::BTreeMap (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/collections/struct.BTreeMap.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Iterators such as iter, keys and values produce their items in key order."
+        },
+        {
+          "title": "alloc slice doc comments, rust-lang/rust tag 1.98.1 (library/alloc/src/slice.rs)",
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/alloc/src/slice.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "sort and sort_by_key are stable: 'This sort is stable (i.e., does not reorder equal elements)'."
+        },
+        {
+          "title": "bevy_ecs 0.19.1 — struct Entity",
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/entity/struct.Entity.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "An Entity is an index plus a generation incremented on despawn; its internal bit representation is liable to change from release to release, and to_bits/from_bits only identify entities within one running instance."
+        },
+        {
+          "title": "si-rpg-engine solver/src/rapier_law.rs at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/solver/src/rapier_law.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "canon maps both zeros to +0.0, bad() is x.is_nan(), mix_u64 is h.wrapping_mul(0x100000001b3).wrapping_add(x), push_f64 writes canon(x).to_le_bytes(), and rebuild_snapshot sorts pairs by into_raw_parts() and pushes both colliders' index and generation."
+        },
+        {
+          "title": "si-rpg-engine docs/dispatch-s1-soundness.md at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/docs/dispatch-s1-soundness.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "S1 validates the mode slot (pin 2), keeps the stable pair sort (pin 6), tests removal history (pin 9), refuses non-finite values (pin 10), fixes canon_quat (pin 11) and splits u32-only digest input across the lanes so the halves differ (pin 13)."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "read-world-files-with-serde-json-s-float-roundtrip-refuse-unknown-fields-and-hash-parsed-bits-not-text",
+      "name": "Read world files with serde_json's float_roundtrip, refuse unknown fields, and hash parsed bits, not text",
+      "what": "With `float_roundtrip`, serde_json 1.0.151 turns f64 into JSON and back bit-exactly (200,000 arbitrary finite values, none changed) and parses as std's correctly rounded `str::parse` does; its text is not a stable artefact (1.0.147 swapped Ryū for Żmij and exponents gained a '+'), and NaN or infinity serialise as null, so validate before writing and hash parsed values.",
+      "how": "Depend on `serde_json = { version = \"1.0.151\", features = [\"float_roundtrip\"] }`; the crate's Cargo.toml says the default parse is 'best-effort precision' and that this feature 'makes f64 -> JSON -> f64 produce output identical to the input', at about twice the float-parse cost. Put `#[derive(Deserialize)] #[serde(deny_unknown_fields)]` on world-file structs: an extra key is refused ('unknown field `mass`, expected one of `id`, `x`, `y`, `z`'), a repeated key is refused ('duplicate field `x`'), a bare NaN is not JSON ('expected value'), and 1e400 is 'number out of range'. Refuse non-finite values before serialising: `serialize_f64` writes `null` for NaN and infinity, and reading that null back into an f64 fails ('invalid type: null, expected f64'). Hash the canonical bytes of the parsed values, never the file's text.",
+      "rust_version": "serde_json 1.0.151 (floats formatted by zmij since 1.0.147), serde 1.0.229",
+      "gotchas": "'ryu output' is stale for the pinned crate: serde_json 1.0.147 (2025-12-23) switched float formatting from Ryū to Żmij, and PR #1304 changed test expectations from `1.2e41` to `1.2e+41`; 1.0.151 prints 1e+21, 1e+16, 1.7976931348623157e+308, 0.000025 and -0.0, so a hash over JSON text written by Rust breaks on a dependency bump with no value change. Measured on this rig with node v22.22.3, `JSON.stringify` writes -0 as `0` and 2.0 as `2` where serde_json writes `-0.0` and `2.0`; both write NaN and Infinity as null (MDN). `arbitrary_precision` is a different feature (it keeps JSON text in `Number`), and `deny_unknown_fields` is not supported together with `flatten`.",
+      "engine_note": "World files (worlds/*.json) are parsed by JavaScript today, and the loader refuses unknown fields and non-unit quaternions with reasons (README). The Godot and Unreal bindings planned after Phase 2 will read the same files from Rust: they need `float_roundtrip` to see the bits JavaScript sees, `deny_unknown_fields` for refusal parity, and a rule never to hash the text. fixtures/golden-behaviour.json stores final positions as JavaScript-written numbers (`\"x\": 2` for the climber); harness/behaviour.mjs compares parsed values with `Object.is`, the right side of this line.",
+      "checks": [
+        {
+          "label": "200,000 arbitrary finite f64 survive to_string then from_str bit-exactly and match str::parse",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "serde_json"
+          ],
+          "expect": "runs",
+          "stdout": "200000 finite values, 0 changed bits, 0 differ from str::parse, long decimals 5/5",
+          "source": "// f64 -> JSON text -> f64 through serde_json built with `float_roundtrip`.\nfn main() {\n    let mut s: u64 = 0x9E37_79B9_7F4A_7C15;\n    let mut tested = 0u32;\n    let mut mismatched = 0u32;\n    let mut disagree_with_std = 0u32;\n    while tested < 200_000 {\n        // xorshift64: a fixed sequence of arbitrary bit patterns\n        s ^= s << 13;\n        s ^= s >> 7;\n        s ^= s << 17;\n        let x = f64::from_bits(s);\n        if !x.is_finite() {\n            continue;\n        }\n        tested += 1;\n        let text = serde_json::to_string(&x).unwrap();\n        let back: f64 = serde_json::from_str(&text).unwrap();\n        if back.to_bits() != x.to_bits() {\n            mismatched += 1;\n        }\n        let by_std: f64 = text.parse().unwrap();\n        if by_std.to_bits() != back.to_bits() {\n            disagree_with_std += 1;\n        }\n    }\n    // Long decimals: serde_json's parse must equal std's correctly rounded parse.\n    let long = [\n        \"0.1000000000000000055511151231257827021181583404541015625\",\n        \"2.2250738585072011e-308\",\n        \"4.9406564584124654e-324\",\n        \"1.00000000000000011102230246251565404236316680908203125\",\n        \"9007199254740993.0\",\n    ];\n    let mut long_ok = 0;\n    for t in long {\n        let a: f64 = serde_json::from_str(t).unwrap();\n        let b: f64 = t.parse().unwrap();\n        if a.to_bits() == b.to_bits() {\n            long_ok += 1;\n        }\n    }\n    println!(\"{tested} finite values, {mismatched} changed bits, {disagree_with_std} differ from str::parse, long decimals {long_ok}/5\");\n}\n"
+        },
+        {
+          "label": "serde_json 1.0.151 float text: 1e+21, 0.000025, -0.0; NaN and inf become null; 1e400 refused",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "serde_json"
+          ],
+          "expect": "runs",
+          "stdout": "0.1\n1.0\n-0.0\n1e+21\n1e-7\n5e-324\n0.3333333333333333\n123456789.0\n1000000000000000.0\n1e+16\n0.000025\n1.7976931348623157e+308\n[null,null]\ninvalid type: null, expected f64 at line 1 column 5\nnumber out of range at line 1 column 5\ntrue",
+          "source": "fn main() {\n    let xs: [f64; 12] = [0.1, 1.0, -0.0, 1e21, 1e-7, 5e-324, 1.0 / 3.0, 123456789.0, 1e15, 1e16, 2.5e-5, f64::MAX];\n    for x in xs {\n        println!(\"{}\", serde_json::to_string(&x).unwrap());\n    }\n    println!(\"{}\", serde_json::to_string(&vec![f64::NAN, f64::INFINITY]).unwrap());\n    let back: Result<Vec<f64>, _> = serde_json::from_str(\"[null]\");\n    println!(\"{}\", back.unwrap_err());\n    let big: Result<f64, _> = serde_json::from_str(\"1e400\");\n    println!(\"{}\", big.unwrap_err());\n    let js_style: f64 = serde_json::from_str(\"1e+21\").unwrap();\n    println!(\"{}\", js_style.to_bits() == 1e21f64.to_bits());\n}\n"
+        },
+        {
+          "label": "deny_unknown_fields refuses an extra key; duplicate keys and bare NaN are refused; -0.0 survives",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "serde",
+            "serde_json"
+          ],
+          "expect": "runs",
+          "stdout": "x 2.0 y 0.5 z -0.0 (z bits 8000000000000000) id crate\nunknown field `mass`, expected one of `id`, `x`, `y`, `z` at line 1 column 40\nduplicate field `x` at line 1 column 23\nexpected value at line 1 column 19",
+          "source": "use serde::Deserialize;\n\n#[derive(Debug, Deserialize)]\n#[serde(deny_unknown_fields)]\nstruct Body { id: String, x: f64, y: f64, z: f64 }\n\nfn main() {\n    let ok: Result<Body, _> = serde_json::from_str(r#\"{\"id\":\"crate\",\"x\":2,\"y\":0.5,\"z\":-0.0}\"#);\n    let b = ok.unwrap();\n    println!(\"x {:?} y {:?} z {:?} (z bits {:016x}) id {}\", b.x, b.y, b.z, b.z.to_bits(), b.id);\n    let unknown: Result<Body, _> = serde_json::from_str(r#\"{\"id\":\"crate\",\"x\":2,\"y\":0.5,\"z\":0,\"mass\":3}\"#);\n    println!(\"{}\", unknown.unwrap_err());\n    let dup: Result<Body, _> = serde_json::from_str(r#\"{\"id\":\"crate\",\"x\":2,\"x\":3,\"y\":0.5,\"z\":0}\"#);\n    println!(\"{}\", dup.unwrap_err());\n    let nan: Result<Body, _> = serde_json::from_str(r#\"{\"id\":\"crate\",\"x\":NaN,\"y\":0.5,\"z\":0}\"#);\n    println!(\"{}\", nan.unwrap_err());\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "serde_json 1.0.151 — Cargo.toml (features and dependencies)",
+          "url": "https://docs.rs/crate/serde_json/1.0.151/source/Cargo.toml.orig",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "float_roundtrip uses sufficient precision when parsing so that f64 -> JSON -> f64 produces output identical to the input, at about 2x float-parse cost over the default best-effort precision; the crate depends on zmij."
+        },
+        {
+          "title": "serde_json 1.0.151 source — src/ser.rs",
+          "url": "https://docs.rs/crate/serde_json/1.0.151/source/src/ser.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "serialize_f64 writes null for FpCategory::Nan and Infinite, and write_f64 formats finite values with zmij::Buffer::format_finite."
+        },
+        {
+          "title": "serde_json 1.0.151 source — src/de.rs",
+          "url": "https://docs.rs/crate/serde_json/1.0.151/source/src/de.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "With float_roundtrip, f64_from_parts parses through lexical::parse_concise_float and an infinite result is Err(NumberOutOfRange); without it a POW10 table path is used."
+        },
+        {
+          "title": "serde_json v1.0.147 release notes",
+          "url": "https://github.com/serde-rs/json/releases/tag/v1.0.147",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "v1.0.147",
+          "claim": "Switch float-to-string algorithm from Ryū to Żmij for better f32 and f64 serialization performance (#1304)."
+        },
+        {
+          "title": "crates.io API — serde_json 1.0.147",
+          "url": "https://crates.io/api/v1/crates/serde_json/1.0.147",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "1.0.147",
+          "claim": "serde_json 1.0.147 was published 2025-12-23."
+        },
+        {
+          "title": "serde-rs/json PR #1304 — Switch from ryu -> zmij for float formatting (files changed)",
+          "url": "https://github.com/serde-rs/json/pull/1304/files",
+          "year": 2025,
+          "kind": "pr",
+          "identifier": "#1304",
+          "claim": "The PR changed test expectations from 1.2e41 to 1.2e+41 and from 1.7976931348623157e308 to 1.7976931348623157e+308."
+        },
+        {
+          "title": "zmij 1.0.23 — struct Buffer",
+          "url": "https://docs.rs/zmij/1.0.23/zmij/struct.Buffer.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "format prints NaN as 'NaN' and infinities as 'inf'/'-inf', while format_finite does not check and prints an unspecified value for non-finite input."
+        },
+        {
+          "title": "serde — Container attributes",
+          "url": "https://serde.rs/container-attrs.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "#[serde(deny_unknown_fields)] always errors on unknown fields (by default they are ignored for self-describing formats like JSON) and is not supported with flatten."
+        },
+        {
+          "title": "core float parsing doc comments, rust-lang/rust tag 1.98.1 (library/core/src/num/float_parse.rs)",
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/core/src/num/float_parse.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "from_str returns the closest representable floating-point number to the decimal string, following the same rounding rules as primitive operations."
+        },
+        {
+          "title": "MDN — JSON.stringify()",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The numbers Infinity and NaN, as well as null, are all serialized as null."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "version-the-law-with-golden-hashes-plus-behaviour-numbers-so-each-golden-move-names-what-moved",
+      "name": "Version the law with golden hashes plus behaviour numbers, so each golden move names what moved",
+      "what": "A golden hash says only that something changed; behaviour numbers recorded beside it — each body's sleep quantum, final positions, snapshot length and digest — checked by the same test and rewritten by the same command turn a move into a named, reviewable change, as Box2D's CI does with its step count to sleep and a hash of the resting transforms.",
+      "how": "Keep two kinds of golden: a contract golden that must never move (the engine's arithmetic golden) and a law golden that moves only with a stated reason. In Rust tests, `assert_eq!(run().hash, GOLDEN_HASH, \"golden moved\")` sits beside one `assert_eq!` per behaviour number with a message that names it (`\"behaviour moved: sleep quantum\"`); assert_eq! prints both values, so a law change reports `left: Some(104)` against `right: Some(76)` instead of two opaque hashes. Bump discipline: one command rewrites the golden and the behaviour file together and prints each moved number; the commit and the changelog carry the new golden and the reason; a bump of rapier3d-f64 or the toolchain reruns the outcome tests before any golden may move; the binary digest is a separate pin. A law variant can be modelled under test with `--cfg` (`--cfg law_bump` turns on `#[cfg(law_bump)]`).",
+      "rust_version": "any; checked with rustc --test on 1.98.1",
+      "gotchas": "In the check the bumped law fails both tests, but only the behaviour test says what moved (the sleep quantum, 76 to 104); the unchanged rest height stays silent, which is the point. Take behaviour numbers from the law's own flags (the solver's sleep flag), not from a re-derived velocity threshold, and compare them as bits, not within a tolerance: Phase 2 rules out thresholds in place of bit-exact agreement. Editing the Rust law moves the binary digest even when no golden moves, because panic-location strings carry line numbers (S1 pin 14): the digest and the golden are different pins.",
+      "engine_note": "harness/check.js matches harness/sim.mjs against fixtures/golden.txt (the product golden, fd2f6c03fb982d77 at 0.1.0) and harness/arith.mjs against fixtures/golden-arith.txt (0d38671370d12d1e, unmoved since the first harness), then compares fixtures/golden-behaviour.json — sleep quanta per dynamic body, final positions, the walker's zone, snapshot bytes 848 at load and 1840 after 10,000 quanta — and names every moved number. It has already paid for itself: the file showed `climber` never sleeping and ending near y = -50874, a scene defect the hash hid, which T4 pin 8 fixes; T4 pin 6 makes write-golden refuse to write while the course or an outcome test fails.",
+      "checks": [
+        {
+          "label": "Golden hash and behaviour numbers as #[test]s: both pass for the pinned law",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "expect": "runs",
+          "stdout_contains": [
+            "test result: ok. 2 passed"
+          ],
+          "source": "// A law's golden hash and the behaviour numbers recorded beside it, as tests.\n// `--cfg law_bump` models a law change: a restitution rule is added.\nconst DT: f64 = 1.0 / 64.0;\nconst SLEEP_QUANTA: u32 = 32;\n#[cfg(not(law_bump))]\nconst BOUNCE: f64 = 0.0;\n#[cfg(law_bump)]\nconst BOUNCE: f64 = 0.25;\n\npub struct Outcome { pub hash: u64, pub sleep_quantum: Option<u32>, pub rest_height: f64 }\n\npub fn run() -> Outcome {\n    let (mut y, mut vy, mut rest) = (2.0f64, 0.0f64, 0u32);\n    let mut h: u64 = 0xcbf29ce484222325;\n    let mut sleep_quantum = None;\n    for q in 1..=400u32 {\n        vy += -8.0 * DT;\n        y += vy * DT;\n        if y <= 0.0 {\n            y = 0.0;\n            vy = -vy * BOUNCE;\n            if vy < 0.05 { vy = 0.0; }\n        }\n        rest = if y == 0.0 && vy == 0.0 { rest + 1 } else { 0 };\n        for b in y.to_le_bytes().into_iter().chain(vy.to_le_bytes()) {\n            h = (h ^ b as u64).wrapping_mul(0x100000001b3);\n        }\n        if rest >= SLEEP_QUANTA { sleep_quantum = Some(q); break; }\n    }\n    Outcome { hash: h, sleep_quantum, rest_height: y }\n}\n\n// Written together by one `write-golden` step; a rewrite states which number moved.\nconst GOLDEN_HASH: u64 = 0x16182f0f3e959493;\nconst GOLDEN_SLEEP_QUANTUM: Option<u32> = Some(76);\nconst GOLDEN_REST_HEIGHT: f64 = 0.0;\n\n#[test]\nfn golden_hash() {\n    assert_eq!(run().hash, GOLDEN_HASH, \"golden moved\");\n}\n\n#[test]\nfn behaviour_numbers() {\n    let o = run();\n    assert_eq!(o.sleep_quantum, GOLDEN_SLEEP_QUANTUM, \"behaviour moved: sleep quantum\");\n    assert_eq!(o.rest_height.to_bits(), GOLDEN_REST_HEIGHT.to_bits(), \"behaviour moved: rest height\");\n}\n"
+        },
+        {
+          "label": "A bumped law fails both tests; only the behaviour test says what moved (sleep 76 -> 104)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "test",
+          "rustc_flags": [
+            "--cfg=law_bump"
+          ],
+          "expect": "runs",
+          "stdout_contains": [
+            "golden moved",
+            "behaviour moved: sleep quantum",
+            "left: Some(104)",
+            "right: Some(76)",
+            "test result: FAILED. 0 passed; 2 failed"
+          ],
+          "exit_code": 101,
+          "source": "// A law's golden hash and the behaviour numbers recorded beside it, as tests.\n// `--cfg law_bump` models a law change: a restitution rule is added.\nconst DT: f64 = 1.0 / 64.0;\nconst SLEEP_QUANTA: u32 = 32;\n#[cfg(not(law_bump))]\nconst BOUNCE: f64 = 0.0;\n#[cfg(law_bump)]\nconst BOUNCE: f64 = 0.25;\n\npub struct Outcome { pub hash: u64, pub sleep_quantum: Option<u32>, pub rest_height: f64 }\n\npub fn run() -> Outcome {\n    let (mut y, mut vy, mut rest) = (2.0f64, 0.0f64, 0u32);\n    let mut h: u64 = 0xcbf29ce484222325;\n    let mut sleep_quantum = None;\n    for q in 1..=400u32 {\n        vy += -8.0 * DT;\n        y += vy * DT;\n        if y <= 0.0 {\n            y = 0.0;\n            vy = -vy * BOUNCE;\n            if vy < 0.05 { vy = 0.0; }\n        }\n        rest = if y == 0.0 && vy == 0.0 { rest + 1 } else { 0 };\n        for b in y.to_le_bytes().into_iter().chain(vy.to_le_bytes()) {\n            h = (h ^ b as u64).wrapping_mul(0x100000001b3);\n        }\n        if rest >= SLEEP_QUANTA { sleep_quantum = Some(q); break; }\n    }\n    Outcome { hash: h, sleep_quantum, rest_height: y }\n}\n\n// Written together by one `write-golden` step; a rewrite states which number moved.\nconst GOLDEN_HASH: u64 = 0x16182f0f3e959493;\nconst GOLDEN_SLEEP_QUANTUM: Option<u32> = Some(76);\nconst GOLDEN_REST_HEIGHT: f64 = 0.0;\n\n#[test]\nfn golden_hash() {\n    assert_eq!(run().hash, GOLDEN_HASH, \"golden moved\");\n}\n\n#[test]\nfn behaviour_numbers() {\n    let o = run();\n    assert_eq!(o.sleep_quantum, GOLDEN_SLEEP_QUANTUM, \"behaviour moved: sleep quantum\");\n    assert_eq!(o.rest_height.to_bits(), GOLDEN_REST_HEIGHT.to_bits(), \"behaviour moved: rest height\");\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Determinism (Erin Catto, box2d.org)",
+          "url": "https://box2d.org/posts/2024/08/determinism/",
+          "year": 2024,
+          "kind": "blog",
+          "identifier": "",
+          "claim": "Box2D does not provide roll-back determinism because its internal state has no restoration mechanism; its CI determinism test requires two numbers to match every run: the step count to sleep and a hash of the body transforms once all sleep."
+        },
+        {
+          "title": "The Rust Programming Language — 11.1 How to Write Tests",
+          "url": "https://doc.rust-lang.org/stable/book/ch11-01-writing-tests.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Tests fail when the test function panics; assert_eq! prints both values on failure, and assert macros accept a custom message."
+        },
+        {
+          "title": "The rustc book — Command-line arguments",
+          "url": "https://doc.rust-lang.org/rustc/command-line-arguments.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "--cfg turns #[cfg] settings on (--cfg 'verbose' corresponds to #[cfg(verbose)]) and --test builds a test harness."
+        },
+        {
+          "title": "si-rpg-engine harness/check.js at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/harness/check.js",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "check.js matches harness/sim.mjs against fixtures/golden.txt and harness/arith.mjs against fixtures/golden-arith.txt, then compares the behaviour file and reports each moved number."
+        },
+        {
+          "title": "si-rpg-engine fixtures/golden-behaviour.json at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/fixtures/golden-behaviour.json",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "The behaviour file records per-body sleep quanta (climber null), final positions (climber y -50873.80412597653), the walker's zone, and snapshot bytes 848 at load and 1840 at the last of 10000 quanta."
+        },
+        {
+          "title": "si-rpg-engine docs/dispatch-t4-outcome-tests.md at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/docs/dispatch-t4-outcome-tests.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "write-golden refuses to write while the course or an outcome test fails, and a toolchain or rapier3d-f64 bump reruns the course first (pin 6); the climber's fall, 'a scene defect the hash hid', is fixed (pin 8)."
+        },
+        {
+          "title": "si-rpg-engine CHANGELOG.md at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/CHANGELOG.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "Release 0.1.0 lists the product golden fd2f6c03fb982d77, the arithmetic golden 0d38671370d12d1e and the Linux binary digest."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "parse-host-written-body-slots-into-a-typed-record-at-the-boundary-with-named-refusals-for-the-mode-slot",
+      "name": "Parse host-written body slots into a typed record at the boundary, with named refusals for the mode slot",
+      "what": "Every f64 the host writes into the law's buffers is untrusted: decode each record once into a typed value — finite floats, positive half-extents, a unit quaternion, and a mode that is exactly 0, 1, 2 or 3 — and refuse anything else with a reason naming the body, the slot and the raw bits, so every law reads the same decoded value.",
+      "how": "`impl TryFrom<&[f64; 17]> for Body { type Error = Refusal; ... }` (TryFrom is for conversions 'that may fail in a controlled way'). Test every slot with `is_finite()`, which refuses NaN and both infinities; half-extents with `> 0.0`; the quaternion with `(norm - 1.0).abs() <= 1e-9` (T2's tolerance), or canonicalise it by one stated rule that load and restore share. Decode slot 16 in one function: canonicalise zero, then match `to_bits()` against 0x0000000000000000 (dynamic), 0x3ff0000000000000 (kinematic), 0x4000000000000000 (lifted) and 0x4008000000000000 (carried); anything else is `Refusal::UnknownMode { body, bits }`. That is the canonical refusal for the field: the body index, slot 16, the bit pattern (NaN prints 7ff8000000000000), and the step returning 0. Laws then `match` the `Mode` enum, so a law that forgets a mode fails to build with E0004.",
+      "rust_version": "any",
+      "gotchas": "The two readers of slot 16 disagree today: 3.0 is driven to the box step (`!= 0.0`) and carried to signature(); 0.5, 4.0, -1.0, NaN and infinity are driven to the box step and dynamic to the product law; neither refuses. A NaN-only guard lets infinity through, and `!(x > 0.0)` catches NaN and non-positive values but passes +inf. Float literal patterns also work as a decoder (they compile clean on 1.98.1, -0.0 matches the `0.0` arm and NaN matches no arm, so `_ => refuse` catches it); matching `to_bits()` makes the four accepted bit patterns explicit. Silent normalisation means the file says one rotation and the law simulates another. The JavaScript world loader refuses non-unit quaternions today, but a Godot or Unreal binding will not run that loader, so the Rust boundary must carry every refusal itself.",
+      "engine_note": "solver/src/lib.rs step() and resolve_pair() read `*field(bodies, i, DRIVEN) != 0.0`; solver/src/rapier_law.rs signature() reads `b[DRIVEN] == 1.0 || b[DRIVEN] == 2.0`, then `== 3.0`, and integrate() re-reads `b[DRIVEN] == 2.0`; `bad()` is `x.is_nan()`, and canon_quat normalises any finite non-zero quaternion instead of refusing it. solver/build.mjs writeInputs writes `body.solverMode` into slot 16 verbatim whenever it is a JavaScript number. S1 (docs/dispatch-s1-soundness.md) pins 2, 10 and 11 schedule the fixes: one mode function accepting exactly 0 to 3 with the step returning 0, `bad()` becoming `!x.is_finite()`, and canon_quat refusing what it cannot normalise; T2 pin 1 refuses a quaternion not unit within 1e-9 on restore.",
+      "checks": [
+        {
+          "label": "Slot 16 read two ways: 3.0, 0.5, 4.0, NaN, inf disagree; the decoder refuses with body and bits",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "  0.0: box law free   product law dynamic decoder Dynamic\n -0.0: box law free   product law dynamic decoder Dynamic\n  1.0: box law driven product law driven  decoder Kinematic\n  2.0: box law driven product law driven  decoder Lifted\n  3.0: box law driven product law carried decoder Carried\n  0.5: box law driven product law dynamic decoder refused body 5 slot 16 bits 3fe0000000000000\n  4.0: box law driven product law dynamic decoder refused body 5 slot 16 bits 4010000000000000\n -1.0: box law driven product law dynamic decoder refused body 5 slot 16 bits bff0000000000000\n  NaN: box law driven product law dynamic decoder refused body 5 slot 16 bits 7ff8000000000000\n  inf: box law driven product law dynamic decoder refused body 5 slot 16 bits 7ff0000000000000",
+          "source": "// Slot 16 of a body record is its solver mode. Today two readers disagree:\n//   lib.rs step():          driven = slot16 != 0.0\n//   rapier_law.rs signature(): driven = slot16 == 1.0 || slot16 == 2.0; carried = slot16 == 3.0\n// and neither refuses an unknown value or NaN.\nfn box_reading(x: f64) -> &'static str { if x != 0.0 { \"driven\" } else { \"free\" } }\nfn product_reading(x: f64) -> &'static str {\n    if x == 1.0 || x == 2.0 { \"driven\" } else if x == 3.0 { \"carried\" } else { \"dynamic\" }\n}\n\n#[derive(Clone, Copy, Debug, PartialEq, Eq)]\nenum Mode { Dynamic, Kinematic, Lifted, Carried }\n\n#[derive(Debug, PartialEq)]\nenum Refusal { UnknownMode { body: u32, bits: u64 } }\n\n// One decoder, called by every law: accepts exactly 0, 1, 2, 3 (signed zero is\n// canonicalised first, as the law does everywhere) and refuses everything else,\n// NaN included, naming the body and the raw bit pattern.\nfn decode_mode(body: u32, x: f64) -> Result<Mode, Refusal> {\n    let x = if x == 0.0 { 0.0 } else { x };\n    match x.to_bits() {\n        0x0000_0000_0000_0000 => Ok(Mode::Dynamic),\n        0x3ff0_0000_0000_0000 => Ok(Mode::Kinematic),\n        0x4000_0000_0000_0000 => Ok(Mode::Lifted),\n        0x4008_0000_0000_0000 => Ok(Mode::Carried),\n        bits => Err(Refusal::UnknownMode { body, bits }),\n    }\n}\n\nfn main() {\n    for x in [0.0, -0.0, 1.0, 2.0, 3.0, 0.5, 4.0, -1.0, f64::NAN, f64::INFINITY] {\n        let decoded = match decode_mode(5, x) {\n            Ok(m) => format!(\"{m:?}\"),\n            Err(Refusal::UnknownMode { body, bits }) => format!(\"refused body {body} slot 16 bits {bits:016x}\"),\n        };\n        println!(\"{:>5}: box law {:<6} product law {:<7} decoder {}\", format!(\"{x:?}\"), box_reading(x), product_reading(x), decoded);\n    }\n}\n"
+        },
+        {
+          "label": "TryFrom<&[f64; 17]> refuses inf, NaN, a zero half-extent, a non-unit quaternion, mode 0.5",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "well-formed: accepted as Kinematic\nx = inf: refused, slot 0 is not finite (bits 7ff0000000000000)\nvy = NaN: refused, slot 4 is not finite (bits 7ff8000000000000)\nhy = 0: refused, slot 14 is not a positive half-extent\nq = (0,0,0,2): refused, quaternion norm 2.0 is not 1 within 1e-9\nmode = 3: accepted as Carried\nmode = 0.5: refused, slot 16 holds no mode (bits 3fe0000000000000)\na NaN-only guard passes inf: true",
+          "source": "// Parse, don't just check: a raw stride-17 body record becomes a typed record or a named refusal.\n#[derive(Debug, Clone, Copy)]\nenum Mode { Dynamic, Kinematic, Lifted, Carried }\n\nenum Refusal {\n    NotFinite { slot: usize, bits: u64 },\n    NotPositive { slot: usize },\n    NotUnit { norm: f64 },\n    UnknownMode { bits: u64 },\n}\n\nimpl std::fmt::Display for Refusal {\n    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n        match self {\n            Refusal::NotFinite { slot, bits } => write!(f, \"slot {slot} is not finite (bits {bits:016x})\"),\n            Refusal::NotPositive { slot } => write!(f, \"slot {slot} is not a positive half-extent\"),\n            Refusal::NotUnit { norm } => write!(f, \"quaternion norm {norm:?} is not 1 within 1e-9\"),\n            Refusal::UnknownMode { bits } => write!(f, \"slot 16 holds no mode (bits {bits:016x})\"),\n        }\n    }\n}\n\nstruct Body { mode: Mode }\n\nconst UNIT_TOLERANCE: f64 = 1e-9;\n\nimpl TryFrom<&[f64; 17]> for Body {\n    type Error = Refusal;\n    fn try_from(r: &[f64; 17]) -> Result<Body, Refusal> {\n        for (slot, x) in r.iter().enumerate() {\n            if !x.is_finite() {\n                return Err(Refusal::NotFinite { slot, bits: x.to_bits() });\n            }\n        }\n        for slot in 13..16 {\n            if !(r[slot] > 0.0) {\n                return Err(Refusal::NotPositive { slot });\n            }\n        }\n        let norm = (r[6] * r[6] + r[7] * r[7] + r[8] * r[8] + r[9] * r[9]).sqrt();\n        if !((norm - 1.0).abs() <= UNIT_TOLERANCE) {\n            return Err(Refusal::NotUnit { norm });\n        }\n        let m = if r[16] == 0.0 { 0.0 } else { r[16] };\n        let mode = match m.to_bits() {\n            0x0000_0000_0000_0000 => Mode::Dynamic,\n            0x3ff0_0000_0000_0000 => Mode::Kinematic,\n            0x4000_0000_0000_0000 => Mode::Lifted,\n            0x4008_0000_0000_0000 => Mode::Carried,\n            bits => return Err(Refusal::UnknownMode { bits }),\n        };\n        Ok(Body { mode })\n    }\n}\n\nfn main() {\n    let ok = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 1.0];\n    let mut cases: Vec<(&str, [f64; 17])> = vec![(\"well-formed\", ok)];\n    let mut r = ok; r[0] = f64::INFINITY; cases.push((\"x = inf\", r));\n    let mut r = ok; r[4] = f64::NAN; cases.push((\"vy = NaN\", r));\n    let mut r = ok; r[14] = 0.0; cases.push((\"hy = 0\", r));\n    let mut r = ok; r[9] = 2.0; cases.push((\"q = (0,0,0,2)\", r));\n    let mut r = ok; r[16] = 3.0; cases.push((\"mode = 3\", r));\n    let mut r = ok; r[16] = 0.5; cases.push((\"mode = 0.5\", r));\n    for (name, rec) in &cases {\n        match Body::try_from(rec) {\n            Ok(b) => println!(\"{name}: accepted as {:?}\", b.mode),\n            Err(e) => println!(\"{name}: refused, {e}\"),\n        }\n    }\n    let _ = [Mode::Dynamic, Mode::Kinematic, Mode::Lifted, Mode::Carried];\n    // A NaN-only guard, as bad() is today, lets infinity through.\n    println!(\"a NaN-only guard passes inf: {}\", !f64::INFINITY.is_nan());\n}\n"
+        },
+        {
+          "label": "Float literal patterns compile clean: -0.0 takes the 0.0 arm and NaN takes no literal arm",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "-0.0: dynamic\n3.0: carried\nNaN: no literal matched",
+          "source": "fn mode(x: f64) -> &'static str {\n    match x {\n        0.0 => \"dynamic\",\n        1.0 => \"kinematic\",\n        2.0 => \"lifted\",\n        3.0 => \"carried\",\n        _ => \"no literal matched\",\n    }\n}\n\nfn main() {\n    for x in [-0.0, 3.0, f64::NAN] {\n        println!(\"{x:?}: {}\", mode(x));\n    }\n}\n"
+        },
+        {
+          "label": "A law whose match on Mode forgets Carried fails to build: E0004",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0004"
+          ],
+          "stderr_contains": [
+            "`Mode::Carried` not covered"
+          ],
+          "source": "#[derive(Clone, Copy, Debug, PartialEq, Eq)]\npub enum Mode { Dynamic, Kinematic, Lifted, Carried }\n\n// A law that forgot one mode does not build.\npub fn box_law_driven(mode: Mode) -> bool {\n    match mode {\n        Mode::Dynamic => false,\n        Mode::Kinematic | Mode::Lifted => true,\n    }\n}\n"
+        },
+        {
+          "label": "The exhaustive match over Mode compiles clean",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "#[derive(Clone, Copy, Debug, PartialEq, Eq)]\npub enum Mode { Dynamic, Kinematic, Lifted, Carried }\n\n// Each law states what every mode means; a new mode fails the build until it does.\npub fn box_law_driven(mode: Mode) -> bool {\n    match mode {\n        Mode::Dynamic | Mode::Carried => false,\n        Mode::Kinematic | Mode::Lifted => true,\n    }\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "std::convert::TryFrom (Rust 1.98.1 docs)",
+          "url": "https://doc.rust-lang.org/stable/std/convert/trait.TryFrom.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "TryFrom is for simple and safe type conversions that may fail in a controlled way, returning Result<Self, Self::Error>."
+        },
+        {
+          "title": "Rust error codes index — E0004",
+          "url": "https://doc.rust-lang.org/stable/error_codes/E0004.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "E0004",
+          "claim": "E0004: the compiler cannot guarantee a matching pattern for every possible input to a match expression."
+        },
+        {
+          "title": "core f64 doc comments, rust-lang/rust tag 1.98.1 (library/core/src/num/f64.rs)",
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/core/src/num/f64.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "to_le_bytes returns the memory representation in little-endian byte order; to_ne_bytes uses native order and 'portable code should use to_be_bytes or to_le_bytes'; is_finite returns true if the number is neither infinite nor NaN."
+        },
+        {
+          "title": "si-rpg-engine solver/src/lib.rs at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/solver/src/lib.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "BODY_STRIDE is 17, DRIVEN is slot 16, DT is 1.0 / 64.0, and the box step reads the mode slot as `!= 0.0`."
+        },
+        {
+          "title": "si-rpg-engine solver/src/rapier_law.rs at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/solver/src/rapier_law.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "canon maps both zeros to +0.0, bad() is x.is_nan(), mix_u64 is h.wrapping_mul(0x100000001b3).wrapping_add(x), push_f64 writes canon(x).to_le_bytes(), and rebuild_snapshot sorts pairs by into_raw_parts() and pushes both colliders' index and generation."
+        },
+        {
+          "title": "si-rpg-engine docs/dispatch-s1-soundness.md at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/docs/dispatch-s1-soundness.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "S1 validates the mode slot (pin 2), keeps the stable pair sort (pin 6), tests removal history (pin 9), refuses non-finite values (pin 10), fixes canon_quat (pin 11) and splits u32-only digest input across the lanes so the halves differ (pin 13)."
+        },
+        {
+          "title": "si-rpg-engine docs/dispatch-t2-restore.md at 1701b72",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/docs/dispatch-t2-restore.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "1701b72",
+          "claim": "solver_restore refuses a length that does not match the layout, any NaN, and a quaternion not unit within 1e-9; the restore test runs to a third of the way, saves, restores into a fresh world and requires first-difference to report identical."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "keep-the-law-out-of-an-ecs-archetype-tables-swap-remove-rows-and-query-iteration-order-is-not-guaranteed",
+      "name": "Keep the law out of an ECS: archetype tables swap-remove rows and query iteration order is not guaranteed",
+      "what": "bevy_ecs 0.19.1 and hecs 0.11.1 keep entities in archetype tables that swap-remove rows, bevy documents query iteration order as not guaranteed and runs non-conflicting systems in parallel, and Entity bits are not stable across releases; for a 64-record law an ECS buys composition it does not need and costs an explicit sort, a pinned executor and ambiguity checks to win determinism back.",
+      "how": "Keep the law as flat arrays in record order and let an ECS, if any, live on the host's presentation side, receiving committed frames. If law-relevant code does run in bevy_ecs: iterate with `QueryIter::sort` by a stable id component (stable, built on `slice::sort`, not cached across system runs) or `iter_many` over a sorted id list (items come back in the list's order); install `SingleThreadedExecutor::new()` with `Schedule::set_executor`, or order every system; raise `ScheduleBuildSettings::ambiguity_detection` from its default `LogLevel::Ignore`; never persist `Entity` bits. hecs is 'a library, not a framework' with no System abstraction, so ordering stays in your code, but its archetypes still swap-remove.",
+      "rust_version": "bevy_ecs 0.19.1 (0.20.0-rc.1 exists), hecs 0.11.1; neither is in the oracle set, so the check models the mechanism",
+      "gotchas": "Measured on a model of the mechanism (hecs's `Archetype::remove` and bevy's `Table::swap_remove_unchecked` move the last row into the hole; hecs's `World::insert` appends the entity to its new archetype): iteration [1,2,3,4,5] becomes [1,5,3,4] after despawning 2 and [4,5,3,1] after 1 moves to another archetype; sorting by id gives [1,3,4,5]. `par_iter`: 'Iteration order and thread assignment is not guaranteed'. bevy's Entity docs: the internal bit representation 'is liable to change from release to release', and `to_bits`/`from_bits` identify entities only within one running instance. Not measured: whether bevy's allocator hands out the same ids for the same spawn and despawn sequence is not documented, so do not rely on it.",
+      "engine_note": "The law is solver/src: stride-17 `BODIES`, stride-10 `COLLIDERS` and one Rapier `PhysicsWorld` whose handles follow insertion order (recipe on stable ids). An ECS in the law would add a second storage whose order must be sorted back into record order before every Rapier insert and before the snapshot. The Godot and Unreal hosts after Phase 2 bring their own scene trees; keep them on the presentation side of the boundary. Judgment, not measurement: no ECS in the law; revisit only if the record outgrows fixed strides.",
+      "checks": [
+        {
+          "label": "Swap-remove storage model: one despawn and one archetype move reorder iteration; sort restores",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "spawned:        [1, 2, 3, 4, 5]\ndespawn 2:      [1, 5, 3, 4]\n1 gains a part: [4, 5, 3, 1]\nsorted by id:   [1, 3, 4, 5]",
+          "source": "// A model of archetype storage: each table is a Vec of entity ids. Despawn is a\n// swap-remove (hecs 0.11.1 Archetype::remove, bevy_ecs 0.19.1\n// Table::swap_remove_unchecked); gaining a component appends the entity to another\n// archetype and swap-removes it from the old one (hecs 0.11.1 World::insert).\nfn iterate(tables: &[Vec<u32>]) -> Vec<u32> { tables.iter().flatten().copied().collect() }\n\nfn main() {\n    let mut boxes: Vec<u32> = vec![1, 2, 3, 4, 5];\n    let mut carried: Vec<u32> = vec![];\n    println!(\"spawned:        {:?}\", iterate(&[boxes.clone(), carried.clone()]));\n    let at = boxes.iter().position(|&e| e == 2).unwrap();\n    boxes.swap_remove(at); // despawn 2: the last row moves into its place\n    println!(\"despawn 2:      {:?}\", iterate(&[boxes.clone(), carried.clone()]));\n    let at = boxes.iter().position(|&e| e == 1).unwrap();\n    let moved = boxes.swap_remove(at); // add a Carried component to 1\n    carried.push(moved);\n    println!(\"1 gains a part: {:?}\", iterate(&[boxes.clone(), carried.clone()]));\n    let mut sorted = iterate(&[boxes, carried]);\n    sorted.sort_unstable();\n    println!(\"sorted by id:   {:?}\", sorted);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "bevy_ecs 0.19.1 — struct Query",
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/system/struct.Query.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "iter and iter_mut: 'Iteration order is not guaranteed'; par_iter: 'Iteration order and thread assignment is not guaranteed'; iter_many returns items in the order of the given entity list."
+        },
+        {
+          "title": "bevy_ecs 0.19.1 — struct QueryIter",
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/query/struct.QueryIter.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "QueryIter::sort sorts items by the query lens, is stable, uses slice::sort internally, and is not cached across system runs."
+        },
+        {
+          "title": "bevy_ecs 0.19.1 — struct ScheduleBuildSettings",
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/schedule/struct.ScheduleBuildSettings.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "ambiguity_detection decides whether systems with conflicting access but indeterminate order are only logged or reported, and defaults to LogLevel::Ignore."
+        },
+        {
+          "title": "bevy_ecs 0.19.1 — struct Schedule",
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/schedule/struct.Schedule.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Schedule::set_executor replaces the schedule's executor and set_build_settings changes its ScheduleBuildSettings."
+        },
+        {
+          "title": "bevy_ecs 0.19.1 — struct SingleThreadedExecutor",
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/schedule/struct.SingleThreadedExecutor.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "SingleThreadedExecutor runs the schedule using a single thread and is created with new()."
+        },
+        {
+          "title": "bevy_ecs 0.19.1 — struct MultiThreadedExecutor",
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/schedule/struct.MultiThreadedExecutor.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "MultiThreadedExecutor runs the schedule using a thread pool, and non-conflicting systems can run in parallel."
+        },
+        {
+          "title": "bevy_ecs 0.19.1 source — src/storage/table/mod.rs",
+          "url": "https://docs.rs/crate/bevy_ecs/0.19.1/source/src/storage/table/mod.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Table::swap_remove_unchecked removes a row and returns the entity swapped in to replace it, calling entities.swap_remove."
+        },
+        {
+          "title": "bevy_ecs 0.19.1 — struct Entity",
+          "url": "https://docs.rs/bevy_ecs/0.19.1/bevy_ecs/entity/struct.Entity.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "An Entity is an index plus a generation incremented on despawn; its internal bit representation is liable to change from release to release, and to_bits/from_bits only identify entities within one running instance."
+        },
+        {
+          "title": "hecs 0.11.1 — crate documentation",
+          "url": "https://docs.rs/hecs/0.11.1/hecs/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "hecs is a minimalist ECS world, 'a library, not a framework'; in place of an explicit System abstraction, a World's entities are queried from regular code."
+        },
+        {
+          "title": "hecs 0.11.1 source — src/archetype.rs",
+          "url": "https://docs.rs/crate/hecs/0.11.1/source/src/archetype.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Archetype::remove and move_to copy the last entity into the vacated index (swap-remove) and allocate places a new entity at index len, the end."
+        },
+        {
+          "title": "hecs 0.11.1 source — src/world.rs",
+          "url": "https://docs.rs/crate/hecs/0.11.1/source/src/world.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "World::insert moving an entity to another archetype calls target_arch.allocate(entity.id) and then source_arch.remove(loc.index, false)."
+        },
+        {
+          "title": "crates.io API — bevy_ecs",
+          "url": "https://crates.io/api/v1/crates/bevy_ecs",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "bevy_ecs 0.19.1 was published 2026-08-13 and 0.20.0-rc.1 on 2026-09-15."
+        },
+        {
+          "title": "crates.io API — hecs",
+          "url": "https://crates.io/api/v1/crates/hecs",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "hecs 0.11.1 was published 2026-07-28."
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

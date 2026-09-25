@@ -1,0 +1,858 @@
+{
+  "bucket": "binary-and-limits",
+  "title": "Binary lint, CCD and controller limits (T3/T4)",
+  "tier": "si-rpg-engine",
+  "count": 10,
+  "recipes": [
+    {
+      "slug": "fix-wasm32-memory-with-c-link-arg-no-growable-memory-or-equal-page-aligned-initial-memory-max-memory",
+      "name": "Fix wasm32 memory with -C link-arg=--no-growable-memory or equal, page-aligned --initial-memory/--max-memory",
+      "what": "On rustc 1.98.1 (rust-lld, LLD 22.1.8) two stable link args make a wasm32 module's maximum equal its initial size; memory.grow of one page then returns -1 on every host.",
+      "how": "Pass -C link-arg=--no-growable-memory (the maximum becomes the initial size wasm-ld computes: 1 MiB stack, data, statics, rounded up to pages) or -C link-arg=--initial-memory=N -C link-arg=--max-memory=N with N a multiple of 65,536 and at least the bytes wasm-ld reports. RUSTFLAGS replaces the [target] rustflags of .cargo/config.toml, so put the argument where it survives: a build.rs printing cargo::rustc-link-arg-cdylib=--no-growable-memory (measured: still 18/18 pages with RUSTFLAGS set), or repeat it in every RUSTFLAGS. Check the result with a decoder: memory limits flag 0x01 with max == min. From Rust, core::arch::wasm32::memory_grow(0, n) returns usize::MAX (-1 as i32) once the maximum would be exceeded.",
+      "rust_version": "rustc 1.98.1 (LLD 22.1.8), wasm32-unknown-unknown",
+      "gotchas": "wasm-ld refuses, verbatim: 'initial memory must be aligned to the page size (65536 bytes)', 'initial memory too small, 1117808 bytes needed' (for the solver), 'maximum memory too small, 4194304 bytes needed' (max below initial). --no-growable-memory alone fixes the memory at the linker's minimum (18 pages for the solver), leaving std's allocator about 60 KB of heap: the product golden printed NAN and 32 of 73 tests failed. The link args change only the memory section; std's allocator keeps its memory.grow instruction (see the fixed-arena allocator recipe). No -Z flag is needed.",
+      "engine_note": "solver/build.mjs (RUSTFLAGS) and solver/.cargo/config.toml, T3 pin 2. Measured on a copy of solver/: no args gives initial 18 pages and no maximum; --no-growable-memory gives 18/18; --initial-memory = --max-memory = 4194304 gives 64/64; the memory.grow count stays 1 in all three. PR #44 fixes 256 pages with the two explicit args in both config.toml and build.mjs.",
+      "checks": [
+        {
+          "label": "Without a maximum, memory.grow(1) succeeds and returns the old size, 16 pages",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "16",
+          "wasm_exports": [
+            "memory",
+            "grow"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "grow",
+            "args": []
+          },
+          "source": "// One page asked of a memory whose maximum equals its initial size.\n#[no_mangle]\npub extern \"C\" fn grow() -> i32 {\n    core::arch::wasm32::memory_grow(0, 1) as i32\n}\n\n#[no_mangle]\npub extern \"C\" fn pages() -> i32 {\n    core::arch::wasm32::memory_size(0) as i32\n}\n"
+        },
+        {
+          "label": "--no-growable-memory: memory.grow(1) returns -1",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "link-arg=--no-growable-memory"
+          ],
+          "expect": "runs",
+          "stdout": "-1",
+          "wasm_exports": [
+            "memory",
+            "grow"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "grow",
+            "args": []
+          },
+          "source": "// One page asked of a memory whose maximum equals its initial size.\n#[no_mangle]\npub extern \"C\" fn grow() -> i32 {\n    core::arch::wasm32::memory_grow(0, 1) as i32\n}\n\n#[no_mangle]\npub extern \"C\" fn pages() -> i32 {\n    core::arch::wasm32::memory_size(0) as i32\n}\n"
+        },
+        {
+          "label": "Equal --initial-memory/--max-memory of 4194304 bytes give 64 pages",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "link-arg=--initial-memory=4194304",
+            "-C",
+            "link-arg=--max-memory=4194304"
+          ],
+          "expect": "runs",
+          "stdout": "64",
+          "wasm_exports": [
+            "memory",
+            "pages"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "pages",
+            "args": []
+          },
+          "source": "// One page asked of a memory whose maximum equals its initial size.\n#[no_mangle]\npub extern \"C\" fn grow() -> i32 {\n    core::arch::wasm32::memory_grow(0, 1) as i32\n}\n\n#[no_mangle]\npub extern \"C\" fn pages() -> i32 {\n    core::arch::wasm32::memory_size(0) as i32\n}\n"
+        },
+        {
+          "label": "Equal --initial-memory/--max-memory: memory.grow(1) returns -1",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "link-arg=--initial-memory=4194304",
+            "-C",
+            "link-arg=--max-memory=4194304"
+          ],
+          "expect": "runs",
+          "stdout": "-1",
+          "wasm_exports": [
+            "memory",
+            "grow"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "grow",
+            "args": []
+          },
+          "source": "// One page asked of a memory whose maximum equals its initial size.\n#[no_mangle]\npub extern \"C\" fn grow() -> i32 {\n    core::arch::wasm32::memory_grow(0, 1) as i32\n}\n\n#[no_mangle]\npub extern \"C\" fn pages() -> i32 {\n    core::arch::wasm32::memory_size(0) as i32\n}\n"
+        },
+        {
+          "label": "An initial memory that is not a multiple of 65536 fails to link",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "link-arg=--initial-memory=4000000"
+          ],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "initial memory must be aligned to the page size (65536 bytes)"
+          ],
+          "source": "// One page asked of a memory whose maximum equals its initial size.\n#[no_mangle]\npub extern \"C\" fn grow() -> i32 {\n    core::arch::wasm32::memory_grow(0, 1) as i32\n}\n\n#[no_mangle]\npub extern \"C\" fn pages() -> i32 {\n    core::arch::wasm32::memory_size(0) as i32\n}\n"
+        },
+        {
+          "label": "An initial memory below the static footprint fails to link",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "link-arg=--initial-memory=65536"
+          ],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "initial memory too small"
+          ],
+          "source": "// One page asked of a memory whose maximum equals its initial size.\n#[no_mangle]\npub extern \"C\" fn grow() -> i32 {\n    core::arch::wasm32::memory_grow(0, 1) as i32\n}\n\n#[no_mangle]\npub extern \"C\" fn pages() -> i32 {\n    core::arch::wasm32::memory_size(0) as i32\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "LLD documentation: WebAssembly lld port (wasm-ld options)",
+          "url": "https://lld.llvm.org/WebAssembly.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "--initial-memory defaults to stack + static data + heap, --max-memory defaults to unlimited, and --no-growable-memory sets the maximum to the initial size, disallowing growth."
+        },
+        {
+          "title": "The rustc book: Codegen options (-C link-arg, -C target-feature)",
+          "url": "https://doc.rust-lang.org/stable/rustc/codegen-options/index.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "-C link-arg appends one argument to the linker invocation and may be repeated; -C target-feature sets the default feature set, with per-function control through the target_feature attribute."
+        },
+        {
+          "title": "The Cargo Book: Build Scripts (cargo::rustc-link-arg-cdylib)",
+          "url": "https://doc.rust-lang.org/cargo/reference/build-scripts.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "cargo::rustc-link-arg-cdylib=FLAG makes Cargo pass -C link-arg=FLAG when building a cdylib target; cargo::rustc-cdylib-link-arg is an alias."
+        },
+        {
+          "title": "core::arch::wasm32::memory_grow",
+          "url": "https://doc.rust-lang.org/stable/core/arch/wasm32/fn.memory_grow.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "memory_grow(MEM, delta) is the memory.grow intrinsic: it returns the previous size in pages on success and usize::MAX on failure."
+        },
+        {
+          "title": "WebAssembly Specification 3.0: Execution, Modules (Growing memories)",
+          "url": "https://webassembly.github.io/spec/core/exec/modules.html",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "Growing a memory fails when the new size would exceed the memory type's maximum."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "remove-memory-grow-from-the-law-s-binary-with-a-fixed-arena-global-allocator-dlmalloc-0-2-13-over-one-span",
+      "name": "Remove memory.grow from the law's binary with a fixed-arena #[global_allocator]: dlmalloc 0.2.13 over one span",
+      "what": "std 1.98.1's wasm32 System allocator is dlmalloc 0.2.13 and calls memory.grow; a #[global_allocator] that hands dlmalloc one fixed span removes the instruction and left the solver's results bit-identical.",
+      "how": "Add dlmalloc = \"=0.2.13\" and a static Dlmalloc<Arena> built with Dlmalloc::new_with_allocator(Arena { .. }). Arena implements the unsafe trait dlmalloc::Allocator: alloc hands out one span once (a zero-initialised static array, or __heap_base up to memory_size(0) * 65536 under fixed memory) and returns (null, 0, 0) after that; remap returns null; free_part, free and can_release_part return false; allocates_zeros returns true; page_size returns 65536. Forward GlobalAlloc alloc, alloc_zeroed, dealloc and realloc to malloc, calloc, free and realloc, mark the static #[global_allocator], and link with --no-growable-memory or equal initial and max. Size the span from the high-water mark of a growable build (memory.buffer.byteLength after the heaviest run): dlmalloc never releases and wasm memory never shrinks.",
+      "rust_version": "rustc 1.98.1, dlmalloc 0.2.13, wasm32-unknown-unknown",
+      "gotchas": "Linker limits alone keep the instruction: the fixed-memory builds still contain one memory.grow in <dlmalloc::sys::System as dlmalloc::Allocator>::alloc. dlmalloc 0.2.13 donates the linker's __heap_base..__heap_end span only on its first system request and forfeits it if that request does not fit (src/wasm.rs 39-48). Exhaustion returns null and Rust aborts: an unreachable trap, identical on every host once max == initial. The heap need scales with contacts, not bodies: 49, 147 and 3,320 pages for a settling pile, a dense stack and an all-overlapping world at the same 64/64/256 caps under today's law; 53, 245 and 3,973 under PR #44's per-quantum rebuild.",
+      "engine_note": "solver/src/lib.rs (#[global_allocator]) and solver/Cargo.toml, T3 pins 2 and 8. Measured on a copy: dlmalloc over a 32 MiB arena gives 532/532 pages and 0 memory.grow, and goldens fd2f6c03fb982d77 / 0d38671370d12d1e and 73/73 tests are unchanged; the product harness needs 21 pages today. PR #44's src/arena.rs rebuilt here also has 0 memory.grow, but its dense capacity scene peaks at 245 of its 256 pages; 512 pages leaves about 2x.",
+      "checks": [
+        {
+          "label": "std's allocator grows the memory 65 pages to hold a 4 MiB Vec",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "65",
+          "wasm_exports": [
+            "memory",
+            "grew"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "grew",
+            "args": []
+          },
+          "source": "// std's allocator on wasm32-unknown-unknown: allocate 4 MiB and report how\n// many pages the memory grew by while doing it.\n#[no_mangle]\npub extern \"C\" fn grew() -> i32 {\n    let before = core::arch::wasm32::memory_size(0);\n    let v: Vec<u64> = (0..524_288u64).collect();\n    let sum: u64 = v.iter().sum();\n    let after = core::arch::wasm32::memory_size(0);\n    if sum != 524_288 * 524_287 / 2 {\n        return -1;\n    }\n    (after - before) as i32\n}\n"
+        },
+        {
+          "label": "Freed memory is reused and never returned: 65 pages grown, then 0 for 1 MiB",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "65000",
+          "wasm_exports": [
+            "memory",
+            "high_water"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "high_water",
+            "args": []
+          },
+          "source": "// std's allocator: grow for 4 MiB, drop it, then allocate 1 MiB. Returns\n// pages grown in phase one * 1000 + pages grown in phase two.\n#[no_mangle]\npub extern \"C\" fn high_water() -> i32 {\n    let p0 = core::arch::wasm32::memory_size(0);\n    {\n        let v: Vec<u64> = (0..524_288u64).collect();\n        core::hint::black_box(&v);\n    }\n    let p1 = core::arch::wasm32::memory_size(0);\n    let w: Vec<u64> = (0..131_072u64).collect();\n    core::hint::black_box(&w);\n    let p2 = core::arch::wasm32::memory_size(0);\n    ((p1 - p0) * 1000 + (p2 - p1)) as i32\n}\n"
+        },
+        {
+          "label": "A fixed-arena #[global_allocator] under --no-growable-memory grows 0 pages",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "link-arg=--no-growable-memory"
+          ],
+          "expect": "runs",
+          "stdout": "0",
+          "wasm_exports": [
+            "memory",
+            "grew"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "grew",
+            "args": []
+          },
+          "source": "// A #[global_allocator] over a fixed static arena: power-of-two size classes,\n// a free list per class, bump allocation from the arena. It never calls\n// memory.grow; exhaustion returns null and Rust aborts.\nuse std::alloc::{GlobalAlloc, Layout};\nuse std::cell::UnsafeCell;\n\nconst ARENA_BYTES: usize = 8 << 20;\nconst CLASSES: usize = 32;\n\n#[repr(C, align(4096))]\nstruct Arena(UnsafeCell<[u8; ARENA_BYTES]>);\nunsafe impl Sync for Arena {}\nstatic ARENA: Arena = Arena(UnsafeCell::new([0; ARENA_BYTES]));\n\nstruct State {\n    next: usize,\n    free: [usize; CLASSES],\n}\nstruct Holder(UnsafeCell<State>);\nunsafe impl Sync for Holder {}\nstatic STATE: Holder = Holder(UnsafeCell::new(State { next: 0, free: [0; CLASSES] }));\n\nstruct FixedArena;\n\nfn class_of(layout: Layout) -> usize {\n    let need = layout.size().max(layout.align()).max(16);\n    (usize::BITS - (need - 1).leading_zeros()) as usize\n}\n\nunsafe impl GlobalAlloc for FixedArena {\n    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {\n        let c = class_of(layout);\n        if c >= CLASSES {\n            return std::ptr::null_mut();\n        }\n        let st = unsafe { &mut *STATE.0.get() };\n        let head = st.free[c];\n        if head != 0 {\n            st.free[c] = unsafe { *(head as *const usize) };\n            return head as *mut u8;\n        }\n        let size = 1usize << c;\n        let align = size.min(4096);\n        let base = ARENA.0.get() as usize;\n        let start = (base + st.next + align - 1) & !(align - 1);\n        if start + size > base + ARENA_BYTES {\n            return std::ptr::null_mut();\n        }\n        st.next = start + size - base;\n        start as *mut u8\n    }\n\n    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {\n        let c = class_of(layout);\n        let st = unsafe { &mut *STATE.0.get() };\n        unsafe { *(ptr as *mut usize) = st.free[c] };\n        st.free[c] = ptr as usize;\n    }\n}\n\n#[global_allocator]\nstatic GLOBAL: FixedArena = FixedArena;\n\n#[no_mangle]\npub extern \"C\" fn grew() -> i32 {\n    let before = core::arch::wasm32::memory_size(0);\n    let v: Vec<u64> = (0..524_288u64).collect();\n    let sum: u64 = v.iter().sum();\n    let after = core::arch::wasm32::memory_size(0);\n    if sum != 524_288 * 524_287 / 2 {\n        return -1;\n    }\n    (after - before) as i32\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "rust-lang/rust 1.98.1: library/std/src/sys/alloc/wasm.rs",
+          "url": "https://github.com/rust-lang/rust/blob/1.98.1/library/std/src/sys/alloc/wasm.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "At the 1.98.1 tag std's wasm32 GlobalAlloc for System is a static dlmalloc::Dlmalloc (lines 11-17, 23-27, 29-60)."
+        },
+        {
+          "title": "dlmalloc-rs 0.2.13: src/wasm.rs",
+          "url": "https://github.com/alexcrichton/dlmalloc-rs/blob/0.2.13/src/wasm.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "The wasm System allocator donates the linker's __heap_base..__heap_end span once, otherwise calls memory_grow(0, pages) and returns null on usize::MAX, and never releases memory (lines 17-56, 87-115)."
+        },
+        {
+          "title": "dlmalloc 0.2.13: struct Dlmalloc",
+          "url": "https://docs.rs/dlmalloc/0.2.13/dlmalloc/struct.Dlmalloc.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Dlmalloc<A = System> has pub const fn new_with_allocator(sys_allocator: A) and malloc/calloc/free/realloc taking size and alignment."
+        },
+        {
+          "title": "dlmalloc 0.2.13: trait Allocator",
+          "url": "https://docs.rs/dlmalloc/0.2.13/dlmalloc/trait.Allocator.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The unsafe trait Allocator supplies system memory to dlmalloc through alloc, remap, free_part, free, can_release_part, allocates_zeros and page_size."
+        },
+        {
+          "title": "std::alloc: the #[global_allocator] attribute",
+          "url": "https://doc.rust-lang.org/stable/std/alloc/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "#[global_allocator] on a static whose type implements GlobalAlloc routes all default allocations to it; cdylibs use System by default."
+        },
+        {
+          "title": "Wasmtime: Deterministic Wasm Execution",
+          "url": "https://docs.wasmtime.dev/examples-deterministic-wasm-execution.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "memory.grow and table.grow may non-deterministically succeed or fail; a validator that rejects growth instructions or non-fixed memories is one of the recommended remedies."
+        },
+        {
+          "title": "rust-lang/rust 1.98.1: library/Cargo.lock",
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/Cargo.lock",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "std at 1.98.1 locks dlmalloc 0.2.13 from crates.io."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "lint-wasm-by-decoding-every-instruction-0x40-and-0xfd-bytes-recur-in-block-types-immediates-and-data",
+      "name": "Lint wasm by decoding every instruction: 0x40 and 0xFD bytes recur in block types, immediates and data",
+      "what": "The solver binary's code section holds 16,558 bytes equal to 0x40 against one memory.grow (14,916 of them empty block types) and 277 bytes equal to 0xFD against zero SIMD instructions; i32.const 32893 encodes as 41 fd 80 02.",
+      "how": "Walk sections by id and u32 size. In the code section read each body's size, skip its locals vector, then decode instruction by instruction with a table that knows every immediate: block types (0x40, a one-byte value type, or an s33 index), br_table vectors, memarg with the bit-6 memidx, i32/i64 const as signed LEB128, f32/f64 const as 4/8 bytes, 0xFC and 0xFD sub-opcodes as u32 LEB128, 16 bytes for v128.const and i8x16.shuffle, lane indices. Flag only at opcode positions, and refuse any opcode or sub-opcode the table lacks, so a gap can only cause a false refusal. In Rust, wasmparser's FunctionBody::get_operators_reader() does the decoding.",
+      "rust_version": "any (wasmparser 0.259.0 for the Rust decoder)",
+      "gotchas": "Scanning the whole file adds data-segment and custom-section bytes; scanning only the code section still misfires, because every block, loop or if without results is 02/03/04 40, i32.const -64 is 41 40 and an unpadded index of 64 is the byte 40. A byte-level over-approximation that refuses any 0x40 or 0xFD refuses the pinned binary. The target_features custom section (+relaxed-simd, +simd128) is a cheap second signal, but custom sections are optional.",
+      "engine_note": "solver/lint.mjs and solver/lint.test.js, T3 pins 2 and 3. PR #44's lint.mjs decodes this way; run on hand-assembled modules it accepted the four false-positive cases and refused the real ones. Two gaps that do not touch rustc output: 0xFD sub-opcodes below 0x100 missing from its table pass as immediate-free, and table.grow is not refused.",
+      "checks": [
+        {
+          "label": "A body with 0x40 twice and fd 80 02 once decodes to no memory.grow and no relaxed op",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "wasmparser"
+          ],
+          "expect": "runs",
+          "stdout": "byte scan: 0x40 x2 | fd 80 02 x1\ndecoded: memory.grow x0 | relaxed x0\nBlock { blockty: Empty } | End | I32Const { value: -64 } | Drop | I32Const { value: 32893 } | Drop | End",
+          "exit_code": 0,
+          "source": "// A function body with no memory.grow and no relaxed SIMD whose bytes still\n// contain 0x40 twice and the sequence fd 80 02 once.\nuse wasmparser::{BinaryReader, FunctionBody};\n\nfn decode(body: &[u8]) -> Vec<String> {\n    let mut ops = FunctionBody::new(BinaryReader::new(body, 0)).get_operators_reader().unwrap();\n    let mut out = Vec::new();\n    while !ops.eof() {\n        out.push(format!(\"{:?}\", ops.read().unwrap()));\n    }\n    out\n}\n\nfn main() {\n    // no locals; block (empty) end; i32.const -64; drop; i32.const 32893; drop; end\n    let body = [0x00, 0x02, 0x40, 0x0b, 0x41, 0x40, 0x1a, 0x41, 0xfd, 0x80, 0x02, 0x1a, 0x0b];\n    let naive_40 = body.iter().filter(|&&b| b == 0x40).count();\n    let naive_relaxed = body.windows(3).filter(|w| *w == [0xfd, 0x80, 0x02]).count();\n    let ops = decode(&body);\n    let grows = ops.iter().filter(|o| o.starts_with(\"MemoryGrow\")).count();\n    let relaxed = ops.iter().filter(|o| o.contains(\"Relaxed\")).count();\n    println!(\"byte scan: 0x40 x{} | fd 80 02 x{}\", naive_40, naive_relaxed);\n    println!(\"decoded: memory.grow x{} | relaxed x{}\", grows, relaxed);\n    println!(\"{}\", ops.join(\" | \"));\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "WebAssembly Specification 3.0: Binary Format, Instructions",
+          "url": "https://webassembly.github.io/spec/core/binary/instructions.html",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "memory.grow is 0x40 followed by a memidx, 0x40 as a block type means the empty type, and vector instructions are the 0xFD prefix followed by a u32 opcode."
+        },
+        {
+          "title": "WebAssembly Specification 3.0: Binary Format, Values (integers)",
+          "url": "https://webassembly.github.io/spec/core/binary/values.html",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "A uN is LEB128 of at most ceil(N/7) bytes, and trailing zeros are allowed: 0x03 and 0x83 0x00 both encode 3."
+        },
+        {
+          "title": "wasmparser 0.259.0: struct OperatorsReader",
+          "url": "https://docs.rs/wasmparser/0.259.0/wasmparser/struct.OperatorsReader.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "OperatorsReader decodes a function body's operators one at a time with read() and read_with_offset()."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "match-relaxed-simd-as-0xfd-then-u32-leb128-256-275-and-memory-grow-as-0x40-then-a-memidx-padding-allowed",
+      "name": "Match relaxed SIMD as 0xFD then u32 LEB128 256..=275 and memory.grow as 0x40 then a memidx, padding allowed",
+      "what": "Relaxed SIMD is 0xFD followed by the opcode 0x100..=0x113 as a u32 LEB128 (canonically fd 80 02 to fd 93 02; 0x114-0x12F reserved) and memory.grow is 0x40 followed by a memidx; V8 and wasmparser accept padded encodings such as fd 80 82 80 80 00 and 40 80 00.",
+      "how": "After an opcode byte 0xFD read the sub-opcode as an unsigned LEB128 of up to 5 bytes (the fifth carries 4 value bits) and refuse 256 <= sub <= 275. After 0x40 read a u32 LEB128 memidx instead of expecting the byte 0x00. For each defined or imported memory read the limits flag: 0x00 (min only) is growable, 0x01 needs max == min, 0x04/0x05 are the i64 address type and 0x02/0x03 shared; refuse what the law must not produce.",
+      "rust_version": "any; WebAssembly 3.0 binary format",
+      "gotchas": "A byte-pattern search for fd 80 02 misses a padded encoding, which the spec allows up to ceil(N/7) bytes (0x03 and 0x83 0x00 both encode 3). 0x114 is not a relaxed opcode: V8 rejects the module and wasmparser reports 'unknown 0xfd subopcode: 0x114'. The spec's own instruction index was cut off before SIMD when retrieved; the numbered list is the relaxed-simd proposal's table.",
+      "engine_note": "T3 pin 2 ('the 0xfd prefix with opcodes 0x100 through 0x113') and PR #44's lint.mjs constants RELAXED_SIMD_FIRST/LAST and MEMORY_GROW. Add to solver/lint.test.js: i32.const 32893 (41 fd 80 02) and an empty block, accepted; fd 80 82 80 80 00 and 40 80 00, refused.",
+      "checks": [
+        {
+          "label": "wasmparser decodes padded relaxed and memory.grow encodings; 0x100..=0x113 are relaxed",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "wasmparser"
+          ],
+          "expect": "runs",
+          "stdout": "40 00 -> MemoryGrow { mem: 0 }\n40 80 00 -> MemoryGrow { mem: 0 }\nfd 80 02 -> I8x16RelaxedSwizzle\nfd 80 82 80 80 00 -> I8x16RelaxedSwizzle\nfd 85 02 -> F32x4RelaxedMadd\nfd 87 02 -> F64x2RelaxedMadd\nfd 93 02 -> I32x4RelaxedDotI8x16I7x16AddS\nfd 94 02 -> error: unknown 0xfd subopcode: 0x114\n0xfd subopcodes 0x100..=0x113 decoding as relaxed: 20/20",
+          "exit_code": 0,
+          "source": "// How wasmparser 0.259 decodes memory.grow and the relaxed-SIMD opcodes.\nuse wasmparser::{BinaryReader, FunctionBody};\n\nfn first_op(code: &[u8]) -> String {\n    let mut body = vec![0x00];\n    body.extend_from_slice(code);\n    body.push(0x0b);\n    let mut ops = FunctionBody::new(BinaryReader::new(&body, 0)).get_operators_reader().unwrap();\n    match ops.read() {\n        Ok(op) => format!(\"{:?}\", op),\n        Err(e) => format!(\"error: {}\", e.message()),\n    }\n}\n\nfn uleb(mut n: u32) -> Vec<u8> {\n    let mut out = Vec::new();\n    loop {\n        let mut b = (n & 0x7f) as u8;\n        n >>= 7;\n        if n != 0 {\n            b |= 0x80;\n        }\n        out.push(b);\n        if n == 0 {\n            return out;\n        }\n    }\n}\n\nfn main() {\n    for code in [\n        &[0x40, 0x00][..],\n        &[0x40, 0x80, 0x00][..],\n        &[0xfd, 0x80, 0x02][..],\n        &[0xfd, 0x80, 0x82, 0x80, 0x80, 0x00][..],\n        &[0xfd, 0x85, 0x02][..],\n        &[0xfd, 0x87, 0x02][..],\n        &[0xfd, 0x93, 0x02][..],\n        &[0xfd, 0x94, 0x02][..],\n    ] {\n        let hex: Vec<String> = code.iter().map(|b| format!(\"{:02x}\", b)).collect();\n        println!(\"{} -> {}\", hex.join(\" \"), first_op(code));\n    }\n    let named = (0x100u32..=0x113)\n        .filter(|&sub| {\n            let mut code = vec![0xfd];\n            code.extend(uleb(sub));\n            first_op(&code).contains(\"Relaxed\")\n        })\n        .count();\n    println!(\"0xfd subopcodes 0x100..=0x113 decoding as relaxed: {}/20\", named);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "WebAssembly relaxed-simd proposal: Overview",
+          "url": "https://github.com/WebAssembly/relaxed-simd/blob/main/proposals/relaxed-simd/Overview.md",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "The relaxed instructions are 0xfd 0x100 (i8x16.relaxed_swizzle) through 0xfd 0x113 (i32x4.relaxed_dot_i8x16_i7x16_add_s), 0x114-0x12F are reserved, and relaxed_madd may round once or twice depending on the host."
+        },
+        {
+          "title": "WebAssembly Specification 3.0: Binary Format, Instructions",
+          "url": "https://webassembly.github.io/spec/core/binary/instructions.html",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "memory.grow is 0x40 followed by a memidx, 0x40 as a block type means the empty type, and vector instructions are the 0xFD prefix followed by a u32 opcode."
+        },
+        {
+          "title": "WebAssembly Specification 3.0: Binary Format, Values (integers)",
+          "url": "https://webassembly.github.io/spec/core/binary/values.html",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "A uN is LEB128 of at most ceil(N/7) bytes, and trailing zeros are allowed: 0x03 and 0x83 0x00 both encode 3."
+        },
+        {
+          "title": "WebAssembly Specification 3.0: Binary Format, Types (limits)",
+          "url": "https://webassembly.github.io/spec/core/binary/types.html",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "Limits flags are 0x00 (min) and 0x01 (min, max) for the i32 address type and 0x04/0x05 for i64."
+        },
+        {
+          "title": "WebAssembly Specification 3.0: Appendix, Index of Instructions",
+          "url": "https://webassembly.github.io/spec/core/appendix/index-instructions.html",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "memory.grow x has opcode 0x40 and memory.size x has 0x3F."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "don-t-rely-on-c-target-feature-relaxed-simd-a-target-feature-fn-or-a-relaxed-intrinsic-still-emits",
+      "name": "Don't rely on -C target-feature=-relaxed-simd: a #[target_feature] fn or a relaxed intrinsic still emits",
+      "what": "Under -C target-feature=-relaxed-simd a #[target_feature(enable = \"relaxed-simd\")] function and a plain call to core::arch::wasm32::f32x4_relaxed_madd both compile without unsafe and emit f32x4.relaxed_madd (fd 85 02).",
+      "how": "Keep the crate-level -C target-feature=-relaxed-simd: it sets cfg(target_feature = \"relaxed-simd\") for every crate built, which is what gates the relaxed paths in matrixmultiply 0.3.11 (sgemm muladd becomes f32x4_relaxed_madd) and wide 1.7.1 (u8x16::shuffle becomes u8x16_relaxed_swizzle). Make the binary lint the guarantee, and when adding a dependency grep it for target_feature(enable and for *_relaxed_* intrinsics.",
+      "rust_version": "1.82+ (relaxed intrinsics stable); checked on 1.98.1",
+      "gotchas": "The rustc book: there is no compiler flag that disables SIMD emission once a function enables it with #[target_feature]. On Wasm a safe #[target_feature] fn is callable from safe code, so the call site carries no unsafe marker. The precompiled std is built with the target's default features and ignores -C target-feature. relaxed-simd implies simd128. relaxed_madd may round once or twice depending on the host.",
+      "engine_note": "solver/.cargo/config.toml, solver/build.mjs and FLAGS.md: the flag holds for today's graph (0 SIMD instructions in the binary) but is not the guarantee; T3 pin 2's lint is. PR #44's config.toml comment already says this.",
+      "checks": [
+        {
+          "label": "A plain call to f32x4_relaxed_madd compiles under -relaxed-simd and runs: 2*3+1",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "target-feature=-relaxed-simd"
+          ],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "7",
+          "wasm_exports": [
+            "memory",
+            "madd"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "madd",
+            "args": [
+              2,
+              3,
+              1
+            ]
+          },
+          "source": "// Built with -C target-feature=-relaxed-simd. The intrinsic carries its own\n// #[target_feature(enable = \"relaxed-simd\")], so the crate flag does not stop it.\nuse core::arch::wasm32::*;\n\n#[no_mangle]\npub extern \"C\" fn madd(a: f32, b: f32, c: f32) -> f32 {\n    let v = f32x4_relaxed_madd(f32x4_splat(a), f32x4_splat(b), f32x4_splat(c));\n    f32x4_extract_lane::<0>(v)\n}\n"
+        },
+        {
+          "label": "A #[target_feature(enable=relaxed-simd)] fn compiles under -relaxed-simd, called without unsafe",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "target-feature=-relaxed-simd"
+          ],
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "7",
+          "wasm_exports": [
+            "memory",
+            "madd"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "madd",
+            "args": [
+              2,
+              3,
+              1
+            ]
+          },
+          "source": "// Built with -C target-feature=-relaxed-simd. A function-level enable wins,\n// and on Wasm a safe #[target_feature] fn is callable from safe code.\nuse core::arch::wasm32::*;\n\n#[target_feature(enable = \"relaxed-simd\")]\nfn inner(a: f32, b: f32, c: f32) -> f32 {\n    let v = f32x4_relaxed_madd(f32x4_splat(a), f32x4_splat(b), f32x4_splat(c));\n    f32x4_extract_lane::<0>(v)\n}\n\n#[no_mangle]\npub extern \"C\" fn madd(a: f32, b: f32, c: f32) -> f32 {\n    inner(a, b, c)\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The rustc book: wasm32-unknown-unknown",
+          "url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The precompiled std is built with the target's default features, and there is no compiler flag to disable SIMD emission once a function enables it with #[target_feature]."
+        },
+        {
+          "title": "The Rust Reference: Code generation attributes (target_feature)",
+          "url": "https://doc.rust-lang.org/stable/reference/attributes/codegen.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "On Wasm safe #[target_feature] functions may always be used in safe contexts, and relaxed-simd implicitly enables simd128."
+        },
+        {
+          "title": "core::arch::wasm32::f32x4_relaxed_madd",
+          "url": "https://doc.rust-lang.org/stable/core/arch/wasm32/fn.f32x4_relaxed_madd.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "f32x4_relaxed_madd, stable since 1.82.0, computes a * b + c with either one or two roundings."
+        },
+        {
+          "title": "WebAssembly relaxed-simd proposal: Overview",
+          "url": "https://github.com/WebAssembly/relaxed-simd/blob/main/proposals/relaxed-simd/Overview.md",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "The relaxed instructions are 0xfd 0x100 (i8x16.relaxed_swizzle) through 0xfd 0x113 (i32x4.relaxed_dot_i8x16_i7x16_add_s), 0x114-0x12F are reserved, and relaxed_madd may round once or twice depending on the host."
+        },
+        {
+          "title": "WebAssembly design: Nondeterminism.md",
+          "url": "https://github.com/WebAssembly/design/blob/main/Nondeterminism.md",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The relaxed SIMD instructions have nondeterministic results, and resource exhaustion is a listed source of nondeterminism."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "expect-rapier-0-35-3-to-stop-t4-s-fast-box-at-a-fixed-slab-with-ccd-enabled-false-max-ccd-substeps-0-tunnels",
+      "name": "Expect Rapier 0.35.3 to stop T4's fast box at a fixed slab with ccd_enabled(false); max_ccd_substeps 0 tunnels",
+      "what": "In rapier3d-f64 0.35.3 every dynamic body moving more than half its thinnest half-extent per step is swept against fixed colliders even with ccd_enabled(false); ccd_enabled(true) only adds kinematic and dynamic targets.",
+      "how": "IntegrationParameters::max_ccd_substeps is the switch: 1 (the default) sweeps fast dynamic bodies against fixed colliders and clamps next_position to the first time of impact, 0 disables all CCD. RigidBodyBuilder::ccd_enabled(true) makes a bullet that also sweeps kinematic and dynamic bodies, never another bullet. Fast means max point velocity * dt > 0.5 * ccd_thickness, and a cuboid's ccd_thickness is its smallest half-extent: a 0.05 box at dt = 1/64 is fast above 1.6 u/s. To show a tunnelling test failing, run it with max_ccd_substeps = 0.",
+      "rust_version": "rapier3d-f64 0.35.3 (behaviour since 0.35.0)",
+      "gotchas": "The clamp moves the pose only; velocities are kept and the next step's speculative contacts absorb the approach. A body already overlapping a target is not clamped in 3D (only fractions > 0 are accepted). Non-bullets never sweep moving bodies, bullets never sweep bullets, heightfield targets are one-sided, and mesh-shaped fast bodies are never swept. Linear speed is capped at 400 u/s per substep. Pre-0.35 advice that CCD is off unless ccd_enabled no longer holds. Measured envelope at dt 1/64: no tunnelling for 1 to 1,000 u/s against fixed slabs of half-thickness 0.02 to 0.0001.",
+      "engine_note": "T4 pin 2 and its acceptance line: rapier_law.rs build_world makes dynamic bodies with ccd_enabled(false) and inherits max_ccd_substeps = 1, so the fast-body test already passes. Through solver_step 14/14 start phases stay on the near side, a copy with max_ccd_substeps = 0 tunnels in 10/14, and ccd_enabled(true) left every result identical; it only adds sweeps against the kinematic walker.",
+      "checks": [
+        {
+          "label": "A 0.05 box at 20 u/s vs a 0.02 fixed slab, 7 start phases, three CCD settings",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "CCD off world-wide (max_ccd_substeps 0): near FAR FAR FAR FAR FAR near\nengine today (ccd_enabled false, substeps 1): near near near near near near near\nT4 pin 2 (ccd_enabled true, substeps 1): near near near near near near near",
+          "exit_code": 0,
+          "source": "// T4 pin 2 as the engine builds it: dt 1/64, g -8, clustering off, warm-start 1,\n// a dynamic box of half-extent 0.05 launched at 20 u/s at a fixed slab of\n// half-thickness 0.02 (restitution 0, friction 0.8, sleep after 32 quanta).\nuse rapier3d_f64::prelude::*;\n\nfn run(y0: f64, ccd_enabled: bool, max_ccd_substeps: usize) -> (f64, f64) {\n    let mut world = PhysicsWorld::new();\n    world.gravity = Vector::new(0.0, -8.0, 0.0);\n    world.integration_parameters.dt = 1.0 / 64.0;\n    world.integration_parameters.contact_clustering = false;\n    world.integration_parameters.warmstart_coefficient = 1.0;\n    world.integration_parameters.max_ccd_substeps = max_ccd_substeps;\n    let slab = RigidBodyBuilder::fixed().translation(Vector::new(0.0, 0.0, 0.0)).build();\n    let slab_co = ColliderBuilder::cuboid(2.0, 0.02, 2.0).restitution(0.0).friction(0.8).build();\n    world.insert(slab, slab_co);\n    let mut body = RigidBodyBuilder::dynamic()\n        .translation(Vector::new(0.0, y0, 0.0))\n        .linvel(Vector::new(0.0, -20.0, 0.0))\n        .can_sleep(true)\n        .ccd_enabled(ccd_enabled)\n        .build();\n    body.activation_mut().time_until_sleep = 32.0 / 64.0;\n    let co = ColliderBuilder::cuboid(0.05, 0.05, 0.05).restitution(0.0).friction(0.8).build();\n    let (h, _) = world.insert(body, co);\n    let mut min_y = f64::MAX;\n    for _ in 0..64 {\n        world.step();\n        min_y = min_y.min(world.bodies[h].translation().y);\n    }\n    (world.bodies[h].translation().y, min_y)\n}\n\nfn main() {\n    let starts = [1.0, 1.05, 1.1, 1.15, 1.2, 1.25, 1.3];\n    let side = |(y, _): (f64, f64)| if y > 0.0 { \"near\" } else { \"FAR\" };\n    let row = |ccd: bool, sub: usize| starts.iter().map(|&y0| side(run(y0, ccd, sub))).collect::<Vec<_>>().join(\" \");\n    println!(\"CCD off world-wide (max_ccd_substeps 0): {}\", row(false, 0));\n    println!(\"engine today (ccd_enabled false, substeps 1): {}\", row(false, 1));\n    println!(\"T4 pin 2 (ccd_enabled true, substeps 1): {}\", row(true, 1));\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "dimforge/rapier CHANGELOG at v0.35.3",
+          "url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "0.35.0: fast dynamic bodies now always run CCD against fixed colliders, ccd_enabled upgrades a body to a bullet, max_ccd_substeps = 0 disables CCD, and snap-to-ground triggers on any movement that isn't upwards."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: src/dynamics/ccd/ccd_solver.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/ccd/ccd_solver.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Fast dynamic bodies sweep fixed colliders; ccd_enabled no longer gates activation, only the sweep scope; the clamp moves next_position and preserves velocities (lines 17-25, 61-63, 328-340)."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: RigidBodyBuilder::ccd_enabled",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.RigidBodyBuilder.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "ccd_enabled upgrades a body to full 'bullet' CCD against kinematic and dynamic bodies; fast dynamic bodies already sweep fixed colliders automatically."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: src/dynamics/integration_parameters.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/integration_parameters.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "max_ccd_substeps defaults to 1 and 0 disables all CCD; the defaults are prediction 0.02, allowed error 0.005, max linear velocity 400 (lines 267-271, 390-397)."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: src/dynamics/rigid_body_components.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/rigid_body_components.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "ccd_active is set for any fast dynamic body regardless of ccd_enabled; a body is fast when it can move more than half its ccd_thickness in one step (lines 1050-1071, 1102-1125)."
+        },
+        {
+          "title": "parry3d-f64 0.30.2 source: src/shape/shape.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/shape.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "A cuboid's ccd_thickness is half_extents.min_element() (lines 764-766)."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "keep-max-ccd-substeps-1-so-rapier-ccd-carries-no-state-between-quanta-it-hashed-alike-on-x86-64-and-wasm32",
+      "name": "Keep max_ccd_substeps = 1 so Rapier CCD carries no state between quanta; it hashed alike on x86-64 and wasm32",
+      "what": "At max_ccd_substeps = 1 the CCD pass reads only values written in the same step and the CCDSolver holds a rebuildable cache; a 24-body CCD-heavy scene hashes identically on x86-64 release and debug and on wasm32 under V8, with a fresh CCDSolver swapped in mid-run.",
+      "how": "Set world.integration_parameters.max_ccd_substeps = 1 explicitly and keep the parallel feature off (the per-body sweep map is then a serial iterator). Snapshot pose, velocities and sleep state as today; nothing CCD-specific needs recording. On restore, build bodies with the law's ccd_enabled value.",
+      "rust_version": "rapier3d-f64 0.35.3, enhanced-determinism, parallel off",
+      "gotchas": "With max_ccd_substeps > 1 the pre-solve pass runs the fast-body test on the previous quantum's ccd_vels (crate-private, not settable), which a restore cannot reproduce, and the step splits at the first time of impact. Cross-platform identity also needs IEEE 754-2008 targets and the same insertion order; ARM64 was not measured here.",
+      "engine_note": "T2 (solver_restore) and T4: set it in rapier_law.rs build_world. PR #44 rebuilds the Rapier world every quantum, which this finding says loses no CCD state. Probe hashes 3eb23b3feb5785fc (no bullets, CCD active in 2,076 body-quanta) and bfe836cfd760e133 (every other body a bullet) also came out of node on the wasm32 build.",
+      "checks": [
+        {
+          "label": "CCD-heavy scene: fixed hash, identical after a fresh CCDSolver at quantum 100",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "bullets=false hash=3eb23b3feb5785fc ccd-active body-quanta=2076 fresh CCDSolver at q100 -> identical\nbullets=true hash=bfe836cfd760e133 ccd-active body-quanta=2019 fresh CCDSolver at q100 -> identical",
+          "exit_code": 0,
+          "source": "// A CCD-heavy scene hashed bit-for-bit; a fresh CCDSolver swapped in mid-run.\nuse rapier3d_f64::prelude::*;\n\nfn fnv(h: u64, x: u64) -> u64 {\n    (h ^ x).wrapping_mul(0x100000001b3)\n}\n\n/// Returns (hash of every body's pose and velocity bits after 240 quanta,\n/// number of body-quanta with CCD active, number of bullets).\npub fn probe(bullets: bool, reset_ccd_solver_at: u32) -> (u64, u32, u32) {\n    let mut world = PhysicsWorld::new();\n    world.gravity = Vector::new(0.0, -8.0, 0.0);\n    world.integration_parameters.dt = 1.0 / 64.0;\n    world.integration_parameters.contact_clustering = false;\n    world.integration_parameters.warmstart_coefficient = 1.0;\n    // Floor, two thin walls, a thin tilted fin.\n    let fixed = [\n        ((0.0, -0.5, 0.0), (6.0, 0.5, 6.0), (0.0, 0.0, 0.0, 1.0)),\n        ((3.0, 1.0, 0.0), (0.01, 1.0, 3.0), (0.0, 0.0, 0.0, 1.0)),\n        ((-3.0, 1.0, 0.0), (0.01, 1.0, 3.0), (0.0, 0.0, 0.0, 1.0)),\n        ((0.0, 1.0, 2.0), (2.0, 1.0, 0.005), (0.0, 0.3826834323650898, 0.0, 0.9238795325112867)),\n    ];\n    for (t, h, q) in fixed {\n        let mut rb = RigidBodyBuilder::fixed().translation(Vector::new(t.0, t.1, t.2)).build();\n        rb.set_rotation(Rotation::from_xyzw(q.0, q.1, q.2, q.3), false);\n        world.insert(rb, ColliderBuilder::cuboid(h.0, h.1, h.2).restitution(0.0).friction(0.8).build());\n    }\n    // A kinematic slab moving back and forth (a bullet target).\n    let kin = world.insert(\n        RigidBodyBuilder::kinematic_position_based().translation(Vector::new(0.0, 1.0, -2.0)).build(),\n        ColliderBuilder::cuboid(1.5, 0.8, 0.01).build(),\n    ).0;\n    let mut handles = Vec::new();\n    for i in 0..24u32 {\n        let fi = i as f64;\n        let x = -2.0 + (i % 6) as f64 * 0.8;\n        let z = -1.0 + (i / 6) as f64 * 0.7;\n        let v = Vector::new(\n            if i % 2 == 0 { 25.0 + fi } else { -25.0 - fi },\n            -10.0 - 2.0 * fi,\n            if i % 3 == 0 { 30.0 } else { -12.0 + fi },\n        );\n        let rb = RigidBodyBuilder::dynamic()\n            .translation(Vector::new(x, 1.0 + 0.1 * fi, z))\n            .linvel(v)\n            .angvel(Vector::new(0.3 * fi, -2.0, 1.0 + 0.1 * fi))\n            .ccd_enabled(bullets && i % 2 == 0)\n            .build();\n        let (h, _) = world.insert(rb, ColliderBuilder::cuboid(0.05, 0.08 + 0.002 * fi, 0.06).restitution(0.0).friction(0.8).build());\n        handles.push(h);\n    }\n    let mut active = 0u32;\n    for q in 0..240u32 {\n        if q == reset_ccd_solver_at {\n            world.ccd_solver = CCDSolver::new();\n        }\n        let t = q as f64 / 64.0;\n        let x = if (q / 32) % 2 == 0 { -1.0 + t % 0.5 } else { 1.0 - t % 0.5 };\n        world.bodies[kin].set_next_kinematic_translation(Vector::new(x, 1.0, -2.0));\n        world.step();\n        for h in &handles {\n            if world.bodies[*h].is_ccd_active() {\n                active += 1;\n            }\n        }\n    }\n    let mut hash = 0xcbf29ce484222325u64;\n    for h in &handles {\n        let b = &world.bodies[*h];\n        let p = b.translation();\n        let r = b.rotation();\n        let v = b.linvel();\n        let w = b.angvel();\n        for x in [p.x, p.y, p.z, r.x, r.y, r.z, r.w, v.x, v.y, v.z, w.x, w.y, w.z] {\n            hash = fnv(hash, x.to_bits());\n        }\n    }\n    (hash, active, handles.len() as u32)\n}\n\nfn main() {\n    for bullets in [false, true] {\n        let (h, active, _) = probe(bullets, u32::MAX);\n        let (h2, _, _) = probe(bullets, 100);\n        println!(\"bullets={} hash={:016x} ccd-active body-quanta={} fresh CCDSolver at q100 -> {}\",\n            bullets, h, active, if h == h2 { \"identical\" } else { \"DIFFERENT\" });\n    }\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "rapier3d-f64 0.35.3 source: src/pipeline/physics_world.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_world.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "PhysicsWorld's ccd_solver is 'Workspace only: not part of a snapshot' (lines 83-87)."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: src/pipeline/physics_pipeline/substep.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_pipeline/substep.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "The pre-solve CCD pass runs only when max_ccd_substeps > 1; otherwise CCD clamps after the solve using flags computed in that solve (lines 405-427, 496)."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: src/dynamics/ccd/ccd_solver.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/ccd/ccd_solver.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Fast dynamic bodies sweep fixed colliders; ccd_enabled no longer gates activation, only the sweep scope; the clamp moves next_position and preserves velocities (lines 17-25, 61-63, 328-340)."
+        },
+        {
+          "title": "Rapier user guide: Determinism",
+          "url": "https://rapier.rs/docs/user_guides/rust/determinism",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Cross-platform determinism with enhanced-determinism requires targets that strictly comply with IEEE 754-2008."
+        },
+        {
+          "title": "dimforge/rapier CHANGELOG at v0.35.3",
+          "url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "0.35.0: fast dynamic bodies now always run CCD against fixed colliders, ccd_enabled upgrades a body to a bullet, max_ccd_substeps = 0 disables CCD, and snap-to-ground triggers on any movement that isn't upwards."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "set-t4-s-step-heights-around-max-height-offset-kinematiccharactercontroller-climbs-0-31-at-max-height-0-3",
+      "name": "Set T4's step heights around max_height + offset: KinematicCharacterController climbs 0.31 at max_height 0.3",
+      "what": "handle_stairs evaluates max_height + offset and min_width + offset, so with max_height 0.3 and offset 0.01 the engine's box walker climbs steps up to 0.3101, and its feet rest one offset above every surface.",
+      "how": "Autostep runs only on a wall hit (angle to up >= max_slope_climb_angle) and, with include_dynamic_bodies = false, never onto a collider whose parent is dynamic (the step casts then exclude dynamic bodies). It needs a free up-cast of max_height + offset, a free forward cast of min_width + offset from the raised pose, and a landing no steeper than the climb angle (strict >). Put the course pair clear of max_height + offset, e.g. 0.29 and 0.33, and measure feet as y - hy - offset.",
+      "rust_version": "rapier3d-f64 0.35.3",
+      "gotchas": "Asserting the feet at the step top within 1e-3 fails by the 0.01 skin. The limit barely moves with speed: 0.3100989 at 0.4 u/s, 0.3100939 at 2 u/s. Relative lengths evaluate against the shape's AABB (height, or for min_width the horizontal diagonal); the engine uses Absolute. The current Rapier guide says autostep needs floor contact first; the pinned 0.35.3 code does not check that.",
+      "engine_note": "harness/course.test.js, T4 pin 5: rapier_law.rs controller() sets STEP_HEIGHT 0.3, STEP_MIN_WIDTH 0.2 and SKIN 0.01. Through solver_step with the product walker (0.25 box) a 0.31 step is climbed, 0.311 is not, and the stopped walker waits 0.0101 short of the riser.",
+      "checks": [
+        {
+          "label": "The engine's walker loop: 0.29-0.31 climbed, 0.311 and 0.32 stopped, feet one offset up",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "step 0.29 at 2 u/s: climbed, feet 0.0100 above the step top\nstep 0.3 at 2 u/s: climbed, feet 0.0101 above the step top\nstep 0.31 at 2 u/s: climbed, feet 0.0100 above the step top\nstep 0.311 at 2 u/s: stopped, feet 0.0100 above the floor\nstep 0.32 at 2 u/s: stopped, feet 0.0100 above the floor\nstep 0.31 at 0.4 u/s: climbed, feet 0.0101 above the step top\nstep 0.311 at 0.4 u/s: stopped, feet 0.0101 above the floor",
+          "exit_code": 0,
+          "source": "// The engine's walker loop (solver/src/rapier_law.rs integrate()) for one box\n// walker, natively: controller constants, gravity, grounded -> vy = 0,\n// set_next_kinematic_translation, world.step(). Prints course outcomes.\nuse rapier3d_f64::control::{CharacterAutostep, CharacterLength, KinematicCharacterController};\nuse rapier3d_f64::pipeline::CollisionPipeline;\nuse rapier3d_f64::prelude::*;\n\nconst DT: f64 = 1.0 / 64.0;\nconst G: f64 = -8.0;\nconst H: f64 = 0.25;\n\nfn controller() -> KinematicCharacterController {\n    KinematicCharacterController {\n        up: Vector::new(0.0, 1.0, 0.0),\n        offset: CharacterLength::Absolute(0.01),\n        slide: true,\n        autostep: Some(CharacterAutostep {\n            max_height: CharacterLength::Absolute(0.3),\n            min_width: CharacterLength::Absolute(0.2),\n            include_dynamic_bodies: false,\n        }),\n        max_slope_climb_angle: core::f64::consts::FRAC_PI_4,\n        min_slope_slide_angle: 50.0 * core::f64::consts::PI / 180.0,\n        snap_to_ground: Some(CharacterLength::Absolute(0.2)),\n        normal_nudge_factor: 1.0e-4,\n    }\n}\n\n// (min, max, quaternion xyzw) boxes -> fixed cuboids, like build_world.\nfn world_with(boxes: &[([f64; 3], [f64; 3], [f64; 4])], start: Vector) -> (PhysicsWorld, RigidBodyHandle) {\n    let mut world = PhysicsWorld::new();\n    world.gravity = Vector::new(0.0, G, 0.0);\n    world.integration_parameters.dt = DT;\n    world.integration_parameters.contact_clustering = false;\n    world.integration_parameters.warmstart_coefficient = 1.0;\n    for (min, max, q) in boxes {\n        let c = Vector::new((min[0] + max[0]) * 0.5, (min[1] + max[1]) * 0.5, (min[2] + max[2]) * 0.5);\n        let mut body = RigidBodyBuilder::fixed().translation(c).build();\n        body.set_rotation(Rotation::from_xyzw(q[0], q[1], q[2], q[3]), false);\n        let co = ColliderBuilder::cuboid((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5)\n            .restitution(0.0).friction(0.8).build();\n        world.insert(body, co);\n    }\n    let walker = RigidBodyBuilder::kinematic_position_based().translation(start).lock_rotations()\n        .additional_mass(1.0).can_sleep(false).ccd_enabled(false).build();\n    let (h, _) = world.insert(walker, ColliderBuilder::cuboid(H, H, H).restitution(0.0).friction(0.8).build());\n    // warm_broadphase\n    let prediction = world.integration_parameters.prediction_distance();\n    let mut pipeline = CollisionPipeline::new();\n    pipeline.step(prediction, &mut world.islands, &mut world.broad_phase, &mut world.narrow_phase,\n        &mut world.bodies, &mut world.colliders, &(), &());\n    for (_, body) in world.bodies.iter_mut() {\n        if !body.is_fixed() {\n            body.wake_up(true);\n        }\n    }\n    (world, h)\n}\n\n// One quantum: returns (new vy, grounded).\nfn quantum(world: &mut PhysicsWorld, h: RigidBodyHandle, vx: f64, vy: f64) -> (f64, bool) {\n    let mut vy = vy + G * DT;\n    let desired = Vector::new(vx, vy, 0.0) * DT;\n    let shape = SharedShape::cuboid(H, H, H);\n    let pos = *world.bodies[h].position();\n    let movement = {\n        let q = world.broad_phase.as_query_pipeline(world.narrow_phase.query_dispatcher(), &world.bodies,\n            &world.colliders, QueryFilter::new().exclude_rigid_body(h));\n        controller().move_shape(DT, &q, &*shape, &pos, desired, |_| {})\n    };\n    if movement.grounded {\n        vy = 0.0;\n    }\n    let t = pos.translation + movement.translation;\n    world.bodies[h].set_next_kinematic_translation(t);\n    world.step();\n    (vy, movement.grounded)\n}\n\nconst FLOOR: ([f64; 3], [f64; 3], [f64; 4]) = ([0.0, -1.0, -3.0], [40.0, 0.0, 3.0], [0.0, 0.0, 0.0, 1.0]);\n\nfn step_case(height: f64, vx: f64) -> (f64, f64) {\n    let riser = ([11.0, 0.0, -3.0], [14.0, height, 3.0], [0.0, 0.0, 0.0, 1.0]);\n    let (mut w, h) = world_with(&[FLOOR, riser], Vector::new(10.0, H + 0.01, 0.0));\n    let mut vy = 0.0;\n    for _ in 0..((2.5 / vx) * 64.0) as usize {\n        vy = quantum(&mut w, h, vx, vy).0;\n    }\n    let p = w.bodies[h].translation();\n    (p.y - H, p.x)\n}\n\nfn slope_case(deg: f64, vx: f64, quanta: usize) -> f64 {\n    let th = deg.to_radians();\n    let (l, t) = (1.4, 0.35);\n    let n = [-th.sin(), th.cos()];\n    let cx = 11.0 + l * th.cos() - t * n[0];\n    let cy = l * th.sin() - t * n[1];\n    let ramp = ([cx - l, cy - t, -0.5], [cx + l, cy + t, 0.5], [0.0, 0.0, (th / 2.0).sin(), (th / 2.0).cos()]);\n    let (mut w, h) = world_with(&[FLOOR, ramp], Vector::new(10.0, H + 0.01, 0.0));\n    let mut vy = 0.0;\n    let mut max_gain: f64 = 0.0;\n    for _ in 0..quanta {\n        vy = quantum(&mut w, h, vx, vy).0;\n        max_gain = max_gain.max(w.bodies[h].translation().y - (H + 0.01));\n    }\n    max_gain\n}\n\n// Returns the longest run of consecutive ungrounded quanta after the edge.\nfn drop_case(d: f64, vx: f64) -> u32 {\n    let upper = ([0.0, -1.0, -3.0], [11.0, 0.0, 3.0], [0.0, 0.0, 0.0, 1.0]);\n    let lower = ([11.0, -1.0 - d, -3.0], [40.0, -d, 3.0], [0.0, 0.0, 0.0, 1.0]);\n    let (mut w, h) = world_with(&[upper, lower], Vector::new(10.5, H + 0.01, 0.0));\n    let (mut vy, mut run, mut longest) = (0.0, 0u32, 0u32);\n    for _ in 0..((1.5 / vx) * 64.0) as usize {\n        let (nvy, grounded) = quantum(&mut w, h, vx, vy);\n        vy = nvy;\n        if grounded { run = 0 } else { run += 1; longest = longest.max(run) }\n    }\n    longest\n}\n\nfn main() {\n    for &(hgt, vx) in &[(0.29, 2.0), (0.30, 2.0), (0.31, 2.0), (0.311, 2.0), (0.32, 2.0), (0.31, 0.4), (0.311, 0.4)] {\n        let (feet, x) = step_case(hgt, vx);\n        let climbed = feet > hgt && x - H > 11.0;\n        println!(\"step {} at {} u/s: {}, feet {:.4} above {}\", hgt, vx, if climbed { \"climbed\" } else { \"stopped\" },\n            if climbed { feet - hgt } else { feet }, if climbed { \"the step top\" } else { \"the floor\" });\n    }\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "rapier3d-f64 0.35.3 source: src/control/character_controller.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/control/character_controller.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "is_wall uses >= max_slope_climb_angle, is_nonslip_slope <= min_slope_slide_angle, handle_stairs adds offset to max_height and min_width and refuses landings with angle > the climb angle, snap needs translation.dot(up) <= 0, depenetration runs only for zero desired movement."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: struct CharacterAutostep",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.CharacterAutostep.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "max_height is the maximum step height, min_width the free width needed after the step, include_dynamic_bodies whether dynamic bodies can be stepped over."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: struct KinematicCharacterController",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.KinematicCharacterController.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "offset is a gap preserved between the character and its surroundings; normal_nudge_factor is a small distance applied toward the contact normals of shapes hit."
+        },
+        {
+          "title": "Rapier user guide: Character controller",
+          "url": "https://rapier.rs/docs/user_guides/rust/character_controller",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The controller keeps a small gap named offset between the character shape and the environment; snap-to-ground keeps it on the floor when moving slightly downward."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "keep-t4-slope-and-ledge-cases-off-the-controller-s-comparisons-at-45-degrees-nudge-creep-speed-set-snap",
+      "name": "Keep T4 slope and ledge cases off the controller's comparisons: >= at 45 degrees, nudge creep, speed-set snap",
+      "what": "is_wall is angle >= max_slope_climb_angle and is_nonslip_slope is angle <= min_slope_slide_angle; snap needs a grounded start and translation.up <= 0; the 1e-4 normal nudge lifts a walker blocked on a 46 degree slope by about 6e-5 per quantum; the snap-or-fall threshold moves with speed (0.2105, 0.2097, 0.2058 at 0.4, 1, 2 u/s).",
+      "how": "Test slopes at 44 and 46 degrees with the speed and quantum count stated: at 2 u/s 46 degrees gains 0.018 by 320 quanta and 0.038 by 640 while 44 degrees reaches the top; never test exactly 45. Test drops at 0.19 and 0.22: 0.19 has a longest ungrounded run of at most 1 and lands within 2 quanta of clearing the edge, and 0.22 falls for 12 quanta at 0.4, 1 and 2 u/s. Snap casts down snap_to_ground with offset as target distance, and only when move_shape started grounded (a contact within offset + 0.05 with normal.up >= 1e-3).",
+      "rust_version": "rapier3d-f64 0.35.3",
+      "gotchas": "Exactly 45 degrees is a wall (>=) but its landing check is strict (>), and the walker creeps up (0.169 in 160 quanta at 2 u/s). The 46 degree 'gain below 0.05' holds only for bounded runs: 0.077 by 1,280 quanta, 0.61 by 10,000. A 0.21 drop is snapped at 0.4 u/s, the product walker's speed, after sliding down the corner while counted grounded, but falls for 12 quanta at 2 u/s; at 0.4 and 2 u/s the quantum that clears the edge is ungrounded for every drop. normal_nudge_factor = 0 removes the creep, but the walker then climbs nothing. Past a ramp's top the walker walks off and its end height drops back to the floor, so assert the maximum height or give the ramp a landing.",
+      "engine_note": "harness/course.test.js, T4 pin 5, and rapier_law.rs controller() (CLIMB_ANGLE pi/4, SLIDE_ANGLE 50 degrees, SNAP 0.2, normal_nudge_factor 1e-4); integrate() zeroes vy on movement.grounded, which is how a test reads 'grounded' from the body record.",
+      "checks": [
+        {
+          "label": "44 deg climbs, 45 creeps, 46 is refused but gains 0.018 then 0.077 over 320 and 1280 quanta",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "44 deg, 320 quanta at 2 u/s: max gain 1.954\n45 deg, 320 quanta at 2 u/s: max gain 0.341\n46 deg, 320 quanta at 2 u/s: max gain 0.018\n46 deg, 1280 quanta at 2 u/s: max gain 0.077",
+          "exit_code": 0,
+          "source": "// The engine's walker loop (solver/src/rapier_law.rs integrate()) for one box\n// walker, natively: controller constants, gravity, grounded -> vy = 0,\n// set_next_kinematic_translation, world.step(). Prints course outcomes.\nuse rapier3d_f64::control::{CharacterAutostep, CharacterLength, KinematicCharacterController};\nuse rapier3d_f64::pipeline::CollisionPipeline;\nuse rapier3d_f64::prelude::*;\n\nconst DT: f64 = 1.0 / 64.0;\nconst G: f64 = -8.0;\nconst H: f64 = 0.25;\n\nfn controller() -> KinematicCharacterController {\n    KinematicCharacterController {\n        up: Vector::new(0.0, 1.0, 0.0),\n        offset: CharacterLength::Absolute(0.01),\n        slide: true,\n        autostep: Some(CharacterAutostep {\n            max_height: CharacterLength::Absolute(0.3),\n            min_width: CharacterLength::Absolute(0.2),\n            include_dynamic_bodies: false,\n        }),\n        max_slope_climb_angle: core::f64::consts::FRAC_PI_4,\n        min_slope_slide_angle: 50.0 * core::f64::consts::PI / 180.0,\n        snap_to_ground: Some(CharacterLength::Absolute(0.2)),\n        normal_nudge_factor: 1.0e-4,\n    }\n}\n\n// (min, max, quaternion xyzw) boxes -> fixed cuboids, like build_world.\nfn world_with(boxes: &[([f64; 3], [f64; 3], [f64; 4])], start: Vector) -> (PhysicsWorld, RigidBodyHandle) {\n    let mut world = PhysicsWorld::new();\n    world.gravity = Vector::new(0.0, G, 0.0);\n    world.integration_parameters.dt = DT;\n    world.integration_parameters.contact_clustering = false;\n    world.integration_parameters.warmstart_coefficient = 1.0;\n    for (min, max, q) in boxes {\n        let c = Vector::new((min[0] + max[0]) * 0.5, (min[1] + max[1]) * 0.5, (min[2] + max[2]) * 0.5);\n        let mut body = RigidBodyBuilder::fixed().translation(c).build();\n        body.set_rotation(Rotation::from_xyzw(q[0], q[1], q[2], q[3]), false);\n        let co = ColliderBuilder::cuboid((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5)\n            .restitution(0.0).friction(0.8).build();\n        world.insert(body, co);\n    }\n    let walker = RigidBodyBuilder::kinematic_position_based().translation(start).lock_rotations()\n        .additional_mass(1.0).can_sleep(false).ccd_enabled(false).build();\n    let (h, _) = world.insert(walker, ColliderBuilder::cuboid(H, H, H).restitution(0.0).friction(0.8).build());\n    // warm_broadphase\n    let prediction = world.integration_parameters.prediction_distance();\n    let mut pipeline = CollisionPipeline::new();\n    pipeline.step(prediction, &mut world.islands, &mut world.broad_phase, &mut world.narrow_phase,\n        &mut world.bodies, &mut world.colliders, &(), &());\n    for (_, body) in world.bodies.iter_mut() {\n        if !body.is_fixed() {\n            body.wake_up(true);\n        }\n    }\n    (world, h)\n}\n\n// One quantum: returns (new vy, grounded).\nfn quantum(world: &mut PhysicsWorld, h: RigidBodyHandle, vx: f64, vy: f64) -> (f64, bool) {\n    let mut vy = vy + G * DT;\n    let desired = Vector::new(vx, vy, 0.0) * DT;\n    let shape = SharedShape::cuboid(H, H, H);\n    let pos = *world.bodies[h].position();\n    let movement = {\n        let q = world.broad_phase.as_query_pipeline(world.narrow_phase.query_dispatcher(), &world.bodies,\n            &world.colliders, QueryFilter::new().exclude_rigid_body(h));\n        controller().move_shape(DT, &q, &*shape, &pos, desired, |_| {})\n    };\n    if movement.grounded {\n        vy = 0.0;\n    }\n    let t = pos.translation + movement.translation;\n    world.bodies[h].set_next_kinematic_translation(t);\n    world.step();\n    (vy, movement.grounded)\n}\n\nconst FLOOR: ([f64; 3], [f64; 3], [f64; 4]) = ([0.0, -1.0, -3.0], [40.0, 0.0, 3.0], [0.0, 0.0, 0.0, 1.0]);\n\nfn step_case(height: f64, vx: f64) -> (f64, f64) {\n    let riser = ([11.0, 0.0, -3.0], [14.0, height, 3.0], [0.0, 0.0, 0.0, 1.0]);\n    let (mut w, h) = world_with(&[FLOOR, riser], Vector::new(10.0, H + 0.01, 0.0));\n    let mut vy = 0.0;\n    for _ in 0..((2.5 / vx) * 64.0) as usize {\n        vy = quantum(&mut w, h, vx, vy).0;\n    }\n    let p = w.bodies[h].translation();\n    (p.y - H, p.x)\n}\n\nfn slope_case(deg: f64, vx: f64, quanta: usize) -> f64 {\n    let th = deg.to_radians();\n    let (l, t) = (1.4, 0.35);\n    let n = [-th.sin(), th.cos()];\n    let cx = 11.0 + l * th.cos() - t * n[0];\n    let cy = l * th.sin() - t * n[1];\n    let ramp = ([cx - l, cy - t, -0.5], [cx + l, cy + t, 0.5], [0.0, 0.0, (th / 2.0).sin(), (th / 2.0).cos()]);\n    let (mut w, h) = world_with(&[FLOOR, ramp], Vector::new(10.0, H + 0.01, 0.0));\n    let mut vy = 0.0;\n    let mut max_gain: f64 = 0.0;\n    for _ in 0..quanta {\n        vy = quantum(&mut w, h, vx, vy).0;\n        max_gain = max_gain.max(w.bodies[h].translation().y - (H + 0.01));\n    }\n    max_gain\n}\n\n// Returns the longest run of consecutive ungrounded quanta after the edge.\nfn drop_case(d: f64, vx: f64) -> u32 {\n    let upper = ([0.0, -1.0, -3.0], [11.0, 0.0, 3.0], [0.0, 0.0, 0.0, 1.0]);\n    let lower = ([11.0, -1.0 - d, -3.0], [40.0, -d, 3.0], [0.0, 0.0, 0.0, 1.0]);\n    let (mut w, h) = world_with(&[upper, lower], Vector::new(10.5, H + 0.01, 0.0));\n    let (mut vy, mut run, mut longest) = (0.0, 0u32, 0u32);\n    for _ in 0..((1.5 / vx) * 64.0) as usize {\n        let (nvy, grounded) = quantum(&mut w, h, vx, vy);\n        vy = nvy;\n        if grounded { run = 0 } else { run += 1; longest = longest.max(run) }\n    }\n    longest\n}\n\nfn main() {\n    println!(\"44 deg, 320 quanta at 2 u/s: max gain {:.3}\", slope_case(44.0, 2.0, 320));\n    println!(\"45 deg, 320 quanta at 2 u/s: max gain {:.3}\", slope_case(45.0, 2.0, 320));\n    println!(\"46 deg, 320 quanta at 2 u/s: max gain {:.3}\", slope_case(46.0, 2.0, 320));\n    println!(\"46 deg, 1280 quanta at 2 u/s: max gain {:.3}\", slope_case(46.0, 2.0, 1280));\n}\n"
+        },
+        {
+          "label": "Ledge drops: 0.21 snaps at 0.4 u/s but falls 12 quanta at 2 u/s; 0.22 falls at both",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "drop 0.19 at 0.4 u/s: longest ungrounded run 1 quanta\ndrop 0.21 at 0.4 u/s: longest ungrounded run 1 quanta\ndrop 0.22 at 0.4 u/s: longest ungrounded run 12 quanta\ndrop 0.19 at 2 u/s: longest ungrounded run 1 quanta\ndrop 0.21 at 2 u/s: longest ungrounded run 12 quanta\ndrop 0.22 at 2 u/s: longest ungrounded run 12 quanta",
+          "exit_code": 0,
+          "source": "// The engine's walker loop (solver/src/rapier_law.rs integrate()) for one box\n// walker, natively: controller constants, gravity, grounded -> vy = 0,\n// set_next_kinematic_translation, world.step(). Prints course outcomes.\nuse rapier3d_f64::control::{CharacterAutostep, CharacterLength, KinematicCharacterController};\nuse rapier3d_f64::pipeline::CollisionPipeline;\nuse rapier3d_f64::prelude::*;\n\nconst DT: f64 = 1.0 / 64.0;\nconst G: f64 = -8.0;\nconst H: f64 = 0.25;\n\nfn controller() -> KinematicCharacterController {\n    KinematicCharacterController {\n        up: Vector::new(0.0, 1.0, 0.0),\n        offset: CharacterLength::Absolute(0.01),\n        slide: true,\n        autostep: Some(CharacterAutostep {\n            max_height: CharacterLength::Absolute(0.3),\n            min_width: CharacterLength::Absolute(0.2),\n            include_dynamic_bodies: false,\n        }),\n        max_slope_climb_angle: core::f64::consts::FRAC_PI_4,\n        min_slope_slide_angle: 50.0 * core::f64::consts::PI / 180.0,\n        snap_to_ground: Some(CharacterLength::Absolute(0.2)),\n        normal_nudge_factor: 1.0e-4,\n    }\n}\n\n// (min, max, quaternion xyzw) boxes -> fixed cuboids, like build_world.\nfn world_with(boxes: &[([f64; 3], [f64; 3], [f64; 4])], start: Vector) -> (PhysicsWorld, RigidBodyHandle) {\n    let mut world = PhysicsWorld::new();\n    world.gravity = Vector::new(0.0, G, 0.0);\n    world.integration_parameters.dt = DT;\n    world.integration_parameters.contact_clustering = false;\n    world.integration_parameters.warmstart_coefficient = 1.0;\n    for (min, max, q) in boxes {\n        let c = Vector::new((min[0] + max[0]) * 0.5, (min[1] + max[1]) * 0.5, (min[2] + max[2]) * 0.5);\n        let mut body = RigidBodyBuilder::fixed().translation(c).build();\n        body.set_rotation(Rotation::from_xyzw(q[0], q[1], q[2], q[3]), false);\n        let co = ColliderBuilder::cuboid((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5)\n            .restitution(0.0).friction(0.8).build();\n        world.insert(body, co);\n    }\n    let walker = RigidBodyBuilder::kinematic_position_based().translation(start).lock_rotations()\n        .additional_mass(1.0).can_sleep(false).ccd_enabled(false).build();\n    let (h, _) = world.insert(walker, ColliderBuilder::cuboid(H, H, H).restitution(0.0).friction(0.8).build());\n    // warm_broadphase\n    let prediction = world.integration_parameters.prediction_distance();\n    let mut pipeline = CollisionPipeline::new();\n    pipeline.step(prediction, &mut world.islands, &mut world.broad_phase, &mut world.narrow_phase,\n        &mut world.bodies, &mut world.colliders, &(), &());\n    for (_, body) in world.bodies.iter_mut() {\n        if !body.is_fixed() {\n            body.wake_up(true);\n        }\n    }\n    (world, h)\n}\n\n// One quantum: returns (new vy, grounded).\nfn quantum(world: &mut PhysicsWorld, h: RigidBodyHandle, vx: f64, vy: f64) -> (f64, bool) {\n    let mut vy = vy + G * DT;\n    let desired = Vector::new(vx, vy, 0.0) * DT;\n    let shape = SharedShape::cuboid(H, H, H);\n    let pos = *world.bodies[h].position();\n    let movement = {\n        let q = world.broad_phase.as_query_pipeline(world.narrow_phase.query_dispatcher(), &world.bodies,\n            &world.colliders, QueryFilter::new().exclude_rigid_body(h));\n        controller().move_shape(DT, &q, &*shape, &pos, desired, |_| {})\n    };\n    if movement.grounded {\n        vy = 0.0;\n    }\n    let t = pos.translation + movement.translation;\n    world.bodies[h].set_next_kinematic_translation(t);\n    world.step();\n    (vy, movement.grounded)\n}\n\nconst FLOOR: ([f64; 3], [f64; 3], [f64; 4]) = ([0.0, -1.0, -3.0], [40.0, 0.0, 3.0], [0.0, 0.0, 0.0, 1.0]);\n\nfn step_case(height: f64, vx: f64) -> (f64, f64) {\n    let riser = ([11.0, 0.0, -3.0], [14.0, height, 3.0], [0.0, 0.0, 0.0, 1.0]);\n    let (mut w, h) = world_with(&[FLOOR, riser], Vector::new(10.0, H + 0.01, 0.0));\n    let mut vy = 0.0;\n    for _ in 0..((2.5 / vx) * 64.0) as usize {\n        vy = quantum(&mut w, h, vx, vy).0;\n    }\n    let p = w.bodies[h].translation();\n    (p.y - H, p.x)\n}\n\nfn slope_case(deg: f64, vx: f64, quanta: usize) -> f64 {\n    let th = deg.to_radians();\n    let (l, t) = (1.4, 0.35);\n    let n = [-th.sin(), th.cos()];\n    let cx = 11.0 + l * th.cos() - t * n[0];\n    let cy = l * th.sin() - t * n[1];\n    let ramp = ([cx - l, cy - t, -0.5], [cx + l, cy + t, 0.5], [0.0, 0.0, (th / 2.0).sin(), (th / 2.0).cos()]);\n    let (mut w, h) = world_with(&[FLOOR, ramp], Vector::new(10.0, H + 0.01, 0.0));\n    let mut vy = 0.0;\n    let mut max_gain: f64 = 0.0;\n    for _ in 0..quanta {\n        vy = quantum(&mut w, h, vx, vy).0;\n        max_gain = max_gain.max(w.bodies[h].translation().y - (H + 0.01));\n    }\n    max_gain\n}\n\n// Returns the longest run of consecutive ungrounded quanta after the edge.\nfn drop_case(d: f64, vx: f64) -> u32 {\n    let upper = ([0.0, -1.0, -3.0], [11.0, 0.0, 3.0], [0.0, 0.0, 0.0, 1.0]);\n    let lower = ([11.0, -1.0 - d, -3.0], [40.0, -d, 3.0], [0.0, 0.0, 0.0, 1.0]);\n    let (mut w, h) = world_with(&[upper, lower], Vector::new(10.5, H + 0.01, 0.0));\n    let (mut vy, mut run, mut longest) = (0.0, 0u32, 0u32);\n    for _ in 0..((1.5 / vx) * 64.0) as usize {\n        let (nvy, grounded) = quantum(&mut w, h, vx, vy);\n        vy = nvy;\n        if grounded { run = 0 } else { run += 1; longest = longest.max(run) }\n    }\n    longest\n}\n\nfn main() {\n    for &(d, vx) in &[(0.19, 0.4), (0.21, 0.4), (0.22, 0.4), (0.19, 2.0), (0.21, 2.0), (0.22, 2.0)] {\n        println!(\"drop {} at {} u/s: longest ungrounded run {} quanta\", d, vx, drop_case(d, vx));\n    }\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "rapier3d-f64 0.35.3 source: src/control/character_controller.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/control/character_controller.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "is_wall uses >= max_slope_climb_angle, is_nonslip_slope <= min_slope_slide_angle, handle_stairs adds offset to max_height and min_width and refuses landings with angle > the climb angle, snap needs translation.dot(up) <= 0, depenetration runs only for zero desired movement."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: struct KinematicCharacterController",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.KinematicCharacterController.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "offset is a gap preserved between the character and its surroundings; normal_nudge_factor is a small distance applied toward the contact normals of shapes hit."
+        },
+        {
+          "title": "dimforge/rapier CHANGELOG at v0.35.3",
+          "url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "0.35.0: fast dynamic bodies now always run CCD against fixed colliders, ccd_enabled upgrades a body to a bullet, max_ccd_substeps = 0 disables CCD, and snap-to-ground triggers on any movement that isn't upwards."
+        },
+        {
+          "title": "dimforge/rapier CHANGELOG (master)",
+          "url": "https://github.com/dimforge/rapier/blob/master/CHANGELOG.md",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "v0.19.0 added KinematicCharacterController::normal_nudge_factor to help the character get unstuck from rounding errors."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "allow-1-200-quanta-for-a-walker-started-0-1-inside-the-floor-rapier-depenetrates-only-on-a-zero-desired-move",
+      "name": "Allow ~1,200 quanta for a walker started 0.1 inside the floor: Rapier depenetrates only on a zero desired move",
+      "what": "move_shape runs its depenetration pass only for a zero desired translation, and the engine always passes gravity, so a walker started 0.1 inside the floor rises only by the 1e-4 normal nudge per quantum and stands after about 1,200 quanta.",
+      "how": "Assert the recovery over a stated run instead of an instant fix: over at least 1,300 quanta the feet end at the floor plus the offset and never go below their start (measured -0.0936 at quantum 64, -0.0360 at 640, +0.0101 at 1,280).",
+      "rust_version": "rapier3d-f64 0.35.3",
+      "gotchas": "The depenetration pass, when it does run, is capped at a quarter of the character's height per call. With normal_nudge_factor = 0 the walker stays 0.1 inside indefinitely. The trace was the same at vx 0 and 0.4.",
+      "engine_note": "harness/course.test.js, T4 pin 5 ('a walker starting with its centre inside the floor by 0.1 ends standing on the floor'): rapier_law.rs integrate() always passes (vx, vy + G*DT, vz) * DT, so the depenetration branch never runs for a driven walker.",
+      "checks": [
+        {
+          "label": "A walker 0.1 inside the floor rises 1e-4 per quantum and stands by quantum 1280",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "start 0.1 inside, vx 0: feet q64 -0.0936, q640 -0.0360, q1280 0.0101\nstart 0.1 inside, vx 0.4: feet q64 -0.0936, q640 -0.0360, q1280 0.0101",
+          "exit_code": 0,
+          "source": "// The engine's walker loop (solver/src/rapier_law.rs integrate()) for one box\n// walker, natively: controller constants, gravity, grounded -> vy = 0,\n// set_next_kinematic_translation, world.step(). Prints course outcomes.\nuse rapier3d_f64::control::{CharacterAutostep, CharacterLength, KinematicCharacterController};\nuse rapier3d_f64::pipeline::CollisionPipeline;\nuse rapier3d_f64::prelude::*;\n\nconst DT: f64 = 1.0 / 64.0;\nconst G: f64 = -8.0;\nconst H: f64 = 0.25;\n\nfn controller() -> KinematicCharacterController {\n    KinematicCharacterController {\n        up: Vector::new(0.0, 1.0, 0.0),\n        offset: CharacterLength::Absolute(0.01),\n        slide: true,\n        autostep: Some(CharacterAutostep {\n            max_height: CharacterLength::Absolute(0.3),\n            min_width: CharacterLength::Absolute(0.2),\n            include_dynamic_bodies: false,\n        }),\n        max_slope_climb_angle: core::f64::consts::FRAC_PI_4,\n        min_slope_slide_angle: 50.0 * core::f64::consts::PI / 180.0,\n        snap_to_ground: Some(CharacterLength::Absolute(0.2)),\n        normal_nudge_factor: 1.0e-4,\n    }\n}\n\n// (min, max, quaternion xyzw) boxes -> fixed cuboids, like build_world.\nfn world_with(boxes: &[([f64; 3], [f64; 3], [f64; 4])], start: Vector) -> (PhysicsWorld, RigidBodyHandle) {\n    let mut world = PhysicsWorld::new();\n    world.gravity = Vector::new(0.0, G, 0.0);\n    world.integration_parameters.dt = DT;\n    world.integration_parameters.contact_clustering = false;\n    world.integration_parameters.warmstart_coefficient = 1.0;\n    for (min, max, q) in boxes {\n        let c = Vector::new((min[0] + max[0]) * 0.5, (min[1] + max[1]) * 0.5, (min[2] + max[2]) * 0.5);\n        let mut body = RigidBodyBuilder::fixed().translation(c).build();\n        body.set_rotation(Rotation::from_xyzw(q[0], q[1], q[2], q[3]), false);\n        let co = ColliderBuilder::cuboid((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5)\n            .restitution(0.0).friction(0.8).build();\n        world.insert(body, co);\n    }\n    let walker = RigidBodyBuilder::kinematic_position_based().translation(start).lock_rotations()\n        .additional_mass(1.0).can_sleep(false).ccd_enabled(false).build();\n    let (h, _) = world.insert(walker, ColliderBuilder::cuboid(H, H, H).restitution(0.0).friction(0.8).build());\n    // warm_broadphase\n    let prediction = world.integration_parameters.prediction_distance();\n    let mut pipeline = CollisionPipeline::new();\n    pipeline.step(prediction, &mut world.islands, &mut world.broad_phase, &mut world.narrow_phase,\n        &mut world.bodies, &mut world.colliders, &(), &());\n    for (_, body) in world.bodies.iter_mut() {\n        if !body.is_fixed() {\n            body.wake_up(true);\n        }\n    }\n    (world, h)\n}\n\n// One quantum: returns (new vy, grounded).\nfn quantum(world: &mut PhysicsWorld, h: RigidBodyHandle, vx: f64, vy: f64) -> (f64, bool) {\n    let mut vy = vy + G * DT;\n    let desired = Vector::new(vx, vy, 0.0) * DT;\n    let shape = SharedShape::cuboid(H, H, H);\n    let pos = *world.bodies[h].position();\n    let movement = {\n        let q = world.broad_phase.as_query_pipeline(world.narrow_phase.query_dispatcher(), &world.bodies,\n            &world.colliders, QueryFilter::new().exclude_rigid_body(h));\n        controller().move_shape(DT, &q, &*shape, &pos, desired, |_| {})\n    };\n    if movement.grounded {\n        vy = 0.0;\n    }\n    let t = pos.translation + movement.translation;\n    world.bodies[h].set_next_kinematic_translation(t);\n    world.step();\n    (vy, movement.grounded)\n}\n\nconst FLOOR: ([f64; 3], [f64; 3], [f64; 4]) = ([0.0, -1.0, -3.0], [40.0, 0.0, 3.0], [0.0, 0.0, 0.0, 1.0]);\n\nfn step_case(height: f64, vx: f64) -> (f64, f64) {\n    let riser = ([11.0, 0.0, -3.0], [14.0, height, 3.0], [0.0, 0.0, 0.0, 1.0]);\n    let (mut w, h) = world_with(&[FLOOR, riser], Vector::new(10.0, H + 0.01, 0.0));\n    let mut vy = 0.0;\n    for _ in 0..((2.5 / vx) * 64.0) as usize {\n        vy = quantum(&mut w, h, vx, vy).0;\n    }\n    let p = w.bodies[h].translation();\n    (p.y - H, p.x)\n}\n\nfn slope_case(deg: f64, vx: f64, quanta: usize) -> f64 {\n    let th = deg.to_radians();\n    let (l, t) = (1.4, 0.35);\n    let n = [-th.sin(), th.cos()];\n    let cx = 11.0 + l * th.cos() - t * n[0];\n    let cy = l * th.sin() - t * n[1];\n    let ramp = ([cx - l, cy - t, -0.5], [cx + l, cy + t, 0.5], [0.0, 0.0, (th / 2.0).sin(), (th / 2.0).cos()]);\n    let (mut w, h) = world_with(&[FLOOR, ramp], Vector::new(10.0, H + 0.01, 0.0));\n    let mut vy = 0.0;\n    let mut max_gain: f64 = 0.0;\n    for _ in 0..quanta {\n        vy = quantum(&mut w, h, vx, vy).0;\n        max_gain = max_gain.max(w.bodies[h].translation().y - (H + 0.01));\n    }\n    max_gain\n}\n\n// Returns the longest run of consecutive ungrounded quanta after the edge.\nfn drop_case(d: f64, vx: f64) -> u32 {\n    let upper = ([0.0, -1.0, -3.0], [11.0, 0.0, 3.0], [0.0, 0.0, 0.0, 1.0]);\n    let lower = ([11.0, -1.0 - d, -3.0], [40.0, -d, 3.0], [0.0, 0.0, 0.0, 1.0]);\n    let (mut w, h) = world_with(&[upper, lower], Vector::new(10.5, H + 0.01, 0.0));\n    let (mut vy, mut run, mut longest) = (0.0, 0u32, 0u32);\n    for _ in 0..((1.5 / vx) * 64.0) as usize {\n        let (nvy, grounded) = quantum(&mut w, h, vx, vy);\n        vy = nvy;\n        if grounded { run = 0 } else { run += 1; longest = longest.max(run) }\n    }\n    longest\n}\n\nfn main() {\n    // Centre 0.1 lower than resting height: the box starts 0.1 inside the floor.\n    for vx in [0.0, 0.4] {\n        let (mut w, h) = world_with(&[FLOOR], Vector::new(10.0, H - 0.1, 0.0));\n        let mut vy = 0.0;\n        let mut feet = Vec::new();\n        for q in 1..=1280 {\n            vy = quantum(&mut w, h, vx, vy).0;\n            if q == 64 || q == 640 || q == 1280 {\n                feet.push(format!(\"q{} {:.4}\", q, w.bodies[h].translation().y - H));\n            }\n        }\n        println!(\"start 0.1 inside, vx {}: feet {}\", vx, feet.join(\", \"));\n    }\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "rapier3d-f64 0.35.3 source: src/control/character_controller.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/control/character_controller.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "is_wall uses >= max_slope_climb_angle, is_nonslip_slope <= min_slope_slide_angle, handle_stairs adds offset to max_height and min_width and refuses landings with angle > the climb angle, snap needs translation.dot(up) <= 0, depenetration runs only for zero desired movement."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: struct KinematicCharacterController",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.KinematicCharacterController.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "offset is a gap preserved between the character and its surroundings; normal_nudge_factor is a small distance applied toward the contact normals of shapes hit."
+        },
+        {
+          "title": "dimforge/rapier CHANGELOG (master)",
+          "url": "https://github.com/dimforge/rapier/blob/master/CHANGELOG.md",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "v0.19.0 added KinematicCharacterController::normal_nudge_factor to help the character get unstuck from rounding errors."
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

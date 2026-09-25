@@ -1,0 +1,179 @@
+{
+  "wave": 7,
+  "date": "2026-06-07",
+  "lanes": [
+    {
+      "slug": "diffusion-sdxl-lora",
+      "research": {
+        "datasets": [
+          {
+            "slug": "oilpst-impasto-oil-concept-b",
+            "name": "oilpst — warm impasto-oil style concept (synthetic, SDXL base 1.0)",
+            "base_model_target": "SDXL",
+            "modality": "image",
+            "image_count": 16,
+            "caption_format": ".txt",
+            "caption_strategy": "trigger 'oilpst' + minimal subject class; style attributes omitted so they bind to the trigger (HF advanced-LoRA blog 2024)",
+            "pruning_rule": "hard-curated + looked-at; one off-style image visibly degrades a 16-img SDXL LoRA (ThinkDiffusion 2024)",
+            "dedup_method": "unique seed per image + deliberately varied subject/composition",
+            "dedup_threshold": "n/a (synthetic, single-generation)",
+            "reg_image_count": 0,
+            "reg_source": "none — the core repeat-balancing sweep runs WITHOUT reg to isolate the num_repeats signal (Custom Diffusion)",
+            "real_synthetic_ratio": "0:16 (fully synthetic, single-generation from frozen SDXL base 1.0 — outside the recursive model-collapse regime, Shumailov 2023/2024; not iterated on its own output)",
+            "motivation": "a 2nd concept MAXIMALLY separable from cyanotype (warm/saturated + heavy brush texture + painterly, vs cool monochrome linework) for a clean multi-concept repeat-balancing measurement; study-swarm grounded (B-LoRA style/content block separation, Frenkel et al. 2024)",
+            "collection_process": "16 varied subjects (disjoint from the held-out eval subjects) generated on SDXL base 1.0 (euler_a 32 steps, cfg 7, unique seeds 100-115) with an impasto-oil prompt; looked-at + validated for style consistency + clean separation from cyanotype",
+            "preprocessing": "1024px; organized img_NN.png + img_NN.txt = 'oilpst, <subject>'",
+            "intended_uses": "concept B for the wave-07 multi-concept repeat-balancing measurement",
+            "license": "CreativeML OpenRAIL++-M (inherits SDXL base 1.0; royalty-free commercial use, Licensor claims no rights over generated outputs)",
+            "redistribution": "commercial-clean (synthetic output of an OpenRAIL++-M base; Attachment-A use restrictions carry over)",
+            "maintained": "yes — E:/AI/training/dataset_oilpst/10_oilpst",
+            "train_eval_overlap_checked": true,
+            "sources": [
+              {"kind": "docs", "title": "SDXL base 1.0 LICENSE (CreativeML Open RAIL++-M)", "authors": "Stability AI", "year": "2023", "identifier": "OpenRAIL++-M", "url": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md", "claim": "royalty-free commercial use, LoRA derivatives allowed, no rights claimed over outputs — Stage-2 SUPPORTED (mistral+granite)", "finding_supported": "SUPPORTED"},
+              {"kind": "paper", "title": "Implicit Style-Content Separation using B-LoRA", "authors": "Frenkel, Vinker, Shamir, Cohen-Or", "year": "2024", "identifier": "arXiv:2403.14572", "url": "https://arxiv.org/abs/2403.14572", "claim": "SDXL style/content separate by transformer block — grounds choosing a technique+texture+palette-contrasting concept B; Stage-2 SUPPORTED", "finding_supported": "SUPPORTED"},
+              {"kind": "paper", "title": "Extracting Training Data from Diffusion Models", "authors": "Carlini et al.", "year": "2023", "identifier": "arXiv:2301.13188", "url": "https://arxiv.org/abs/2301.13188", "claim": "duplication/low-diversity drives memorization — grounds the unique-seed varied-subject construction", "finding_supported": "SUPPORTED"}
+            ]
+          }
+        ],
+        "techniques": [
+          {
+            "slug": "sdxl-noise-offset-ztsnr-measured-5090",
+            "name": "noise_offset 0.1 breaks the SDXL #165 blue-ceiling — MEASURED (+0.049 CLIP-sim, ~2.3 SEM); ztsnr neutral-to-worse on eps-pred SDXL",
+            "kind": "recipe", "method_family": "lora", "applicable_to": "diffusion", "base_model_family": "SDXL", "base_model_slug": "sdxl-base-1.0",
+            "claim": "MEASURED on the 5090 (matched AdamW-fp32 baseline, stdstyl 16-img, dim16, 600 steps, eval n=20): --noise_offset 0.1 lifts cyanotype style-fidelity to CLIP-sim 0.7748 vs baseline 0.7257 (+0.049, ~2.3 SEM, + CMMD 0.137 vs 0.178) — and the looked-at grids show WHY: the baseline ship renders near-GRAYSCALE (the SDXL #165 blue-ceiling that held across waves 4/5, none of which used noise_offset), while noise_offset renders a deep Prussian-blue cyanotype. So noise_offset substantially BREAKS the #165 ceiling for a saturated/high-contrast palette. --zero_terminal_snr is neutral-to-worse (0.7176, kohya warns 'zero_terminal_snr enabled but v_parameterization is not' — SDXL is eps-pred).",
+            "summary": "Corrects the wave-3 'situational' framing: for a saturated dark palette like cyanotype, noise_offset (which targets brightness extremes — exactly the deep-blue darks) is a measured, significant win, not merely situational. Gives the studio a CHEAPER path to the saturated cyanotype palette than the Chroma base-swap (wave 6): SDXL+noise_offset is 109 MB in the SDXL ecosystem vs Chroma's 17 GB base + Chroma-specific inference. ztsnr on eps-pred SDXL is not worth it.",
+            "design_implication": "Add --noise_offset 0.1 by default when training a saturated/high-contrast style-LoRA on SDXL base 1.0 — it is the lever that lets the palette render. Do NOT use --zero_terminal_snr on eps-pred SDXL (no v_parameterization). For the cyanotype palette specifically, SDXL+noise_offset is a viable cheaper alternative to the Chroma base-swap.",
+            "evidence_strength": "measured-on-rig", "seed": "42", "num_runs": 2, "variance_note": "n=20/config, SEM ~0.015; noise_offset-vs-baseline ~2.3 SEM (significant); ztsnr-vs-baseline ~1 SEM (neutral-worse).",
+            "tuning_budget": "baseline + 2 levers (noise_offset, ztsnr)", "search_method": "matched A/B vs baseline, eval n=20 + looked-at",
+            "measured_conditions": "RTX 5090 32GB; SDXL base 1.0; stdstyl 16-img; networks.lora dim16/alpha16 TE-on no-reg; AdamW lr 1e-4 cosine+30-warmup; 600 steps; bf16 sdpa cache_latents; eval sdxl_gen_img euler_a 24 steps. Watchdog overwatch, peak 58C. 2026-06-07.",
+            "commercial_use": "yes", "commercial_notes": "output license = base + dataset.",
+            "rig_fit": 5, "studio_fit": 5, "status": "recommended", "supersedes": "noise-schedule-levers-noiseoffset-ztsnr-sdxl-lora",
+            "hparams": [
+              {"name": "noise_offset", "value": "0.1", "required": false, "note": "the lever that breaks the #165 blue-ceiling for saturated palettes"},
+              {"name": "result_noise_offset", "value": "CLIP-sim 0.7748 / CMMD 0.1373", "note": "vs baseline 0.7257 / 0.1782 — +0.049, ~2.3 SEM"},
+              {"name": "result_baseline", "value": "CLIP-sim 0.7257 / CMMD 0.1782", "note": "renders near-grayscale (the #165 ceiling)"},
+              {"name": "result_ztsnr", "value": "CLIP-sim 0.7176 / CMMD 0.1878", "note": "neutral-to-worse; eps-pred SDXL, no v_parameterization"}
+            ],
+            "failures": [
+              {"symptom": "SDXL style-LoRA can't render a saturated non-natural palette (renders grayscale)", "cause": "the #165 base blue-ceiling without noise_offset", "remediation": "--noise_offset 0.1 (measured: gray -> deep blue)", "recipe_field": "noise_offset", "severity": "quality"},
+              {"symptom": "zero_terminal_snr gives no gain / slight loss", "cause": "eps-prediction SDXL without v_parameterization", "remediation": "don't use ztsnr on eps-pred SDXL", "recipe_field": "zero_terminal_snr", "severity": "quality"}
+            ],
+            "evals": [
+              {"eval_kind": "diffusion-style", "metric": "CLIP-sim-to-style-centroid", "harness": "_eval_sdxl_noise.py", "n_shot": 20, "result": "0.7748", "threshold": ">=0.70", "accepted": true, "judge_model_family": "clip-vit-b32", "note": "noise_offset 0.1 — breaks the #165 ceiling"},
+              {"eval_kind": "diffusion-style", "metric": "CLIP-sim-to-style-centroid", "harness": "_eval_sdxl_noise.py", "n_shot": 20, "result": "0.7257", "threshold": ">=0.70", "accepted": true, "judge_model_family": "clip-vit-b32", "note": "baseline (no noise_offset) — renders grayscale despite clearing the bar"}
+            ],
+            "best_for": [{"purpose": "render a saturated/high-contrast style on SDXL base", "fitness": 5, "use_tag": "sdxl"}],
+            "sources": [
+              {"kind": "receipt", "title": "training-knowledge wave-7 B1 noise levers (n=20 eval + looked-at)", "url": "https://github.com/mcp-tool-shop-org/readouts", "claim": "rig-measured RTX 5090 2026-06-07; _sdxl_{baseline,noiseoffset,ztsnr}_result.txt + _eval_sdxl_noise.json", "finding_supported": "SUPPORTED"}
+            ],
+            "engine_recipe_ref": "training-kohya-sdxl-lora-proven-blackwell-5090"
+          },
+          {
+            "slug": "sdxl-min-snr-gamma-measured-5090",
+            "name": "min_snr_gamma 5 — MEASURED fidelity win for SDXL style-LoRA (+0.049 CLIP-sim, ~2.3 SEM)",
+            "kind": "recipe", "method_family": "lora", "applicable_to": "diffusion", "base_model_family": "SDXL", "base_model_slug": "sdxl-base-1.0",
+            "claim": "MEASURED on the 5090 (matched baseline, eval n=20): --min_snr_gamma 5 lifts cyanotype fidelity to CLIP-sim 0.7747 vs baseline 0.7257 (+0.049, ~2.3 SEM) with the best CMMD of the B1 set (0.1348). The min-SNR loss reweighting measurably improves style binding for this set — comparable to noise_offset's gain, and the two also render the saturated blue (looked-at).",
+            "summary": "Corrects the wave-3 reproduced-from-source framing to a measured win. min_snr_gamma 5 (the Hang et al. recommended value) reweights the loss toward harder timesteps and measurably improves fidelity + distribution match. Stacks conceptually with noise_offset (different mechanisms: loss-reweighting vs brightness-range); both were measured individually here.",
+            "design_implication": "Use --min_snr_gamma 5 as a near-free fidelity improvement for SDXL style-LoRA. Combined with noise_offset 0.1 it is the recommended saturated-palette SDXL recipe (each measured individually as ~+0.05; a combined run is the natural follow-up).",
+            "evidence_strength": "measured-on-rig", "seed": "42", "num_runs": 1, "variance_note": "n=20, SEM 0.018; vs baseline ~2.3 SEM (significant).",
+            "search_method": "matched A/B vs baseline, eval n=20",
+            "measured_conditions": "RTX 5090; SDXL base 1.0; stdstyl 16-img; dim16 TE-on no-reg; AdamW lr 1e-4 cosine+warmup; 600 steps; --min_snr_gamma 5. 2026-06-07.",
+            "commercial_use": "yes", "rig_fit": 5, "studio_fit": 5, "status": "recommended", "supersedes": "min-snr-gamma-loss-weighting-sdxl",
+            "hparams": [
+              {"name": "min_snr_gamma", "value": "5", "note": "Hang et al. recommended"},
+              {"name": "result_min_snr", "value": "CLIP-sim 0.7747 / CMMD 0.1348", "note": "best CMMD of B1; vs baseline 0.7257/0.1782"}
+            ],
+            "failures": [],
+            "evals": [
+              {"eval_kind": "diffusion-style", "metric": "CLIP-sim-to-style-centroid", "harness": "_eval_sdxl_noise.py", "n_shot": 20, "result": "0.7747", "threshold": ">=0.70", "accepted": true, "judge_model_family": "clip-vit-b32", "note": "min_snr_gamma 5 — measured win"}
+            ],
+            "best_for": [{"purpose": "near-free SDXL style-LoRA fidelity gain", "fitness": 5, "use_tag": "sdxl"}],
+            "sources": [
+              {"kind": "receipt", "title": "training-knowledge wave-7 B1 min_snr_gamma (n=20)", "url": "https://github.com/mcp-tool-shop-org/readouts", "claim": "rig-measured 2026-06-07; _sdxl_minsnr_result.txt + _eval_sdxl_noise.json", "finding_supported": "SUPPORTED"},
+              {"kind": "paper", "title": "Efficient Diffusion Training via Min-SNR Weighting Strategy", "authors": "Hang et al.", "year": "2023", "identifier": "arXiv:2303.09556", "url": "https://arxiv.org/abs/2303.09556", "claim": "min-SNR loss reweighting (gamma~5) speeds/improves diffusion training", "finding_supported": "SUPPORTED"}
+            ],
+            "engine_recipe_ref": "training-kohya-sdxl-lora-proven-blackwell-5090"
+          },
+          {
+            "slug": "sdxl-checkpoint-selection-measured-5090",
+            "name": "Checkpoint selection — MEASURED: best != last (peak ~600, plateau 450-900; <=150 undertrains)",
+            "kind": "recipe", "method_family": "lora", "applicable_to": "diffusion", "base_model_family": "SDXL", "base_model_slug": "sdxl-base-1.0",
+            "claim": "MEASURED on the 5090 (one run, noise_offset 0.1, 900 steps, save every 150, eval each checkpoint n=20): the BEST checkpoint is step 600 (CLIP-sim 0.7865), NOT the last (900 = 0.7818). Fidelity rises to a peak by ~450-600 then PLATEAUS / marginally declines (450/600/750/900 all ~0.78, within noise). At step 150 the style binds but UNDERTRAINS visibly — the trigger leaks as literal 'STDSYL' text (looked-at). So picking the final checkpoint is wrong, and training past ~600 wastes compute on a 16-img set.",
+            "summary": "Confirms the checkpoint-selection thesis on the rig: save intermediate checkpoints and pick by eval rather than assuming the last is best. The curve: 150 (0.7727, undertrained text artifact) -> 300 (0.7595 dip) -> 450 (0.7817) -> 600 (0.7865, peak) -> 750 (0.7842) -> 900 (0.7818). Style binds fast (StyleDrop) but the trigger absorbs into style only by ~450-600.",
+            "design_implication": "Save every ~150 steps and EVAL each checkpoint; pick the peak (here ~600), don't default to the last. For a 16-img SDXL style-LoRA, ~450-600 steps is sufficient; >=900 is past the peak with no fidelity gain. Treat a visible trigger-as-text artifact as an undertraining signal.",
+            "evidence_strength": "measured-on-rig", "seed": "42", "num_runs": 1, "variance_note": "n=20/checkpoint, SEM ~0.015; 600-vs-900 ~within noise -> 'plateau then marginal decline'.",
+            "search_method": "single run, 6 checkpoints, eval each n=20 + looked-at",
+            "measured_conditions": "RTX 5090; SDXL base 1.0; stdstyl 16-img; dim16; AdamW lr 1e-4 cosine+warmup; noise_offset 0.1; 900 steps save_every 150. 2026-06-07.",
+            "commercial_use": "yes", "rig_fit": 5, "studio_fit": 5, "status": "recommended", "supersedes": "checkpoint-selection-eval-grid-sdxl-lora",
+            "hparams": [
+              {"name": "best_checkpoint", "value": "step 600 (CLIP-sim 0.7865)", "note": "NOT the last (900=0.7818)"},
+              {"name": "curve", "value": "150:0.7727 300:0.7595 450:0.7817 600:0.7865 750:0.7842 900:0.7818"},
+              {"name": "save_every_n_steps", "value": "150", "note": "cadence to capture the peak"},
+              {"name": "undertraining_signal", "value": "trigger renders as literal text at ~150 steps"}
+            ],
+            "failures": [
+              {"symptom": "final checkpoint isn't the best / overtrained", "cause": "fidelity plateaus/declines after ~600 steps on a 16-img set", "remediation": "save every N + pick the peak by eval", "recipe_field": "save_every_n_steps", "severity": "quality"},
+              {"symptom": "trigger token appears as literal text in outputs", "cause": "undertraining (~150 steps)", "remediation": "train to ~450-600 so the trigger absorbs into style", "recipe_field": "max_train_steps", "severity": "quality"}
+            ],
+            "evals": [
+              {"eval_kind": "diffusion-style", "metric": "CLIP-sim-to-style-centroid", "harness": "_eval_ckpt.py", "n_shot": 20, "result": "0.7865", "threshold": ">=0.70", "accepted": true, "judge_model_family": "clip-vit-b32", "note": "step 600 — the peak, beats the last (900)"}
+            ],
+            "best_for": [{"purpose": "pick the best style-LoRA checkpoint (not the last)", "fitness": 5, "use_tag": "sdxl"}],
+            "sources": [
+              {"kind": "receipt", "title": "training-knowledge wave-7 B2 checkpoint curve (6 checkpoints, n=20)", "url": "https://github.com/mcp-tool-shop-org/readouts", "claim": "rig-measured 2026-06-07; _stdstyl_ckpt_result.txt + _eval_ckpt.json + looked-at", "finding_supported": "SUPPORTED"},
+              {"kind": "paper", "title": "StyleDrop: Text-to-Image Generation in Any Style", "authors": "Sohn et al.", "year": "2023", "identifier": "arXiv:2306.00983", "url": "https://arxiv.org/abs/2306.00983", "claim": "a coherent style binds from very few images / few steps — grounds the fast-binding + early-plateau (Stage-2 PARTIAL: '<1% params/few imgs' supported, '16 ample' is our extrapolation)", "finding_supported": "PARTIAL"}
+            ],
+            "engine_recipe_ref": "training-kohya-sdxl-lora-proven-blackwell-5090"
+          },
+          {
+            "slug": "sdxl-multiconcept-repeat-balancing-measured-5090",
+            "name": "Multi-concept repeat-balancing — MEASURED: distinct triggers protect own-fidelity; imbalance shows as cross-bleed, not collapse",
+            "kind": "recipe", "method_family": "lora", "applicable_to": "diffusion", "base_model_family": "SDXL", "base_model_slug": "sdxl-base-1.0",
+            "claim": "MEASURED on the 5090: ONE SDXL LoRA jointly trained on two well-separated concepts (A=cyanotype 'stdstyl', B=warm impasto-oil 'oilpst', 16 imgs each, noise_offset 0.1, 1600 steps), sweeping the num_repeats ratio 10:10 / 30:10 / 10:30 (= effective exposure 1:1 / 3:1 / 1:3). RESULT: BOTH concepts keep high own-fidelity (A 0.774-0.794, B 0.771-0.784) across ALL ratios (spreads ~1 SEM) — no concept collapse even at 3:1. The dominance signature is in CROSS-BLEED: B-dominant shows the highest A->B bleed (cyanotype outputs picking up warm-oil character, 0.678) and the lowest B->A bleed (oilpst outputs purest, 0.675); A-dominant the reverse. Looked-at confirms: the dominated concept keeps its identity but takes a subtle tint of the dominant style.",
+            "summary": "The study-swarm-grounded design (distinct rare triggers + a maximally-separable concept B + num_repeats as the lever, no reg) produced a clean, interpretable measurement. H4 (distinct triggers prevent token collapse) and H3 (dominance -> cross-bleed) supported; the naive H1 own-fidelity trade-off is WEAKER than predicted at these ratios/steps — distinct triggers + adequate capacity (dim16) + 1600 steps let both concepts co-train robustly through moderate (<=3:1) imbalance. The cross-centroid CLIP gap (own 0.77-0.79 >> cross 0.65-0.70) confirms the concepts are genuinely separated.",
+            "design_implication": "For 2-concept SDXL LoRA training: give each concept a distinct RARE trigger and pick concepts that are visually separable; then moderate repeat imbalance (<=3:1) does NOT starve a concept's core identity (own-fidelity holds) — it only tints the under-represented concept's outputs with the dominant style (cross-bleed). Balance num_repeats to ~1:1 effective exposure to minimize that tint; reach for merge-time fixes (ZipLoRA/gradient-fusion) only if single-LoRA bleed is unacceptable.",
+            "evidence_strength": "measured-on-rig", "seed": "42", "num_runs": 3, "variance_note": "n=20/config/trigger, SEM ~0.015; own-fidelity spreads across ratios ~1 SEM (no collapse); cross-bleed differences ~0.02-0.03, directional + looked-at-confirmed.",
+            "tuning_budget": "3 ratio configs (study-swarm experimental design)", "search_method": "num_repeats ratio sweep, dual-trigger eval n=20 each + cross-bleed + looked-at",
+            "measured_conditions": "RTX 5090; SDXL base 1.0; concept A cyanotype + concept B impasto-oil (16 imgs each); networks.lora dim16; AdamW lr 1e-4 cosine+warmup; noise_offset 0.1; 1600 steps; NO reg; num_repeats 10:10/30:10/10:30. Eval dual-trigger vs two CLIP centroids + cross. 2026-06-07.",
+            "commercial_use": "yes", "commercial_notes": "concept B synthetic from SDXL base (OpenRAIL++-M); output license = base + dataset.",
+            "rig_fit": 5, "studio_fit": 5, "status": "recommended", "supersedes": "multi-concept-folder-repeat-balancing-sdxl",
+            "datasets": [{"slug": "oilpst-impasto-oil-concept-b", "role": "concept-b", "note": "the 2nd concept (concept A is the existing cyanotype stdstyl set)"}],
+            "hparams": [
+              {"name": "balanced_10:10", "value": "A_fid 0.7738 / B_fid 0.7710 / A->B 0.6489 / B->A 0.6984"},
+              {"name": "A_dominant_30:10", "value": "A_fid 0.7793 / B_fid 0.7787 / A->B 0.6541 / B->A 0.7000", "note": "B->A bleed highest -> oilpst tinted cool"},
+              {"name": "B_dominant_10:30", "value": "A_fid 0.7937 / B_fid 0.7843 / A->B 0.6783 / B->A 0.6751", "note": "A->B bleed highest -> cyanotype tinted painterly"},
+              {"name": "own_vs_cross_gap", "value": "own 0.77-0.79 >> cross 0.65-0.70", "note": "concepts genuinely separated"},
+              {"name": "num_repeats_lever", "value": "effective exposure = imgs x repeats; ratio is the lever", "required": true}
+            ],
+            "failures": [
+              {"symptom": "the over-represented concept's style tints the other concept's outputs", "cause": "num_repeats imbalance (cross-bleed; the dominated concept keeps identity but takes a tint)", "remediation": "balance num_repeats to ~1:1 effective exposure; distinct triggers already prevent full collapse", "recipe_field": "num_repeats", "severity": "quality"}
+            ],
+            "evals": [
+              {"eval_kind": "diffusion-style", "metric": "A-fidelity (cyanotype centroid)", "harness": "_eval_multiconcept.py", "n_shot": 20, "result": "0.7738", "threshold": ">=0.70", "accepted": true, "judge_model_family": "clip-vit-b32", "note": "balanced — concept A binds; holds across ratios"},
+              {"eval_kind": "diffusion-style", "metric": "B-fidelity (oilpst centroid)", "harness": "_eval_multiconcept.py", "n_shot": 20, "result": "0.7710", "threshold": ">=0.70", "accepted": true, "judge_model_family": "clip-vit-b32", "note": "balanced — concept B binds; holds across ratios"}
+            ],
+            "best_for": [
+              {"purpose": "train two distinct styles into one SDXL LoRA without collapse", "fitness": 5, "use_tag": "sdxl"},
+              {"purpose": "understand how num_repeats imbalance manifests (cross-bleed)", "fitness": 5, "use_tag": "sdxl"}
+            ],
+            "sources": [
+              {"kind": "receipt", "title": "training-knowledge wave-7 B3 multi-concept repeat-balancing (3 ratios, dual-trigger n=20 + cross-bleed + looked-at)", "url": "https://github.com/mcp-tool-shop-org/readouts", "claim": "rig-measured 2026-06-07; _mc_{balanced,adom,bdom}_result.txt + _eval_multiconcept.json", "finding_supported": "SUPPORTED"},
+              {"kind": "paper", "title": "Multi-Concept Customization of Text-to-Image Diffusion (Custom Diffusion)", "authors": "Kumari et al.", "year": "2023", "identifier": "arXiv:2212.04488", "url": "https://arxiv.org/abs/2212.04488", "claim": "distinct per-concept modifier tokens let concepts co-train without collapse — grounds the distinct-trigger design (Stage-1 real; Stage-2 textbook)", "finding_supported": "SUPPORTED"},
+              {"kind": "docs", "title": "kohya-ss sd-scripts num_repeats (per-folder effective exposure)", "authors": "kohya-ss", "year": "2024", "identifier": "config_README-en.md + Discussion #182", "url": "https://github.com/kohya-ss/sd-scripts/blob/main/docs/config_README-en.md", "claim": "per-epoch exposure = image_count x num_repeats; the balancing lever — Stage-2 SUPPORTED (mistral+granite)", "finding_supported": "SUPPORTED"},
+              {"kind": "paper", "title": "Implicit Style-Content Separation using B-LoRA", "authors": "Frenkel et al.", "year": "2024", "identifier": "arXiv:2403.14572", "url": "https://arxiv.org/abs/2403.14572", "claim": "SDXL style/content block separation — grounds the maximally-separable concept-B choice; Stage-2 SUPPORTED", "finding_supported": "SUPPORTED"}
+            ],
+            "engine_recipe_ref": "training-kohya-sdxl-lora-proven-blackwell-5090"
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {"slug": "sdxl-noise-offset-ztsnr-measured-5090", "overall": "confirmed", "currency": "measured 2026-06-07", "note": "rig + n=20 eval + looked-at (baseline gray vs noise_offset deep blue); oracle = rig + harness, not the study-swarm verifier"},
+          {"slug": "sdxl-min-snr-gamma-measured-5090", "overall": "confirmed", "currency": "measured 2026-06-07", "note": "rig + n=20 eval"},
+          {"slug": "sdxl-checkpoint-selection-measured-5090", "overall": "confirmed", "currency": "measured 2026-06-07", "note": "rig + per-checkpoint n=20 + looked-at; best=600 != last=900"},
+          {"slug": "sdxl-multiconcept-repeat-balancing-measured-5090", "overall": "confirmed", "currency": "measured 2026-06-07", "note": "rig + dual-trigger n=20 + cross-bleed + looked-at; study-swarm-grounded concept B, Stage-1+Stage-2 citation-verified (1 source dropped on Stage-2)"}
+        ]
+      }
+    }
+  ]
+}

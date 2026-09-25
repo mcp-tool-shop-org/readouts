@@ -1,0 +1,206 @@
+# Sprite evaluation / QA gate
+_Grounded evaluators (SigLIP2/CLIP), turnaround-consistency + perceptual metrics, AI-judge gates for an automatable sprite verifier._ · wave 5 · 2026-09-07 · [‹ catalog index](README.md)
+
+17 recipes · 8 recommended · 0 measured-on-rig.
+
+| ↓ | Recipe | Engine | Applies | Evidence | Comm | Rig | Studio | ✓ |
+|---|--------|--------|---------|----------|------|-----|--------|---|
+| 2 | DISTS — structure+texture similarity (texture-substitution robust) | python | both | ▸ reproduced | ✅ yes | 5 | 4 | · |
+| 2 | DreamSim — mid-level perceptual similarity for character identity | python | both | ▸ reproduced | ⚠ cond | 5 | 4 | · |
+| 2 | LPIPS — learned perceptual patch similarity for downscale fidelity | python | both | ▸ reproduced | ✅ yes | 5 | 4 | · |
+| 2 | MLLM-as-a-Judge — VLM rubric scoring & pairwise selection | python | game-sprite | ▸ reproduced | ⚠ cond | 4 | 4 | · |
+| 2 | SigLIP 2 — zero-shot class/weapon/silhouette classifier | python | both | ▸ reproduced | ✅ yes | 5 | 4 | · |
+| 2 | VQAScore (t2v_metrics) — grounded weapon/class/silhouette presence gate | python | game-sprite | ▸ reproduced | ⚠ cond | 4 | 5 | · |
+| 4 | MEt3R — multi-view/turnaround 3D-consistency metric | python | turnaround | · single-run | ⚠ cond | 4 | 4 | · |
+| 4 | Pixel-art-specific quality: palette adherence + grid/block-size consistency | python | tile | · single-run | ✅ yes | 5 | 5 | · |
+| 6 | CLIPScore — reference-free text-image alignment baseline | python | both | ▸ reproduced | ⚠ cond | 5 | 3 | · |
+| 9 | ASME Y14.3 orthographic registration hold-with-limit | docs | sprites | docs | check | 4 | 4 | · |
+| 9 | ASME Y14.3 — orthographic multi-view analog | blender | sprites | docs | check | 4 | 4 | · |
+| 9 | Datum reference — foot-anchor analog | blender | sprites | docs | check | 4 | 4 | · |
+| 9 | Datum reference — foot-anchor registration analog | docs | all | docs | check | 4 | 4 | · |
+| 9 | Pose ControlNet + silhouette pedagogy hold-with-limit | docs | sprites | docs | check | 4 | 4 | · |
+| 9 | SDXL Open RAIL++-M + WCR adapter flow-down hold | docs | sprites | docs | check | 4 | 4 | · |
+| 9 | Twelve principles — silhouette readability | blender | sprites | docs | check | 4 | 4 | · |
+| 9 | Twelve principles — solid drawing / staging silhouette hold-with-limit | docs | all | analog | check | 4 | 4 | · |
+
+## Detail
+
+### DISTS — structure+texture similarity (texture-substitution robust) · `recommended` · ▸ reproduced
+**DISTS unifies structure and texture similarity over VGG features and is uniquely invariant to texture resampling, making it the right fidelity metric when a downscale/regenerate legitimately changes texture but should preserve the sprite's structure.**
+DISTS (Ding et al., IEEE TPAMI 2020) extracts VGG16 feature maps (conv1_2..conv5_3) and combines a structure-similarity and a texture-similarity term into a proper metric that correlates with human quality judgments while being highly invariant to texture substitution. That invariance is the key differentiator from LPIPS/SSIM for sprites: when a model re-renders fabric/foliage/noise textures, SSIM and LPIPS over-penalize, but DISTS tolerates faithful texture variation while still catching structural breakage (wrong silhouette, displaced limb). It needs a reference image, so it gates re-renders and downscales rather than novel generation.
+- **For the pipeline:** Add DISTS alongside LPIPS in the fidelity gate and use the divergence between them as signal: high LPIPS + low DISTS means 'texture changed but structure intact' (often acceptable for a re-render), while high DISTS means real structural damage (reject). This two-metric pair separates cosmetic texture variance from genuine sprite breakage, reducing false rejects in the verifier wave on a 5090 at negligible cost.
+- **Engine:** python · **Applies to:** both · **Base:** VGG16 feature extractor · **Kind:** metric
+- **VRAM:** <2 (or CPU)
+- **Output license:** commercial **yes** (license: MIT-style (dingkeyan93/DISTS); DISTS-pytorch on PyPI) — Permissive code license and a standard VGG backbone; safe for commercial in-house evaluation. Pure measurement — no shipped-asset license inheritance.
+- **Fit:** rig 5/5 · studio 4/5
+- **Verify:** arXiv:2004.07728 confirmed (Ding, Ma, Wang, Simoncelli) unifying structure+texture similarity with explicit texture-resampling tolerance. github.com/dingkeyan93/DISTS confirmed MIT; PyPI package is 'dists-pytorch' (proposal's 'DISTS-pytorch on PyPI' accurate). commercial_use 'yes' accurate. [no external verdict — not checked]
+- **Sources:** [Image Quality Assessment: Unifying Structure and Texture Similarity (DISTS)](https://arxiv.org/abs/2004.07728) (Keyan Ding, Kede Ma, Shiqi Wang, Eero P. Simoncelli, 2020) — DISTS combines structure and texture similarity over VGG features into a proper metric that correlates with human judgment while being highly invariant to texture substitution. ; [dingkeyan93/DISTS — Deep Image Structure and Texture Similarity](https://github.com/dingkeyan93/DISTS) (Keyan Ding et al., 2020) — Reference DISTS implementation (also DISTS-pytorch on PyPI) usable as a texture-robust full-reference fidelity metric.
+
+### DreamSim — mid-level perceptual similarity for character identity · `recommended` · ▸ reproduced
+**DreamSim captures mid-level similarity (layout, pose, semantic content) that low-level metrics miss, making it well-suited to 'is this the same character/design' comparisons across pose, palette, and angle variations.**
+DreamSim (Fu et al., NeurIPS 2023 Spotlight) is an ensemble of CLIP/OpenCLIP/DINO embeddings fine-tuned on ~20k synthetic image-triplet human judgments, designed to capture mid-level similarity — object layout, pose, semantic content — where LPIPS/DISTS only see low-level color/texture. For sprite QA this is the 'same-design' check: compare a new pose or recolor against the canonical reference and DreamSim reflects whether a human would still call it the same character, focusing on the foreground subject. It complements LPIPS (low-level fidelity) and MEt3R (geometric multi-view) by occupying the semantic/identity middle layer.
+- **For the pipeline:** Use DreamSim as the identity-consistency gate within a character: compare each new sprite (alt pose, expression, recolor) to the locked canonical reference and flag designs that drift in layout/pose/semantics even when LPIPS says the pixels are 'close enough'. It also serves as a near-duplicate detector to keep a style-training dataset diverse. Treat it as a ranking/threshold signal calibrated per-character, not an absolute pass mark, and watch the backbone licenses.
+- **Engine:** python · **Applies to:** both · **Base:** CLIP + OpenCLIP + DINO ensemble (fine-tuned) · **Kind:** metric
+- **VRAM:** 2-4
+- **Output license:** commercial **conditional** (license: Code MIT-style (ssundaram21/dreamsim, pip install dreamsim); note ensemble pulls DINO/CLIP weights with their own terms) — DreamSim code is permissive and pip-installable, but the default ensemble includes a DINO backbone (DINO/DINOv2 weights from Meta carry their own license terms) and OpenCLIP/CLIP weights. As an internal verifier the exposure is minimal, but confirm the bundled backbone licenses if you want a strictly clean dependency tree; a CLIP/OpenCLIP-only variant is the safer instantiation.
+- **Fit:** rig 5/5 · studio 4/5
+- **Verify:** arXiv:2306.09344 confirmed with all 7 stated authors; synthetic-data human-judgment metric for mid-level similarity. github.com/ssundaram21/dreamsim confirmed MIT, pip install dreamsim, concatenates CLIP/OpenCLIP/DINO embeddings, NeurIPS 2023 Spotlight. commercial_use 'conditional' accurate: ensemble pulls backbone weights with their own terms. [no external verdict — not checked]
+- **Sources:** [DreamSim: Learning New Dimensions of Human Visual Similarity using Synthetic Data](https://arxiv.org/abs/2306.09344) (Stephanie Fu, Netanel Tamir, Shobhita Sundaram, Lucy Chai, Richard Zhang, Tali Dekel, Phillip Isola, 2023) — DreamSim, an ensemble fine-tuned on synthetic human-judgment triplets, captures mid-level similarity (layout, pose, semantic content) and outperforms prior learned metrics and large vision models on retrieval/reconstruction. ; [ssundaram21/dreamsim — DreamSim perceptual metric (NeurIPS 2023 Spotlight)](https://github.com/ssundaram21/dreamsim) (Stephanie Fu et al., 2023) — pip-installable reference implementation concatenating CLIP/OpenCLIP/DINO embeddings fine-tuned on human perceptual judgments.
+
+### LPIPS — learned perceptual patch similarity for downscale fidelity · `recommended` · ▸ reproduced
+**LPIPS, the deep-feature perceptual distance, aligns with human similarity judgments far better than PSNR/SSIM and is the standard reference metric for checking that a downscaled/post-processed sprite preserved its source.**
+LPIPS (Zhang et al., CVPR 2018) computes distance in the feature space of a pretrained net (AlexNet/VGG) linearly calibrated on the BAPPS human-judgment dataset, and the paper's core result is that deep features are an 'unreasonably effective' perceptual metric that beats classical SSIM/PSNR on human agreement. In a sprite pipeline LPIPS is the reference fidelity gate for transformations that should preserve appearance: hi-res -> game-res downscale, palette quantization, cleanup passes — a high LPIPS means the post-process broke something a human would notice. It needs a reference image, so it gates transformations, not from-scratch generation.
+- **For the pipeline:** Use LPIPS as the downscale/post-process fidelity gate: compute LPIPS(source, processed) and fail if it exceeds a tuned threshold, catching detail loss, halo, and quantization damage. It is cheap (CPU-viable) and BSD-licensed, so it's a no-friction floor in the verifier wave. Because LPIPS keys on natural-image texture, pair it with DISTS for the texture-substitution cases and with a pixel-grid metric for hard-edge pixel art where natural-image priors mislead.
+- **Engine:** python · **Applies to:** both · **Base:** AlexNet/VGG feature extractor (calibrated) · **Kind:** metric
+- **VRAM:** <2 (or CPU)
+- **Output license:** commercial **yes** (license: BSD-2-Clause (richzhang/PerceptualSimilarity); pip install lpips) — BSD-2-Clause code and the calibrated linear weights are freely usable commercially. The backbone (AlexNet/VGG) carries standard permissive terms. No shipped-asset exposure — it's a pure measurement.
+- **Fit:** rig 5/5 · studio 4/5
+- **Verify:** Project page confirms LPIPS (Zhang/Isola/Efros/Shechtman/Wang) with claim that deep features beat PSNR/SSIM. github.com/richzhang/PerceptualSimilarity confirmed BSD-2-Clause, pip install lpips. commercial_use 'yes' accurate. [no external verdict — not checked]
+- **Sources:** [The Unreasonable Effectiveness of Deep Features as a Perceptual Metric (LPIPS)](https://richzhang.github.io/PerceptualSimilarity/) (Richard Zhang, Phillip Isola, Alexei A. Efros, Eli Shechtman, Oliver Wang, 2018) — Deep network features linearly calibrated on human judgments (LPIPS) match perceptual similarity far better than PSNR/SSIM, which often disagree with human assessment. ; [richzhang/PerceptualSimilarity — LPIPS metric (pip install lpips)](https://github.com/richzhang/PerceptualSimilarity) (Richard Zhang et al., 2018) — BSD-2-Clause reference implementation of LPIPS usable as a drop-in perceptual distance for fidelity checks.
+
+### MLLM-as-a-Judge — VLM rubric scoring & pairwise selection · `recommended` · ▸ reproduced
+**MLLMs make usable judges for pairwise sprite comparison (good human alignment) but are unreliable at absolute scoring and batch ranking, so the safe pattern is rubric-anchored pairwise selection with a guarded scoring fallback.**
+MLLM-as-a-Judge (Chen et al., ICML 2024 Oral) benchmarks multimodal LLMs across Scoring, Pairwise Comparison, and Batch Ranking, and the load-bearing finding is asymmetric: MLLMs align with humans on pairwise comparison but show notable discrepancies, biases (position/verbosity/egocentric), and hallucination in absolute scoring and batch ranking. For a sprite gate this prescribes the pattern — use the VLM to pick the better of two candidate sprites against an explicit rubric (clean silhouette, palette adherence, anatomy, readability), not to emit a trustworthy 1-10 quality number. It is the qualitative-aesthetics layer that the grounded metrics above cannot cover.
+- **For the pipeline:** Wire the MLLM judge as a pairwise rubric selector (best-of-N) rather than an absolute scorer, mitigating its known scoring/ranking unreliability. Run it on a local Apache-2.0 Qwen2.5-VL so it's commercial-clean and on-rig. To satisfy EXTERNAL_VERIFIER, the judge MUST be a different model family than the generator with the generator's prompt/reasoning hidden — and because it is the least reliable gate, place it AFTER the deterministic grounded/perceptual gates, reserving human review (UNCERTAINTY_GATED_HUMANS) for cases where judge and metrics disagree.
+- **Engine:** python · **Applies to:** game-sprite · **Base:** n/a (any capable MLLM judge — Qwen2.5-VL, Gemma-3, GPT-4o, Gemini) · **Kind:** technique
+- **VRAM:** 8-24 for a local 7B-32B VLM judge on the 5090
+- **Output license:** commercial **conditional** (license: Benchmark code permissive (Dongping-Chen/MLLM-Judge); judge-model license varies) — The benchmark/protocol is open and permissive, but commercial standing rides entirely on the judge model: a local Qwen2.5-VL (Apache-2.0) or PaliGemma (Gemma license) keeps it clean and on-rig, whereas API judges (GPT-4o/Gemini) add per-call cost and ToS constraints but no IP inheritance into the game. As a non-shipped verifier the risk is procedural, not asset-license.
+- **Fit:** rig 4/5 · studio 4/5
+- **Verify:** arXiv:2402.04788 confirmed (Dongping Chen et al., ICML 2024 Oral); abstract confirms human-aligned on pairwise but divergent/biased/hallucinatory in scoring and batch ranking. github.com/Dongping-Chen/MLLM-Judge confirmed as official repo covering scoring/pair/batch with human-annotation datasets. Note: explicit repo LICENSE file not visible on the rendered page, but the entry's license claim is hedged ('benchmark code permissive; judge-model license varies') and not overstated. commercial_use 'conditional' accurate. [no external verdict — not checked]
+- **Sources:** [MLLM-as-a-Judge: Assessing Multimodal LLM-as-a-Judge with Vision-Language Benchmark](https://arxiv.org/abs/2402.04788) (Dongping Chen, Ruoxi Chen, Shilin Zhang, Yinuo Liu, et al., 2024) — MLLMs align with human judgment on pairwise comparison but show notable discrepancies, biases, and hallucination in scoring and batch ranking. ; [Dongping-Chen/MLLM-Judge — official code (ICML 2024 Oral)](https://github.com/Dongping-Chen/MLLM-Judge) (Dongping Chen et al., 2024) — Reference benchmark and protocol for scoring/pairwise/batch MLLM judging with human-preference datasets (HQ and HARD-with-hallucination).
+
+### SigLIP 2 — zero-shot class/weapon/silhouette classifier · `recommended` · ▸ reproduced
+**SigLIP 2 (Apache-2.0) is a current, fully commercial-clean image-text encoder whose zero-shot cosine scoring outperforms the original SigLIP/CLIP at every scale, giving a license-safe grounded check for 'is this a knight / does a sword appear'.**
+SigLIP 2 (Tschannen et al., Feb 2025) extends sigmoid image-text pretraining with captioning, self-distillation, masked prediction, and online data curation, and beats SigLIP on zero-shot classification, retrieval, localization, and dense features. For a sprite gate you embed the sprite and a set of text labels ('a pixel-art knight', 'a mage', 'a longsword', 'a left-facing character') and take softmax/cosine — a fast, batched, label-set presence and class check. The NaFlex variant preserves native aspect ratio and variable resolution, which matters for non-square sprite canvases. Crucially the weights are Apache-2.0, so it is the recommended license-clean encoder when CLIP-derived weights have murkier provenance.
+- **For the pipeline:** Use SigLIP 2 So400m as the cheap, batchable first-pass classifier in the gate: thousands of sprites/min, near-zero VRAM cost on a 5090, and a clean Apache-2.0 license so it can also score training-data candidates without license risk. Pair it with VQAScore — SigLIP 2 gives fast coarse class/silhouette triage, VQAScore handles the compositional 'right weapon in right hand' cases SigLIP cosine misses. Calibrate per-label thresholds on a small hand-labeled holdout rather than trusting raw cosine magnitudes.
+- **Engine:** python · **Applies to:** both · **Base:** SigLIP 2 (ViT) — n/a base for LoRA · **Kind:** model
+- **VRAM:** 1-4 (ViT-B 86M / L 303M); ~4-6 for So400m (400M); ~8 for g (1B)
+- **Output license:** commercial **yes** (license: Apache-2.0 (model weights, all sizes)) — Apache-2.0 on the published Google checkpoints (verified on the google/siglip2-* model cards). Fully commercial-clean for an in-house verifier; nothing about it touches the shipped game, and the license imposes no copyleft on downstream curation decisions.
+- **Fit:** rig 5/5 · studio 4/5
+- **Verify:** arXiv:2502.14786 confirmed as SigLIP 2 with stated DeepMind authors; abstract confirms it outperforms SigLIP at all scales on zero-shot classification/retrieval/dense/localization, released as ViT-B/L/So400m/g. HF model card google/siglip2-so400m-patch14-384 confirms apache-2.0. commercial_use 'yes' accurate. [no external verdict — not checked]
+- **Sources:** [SigLIP 2: Multilingual Vision-Language Encoders with Improved Semantic Understanding, Localization, and Dense Features](https://arxiv.org/abs/2502.14786) (Michael Tschannen, Alexey Gritsenko, Xiao Wang, et al. (Google DeepMind), 2025) — SigLIP 2 outperforms SigLIP at all scales on zero-shot classification, retrieval, dense prediction, and localization; released as ViT-B/L/So400m/g with a NaFlex native-resolution variant. ; [google/siglip2-so400m-patch14-384 model card](https://huggingface.co/google/siglip2-so400m-patch14-384) (Google, 2025) — The published SigLIP 2 checkpoints are licensed apache-2.0, permitting commercial use of the encoder as an evaluator.
+
+### VQAScore (t2v_metrics) — grounded weapon/class/silhouette presence gate · `recommended` · ▸ reproduced
+**An off-the-shelf VQA model scoring P('Yes' | image, 'Does this show a {knight with a longsword}?') is the current SOTA for grounded compositional presence checks and beats CLIPScore on attribute binding and multi-object prompts.**
+VQAScore (Lin et al., ECCV 2024) computes alignment as the VQA model's probability of answering 'Yes' to a templated yes/no question about the image. For a sprite gate you ask per-attribute questions ('does this show a sword', 'is this a mage', 'is the figure facing left') and threshold the Yes-probability, giving a deterministic, auditable verifier for silhouette/weapon/class presence. The t2v_metrics package (Apache-2.0) ships swappable backends; CLIP-FlanT5 was the original, and v3.1 supports Qwen2.5-VL / Gemma-3 / PaliGemma as the judge. Unlike a single cosine score it handles negation, counts, and attribute-to-object binding — exactly the failure modes (wrong weapon, missing prop, mirrored facing) that break sprite QA.
+- **For the pipeline:** Make this the primary presence gate in the verifier wave: per-sprite, run 3-6 templated questions (class, weapon/prop, facing, count) and fail the sprite if any Yes-probability falls below a tuned floor. Use a small Qwen2.5-VL-2B/7B backbone (Apache-2.0, fits the 5090's 32GB comfortably) so the gate is both commercial-clean and on-rig. Because it's a VLM, it satisfies EXTERNAL_VERIFIER only if its family differs from the generator — never let the same model family generate and judge.
+- **Engine:** python · **Applies to:** game-sprite · **Base:** n/a (wraps a VQA/VLM backbone — CLIP-FlanT5, Qwen2.5-VL, PaliGemma) · **Kind:** eval
+- **VRAM:** 8-12 (qwen3-vl-2b / small CLIP-FlanT5) up to 40+ (large judges)
+- **Output license:** commercial **conditional** (license: Apache-2.0 (t2v_metrics code); backend model license varies — CLIP-FlanT5 / PaliGemma / Qwen2.5-VL each carry their own terms) — The t2v_metrics harness is Apache-2.0 (commercial-safe). The DECISIVE constraint is the chosen VQA backbone's license: CLIP-FlanT5 and PaliGemma weights are permissively/Gemma-licensed (commercial OK with terms), Qwen2.5-VL is Apache-2.0 (sizes <=72B), but a LLaVA-1.5 backbone inherits LLaMA community-license restrictions. Pick the judge backbone for commercial standing — this is a verifier, so it never ships in the game, but a contaminated judge can still taint a training-data curation decision.
+- **Fit:** rig 4/5 · studio 5/5
+- **Verify:** Both sources resolve. github.com/linzhiqiu/t2v_metrics is Apache-2.0 and implements VQAScore with swappable VQA backends (PaliGemma, Qwen2.5-VL, Gemma 3 all confirmed; actively maintained, 583 stars, VQAScore v3.1 as of 2026). Paper (ECCV 2024) authors/title/claim accurate. commercial_use 'conditional' is correct: code is Apache-2.0 but backend-model licenses vary. [no external verdict — not checked]
+- **Sources:** [Evaluating Text-to-Visual Generation with Image-to-Text Generation (VQAScore)](https://linzhiqiu.github.io/papers/vqascore/) (Zhiqiu Lin, Deepak Pathak, Baiqi Li, Jiayao Li, Xide Xia, Graham Neubig, Pengchuan Zhang, Deva Ramanan, 2024) — VQAScore = P('Yes') from a VQA model asked 'Does this figure show {text}?'; it outperforms CLIPScore on compositional prompts with attribute bindings, relations, and logical reasoning. ; [linzhiqiu/t2v_metrics — Evaluating text-to-image/video/3D models with VQAScore](https://github.com/linzhiqiu/t2v_metrics) (Zhiqiu Lin et al., 2024) — Apache-2.0 reference implementation with swappable VQA backends (CLIP-FlanT5, Qwen2.5-VL, PaliGemma, Gemma-3); small variants (e.g. qwen3-vl-2b) run on limited-VRAM GPUs.
+
+### MEt3R — multi-view/turnaround 3D-consistency metric · `recommended` · · single-run
+**MEt3R is a 2025 reference-free, pose-free metric that warps one generated view into another via DUSt3R 3D reconstruction and compares features — a purpose-built consistency score for character turnarounds and multi-angle sprite sheets.**
+MEt3R (Asim et al., CVPR 2025) measures how 3D-consistent a set of generated views are, independent of any ground-truth scene or pose labels: it uses DUSt3R to get a dense feed-forward 3D reconstruction from an image pair, warps one view into the other, and computes a symmetric feature-space similarity over the overlapping region, making it invariant to view-dependent shading. For a turnaround pipeline (front/side/back/3-4 sprites of one character) this directly answers 'is this the SAME character across angles' — catching identity drift, costume changes, and proportion breaks that pixel metrics miss. Because it's pose-free and reference-free it fits generated-asset QA where you have no ground-truth turnaround.
+- **For the pipeline:** This is the right consistency gate for turnaround/multi-angle deliverables: run MEt3R pairwise across the angle set and fail the turnaround if any pair drops below a tuned consistency floor, flagging identity/costume drift before the sprite sheet is accepted. For flat 2.5D where you lack real 3D, treat the score as a relative consistency ranking across candidates rather than an absolute pass mark, and verify the DUSt3R weight license before wiring it into a commercial production gate.
+- **Engine:** python · **Applies to:** turnaround · **Base:** DUSt3R-based feature reconstruction · **Kind:** metric
+- **VRAM:** ~8-16 (DUSt3R inference on a pair of views)
+- **Output license:** commercial **conditional** (license: Code released by the authors (check repo); built on DUSt3R (CC-BY-NC research weights) — verify before commercial pipeline use) — MEt3R itself is a metric, but it depends on DUSt3R, whose research checkpoints have historically carried a non-commercial (CC-BY-NC-style) license. As an internal verifier the legal exposure is far lower than shipping DUSt3R in a product, but if you want a fully clean pipeline confirm the exact DUSt3R weight license or swap in a permissively-licensed MASt3R/feed-forward reconstruction backbone.
+- **Fit:** rig 4/5 · studio 4/5
+- **Verify:** arXiv:2501.06336 confirmed; title/authors (Asim, Wewer, Wimmer, Schiele, Lenssen, 2025) correct. Abstract confirms DUSt3R-based dense reconstruction warping for a reference-free, sampling-independent multi-view consistency score. commercial_use 'conditional' is appropriately cautious: DUSt3R weights carry a non-commercial research caveat, correctly flagged. [no external verdict — not checked]
+- **Sources:** [MEt3R: Measuring Multi-View Consistency in Generated Images](https://arxiv.org/abs/2501.06336) (Mohammad Asim, Christopher Wewer, Thomas Wimmer, Bernt Schiele, Jan Eric Lenssen, 2025) — MEt3R uses DUSt3R dense reconstruction to warp and feature-compare generated views, yielding a reference-free, sampling-independent multi-view consistency score invariant to view-dependent effects.
+
+### Pixel-art-specific quality: palette adherence + grid/block-size consistency · `recommended` · · single-run
+**Generic perceptual metrics ignore the things that define pixel art — fixed grid, limited palette, clean hard edges — so a sprite gate needs explicit palette-adherence and block-size-consistency checks, the criteria formalized by SD-piXL and recent structure-aware pixelization work.**
+Pixel art is defined by constraints natural-image metrics don't model: a coherent limited palette, a consistent pixel grid where every pixel is deliberate and aligned, and controlled/absent anti-aliasing. SD-piXL (Binninger et al., SIGGRAPH Asia 2024) makes palette adherence and semantic readability at low resolution first-class generation goals — and conversely first-class evaluation criteria — operating on an HxWxn palette-class tensor so a sprite either obeys the n-color palette or it doesn't. Recent structure-aware pixelization (block-size detection, 2025-26) adds measurable tests — Color Loss (palette drift), Block-Size Consistency (grid alignment), and reversibility — that you can compute deterministically. Together these give a non-ML, fully commercial-clean pixel-fidelity gate: count off-palette colors, verify the inferred block grid is uniform, and detect stray anti-aliasing/orphan pixels.
+- **For the pipeline:** Make the deterministic pixel-fidelity check the cheapest, hardest gate and run it FIRST (ANDON_AUTHORITY): reject any sprite that introduces colors outside the locked palette, whose inferred block grid is non-uniform/non-integer, or that contains unintended anti-aliasing or orphan pixels — these are objective defects no human reviewer or VLM should have to catch. It is free (CPU, no VRAM, no license) and deterministic, so it is byte-for-byte replayable and the ideal floor beneath the perceptual and grounded layers for a commercial 2.5D pixel/tile pipeline.
+- **Engine:** python · **Applies to:** tile · **Base:** n/a (deterministic image analysis + optional score-distillation generator) · **Kind:** eval
+- **VRAM:** 0 (CPU image analysis)
+- **Output license:** commercial **yes** (license: Deterministic checks: your own code (no license issue). SD-piXL reference code released by authors — verify repo license before reuse) — The actual gate (count off-palette colors against the locked palette, detect grid block size and flag non-integer/inconsistent blocks, flag anti-aliased/orphan pixels) is plain deterministic image processing you author — zero license inheritance and zero VRAM. SD-piXL is cited as the criteria/quality reference; only reusing its generation code would invoke its repo license.
+- **Fit:** rig 5/5 · studio 5/5
+- **Verify:** Both papers real. SD-piXL confirmed at igl.ethz.ch (Binninger & Sorkine-Hornung, ETH Zurich, SIGGRAPH ASIA 2024) operating on an HxWxn palette-class tensor with chosen n-color palette. MDPI paper returned HTTP 403 to WebFetch (anti-bot, not hallucination) but WebSearch confirms it exists: 'Structure-Aware Pixel Art Scaling via Block Size Detection', Applied Sciences 16(5):2314 (2026), DOI 10.3390/app16052314, with the Color Loss / Block-Size Consistency / reversibility evaluation framework as claimed. Minor data note: the real MDPI authors are Seo, Lee, Lee, Kim & Jung (proposal used placeholder 'MDPI Applied Sciences authors'), but existence/claims/license stance are sound. commercial_use 'yes' accurate for the deterministic checks. [no external verdict — not checked]
+- **Sources:** [SD-piXL: Generating Low-Resolution Quantized Imagery via Score Distillation](https://igl.ethz.ch/projects/sd-pixl/) (Alexandre Binninger, Olga Sorkine-Hornung (ETH Zurich IGL), 2024) — SD-piXL operates on an HxWxn palette-class tensor with a chosen n-color palette, establishing strict palette adherence and low-resolution semantic readability as core pixel-art quality criteria that existing pixelization methods fail to meet. ; [Structure-Aware Pixel Art Scaling via Block Size Detection](https://www.mdpi.com/2076-3417/16/5/2314) (MDPI Applied Sciences authors, 2026) — Introduces an evaluation framework of Color Loss, Block-Size Consistency, and reversibility tests, detecting intrinsic block size to verify a pixel image preserves its palette and uniform grid without interpolation artifacts.
+
+### CLIPScore — reference-free text-image alignment baseline · `situational` · ▸ reproduced
+**CLIPScore is the cheap, well-established reference-free baseline for 'does the sprite match its prompt/spec', but it provably fails on attribute binding and multi-object prompts — so it's a triage floor, not the presence gate.**
+CLIPScore (Hessel et al., EMNLP 2021) is the cosine similarity between a CLIP image embedding and a text embedding, rescaled; it needs no reference image and correlates with human judgment of caption/image fit better than CIDEr/SPICE. For sprites it gives a fast single number for 'sprite matches its descriptor'. Its documented weakness — multiple objects, attribute bindings, relations, counting — is exactly why VQAScore was built, so CLIPScore belongs as a low-cost first filter and drift sentinel, with VQAScore/SigLIP 2 doing the load-bearing presence decision. Note the metric is only as commercial-clean as the underlying CLIP weights you instantiate it with.
+- **For the pipeline:** Keep CLIPScore only as a cheap drift sentinel (flag sprites whose prompt-alignment suddenly drops across a batch) and as a quick A/B sanity number. Do NOT gate ship/no-ship on it: its attribute-binding blindness means a sprite holding the wrong weapon can still score high. Where you'd reach for CLIPScore, prefer SigLIP 2 zero-shot (better + Apache-2.0) or VQAScore (handles composition).
+- **Engine:** python · **Applies to:** both · **Base:** CLIP (OpenAI ViT-B/32 default; swappable to OpenCLIP) · **Kind:** metric
+- **VRAM:** 1-3
+- **Output license:** commercial **conditional** (license: Code MIT-style (jmhessel/clipscore); OpenAI CLIP weights = MIT but trained on undisclosed web data; OpenCLIP weights vary) — The metric code is permissive, and OpenAI's CLIP weights are MIT-licensed — but provenance of CLIP's training data is unstated, so prefer instantiating CLIPScore with an OpenCLIP/LAION or SigLIP backbone whose terms you can audit. As a non-shipped verifier the risk is low, but for license cleanliness SigLIP 2 zero-shot is the stronger choice.
+- **Fit:** rig 5/5 · studio 3/5
+- **Verify:** arXiv:2104.08718 confirmed (Hessel et al., reference-free CLIP-cosine metric, higher human correlation than CIDEr/SPICE). github.com/jmhessel/clipscore confirmed MIT, official EMNLP 2021 impl. commercial_use 'conditional' accurate given CLIP-weights training-data caveat. [no external verdict — not checked]
+- **Sources:** [CLIPScore: A Reference-free Evaluation Metric for Image Captioning](https://arxiv.org/abs/2104.08718) (Jack Hessel, Ari Holtzman, Maxwell Forbes, Ronan Le Bras, Yejin Choi, 2021) — CLIPScore uses CLIP image-text cosine similarity for reference-free evaluation and achieves higher human correlation than reference-based metrics like CIDEr and SPICE. ; [jmhessel/clipscore — CLIPScore EMNLP code](https://github.com/jmhessel/clipscore) (Jack Hessel, 2021) — Reference implementation of CLIPScore; documented to struggle with multiple objects and attribute bindings, motivating VQAScore-style replacements.
+
+### ASME Y14.3 orthographic registration hold-with-limit · `situational` · docs
+**Shared scale/registration across views — hold adjacent to pose-grid cells; limit ≠ painterly SDXL sheets.**
+STUDY-038 Analogist Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-038 Verifier ✅.
+- **Engine:** docs · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Fit:** rig 4/5 · studio 4/5
+- **Verify:** STUDY-038 deepen [no external verdict — not checked]
+- **Sources:** [ASME Y14.3](https://www.asme.org/codes-standards/find-codes-standards/y14-3-orthographic-pictorial-views) — Orthographic/pictorial view registration.
+
+### ASME Y14.3 — orthographic multi-view analog · `situational` · docs
+**One solid to fixed front/side/top views with shared scale and registration. Holds for mesh to 8-dir orthographic turnaround.**
+One solid to fixed front/side/top views with shared scale and registration. Holds for mesh to 8-dir orthographic turnaround.
+- **For the pipeline:** STUDY-007 Verifier-verified. Sheet craft / ortho / palette / identity floors.
+- **Engine:** blender · **Applies to:** sprites · **Kind:** technique
+- **Output license:** commercial **check** (license: see-source) — STUDY-017 reopen; verified=0 until ACCEPT.
+- **Fit:** rig 4/5 · studio 4/5
+- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [no external verdict — not checked]
+- **Sources:** [ASME Y14.3 — orthographic multi-view analog](https://www.asme.org/codes-standards/find-codes-standards/y14-3-orthographic-pictorial-views) — One solid to fixed front/side/top views with shared scale and registration. Holds for mesh to 8-dir orthographic turnaround.
+
+### Datum reference — foot-anchor analog · `situational` · docs
+**Shared bottom-center datum so every view shares one contact point and crop. Holds for foot-anchored union-bbox finish.**
+Shared bottom-center datum so every view shares one contact point and crop. Holds for foot-anchored union-bbox finish.
+- **For the pipeline:** STUDY-007 Verifier-verified. Sheet craft / ortho / palette / identity floors.
+- **Engine:** blender · **Applies to:** sprites · **Kind:** technique
+- **Output license:** commercial **check** (license: see-source) — STUDY-017 reopen; verified=0 until ACCEPT.
+- **Fit:** rig 4/5 · studio 4/5
+- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [no external verdict — not checked]
+- **Sources:** [Datum reference — foot-anchor analog](https://en.wikipedia.org/wiki/Datum_reference) — Shared bottom-center datum so every view shares one contact point and crop. Holds for foot-anchored union-bbox finish.
+
+### Datum reference — foot-anchor registration analog · `situational` · docs
+**Shared reference for registration — foot-anchor analog peer; flip 486: 0.**
+STUDY-059 Practitioner deepen. Flip 486: 0. Recipes invented: 0.
+- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+- **Engine:** docs · **Applies to:** all · **Base:** general · **Kind:** technique
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Fit:** rig 4/5 · studio 4/5
+- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Sources:** [Datum reference](https://en.wikipedia.org/wiki/Datum_reference) — Shared reference for registration. Foot-anchor analog.
+
+### Pose ControlNet + silhouette pedagogy hold-with-limit · `situational` · docs
+**Comfy Pose ControlNet + twelve principles solid-drawing/silhouette — hold for multi-pose sheets / thumbnail readability**
+STUDY-038 Analogist Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-038 Verifier ✅.
+- **Engine:** docs · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Fit:** rig 4/5 · studio 4/5
+- **Verify:** STUDY-038 deepen [no external verdict — not checked]
+- **Sources:** [ComfyUI Pose ControlNet 2-pass](https://docs.comfy.org/tutorials/controlnet/pose-controlnet-2-pass) — Skeleton map as pose conditional. ; [Twelve principles of animation](https://en.wikipedia.org/wiki/Twelve_basic_principles_of_animation) — Solid drawing / staging / silhouette.
+
+### SDXL Open RAIL++-M + WCR adapter flow-down hold · `situational` · docs
+**SDXL Open RAIL++-M use restrictions + WCR LoRA/ControlNet flow-down — hold license inheritance; 486 stays avoid.**
+STUDY-038 Analogist Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-038 Verifier ✅.
+- **Engine:** docs · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Fit:** rig 4/5 · studio 4/5
+- **Verify:** STUDY-038 deepen [no external verdict — not checked]
+- **Sources:** [CreativeML Open RAIL++-M SDXL](https://raw.githubusercontent.com/Stability-AI/generative-models/main/model_licenses/LICENSE-SDXL1.0) — Commercial OK with use-based restrictions. ; [WCR fine-tuned model license](https://wcr.legal/fine-tuned-model-license/) — Adapters inherit base license.
+
+### Twelve principles — silhouette readability · `situational` · docs
+**Solid drawing / staging / silhouette. Holds for 48/64px orthographic readability.**
+Solid drawing / staging / silhouette. Holds for 48/64px orthographic readability.
+- **For the pipeline:** STUDY-007 Verifier-verified. Sheet craft / ortho / palette / identity floors.
+- **Engine:** blender · **Applies to:** sprites · **Kind:** technique
+- **Output license:** commercial **check** (license: see-source) — STUDY-017 reopen; verified=0 until ACCEPT.
+- **Fit:** rig 4/5 · studio 4/5
+- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [no external verdict — not checked]
+- **Sources:** [Twelve principles — silhouette readability](https://en.wikipedia.org/wiki/Twelve_basic_principles_of_animation) — Solid drawing / staging / silhouette. Holds for 48/64px orthographic readability.
+
+### Twelve principles — solid drawing / staging silhouette hold-with-limit · `situational` · analog
+**Readable form and staging at a glance — hold for 48/64px silhouette readability gates; limit ≠ rigid weapon/mesh truth.**
+STUDY-059 Analogist #6 Verifier ✅ hold-with-limit. Flip 486: 0. Recipes invented: 0.
+- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+- **Engine:** docs · **Applies to:** all · **Base:** general · **Kind:** technique
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Fit:** rig 4/5 · studio 4/5
+- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Sources:** [Twelve basic principles of animation](https://en.wikipedia.org/wiki/Twelve_basic_principles_of_animation) — Solid drawing / staging / silhouette readability.
+

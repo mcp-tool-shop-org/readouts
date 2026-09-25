@@ -1,0 +1,676 @@
+{
+  "bucket": "restore-internals",
+  "title": "Rapier state for restore (T2)",
+  "tier": "si-rpg-engine",
+  "count": 10,
+  "recipes": [
+    {
+      "slug": "treat-rapier3d-f64-0-35-3-contact-pairs-as-read-only-no-public-or-hook-path-writes-a-manifold-point",
+      "name": "Treat rapier3d-f64 0.35.3 contact pairs as read-only: no public or hook path writes a manifold point",
+      "what": "NarrowPhase hands out only &ContactPair; InteractionGraph's *_mut needs &mut InteractionGraph, which is a private field; a MODIFY_SOLVER_CONTACTS hook gets &ContactManifold and SolverContacts with no warm-start fields.",
+      "how": "Do not look for a mutable accessor: at 0.35.3 (and 0.36.0) contact_pairs/contact_pair/contact_graph are all &self. If warm-start values must be written, the sound routes are the serde-serialize round trip or a vendored crate with a ContactData-only accessor (contact_data_mut over contact_graph.graph.edges.iter_mut(), same order as contact_pairs()); otherwise keep one persistent world and let Rapier carry its own warm start.",
+      "rust_version": "rapier3d-f64 0.35.3",
+      "gotchas": "The hook route looks promising because solver_contacts is &mut, but the solver reads warm starts from manifold.points[..].data (contact_with_twist_friction.rs:192-219), which the hook sees by &; hooked pairs are also never recycled, so enabling a hook changes the simulation. EventHandler callbacks get &ContactPair too.",
+      "engine_note": "rapier_law.rs solver_clear_warmstart (main) and, on the T2 branch at ee2e50a, pairs_mut, carry_warmstart and solver_restore all write manifold points through pointers cast from &ContactPair; si-rpg-engine T2 (docs/dispatch-t2-restore.md) pin 1's warm-start write-back has no sound public path.",
+      "checks": [
+        {
+          "label": "NarrowPhase has no contact_pairs_mut",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0599"
+          ],
+          "source": "// No mutable accessor on NarrowPhase; the graph accessor is shared.\nuse rapier3d_f64::prelude::*;\npub fn f(w: &mut PhysicsWorld) {\n    for pair in w.narrow_phase.contact_pairs_mut() { pair.manifolds.clear(); }\n}\n"
+        },
+        {
+          "label": "contact_graph() is shared: interaction_pair_mut needs &mut",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0596"
+          ],
+          "source": "use rapier3d_f64::prelude::*;\npub fn f(w: &mut PhysicsWorld, a: ColliderGraphIndex, b: ColliderGraphIndex) {\n    let _ = w.narrow_phase.contact_graph().interaction_pair_mut(a, b);\n}\n"
+        },
+        {
+          "label": "NarrowPhase::contact_graph field is private",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0616"
+          ],
+          "source": "use rapier3d_f64::prelude::*;\npub fn f(w: &mut PhysicsWorld) -> usize {\n    w.narrow_phase.contact_graph.raw_graph().raw_edges().len()\n}\n"
+        },
+        {
+          "label": "A hook cannot write warm start: SolverContact has no warmstart_impulse",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0609"
+          ],
+          "source": "// A MODIFY_SOLVER_CONTACTS hook cannot carry warm-starts: SolverContact has no such field.\nuse rapier3d_f64::prelude::*;\nstruct Warm;\nimpl PhysicsHooks for Warm {\n    fn modify_solver_contacts(&self, ctx: &mut ContactModificationContext) {\n        for sc in ctx.solver_contacts.iter_mut() {\n            sc.warmstart_impulse = 1.0;\n        }\n    }\n}\npub fn hooks() -> impl PhysicsHooks { Warm }\n"
+        },
+        {
+          "label": "A hook cannot write the manifold: ctx.manifold is behind &",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0596"
+          ],
+          "source": "// ...and the manifold (where the solver reads warm-starts) arrives as a shared reference.\nuse rapier3d_f64::prelude::*;\nstruct Warm;\nimpl PhysicsHooks for Warm {\n    fn modify_solver_contacts(&self, ctx: &mut ContactModificationContext) {\n        ctx.manifold.points[0].data.warmstart_impulse = 1.0;\n    }\n}\npub fn hooks() -> impl PhysicsHooks { Warm }\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "NarrowPhase (rapier3d-f64 0.35.3 API docs)",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.NarrowPhase.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Every NarrowPhase accessor takes &self and returns shared references; none returns a mutable pair or graph."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: geometry/narrow_phase/queries.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/narrow_phase/queries.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "The accessors (contact_graph, contact_pairs, contact_pair, ...) are all &self; no fn returns &mut ContactPair or &mut InteractionGraph."
+        },
+        {
+          "title": "NarrowPhase (rapier3d-f64 0.36.0 API docs)",
+          "url": "https://docs.rs/rapier3d-f64/0.36.0/rapier3d_f64/geometry/struct.NarrowPhase.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "0.36.0 (2026-09-25) still exposes only &self contact accessors, so a version bump adds no mutable path."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: contact_with_twist_friction.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/solver/contact_constraint/contact_with_twist_friction.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "generate() reads warmstart_impulse, warmstart_tangent_world, warmstart_twist_impulse, impulse and solver_dp1/solver_dp2 from the manifold points; writeback_impulses() writes them back."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "never-write-through-a-ptr-from-ref-pointer-to-a-contactpair-parking-it-in-a-vec-only-hides-the-ub",
+      "name": "Never write through a ptr::from_ref pointer to a ContactPair: parking it in a Vec only hides the UB",
+      "what": "A pointer made by ptr::from_ref from &ContactPair may never be written through; doing so mutates bytes behind a shared reference, which the Reference lists as UB.",
+      "how": "Delete such writes rather than wrapping them: there is no UnsafeCell inside ContactPair to make them sound. rustc's deny-by-default invalid_reference_casting rejects `&mut *(ptr::from_ref(p) as *mut T)` in one expression, but the same cast collected into a Vec<*mut T> and dereferenced later compiles silently.",
+      "rust_version": "any (ptr::from_ref since 1.76)",
+      "gotchas": "Single-threaded ownership of the world does not make it sound: the rule is about the provenance of the pointer (derived from &T), not about races. A clean compile is not evidence: the lint is pattern-based.",
+      "engine_note": "rapier_law.rs solver_clear_warmstart on main; on the T2 branch (ee2e50a) pairs_mut (~868), carry_warmstart (~880) and solver_restore (~1193) use the same Vec-of-pointers shape.",
+      "checks": [
+        {
+          "label": "One-expression &T to &mut T cast is rejected by invalid_reference_casting",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "lints": [
+            "invalid_reference_casting"
+          ],
+          "source": "pub struct Pair { pub w: f64 }\npub fn clear(p: &Pair) {\n    unsafe {\n        let m = &mut *(core::ptr::from_ref(p) as *mut Pair);\n        m.w = 0.0;\n    }\n}\n"
+        },
+        {
+          "label": "The engine's shape (pointers parked in a Vec) compiles with no diagnostic",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "// The engine's shape: pointers collected from shared references, written later.\npub struct Pair { pub w: f64 }\npub fn clear(pairs: &[Pair]) -> usize {\n    let mut ptrs: Vec<*mut Pair> = Vec::new();\n    for p in pairs {\n        ptrs.push(core::ptr::from_ref(p) as *mut Pair);\n    }\n    let n = ptrs.len();\n    for ptr in ptrs {\n        unsafe {\n            let pair = &mut *ptr;\n            pair.w = 0.0;\n        }\n    }\n    n\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "std::ptr::from_ref",
+          "url": "https://doc.rust-lang.org/stable/std/ptr/fn.from_ref.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The memory behind a from_ref pointer must never be written through it or any pointer derived from it (except inside an UnsafeCell)."
+        },
+        {
+          "title": "The Rust Reference: Behavior considered undefined",
+          "url": "https://doc.rust-lang.org/stable/reference/behavior-considered-undefined.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Mutating immutable bytes is UB, and the bytes pointed to by a shared reference are immutable."
+        },
+        {
+          "title": "rustc lint listing: deny-by-default (invalid_reference_casting)",
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "invalid_reference_casting (deny by default) rejects casting &T to &mut T without interior mutability."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "count-more-than-warm-start-impulses-as-solver-state-frozen-arms-parry-points-recycle-state-colours",
+      "name": "Count more than warm-start impulses as solver state: frozen arms, parry points, recycle state, colours",
+      "what": "Besides warmstart_impulse, warmstart_tangent_world and warmstart_twist_impulse, the 0.35.3 solver reads solver_dp1/solver_dp2 (lever arms frozen at the last full update) and history-kept contact points; the pair's pub(crate) recycle_state and solver_color decide recycling and solve order.",
+      "how": "A world rebuilt from bit-equal poses and velocities computes fresh contact points; the running world keeps recycled or try_update'd ones. So writing the four warm-start fields back cannot make the next step match: restore all of the narrow phase (serde) or do not restore it (replay).",
+      "rust_version": "rapier3d-f64 0.35.3 / parry3d-f64 0.30.2",
+      "gotchas": "3D reads warmstart_tangent_world, not warmstart_tangent_impulse (written back only). contact_recycling defaults to true and turning it off does not help: parry's cuboid-cuboid path still keeps old points through try_update_contacts. Measured with warm starts written soundly: first-quantum divergence up to 3.4e-5 m.",
+      "engine_note": "rapier_law.rs rebuild_snapshot/push_contact hash 7 floats per point but not solver_dp1/solver_dp2, recycle_state or colours; si-rpg-engine T2 (docs/dispatch-t2-restore.md) pin 1 and pin 5.",
+      "checks": [
+        {
+          "label": "A world rebuilt at bit-equal poses reads different contact geometry",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "points 12 vs 11; of the pairs compared, points whose anchors, lever arms or dist differ: 11",
+          "source": "// Three stacked boxes settle for 20 quanta. A second world is built with the same\n// bodies at bit-equal poses and velocities (whole activation copied). Both take one\n// step; compare what the solver read for each contact point in that step.\nuse rapier3d_f64::prelude::*;\n\nfn world(state: Option<&[(Pose, Vector, Vector, RigidBodyActivation)]>) -> (PhysicsWorld, Vec<RigidBodyHandle>) {\n    let mut w = PhysicsWorld::new();\n    w.gravity = Vector::new(0.0, -8.0, 0.0);\n    w.integration_parameters.dt = 1.0 / 64.0;\n    w.integration_parameters.contact_clustering = false;\n    let floor = RigidBodyBuilder::fixed().translation(Vector::new(0.0, -0.5, 0.0)).build();\n    w.insert(floor, ColliderBuilder::cuboid(5.0, 0.5, 5.0).friction(0.8).build());\n    let mut hs = Vec::new();\n    for i in 0..3 {\n        let mut b = RigidBodyBuilder::dynamic()\n            .translation(Vector::new(0.05 * i as f64, 0.5 + 1.05 * i as f64, 0.0)).build();\n        if let Some(s) = state {\n            b.set_position(s[i].0, false);\n            b.set_linvel(s[i].1, false);\n            b.set_angvel(s[i].2, false);\n            *b.activation_mut() = s[i].3;\n        }\n        hs.push(w.insert(b, ColliderBuilder::cuboid(0.5, 0.5, 0.5).friction(0.8).build()).0);\n    }\n    (w, hs)\n}\n\nfn read_by_solver(w: &PhysicsWorld) -> Vec<[u64; 13]> {\n    let mut pairs: Vec<_> = w.narrow_phase.contact_pairs().collect();\n    pairs.sort_by_key(|p| (p.collider1.into_raw_parts(), p.collider2.into_raw_parts()));\n    let mut out = Vec::new();\n    for p in pairs {\n        for m in p.solver_manifolds() {\n            for pt in &m.points {\n                let (a, b, d1, d2) = (pt.local_p1, pt.local_p2, pt.data.solver_dp1, pt.data.solver_dp2);\n                out.push([a.x, a.y, a.z, b.x, b.y, b.z, d1.x, d1.y, d1.z, d2.x, d2.y, d2.z, pt.dist].map(f64::to_bits));\n            }\n        }\n    }\n    out\n}\n\nfn main() {\n    let (mut a, hs) = world(None);\n    for _ in 0..20 { a.step(); }\n    let saved: Vec<_> = hs.iter().map(|h| {\n        let b = &a.bodies[*h];\n        (*b.position(), b.linvel(), b.angvel(), *b.activation())\n    }).collect();\n    let (mut r, _) = world(Some(&saved));\n    a.step();\n    r.step();\n    let (ga, gr) = (read_by_solver(&a), read_by_solver(&r));\n    let differ = ga.iter().zip(&gr).filter(|(x, y)| x != y).count();\n    println!(\"points {} vs {}; of the pairs compared, points whose anchors, lever arms or dist differ: {}\",\n             ga.len(), gr.len(), differ);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "rapier3d-f64 0.35.3 source: contact_with_twist_friction.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/solver/contact_constraint/contact_with_twist_friction.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "generate() reads warmstart_impulse, warmstart_tangent_world, warmstart_twist_impulse, impulse and solver_dp1/solver_dp2 from the manifold points; writeback_impulses() writes them back."
+        },
+        {
+          "title": "ContactData (rapier3d-f64 0.35.3 API docs)",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ContactData.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "solver_dp1/solver_dp2 are lever arms frozen at the pair's last full narrow-phase update; warmstart_tangent_world is the world-space friction warm start 3D reads."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: geometry/narrow_phase/pair_update.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/narrow_phase/pair_update.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "A pair within the recycle drift keeps its points and frozen arms; recycle_state is stored only when recycling is on; pairs with active hooks are never recycled."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: geometry/contact_pair.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/contact_pair.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "ContactPair's recycle_state, solver_color and solver_color_bodies are pub(crate); solver_dp1 is frozen at the last full update."
+        },
+        {
+          "title": "parry3d-f64 0.30.2 source: contact_manifolds_cuboid_cuboid.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/query/contact_manifolds/contact_manifolds_cuboid_cuboid.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "The cuboid-cuboid manifold returns early through try_update_contacts, keeping the previous contact points, and transfers impulses with match_contacts."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "copy-rigidbodyactivation-whole-or-not-at-all-its-pub-crate-sleep-prev-pose-restarts-the-sleep-timer",
+      "name": "Copy RigidBodyActivation whole or not at all: its pub(crate) sleep_prev_pose restarts the sleep timer",
+      "what": "RigidBodyActivation has five pub fields plus pub(crate) sleep_prev_pose (the pose at the previous energy update); rebuilding it from the pub fields resets time_since_can_sleep to 0 on the next step for any body not at the origin.",
+      "how": "Within a process, copy the whole struct (it is Copy): *rb.activation_mut() = saved. Across bytes, only serde-serialize carries sleep_prev_pose; the snapshot's time_since_can_sleep and sleeping are not enough to continue the timer.",
+      "rust_version": "rapier3d-f64 0.35.0+ (per-step displacement sleep test)",
+      "gotchas": "At save time sleep_prev_pose holds the pose one quantum before the save (the energy update runs before the solve), so storing the current pose does not help. Measured: whole copy [20, 6, 6] quanta, pub fields rebuilt [0, 0, 0].",
+      "engine_note": "rapier_law.rs rebuild_snapshot writes time_since_can_sleep/DT and sleeping only; si-rpg-engine T2 (docs/dispatch-t2-restore.md) pin 1 ('sleep state from the bytes'); the T2 branch replaced Rapier's sleep with the law's own for this reason.",
+      "checks": [
+        {
+          "label": "Rebuilding RigidBodyActivation from its pub fields resets the sleep timer",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "saved at step 20: quanta [19.0, 5.0, 5.0]\nnext step, whole activation kept: [20.0, 6.0, 6.0]\nnext step, pub fields rebuilt:    [0.0, 0.0, 0.0]",
+          "source": "// E1: rebuild every dynamic body's RigidBodyActivation through the public API\n// (all five pub fields copied) in a twin; touch the original with an identical\n// whole-struct write so both take the same activation_mut path. Step both once.\nuse rapier3d_f64::prelude::*;\n\nconst DT: f64 = 1.0 / 64.0;\n\nfn world() -> PhysicsWorld {\n    let mut w = PhysicsWorld::new();\n    w.gravity = Vector::new(0.0, -8.0, 0.0);\n    w.integration_parameters.dt = DT;\n    w.integration_parameters.contact_clustering = false;\n    let floor = RigidBodyBuilder::fixed().translation(Vector::new(0.0, -0.5, 0.0)).build();\n    w.insert(floor, ColliderBuilder::cuboid(5.0, 0.5, 5.0).friction(0.8).restitution(0.0).build());\n    for i in 0..3 {\n        let mut b = RigidBodyBuilder::dynamic()\n            .translation(Vector::new(0.05 * i as f64, 0.5 + 1.05 * i as f64, 0.0))\n            .can_sleep(true)\n            .build();\n        b.activation_mut().time_until_sleep = 32.0 * DT;\n        w.insert(b, ColliderBuilder::cuboid(0.5, 0.5, 0.5).friction(0.8).restitution(0.0).build());\n    }\n    w\n}\n\nfn twin(w: &PhysicsWorld) -> PhysicsWorld {\n    PhysicsWorld {\n        gravity: w.gravity,\n        integration_parameters: w.integration_parameters,\n        physics_pipeline: PhysicsPipeline::new(),\n        islands: w.islands.clone(),\n        broad_phase: w.broad_phase.clone(),\n        narrow_phase: w.narrow_phase.clone(),\n        bodies: w.bodies.clone(),\n        colliders: w.colliders.clone(),\n        impulse_joints: w.impulse_joints.clone(),\n        multibody_joints: w.multibody_joints.clone(),\n        ccd_solver: CCDSolver::new(),\n    }\n}\n\nfn main() {\n    let mut a = world();\n    // Run until every dynamic body has started its sleep timer but none sleeps.\n    let mut n = 0;\n    loop {\n        a.step();\n        n += 1;\n        let ok = a.bodies.iter().filter(|(_, b)| b.is_dynamic()).all(|(_, b)| {\n            let act = b.activation();\n            act.time_since_can_sleep > 4.0 * DT && !act.sleeping\n        });\n        if ok || n > 400 { break; }\n    }\n    let mut b = twin(&a);\n    let handles: Vec<RigidBodyHandle> =\n        a.bodies.iter().filter(|(_, b)| b.is_dynamic()).map(|(h, _)| h).collect();\n    for &h in &handles {\n        let same = *a.bodies[h].activation();\n        *a.bodies[h].activation_mut() = same; // identical write, same change flags\n        let old = *b.bodies[h].activation();\n        let mut act = RigidBodyActivation::active();\n        act.normalized_linear_threshold = old.normalized_linear_threshold;\n        act.angular_threshold = old.angular_threshold;\n        act.time_until_sleep = old.time_until_sleep;\n        act.time_since_can_sleep = old.time_since_can_sleep;\n        act.sleeping = old.sleeping;\n        *b.bodies[h].activation_mut() = act;\n    }\n    let before: Vec<f64> =\n        handles.iter().map(|h| a.bodies[*h].activation().time_since_can_sleep / DT).collect();\n    a.step();\n    b.step();\n    let qa: Vec<f64> = handles.iter().map(|h| a.bodies[*h].activation().time_since_can_sleep / DT).collect();\n    let qb: Vec<f64> = handles.iter().map(|h| b.bodies[*h].activation().time_since_can_sleep / DT).collect();\n    println!(\"saved at step {n}: quanta {before:?}\");\n    println!(\"next step, whole activation kept: {qa:?}\");\n    println!(\"next step, pub fields rebuilt:    {qb:?}\");\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "RigidBodyActivation (rapier3d-f64 0.35.3 API docs)",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.RigidBodyActivation.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Five public fields (thresholds, time_until_sleep, time_since_can_sleep, sleeping); wake_up(strong) and sleep() are the public state changes."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: dynamics/rigid_body_components.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/rigid_body_components.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "RigidBodyActivation has a pub(crate) sleep_prev_pose; update_energy replaces it and resets time_since_can_sleep when the drift from it is too large."
+        },
+        {
+          "title": "rapier CHANGELOG at tag v0.35.3",
+          "url": "https://raw.githubusercontent.com/dimforge/rapier/v0.35.3/CHANGELOG.md",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "v0.35.3",
+          "claim": "v0.35.0: sleep eligibility is judged on the actual per-step pose displacement; contact impulses are stored with canonicalized signed zeros."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "write-restored-sleep-state-after-the-load-pass-never-through-wake-up-true-setters",
+      "name": "Write restored sleep state after the load pass, never through wake_up=true setters",
+      "what": "set_linvel/set_angvel/set_translation/set_rotation/set_position(_, true) and wake_up(true) zero time_since_can_sleep; sleep() zeroes velocities; the IslandManager's persistent islands are pub(crate) history that no public call reads or writes.",
+      "how": "Set velocities and poses with wake_up = false (or through the builder). Write activation after CollisionPipeline::step and after any wake_up loop: a begin-touch transition in the pass wakes sleeping bodies and the engine's wake_up(true) loop zeroes every timer. Expect island membership, split cooldowns and epochs to come back only through serde.",
+      "rust_version": "rapier3d-f64 0.35.3",
+      "gotchas": "In a debug build of Rapier, CollisionPipeline::step with a body touching geometry at load panics at manager.rs:140 (the pass reports transitions to an IslandManager that never registered the bodies); release builds compile the assert out.",
+      "engine_note": "rapier_law.rs warm_broadphase (CollisionPipeline pass + wake_up(true) on every non-fixed body) runs before any restored sleep state could be written; si-rpg-engine T2 (docs/dispatch-t2-restore.md) pin 1 orders sleep state before the pass.",
+      "checks": [
+        {
+          "label": "Which public setters zero time_since_can_sleep",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "set_linvel(_, false) 0.25 | set_linvel(_, true) 0 | set_translation(_, false) 0.25 | set_translation(_, true) 0 | wake_up(false) 0.25 | wake_up(true) 0\nsleep(): sleeping true timer 0.5 linvel [0.0, 0.0, 0.0]",
+          "source": "// Which public setters touch the sleep timer (time_since_can_sleep)?\nuse rapier3d_f64::prelude::*;\nfn body() -> RigidBody {\n    let mut b = RigidBodyBuilder::dynamic().build();\n    b.activation_mut().time_since_can_sleep = 0.25;\n    b\n}\nfn main() {\n    let v = Vector::new(1.0, 0.0, 0.0);\n    let mut a = body(); a.set_linvel(v, false);\n    let mut b = body(); b.set_linvel(v, true);\n    let mut c = body(); c.set_translation(v, false);\n    let mut d = body(); d.set_translation(v, true);\n    let mut e = body(); e.wake_up(false);\n    let mut f = body(); f.wake_up(true);\n    let mut g = body(); g.set_linvel(v, false); g.sleep();\n    println!(\"set_linvel(_, false) {} | set_linvel(_, true) {} | set_translation(_, false) {} | set_translation(_, true) {} | wake_up(false) {} | wake_up(true) {}\",\n        a.activation().time_since_can_sleep, b.activation().time_since_can_sleep, c.activation().time_since_can_sleep,\n        d.activation().time_since_can_sleep, e.activation().time_since_can_sleep, f.activation().time_since_can_sleep);\n    println!(\"sleep(): sleeping {} timer {} linvel {:?}\", g.activation().sleeping, g.activation().time_since_can_sleep, g.linvel().to_array());\n}\n"
+        },
+        {
+          "label": "IslandManager's persistent islands are not public",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0616"
+          ],
+          "source": "// The persistent islands (membership, split cooldowns, removal journal) are not public.\nuse rapier3d_f64::prelude::*;\npub fn peek(w: &PhysicsWorld) -> usize {\n    w.islands.persistent.islands.len()\n}\n"
+        },
+        {
+          "label": "The load pass panics in a debug build of Rapier when a body touches at load",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "before the pass",
+          "exit_code": 101,
+          "source": "// The engine's load pass in a debug build of Rapier, with a box resting on the floor.\nuse rapier3d_f64::pipeline::CollisionPipeline;\nuse rapier3d_f64::prelude::*;\nfn main() {\n    let mut w = PhysicsWorld::new();\n    let floor = RigidBodyBuilder::fixed().translation(Vector::new(0.0, -0.5, 0.0)).build();\n    w.insert(floor, ColliderBuilder::cuboid(5.0, 0.5, 5.0).build());\n    w.insert(RigidBodyBuilder::dynamic().translation(Vector::new(0.0, 0.5, 0.0)).build(),\n             ColliderBuilder::cuboid(0.5, 0.5, 0.5).build());\n    println!(\"before the pass\");\n    let p = w.integration_parameters.prediction_distance();\n    CollisionPipeline::new().step(p, &mut w.islands, &mut w.broad_phase, &mut w.narrow_phase,\n                                  &mut w.bodies, &mut w.colliders, &(), &());\n    println!(\"after the pass\");\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "rapier3d-f64 0.35.3 source: dynamics/rigid_body.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/rigid_body.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "activation_mut sets the SLEEP change flag; set_linvel/set_translation with wake_up=true call wake_up(true); sleep() zeroes the velocities."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: dynamics/island_manager/manager.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/island_manager/manager.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "IslandManager's fields are pub(crate); interaction_changed debug-asserts that non-fixed endpoints are in the active set; rigid_body_updated bumps the epoch."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: dynamics/island_manager/persistent.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/island_manager/persistent.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Persistent islands keep constraint_remove_count (blocks sleep for multi-body islands), a 16-step split cooldown and eager merges with deferred splits."
+        },
+        {
+          "title": "RigidBodyActivation (rapier3d-f64 0.35.3 API docs)",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.RigidBodyActivation.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Five public fields (thresholds, time_until_sleep, time_since_can_sleep, sleeping); wake_up(strong) and sleep() are the public state changes."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "read-warmstart-coefficient-as-a-per-substep-switch-not-as-clearing-the-cached-warm-start",
+      "name": "Read warmstart_coefficient as a per-substep switch, not as clearing the cached warm start",
+      "what": "warmstart_coefficient is read every step inside each substep's constraint update; 0.0 also removes warm starting between the substeps of every quantum, so it is not the same act as zeroing the cached manifold-point values.",
+      "how": "Use it to choose a solver behaviour, not to test the cache. A pair of runs at 1.0 vs 0.0 parts on the first loaded quantum even when the cache is empty; a sound zero-then-step (serde or a vendored accessor) and coefficient 0 for one quantum give different results.",
+      "rust_version": "rapier3d-f64 0.35.3",
+      "gotchas": "Setting 0.0 to avoid carrying warm starts costs stacking quality at the engine's parameters: a 4-box stack sleeps at quantum 50 instead of 33 and the top box sinks 35.7 mm instead of 2.7 mm.",
+      "engine_note": "rapier_law.rs build_world sets warmstart_coefficient = 1.0; T2 route (a) and the replacement for solver_clear_warmstart's test in si-rpg-engine T2 (docs/dispatch-t2-restore.md).",
+      "checks": [
+        {
+          "label": "warmstart_coefficient is read from the first quantum",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "first quantum a contact carries an impulse: Some(1); first quantum 1.0 and 0.0 differ: Some(1)",
+          "source": "// Is IntegrationParameters::warmstart_coefficient read from the first quantum? A box\n// resting on a slab, two worlds at 1.0 and 0.0: the first quantum whose pose or\n// velocity bits differ, and the first quantum a contact point carries an impulse.\nuse rapier3d_f64::prelude::*;\n\nfn world(coefficient: f64) -> (PhysicsWorld, RigidBodyHandle) {\n    let mut w = PhysicsWorld::new();\n    w.gravity = Vector::new(0.0, -8.0, 0.0);\n    w.integration_parameters.dt = 1.0 / 64.0;\n    w.integration_parameters.contact_clustering = false;\n    w.integration_parameters.warmstart_coefficient = coefficient;\n    let slab = RigidBodyBuilder::fixed().translation(Vector::new(0.0, -0.5, 0.0)).build();\n    w.insert(slab, ColliderBuilder::cuboid(5.0, 0.5, 5.0).friction(0.8).build());\n    let b = RigidBodyBuilder::dynamic().translation(Vector::new(0.0, 0.5, 0.0)).build();\n    let (h, _) = w.insert(b, ColliderBuilder::cuboid(0.5, 0.5, 0.5).friction(0.8).build());\n    (w, h)\n}\n\nfn bits(w: &PhysicsWorld, h: RigidBodyHandle) -> [u64; 7] {\n    let b = &w.bodies[h];\n    let (p, v) = (b.translation(), b.linvel());\n    [p.x, p.y, p.z, v.x, v.y, v.z, b.rotation().w].map(f64::to_bits)\n}\n\nfn main() {\n    let (mut on, h) = world(1.0);\n    let (mut off, _) = world(0.0);\n    let (mut loaded, mut differ) = (None, None);\n    for q in 1..=8 {\n        on.step();\n        off.step();\n        let carries = on.narrow_phase.contact_pairs()\n            .any(|p| p.solver_manifolds().iter().any(|m| m.points.iter().any(|pt| pt.data.impulse != 0.0)));\n        if loaded.is_none() && carries { loaded = Some(q); }\n        if differ.is_none() && bits(&on, h) != bits(&off, h) { differ = Some(q); }\n    }\n    println!(\"first quantum a contact carries an impulse: {loaded:?}; first quantum 1.0 and 0.0 differ: {differ:?}\");\n}\n"
+        },
+        {
+          "label": "Stack at engine parameters: warm start on vs off",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "coefficient 1: all asleep at quantum Some(33); max speed after quantum 64 0.00e0 m/s; top box sank 2.71e-3 m; deepest interface overlap 1.23e-3 m\ncoefficient 0: all asleep at quantum Some(50); max speed after quantum 64 0.00e0 m/s; top box sank 3.57e-2 m; deepest interface overlap 2.40e-2 m",
+          "source": "// Route (a): a 4-box stack at the engine's integration parameters (build_world:\n// dt 1/64, g -8, clustering off, friction 0.8, restitution 0, sleep 32 quanta,\n// default iterations), warm start on (1.0) vs off (0.0), one persistent world each.\nuse rapier3d_f64::prelude::*;\n\nfn run(coefficient: f64) -> String {\n    let dt = 1.0 / 64.0;\n    let mut w = PhysicsWorld::new();\n    w.gravity = Vector::new(0.0, -8.0, 0.0);\n    w.integration_parameters.dt = dt;\n    w.integration_parameters.contact_clustering = false;\n    w.integration_parameters.warmstart_coefficient = coefficient;\n    let floor = RigidBodyBuilder::fixed().translation(Vector::new(0.0, -0.5, 0.0)).build();\n    w.insert(floor, ColliderBuilder::cuboid(5.0, 0.5, 5.0).restitution(0.0).friction(0.8).build());\n    let mut hs = Vec::new();\n    for i in 0..4 {\n        let mut b = RigidBodyBuilder::dynamic()\n            .translation(Vector::new(0.0, 0.5 + 1.0 * i as f64, 0.0))\n            .can_sleep(true).ccd_enabled(false).build();\n        b.activation_mut().time_until_sleep = 32.0 * dt;\n        hs.push(w.insert(b, ColliderBuilder::cuboid(0.5, 0.5, 0.5).restitution(0.0).friction(0.8).build()).0);\n    }\n    let mut asleep_at = None;\n    let mut max_speed_after_64 = 0.0f64;\n    for q in 1..=512 {\n        w.step();\n        if q > 64 {\n            for h in &hs { max_speed_after_64 = max_speed_after_64.max(w.bodies[*h].linvel().length()); }\n        }\n        if asleep_at.is_none() && hs.iter().all(|h| w.bodies[*h].is_sleeping()) { asleep_at = Some(q); }\n    }\n    // Overlap of each interface from the body poses (floor top at y = 0, half-extent 0.5).\n    let mut below = 0.0;\n    let mut worst = 0.0f64;\n    for h in &hs {\n        let y = w.bodies[*h].translation().y;\n        worst = worst.max(below - (y - 0.5));\n        below = y + 0.5;\n    }\n    let sink = 3.5 - w.bodies[hs[3]].translation().y;\n    format!(\"coefficient {coefficient}: all asleep at quantum {asleep_at:?}; max speed after quantum 64 {max_speed_after_64:.2e} m/s; top box sank {sink:.2e} m; deepest interface overlap {worst:.2e} m\")\n}\n\nfn main() {\n    println!(\"{}\", run(1.0));\n    println!(\"{}\", run(0.0));\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "rapier3d-f64 0.35.3 source: staged_island_solver/worker.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/solver/staged_island_solver/worker.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Inside the per-substep loop, warmstart_coefficient != 0.0 gates the fused contact update and the whole colour-by-colour warm-start stage."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: contact_with_twist_friction.rs (update)",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/solver/contact_constraint/contact_with_twist_friction.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "update() reads params.warmstart_coefficient and banks the previous substep's impulse before scaling it by that coefficient."
+        },
+        {
+          "title": "IntegrationParameters (rapier3d-f64 0.35.3 API docs)",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.IntegrationParameters.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "contact_recycling defaults to true with a 0.05 recycle drift, and contact_clustering defaults to true."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "expect-a-rebuilt-broadphasebvh-to-report-fewer-pairs-new-parry-leaves-are-tight-moved-leaves-are-fat",
+      "name": "Expect a rebuilt BroadPhaseBvh to report fewer pairs: new parry leaves are tight, moved leaves are fat",
+      "what": "parry stores a new leaf with its raw AABB and adds the 0.04 x length_unit margin only when a moved collider leaves its leaf, so a running world holds fat leaves where a world rebuilt from bodies holds tight ones, and reports a different pair set.",
+      "how": "Do not validate a restore by comparing contact-pair counts against a world rebuilt from bodies: it refuses valid snapshots. Restore the broad phase with everything else (serde) or reach the state by replay.",
+      "rust_version": "rapier3d-f64 0.35.3 / parry3d-f64 0.30.2",
+      "gotchas": "The engine's snapshot lists every contact pair, including broad-phase pairs with zero points, so the pair list itself is history-dependent. Measured in the product-like scene: 5 vs 2 pairs after 5 quanta.",
+      "engine_note": "rapier_law.rs warm_broadphase and rebuild_snapshot (pair list sorted by collider handles); si-rpg-engine T2 (docs/dispatch-t2-restore.md) pin 1's refusal on pair or point counts.",
+      "checks": [
+        {
+          "label": "A rebuilt broad phase reports a different pair set (tight vs fat leaves)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "poses equal: true; fell 0.0095 m; pairs at load 0; after 3 quanta: running 1, rebuilt 0",
+          "source": "// Two boxes fall side by side, 0.05 apart, touching nothing. Compare the pair set\n// of the running world with a world rebuilt from the same poses and velocities\n// plus one CollisionPipeline pass (the engine's load pass).\nuse rapier3d_f64::pipeline::CollisionPipeline;\nuse rapier3d_f64::prelude::*;\n\nfn world(xs: [(f64, f64); 2]) -> PhysicsWorld {\n    let mut w = PhysicsWorld::new();\n    w.gravity = Vector::new(0.0, -8.0, 0.0);\n    w.integration_parameters.dt = 1.0 / 64.0;\n    for (x, vy) in xs {\n        let b = RigidBodyBuilder::dynamic().translation(Vector::new(x, 10.0, 0.0)).linvel(Vector::new(0.0, vy, 0.0)).build();\n        w.insert(b, ColliderBuilder::cuboid(0.5, 0.5, 0.5).build());\n    }\n    w\n}\n\nfn load_pass(w: &mut PhysicsWorld) {\n    let p = w.integration_parameters.prediction_distance();\n    CollisionPipeline::new().step(p, &mut w.islands, &mut w.broad_phase, &mut w.narrow_phase,\n                                  &mut w.bodies, &mut w.colliders, &(), &());\n    // As warm_broadphase: re-admit every body to the next step's active set.\n    for (_, b) in w.bodies.iter_mut() {\n        if !b.is_fixed() { b.wake_up(true); }\n    }\n}\n\nfn main() {\n    let mut running = world([(0.0, 0.0), (1.05, 0.0)]);\n    load_pass(&mut running);\n    let at_load = running.narrow_phase.contact_pairs().count();\n    for _ in 0..3 { running.step(); }\n    let hs: Vec<RigidBodyHandle> = running.bodies.iter().map(|(h, _)| h).collect();\n    let mut rebuilt = world([(0.0, 0.0), (1.05, 0.0)]);\n    for h in &hs {\n        let (p, v) = (*running.bodies[*h].position(), running.bodies[*h].linvel());\n        rebuilt.bodies[*h].set_position(p, false);\n        rebuilt.bodies[*h].set_linvel(v, false);\n    }\n    load_pass(&mut rebuilt);\n    let same = hs.iter().all(|h| running.bodies[*h].position() == rebuilt.bodies[*h].position());\n    println!(\"poses equal: {same}; fell {:.4} m; pairs at load {at_load}; after 3 quanta: running {}, rebuilt {}\", 10.0 - running.bodies[hs[0]].translation().y,\n             running.narrow_phase.contact_pairs().count(), rebuilt.narrow_phase.contact_pairs().count());\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "parry3d-f64 0.30.2 source: partitioning/bvh/bvh_insert.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/partitioning/bvh/bvh_insert.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "A new leaf stores the raw AABB; an existing leaf is replaced by the AABB grown by the change-detection margin only when it no longer contains the new one."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: geometry/broad_phase_bvh/mod.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/broad_phase_bvh/mod.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "BroadPhaseBvh keeps the tree, the pair map, pending_set_aabb and prev_updated_leaves (serialized 'for determinism after snapshot restore'); the margin is 0.04 x length_unit."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: geometry/broad_phase_bvh/update.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/broad_phase_bvh/update.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "New pairs are added in traversal order; stale pairs are found only among pairs adjacent to updated or removed colliders, then DeletePair is emitted."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "do-not-rebuild-rapier-s-broad-phase-every-step-a-fresh-broadphasebvh-never-deletes-a-narrow-phase-pair",
+      "name": "Do not rebuild Rapier's broad phase every step: a fresh BroadPhaseBvh never deletes a narrow-phase pair",
+      "what": "A fresh BroadPhaseBvh has no record of the pairs the narrow phase holds, so it never emits DeletePair; NarrowPhase removes contact pairs only on DeletePair, collider removal or a sensor change, so separated pairs stay forever.",
+      "how": "Keep the one BroadPhaseBvh the world was built with. If broad-phase history must be reproduced, serialize it (it is Serialize) rather than rebuilding it with new() + set_aabb.",
+      "rust_version": "rapier3d-f64 0.35.3",
+      "gotchas": "A rebuilt broad phase still answers queries correctly and physics may look fine; the leak shows in the contact-pair list and the snapshot bytes. It also does not remove the history dependence: a restore with the per-step rebuild in both worlds still diverged on quantum 0.",
+      "engine_note": "si-rpg-engine T2 (docs/dispatch-t2-restore.md) pin 6's fallback ('the law rebuilds the broad phase from the colliders at every step'); rapier_law.rs rebuild_snapshot would carry the leaked pairs.",
+      "checks": [
+        {
+          "label": "Pin 6's per-step rebuild never deletes a narrow-phase pair",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "gap to pillar 4.01 m / 4.01 m; box-pillar pair present: kept false, rebuilt every step true",
+          "source": "// Pin 6's fallback: a fresh BroadPhaseBvh, filled with set_aabb for every collider,\n// before every step. A box slides away from a pillar it started beside.\nuse rapier3d_f64::prelude::*;\n\nfn world() -> (PhysicsWorld, ColliderHandle, ColliderHandle) {\n    let mut w = PhysicsWorld::new();\n    w.gravity = Vector::new(0.0, -8.0, 0.0);\n    w.integration_parameters.dt = 1.0 / 64.0;\n    let floor = RigidBodyBuilder::fixed().translation(Vector::new(0.0, -0.5, 0.0)).build();\n    w.insert(floor, ColliderBuilder::cuboid(20.0, 0.5, 20.0).friction(0.0).build());\n    let pillar = RigidBodyBuilder::fixed().translation(Vector::new(0.0, 1.0, 0.0)).build();\n    let (_, pc) = w.insert(pillar, ColliderBuilder::cuboid(0.5, 1.0, 0.5).friction(0.0).build());\n    let bx = RigidBodyBuilder::dynamic().translation(Vector::new(1.0, 0.5, 0.0)).linvel(Vector::new(4.0, 0.0, 0.0)).build();\n    let (_, bc) = w.insert(bx, ColliderBuilder::cuboid(0.49, 0.5, 0.49).friction(0.0).build());\n    (w, pc, bc)\n}\n\nfn fresh_broad_phase(w: &mut PhysicsWorld) {\n    let params = w.integration_parameters;\n    let mut bp = BroadPhaseBvh::new();\n    for (h, co) in w.colliders.iter() {\n        bp.set_aabb(&params, h, co.compute_broad_phase_aabb(&params, &w.bodies));\n    }\n    w.broad_phase = bp;\n}\n\nfn main() {\n    let (mut kept, pc, bc) = world();\n    let (mut rebuilt, _, _) = world();\n    for _ in 0..64 {\n        kept.step();\n        fresh_broad_phase(&mut rebuilt);\n        rebuilt.step();\n    }\n    let gap = |w: &PhysicsWorld| w.colliders[bc].position().translation.x - 0.49 - 0.5;\n    println!(\"gap to pillar {:.2} m / {:.2} m; box-pillar pair present: kept {}, rebuilt every step {}\",\n             gap(&kept), gap(&rebuilt),\n             kept.narrow_phase.contact_pair(pc, bc).is_some(), rebuilt.narrow_phase.contact_pair(pc, bc).is_some());\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "rapier3d-f64 0.35.3 source: geometry/broad_phase_bvh/update.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/broad_phase_bvh/update.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "New pairs are added in traversal order; stale pairs are found only among pairs adjacent to updated or removed colliders, then DeletePair is emitted."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: geometry/narrow_phase/pair_management.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/narrow_phase/pair_management.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "AddPair adds a contact-graph edge only if none exists; contact pairs leave the graph on DeletePair (or collider removal / sensor change)."
+        },
+        {
+          "title": "BroadPhaseBvh (rapier3d-f64 0.35.3 API docs)",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.BroadPhaseBvh.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "new(), update(...) and set_aabb(...) are public; BroadPhaseBvh is Clone and Serialize/Deserialize."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "read-enhanced-determinism-as-history-deterministic-iteration-order-not-state-canonical-order",
+      "name": "Read enhanced-determinism as history-deterministic iteration order, not state-canonical order",
+      "what": "enhanced-determinism makes parry's HashMap/HashSet an IndexMap/IndexSet with a pointer-size-independent FxHasher32, forces libm and canonical signed zeros: orders become a deterministic function of the operation history on every IEEE 754 target, not of the current state.",
+      "how": "Expect the same bits only from the same history (same insertion order, same steps). Contact-graph edge order, solver colours (which set the Gauss-Seidel order), island ids and map orders all depend on history, so sort by stable keys before hashing, and never expect a world rebuilt from state to iterate like the running one.",
+      "rust_version": "rapier3d-f64 0.35.3 with enhanced-determinism",
+      "gotchas": "IndexMap's swap_remove moves the last entry into the hole, so removal order changes iteration order. serde_json::Value without preserve_order re-sorts map keys, so a Value round trip changes serialized bytes.",
+      "engine_note": "solver/FLAGS.md (enhanced-determinism); rapier_law.rs rebuild_snapshot sorts pairs by collider handles, which hashes a set, not Rapier's solve order; T3's insertion-order test.",
+      "checks": [
+        {
+          "label": "Under enhanced-determinism parry's HashMap is an IndexMap",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "[30, 10, 20, 5] -> [5, 10, 20]",
+          "source": "// Under enhanced-determinism parry's HashMap (the map Rapier's broad phase and\n// composite workspaces use) is an IndexMap: insertion order, and swap_remove exists.\nuse rapier3d_f64::parry::utils::hashmap::HashMap;\nfn main() {\n    let mut m: HashMap<u32, u32> = HashMap::default();\n    for k in [30u32, 10, 20, 5] { m.insert(k, k * 2); }\n    let before: Vec<u32> = m.keys().copied().collect();\n    m.swap_remove(&30);\n    let after: Vec<u32> = m.keys().copied().collect();\n    println!(\"{before:?} -> {after:?}\");\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "parry3d-f64 0.30.2 source: utils/hashmap.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/utils/hashmap.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Under enhanced-determinism HashMap is indexmap::IndexMap with BuildHasherDefault<FxHasher32>; FxHasher32 does not depend on pointer size."
+        },
+        {
+          "title": "Rapier user guide: Determinism",
+          "url": "https://rapier.rs/docs/user_guides/templates/determinism/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Cross-platform determinism needs enhanced-determinism, IEEE 754 targets and the same initial conditions, with bodies, colliders and joints added in the same order."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 feature flags",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/features",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "enhanced-determinism enables parry3d-f64/enhanced-determinism and simba/libm_force; serde-serialize is a separate, optional feature."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: staged_island_solver/mod.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/solver/staged_island_solver/mod.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "'Deterministic: results depend only on the coloring'; moving a colour's solve changes the Gauss-Seidel order and therefore the results."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "restore-rapier-through-serde-serialize-or-by-replay-world-bytes-are-stable-and-continue-bit-exactly",
+      "name": "Restore Rapier through serde-serialize or by replay: world bytes are stable and continue bit-exactly",
+      "what": "With serde-serialize, PhysicsWorld (physics_pipeline and ccd_solver skipped as workspace) round-trips byte-identically, the bytes match across processes and between x86_64 native and wasm32, and a deserialized world continues bit-exactly; the engine's build does not enable the feature.",
+      "how": "Serialize the whole PhysicsWorld on save (bincode; serde_json only for shapes without composite-vs-composite pairs), deserialize on restore, and do not run the load pass or any wake_up afterwards. Keep the compact snapshot as the hashed record: rebuild_snapshot of the deserialized world reproduces it.",
+      "rust_version": "rapier3d-f64 0.35.3 (blobs do not load in 0.36.0)",
+      "gotchas": "The bytes are stable, not canonical: they encode history (arena free lists, edge order, colours, IndexMap insertion order). The feature added 686 KB (+47%) to a test wasm module. Running CollisionPipeline + wake_up(true) after deserializing broke the continuation on quantum 0.",
+      "engine_note": "solver/Cargo.toml features (enhanced-determinism only today); T2 route (c): saveSolver/restoreSolver as a serde blob plus the compact snapshot; pin 9 (digest moves once, goldens unchanged).",
+      "checks": [
+        {
+          "label": "The oracle links rapier3d-f64 as the engine does: PhysicsWorld is not Serialize",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64",
+            "serde_json"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "source": "// The oracle links rapier3d-f64 exactly as the engine does (no serde-serialize):\n// PhysicsWorld is then not Serialize.\nuse rapier3d_f64::prelude::*;\npub fn save(w: &PhysicsWorld) -> Vec<u8> {\n    serde_json::to_vec(w).unwrap()\n}\n"
+        },
+        {
+          "label": "Cloning every set into a twin with a fresh pipeline and CCD solver continues bit-identically",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "twin first difference: None; dynamic bodies asleep at the end: 3",
+          "source": "// E0 control: clone every Rapier set, give the twin a fresh PhysicsPipeline and\n// CCDSolver, step both, compare bits. If this is identical, the result-bearing\n// state lives in the sets and the pipeline/CCD objects are workspace.\nuse rapier3d_f64::prelude::*;\n\nconst DT: f64 = 1.0 / 64.0;\n\nfn world() -> PhysicsWorld {\n    let mut w = PhysicsWorld::new();\n    w.gravity = Vector::new(0.0, -8.0, 0.0);\n    w.integration_parameters.dt = DT;\n    w.integration_parameters.contact_clustering = false;\n    w.integration_parameters.warmstart_coefficient = 1.0;\n    let floor = RigidBodyBuilder::fixed().translation(Vector::new(0.0, -0.5, 0.0)).build();\n    w.insert(floor, ColliderBuilder::cuboid(5.0, 0.5, 5.0).friction(0.8).restitution(0.0).build());\n    for i in 0..3 {\n        let mut b = RigidBodyBuilder::dynamic()\n            .translation(Vector::new(0.05 * i as f64, 0.5 + 1.05 * i as f64, 0.0))\n            .can_sleep(true)\n            .ccd_enabled(false)\n            .build();\n        b.set_rotation(Rotation::from_xyzw(0.0, 0.02 * i as f64, 0.0, 1.0).normalize(), false);\n        b.activation_mut().time_until_sleep = 32.0 * DT;\n        w.insert(b, ColliderBuilder::cuboid(0.5, 0.5, 0.5).friction(0.8).restitution(0.0).build());\n    }\n    w\n}\n\nfn twin(w: &PhysicsWorld) -> PhysicsWorld {\n    PhysicsWorld {\n        gravity: w.gravity,\n        integration_parameters: w.integration_parameters,\n        physics_pipeline: PhysicsPipeline::new(),\n        islands: w.islands.clone(),\n        broad_phase: w.broad_phase.clone(),\n        narrow_phase: w.narrow_phase.clone(),\n        bodies: w.bodies.clone(),\n        colliders: w.colliders.clone(),\n        impulse_joints: w.impulse_joints.clone(),\n        multibody_joints: w.multibody_joints.clone(),\n        ccd_solver: CCDSolver::new(),\n    }\n}\n\nfn digest(w: &PhysicsWorld) -> u64 {\n    let mut h = 0xcbf29ce484222325u64;\n    let mut mix = |x: u64| h = (h ^ x).wrapping_mul(0x100000001b3);\n    for (_, b) in w.bodies.iter() {\n        let p = b.position();\n        for v in [p.translation.x, p.translation.y, p.translation.z, p.rotation.x, p.rotation.y,\n                  p.rotation.z, p.rotation.w, b.linvel().x, b.linvel().y, b.linvel().z,\n                  b.angvel().x, b.angvel().y, b.angvel().z, b.activation().time_since_can_sleep] {\n            mix(v.to_bits());\n        }\n        mix(b.is_sleeping() as u64);\n    }\n    for pair in w.narrow_phase.contact_pairs() {\n        for m in pair.solver_manifolds() {\n            for pt in &m.points {\n                for v in [pt.data.warmstart_impulse, pt.data.warmstart_twist_impulse,\n                          pt.data.warmstart_tangent_world.x, pt.data.warmstart_tangent_world.y,\n                          pt.data.warmstart_tangent_world.z] {\n                    mix(v.to_bits());\n                }\n            }\n        }\n    }\n    h\n}\n\nfn main() {\n    let mut a = world();\n    for _ in 0..40 { a.step(); }\n    let mut b = twin(&a);\n    let mut first_diff = None;\n    for s in 0..120 {\n        a.step();\n        b.step();\n        if first_diff.is_none() && digest(&a) != digest(&b) { first_diff = Some(s); }\n    }\n    let asleep = a.bodies.iter().filter(|(_, b)| b.is_dynamic() && b.is_sleeping()).count();\n    println!(\"twin first difference: {:?}; dynamic bodies asleep at the end: {}\", first_diff, asleep);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Rapier user guide: Serialization",
+          "url": "https://rapier.rs/docs/user_guides/rust/serialization/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "With serde-serialize the world serializes as a whole; PhysicsPipeline/CollisionPipeline hold no useful state; with enhanced-determinism the same simulation gives the same bytes."
+        },
+        {
+          "title": "PhysicsWorld (rapier3d-f64 0.35.3 API docs)",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/struct.PhysicsWorld.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "PhysicsWorld implements Serialize/Deserialize under the feature; ccd_solver is 'Workspace only: not part of a snapshot'."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: pipeline/physics_world.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_world.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "physics_pipeline and ccd_solver are serde(skip); every other set is serialized."
+        },
+        {
+          "title": "rapier CHANGELOG (master): v0.36.0",
+          "url": "https://raw.githubusercontent.com/dimforge/rapier/master/CHANGELOG.md",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "v0.36.0",
+          "claim": "v0.36.0 (2026-09-24): snapshots serialized with previous versions can't be loaded anymore; ContactPair::manifolds moves to ContactPair::contacts."
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

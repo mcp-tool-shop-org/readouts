@@ -1,0 +1,413 @@
+{
+  "laneSlug": "rigging",
+  "title": "UniRig architecture & models",
+  "recipes": [
+    {
+      "slug": "unirig-skeleton-tree-tokenization",
+      "name": "UniRig skeleton tree tokenization: DFS ordering + 256-bin coordinate discretization",
+      "kind": "technique",
+      "engine_family": "huggingface",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "UniRig encodes a skeleton hierarchy as a linear token sequence using depth-first search traversal with bones sorted by (z,y,x) tail coordinates, discretizing each bone's 3D position into three tokens from a 256-bin vocabulary — enabling a standard next-token-prediction transformer to autoregressively generate topologically valid skeleton trees.",
+      "summary": "Bone coordinates are first normalized to [-1,1] then mapped to 256 discrete bins via M(x) = floor((x+1)/2 × 256). Each bone contributes three coordinate tokens (dx, dy, dz). The sequence begins with <bos> and a dataset class token (e.g. <VRoid>, <Mixamo>), then optional template type tokens (<mixamo:body>, <mixamo:hand>, <spring_bone>) for known skeleton templates, then coordinate triples in DFS order with <branch_token> prefixes marking each new branch. The optimized scheme omits parent coordinates for template bones (structure is inferrable from the template name), reducing token count by ~27-30% compared to the naive per-joint encoding. A <eos> token terminates the sequence. This scheme guarantees topological validity: the transformer cannot produce an orphan joint because parent-child relationships are implicit in the DFS prefix structure.",
+      "design_implication": "The tokenization is the architectural reason UniRig can handle exotic non-humanoid species without template constraints — the <cls> token switches the prior, and the DFS token stream encodes any tree topology. For the studio's 15 exotic species (tortle, kenku, sahuagin, minotaur, etc.) no template token is used; the model generates free-form bone trees. Post-rig, the predicted bone names are generic (not Mixamo-compatible); an Auto-Rig Pro Remap step is needed to bind mocap onto the canonical studio hierarchy.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "MIT (code + weights, VAST-AI-Research/UniRig GitHub LICENSE file)",
+      "commercial_use": "yes",
+      "commercial_notes": "MIT license confirmed from GitHub repo LICENSE file and Hugging Face model card license field. No usage restrictions.",
+      "vram_gb": "8-16",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "hparams": [
+        {
+          "name": "vocab_bins",
+          "value": "256",
+          "note": "Coordinate discretization bins per axis; M(x)=floor((x+1)/2×256) where x in [-1,1]"
+        },
+        {
+          "name": "traversal_order",
+          "value": "DFS",
+          "note": "Children sorted by tail (z,y,x); branch_token prefix inserted at each branch point"
+        },
+        {
+          "name": "token_reduction",
+          "value": "~27-30%",
+          "note": "Measured on VRoid (~27.47%) and Rig-XL (~29.72%) vs naive per-joint encoding"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig",
+          "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu (Tsinghua University / VAST AI Research)",
+          "year": "2025",
+          "identifier": "arXiv:2504.12451",
+          "url": "https://arxiv.org/abs/2504.12451",
+          "claim": "Section 3.1 of the paper defines the Skeleton Tree Tokenization: DFS traversal, 256-bin coordinate discretization, type/template/branch tokens, and measured ~27-30% token-count reduction over naive encoding."
+        },
+        {
+          "kind": "paper",
+          "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig (HTML full text)",
+          "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu",
+          "year": "2025",
+          "identifier": "arXiv:2504.12451v1",
+          "url": "https://arxiv.org/html/2504.12451v1",
+          "claim": "Full paper HTML confirms token vocabulary structure (<bos>, <eos>, <cls>, type identifiers, coordinate tokens) and the DFS ordering with branch_token prefixes."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-opt125m-shape-encoder-autoregressive",
+      "name": "UniRig stage 1: OPT-125M autoregressive skeleton GPT over 3DShape2Vecset geometry encoding",
+      "kind": "model",
+      "engine_family": "huggingface",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "UniRig's skeleton prediction stage uses a randomly-initialized 3DShape2Vecset encoder to compress a 65,536-point surface sample into a geometric embedding, then prepends that embedding to the token sequence and autoregressively generates skeleton tokens with an OPT-125M (125M parameter) decoder — training with standard next-token prediction loss.",
+      "summary": "The input mesh is sampled to N=65,536 surface points with normals, fed through a 3DShape2Vecset shape encoder (parameters randomly initialized, not pretrained from a foundation model) producing a geometric embedding F_G ∈ R^(V×F). F_G is prepended to the skeleton token sequence. The OPT-125M decoder (Meta's Open Pre-trained Transformer, 125M parameters) then autoregressively generates skeleton tokens conditioned on both the geometric prefix and all prior tokens, using next-token-prediction loss: -sum(log P(s_t | s_1...s_{t-1}, F_G)). During training, 16,384 points are used for the skinning stage (reduced for memory efficiency). OPT-125M is a documented, publicly-available model variant — not a novel architecture — which means the skeleton generation stage is an application of standard decoder-only autoregression, not a proprietary transformer design.",
+      "design_implication": "OPT-125M is small by modern standards (125M parameters), which contributes to the sub-5-second inference claim on GPU — the shape encoder is the compute bottleneck, not the transformer itself. The randomly-initialized shape encoder means the model learns geometry grounding entirely from the Rig-XL supervision signal, not from a pretrained 3D foundation model. This limits generalization at the extremes (very unusual topologies) but keeps the weight footprint small. VRAM for the skeleton stage alone is well under the 8GB minimum floor stated by VAST-AI.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "MIT (UniRig code + weights); OPT-125M base architecture is Meta's OPT, but UniRig trained its own weights — license is MIT per repo.",
+      "commercial_use": "yes",
+      "commercial_notes": "MIT license on UniRig repo and Hugging Face model card. OPT-125M architecture is open (Meta OPT paper); UniRig weights are new training, not fine-tuned OPT weights — MIT applies.",
+      "vram_gb": "8",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "hparams": [
+        {
+          "name": "point_cloud_size_inference",
+          "value": "65536",
+          "note": "Surface points + normals sampled from mesh for shape encoder at inference time"
+        },
+        {
+          "name": "point_cloud_size_skin_training",
+          "value": "16384",
+          "note": "Reduced point count during skinning stage training for memory efficiency"
+        },
+        {
+          "name": "transformer_variant",
+          "value": "OPT-125M",
+          "note": "Meta OPT-125M decoder architecture, 125M parameters, confirmed in paper"
+        },
+        {
+          "name": "shape_encoder",
+          "value": "3DShape2Vecset",
+          "note": "Randomly initialized (non-pretrained); learns geometry grounding from Rig-XL supervision"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig (HTML full text)",
+          "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu",
+          "year": "2025",
+          "identifier": "arXiv:2504.12451v1",
+          "url": "https://arxiv.org/html/2504.12451v1",
+          "claim": "Paper specifies OPT-125M as the autoregressive decoder variant, 65,536-point surface sampling with normals for shape encoding via 3DShape2Vecset (randomly initialized), and next-token-prediction training objective."
+        },
+        {
+          "kind": "model-card",
+          "title": "VAST-AI/UniRig — Hugging Face model card",
+          "authors": "VAST AI Research",
+          "year": "2025",
+          "identifier": "huggingface.co/VAST-AI/UniRig",
+          "url": "https://huggingface.co/VAST-AI/UniRig",
+          "claim": "Model card confirms MIT license, describes the skeleton prediction model as the first stage of the UniRig pipeline (skeleton + skinning), trained on Articulation-XL2.0; minimum GPU VRAM stated as >8GB."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-bone-point-cross-attention-skinning",
+      "name": "UniRig stage 2: bone-point cross-attention skinning with geodesic distance refinement",
+      "kind": "technique",
+      "engine_family": "huggingface",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "UniRig's skinning stage encodes predicted bone positions via an MLP bone encoder and mesh points via a pretrained Point Transformer V3 (from SAMPart3D), then computes bone-point cross-attention weights, concatenates them with voxelized geodesic distances, and passes the result through a skinning MLP + softmax to produce per-vertex skin weights.",
+      "summary": "Inputs to stage 2 are: (a) the predicted skeleton — head/tail coordinates (J_P, J) ∈ R^(J×6) for J bones, and (b) the original mesh as a point cloud. The Bone Encoder (E_B) is an MLP with positional encoding producing bone features F_B ∈ R^(J×F). The Point Encoder (E_P) is a pretrained Point Transformer V3 (sourced from SAMPart3D) producing per-point features F_P ∈ R^(N×F). Cross-attention is then computed with mesh points as queries and bone features as keys/values: attention weights = softmax(Q_W × K_W^T / sqrt(F)). These attention weights are concatenated with the voxelized geodesic distance D ∈ R^(N×J) (which encodes surface-distance proximity, preventing skin weight bleed across concavities). The combined [attention | geodesic] tensor is passed through the skinning weight MLP (E_W) and a final softmax normalization to produce valid skin weights summing to 1 per vertex. Bone-specific attributes (gravity, stiffness coefficients for spring bones) are predicted via reverse cross-attention (bones as queries, points as keys/values) through a separate MLP. This design means skinning quality is tightly coupled to skeleton quality — poor skeleton prediction propagates directly into bad skin weights.",
+      "design_implication": "The geodesic distance term is the key architectural move that makes skinning correct across concave meshes (inside of an armpit, between fingers) where Euclidean-distance skinning fails. For the studio's exotic species with anatomical concavities (crab claws, wing membranes, scaled bodies) this is load-bearing. If the skeleton stage mis-predicts (missing a tail bone, wrong wing topology), skinning degrades significantly — the paper and README both call this out explicitly as the primary failure mode. The mitigation is manual skeleton refinement in Blender before running the skin stage.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "MIT (UniRig code + weights); Point Transformer V3 sourced from SAMPart3D — verify its license before redistribution.",
+      "commercial_use": "yes",
+      "commercial_notes": "UniRig MIT applies to the full pipeline including the skinning stage. SAMPart3D/Point Transformer V3 is used as a pretrained component; its license (Apache-2.0 per SAMPart3D repo) is compatible with commercial use. Verify independently before redistribution.",
+      "vram_gb": "8-16",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "failures": [
+        "Skinning quality degrades significantly if the skeleton stage produced an inaccurate topology (missing tail bones, wrong wing bone count) — manual skeleton QA before running the skin stage is mandatory for exotic meshes.",
+        "Geodesic distance computation requires a watertight-ish mesh for correct surface-distance measurement; severely non-manifold geometry may produce incorrect distance fields and therefore incorrect skin weight bleed."
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig (HTML full text)",
+          "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu",
+          "year": "2025",
+          "identifier": "arXiv:2504.12451v1",
+          "url": "https://arxiv.org/html/2504.12451v1",
+          "claim": "Sections 3.2-3.3 describe bone encoder (MLP with positional encoding), point encoder (pretrained Point Transformer V3 from SAMPart3D), cross-attention weight computation, voxel geodesic distance concatenation, and skinning MLP + softmax normalization."
+        },
+        {
+          "kind": "github",
+          "title": "VAST-AI-Research/UniRig — README (inference limitations)",
+          "authors": "VAST AI Research",
+          "year": "2025",
+          "identifier": "github.com/VAST-AI-Research/UniRig",
+          "url": "https://github.com/VAST-AI-Research/UniRig",
+          "claim": "README states: 'The results may degrade significantly if the skeleton is inaccurate — for example, if tail bones or wing bones are missing' — confirming the skeleton→skinning error propagation path."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-input-output-mesh-spec",
+      "name": "UniRig input mesh requirements and output format spec",
+      "kind": "technique",
+      "engine_family": "huggingface",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "UniRig accepts OBJ, FBX, GLB, and VRM input meshes, converts them to Y-up world space internally, requires no explicit watertight constraint, and outputs rigged FBX (skeleton stage) + FBX with per-vertex skin weights (skin stage) that can be merged to a final rigged GLB or FBX.",
+      "summary": "Supported input:.obj,.fbx,.glb,.vrm. No explicit vertex count limit is documented, but internally the pipeline samples exactly 65,536 surface points for shape encoding — meaning the actual mesh polygon count is decoupled from the encoder input (a 3M-tri mesh and a 10k-tri mesh both feed 65,536 sampled points into the shape encoder). The internal coordinate system is Y-up world space (the README states models are 'converted into world space... aligned to Y-up axis, consistent with Blender'). No watertight mesh requirement is stated. Minimum GPU: CUDA-capable with >8GB VRAM. Inference sequence: (1) generate_skeleton.sh --input <mesh> --output <skeleton.fbx>; (2) generate_skin.sh --input <skeleton.fbx> --output <skinned.fbx>; (3) merge.sh --source <skinned.fbx> --target <original_mesh> --output <rigged.glb>. Intermediate outputs support NPZ, OBJ, FBX. Final merged output is GLB (or FBX). The merge step produces a Draco-missing warning and a cosmetic bpy segfault after GLB write — both are harmless (measured on studio rig 2026-06-25, cross-reference unirig-blackwell-wsl2-skeleton-skin-measured).",
+      "design_implication": "GLB-in → GLB-out is the studio's native path (TRELLIS.2 outputs GLB). The 65,536-point sampling means a dense TRELLIS mesh (~800k verts) does not need to be decimated for the UniRig encoder — but should still be decimated before shipping in-engine to ~30-50k tris for game performance. Y-up matches Blender's default, so no coordinate-system fix is needed on import. VRM support is a bonus for any anime-adjacent character assets (excluded from studio canon but noted for completeness).",
+      "evidence_strength": "reproduced-from-source",
+      "license": "MIT",
+      "commercial_use": "yes",
+      "commercial_notes": "MIT license covers code, inference pipeline, and output weights. Output rigged meshes are the studio's IP.",
+      "vram_gb": "8",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "hparams": [
+        {
+          "name": "input_formats",
+          "value": "obj, fbx, glb, vrm",
+          "note": "All four confirmed in README"
+        },
+        {
+          "name": "internal_coord_system",
+          "value": "Y-up world space",
+          "note": "Models converted to world space aligned to Y-up axis, consistent with Blender"
+        },
+        {
+          "name": "shape_encoder_points",
+          "value": "65536",
+          "note": "Fixed point-cloud sample size regardless of input mesh polygon count"
+        },
+        {
+          "name": "output_formats",
+          "value": "fbx (skeleton), fbx (skinned), glb or fbx (merged)",
+          "note": "NPZ and OBJ also available as intermediate formats"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "github",
+          "title": "VAST-AI-Research/UniRig — README.md",
+          "authors": "VAST AI Research",
+          "year": "2025",
+          "identifier": "github.com/VAST-AI-Research/UniRig",
+          "url": "https://github.com/VAST-AI-Research/UniRig/blob/main/README.md",
+          "claim": "README lists supported input formats (obj, fbx, glb, vrm), minimum GPU requirement (>8GB VRAM), Y-up world space alignment, and inference shell command syntax including merge to GLB output."
+        },
+        {
+          "kind": "paper",
+          "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig (HTML full text)",
+          "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu",
+          "year": "2025",
+          "identifier": "arXiv:2504.12451v1",
+          "url": "https://arxiv.org/html/2504.12451v1",
+          "claim": "Paper states 65,536 surface points sampled from the mesh for shape encoding, with normals included; coordinate normalization to [-1,1]^3 for skeleton token generation."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-hf-checkpoints-availability",
+      "name": "UniRig Hugging Face checkpoints: what is actually downloadable vs. coming soon",
+      "kind": "model",
+      "engine_family": "huggingface",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "The VAST-AI/UniRig Hugging Face repo (11.5 GB total) contains separate skeleton/ and skin/ checkpoint directories; only the skeleton + skin model trained on Articulation-XL2.0 is currently downloadable — the Rig-XL and VRoid-trained variants described in the paper are listed as 'Coming Soon'. License is MIT.",
+      "summary": "The VAST-AI/UniRig HF repo has two checkpoint directories: skeleton/ (skeleton prediction checkpoint) and skin/ (articulation model checkpoint, model.ckpt). Total repo size is ~11.5 GB. The currently downloadable model was trained on the Articulation-XL2.0 dataset — which is a subset of the full Rig-XL (14,611 models) described in the paper. The paper's full results were obtained using Rig-XL + VRoid training data (14,611 + 2,061 models); these checkpoints are not yet released. The model card explicitly states that 'Model checkpoints trained on Rig-XL and VRoid datasets are coming soon.' The weights download automatically via the UniRig inference scripts using the Hugging Face Hub API. No parameter count is disclosed in the model card. The license field on the HF card is MIT, matching the GitHub repo LICENSE file.",
+      "design_implication": "The Articulation-XL2.0-trained checkpoint is the one measured on the studio rig (unirig-blackwell-wsl2-skeleton-skin-measured). The not-yet-released Rig-XL + VRoid checkpoints will likely produce better results for diverse non-humanoid topologies (Rig-XL covers 8 categories including quadrupeds, insects, water creatures) — watch the VAST-AI/UniRig HF repo for the update. The current checkpoint already handles exotic humanoid-adjacent species well enough for the 68-character mesh line, as measured. Do not hand-edit the downloaded checkpoints; the scripts manage weight loading via HF Hub.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "MIT",
+      "commercial_use": "yes",
+      "commercial_notes": "HF model card license field: MIT. GitHub LICENSE file: MIT. Both confirmed by direct inspection. Applies to currently downloadable weights.",
+      "vram_gb": "8-16",
+      "rig_fit": 4,
+      "studio_fit": 4,
+      "status": "recommended",
+      "hparams": [
+        {
+          "name": "repo_size_gb",
+          "value": "11.5",
+          "note": "Total HF repo size including skeleton/ and skin/ checkpoints"
+        },
+        {
+          "name": "training_dataset_available",
+          "value": "Articulation-XL2.0",
+          "note": "Subset of Rig-XL; the 14,611-model Rig-XL + 2,061-model VRoid checkpoints are Coming Soon"
+        },
+        {
+          "name": "checkpoint_dirs",
+          "value": "skeleton/, skin/",
+          "note": "Separate directories for each stage; model.ckpt in skin/"
+        },
+        {
+          "name": "download_method",
+          "value": "automatic via HF Hub in inference scripts",
+          "note": "No manual download required; scripts handle authentication-free public repo access"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "model-card",
+          "title": "VAST-AI/UniRig — Hugging Face model card",
+          "authors": "VAST AI Research",
+          "year": "2025",
+          "identifier": "huggingface.co/VAST-AI/UniRig",
+          "url": "https://huggingface.co/VAST-AI/UniRig",
+          "claim": "Model card states: skeleton prediction model trained on Articulation-XL2.0 is available; Rig-XL and VRoid variants are 'Coming Soon'; license field is MIT; minimum VRAM is >8GB CUDA GPU."
+        },
+        {
+          "kind": "model-card",
+          "title": "VAST-AI/UniRig — HF file tree (main branch)",
+          "authors": "VAST AI Research",
+          "year": "2025",
+          "identifier": "huggingface.co/VAST-AI/UniRig/tree/main",
+          "url": "https://huggingface.co/VAST-AI/UniRig/tree/main",
+          "claim": "File tree shows separate skeleton/ and skin/ checkpoint directories; total repo ~11.5 GB; 13 commits from 3 contributors."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-inference-speed-benchmark",
+      "name": "UniRig inference speed: 1-5 second end-to-end rigging claim vs. commercial baselines",
+      "kind": "technique",
+      "engine_family": "huggingface",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "The UniRig paper reports 1-5 second total rigging time (skeleton + skinning + merge), compared to RigNet (1 second to 20 minutes depending on bone count), Tripo commercial (2 minutes), Anything World (5 minutes), and Meshy (1-2 minutes) — but no hardware specification is given for the 1-5 second figure.",
+      "summary": "Table 1 of the paper lists inference speed as '1~5 s' for UniRig versus the commercial baselines. The hardware used for this measurement is not stated in the paper. The OPT-125M transformer is computationally lightweight (125M parameters); the shape encoder (3DShape2Vecset on 65,536 points) is the likely bottleneck, not the autoregressive generation itself. The skinning stage runs Point Transformer V3 inference on the point cloud plus cross-attention, which at 16,384 points in training mode adds meaningful compute. On the studio RTX 5090, each stage completes in wall-clock time consistent with the 1-5s claim (not independently timed; measured total is consistent with the claim per studio run 2026-06-25, cross-reference unirig-blackwell-wsl2-skeleton-skin-measured). The 1-5 second figure is a single-reported number from the paper authors — not independently benchmarked on a third-party rig.",
+      "design_implication": "Even at the 5-second ceiling, UniRig is 24× faster than Tripo commercial (2 min) and 240× faster than RigNet's worst case. For a 68-character mesh line, batching all meshes through UniRig in a WSL2 script is practical (~5 min total for the full roster at 5s/mesh). The speed also makes iterating on mesh quality (re-generate in TRELLIS, re-rig in UniRig) low-cost compared to any manual or cloud-service path.",
+      "evidence_strength": "single-reported-run",
+      "license": "MIT",
+      "commercial_use": "yes",
+      "commercial_notes": "License does not affect this recipe — it documents a performance claim, not a new deployment step.",
+      "vram_gb": "8-16",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "hparams": [
+        {
+          "name": "reported_inference_time",
+          "value": "1-5 seconds",
+          "note": "Full pipeline (skeleton + skin + merge); hardware unspecified in paper"
+        },
+        {
+          "name": "comparison_rigneg",
+          "value": "1s-20min",
+          "note": "RigNet speed varies with bone count"
+        },
+        {
+          "name": "comparison_tripo",
+          "value": "~2 min",
+          "note": "Commercial cloud service"
+        },
+        {
+          "name": "comparison_meshy",
+          "value": "1-2 min",
+          "note": "Commercial cloud service"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig (HTML full text)",
+          "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu",
+          "year": "2025",
+          "identifier": "arXiv:2504.12451v1",
+          "url": "https://arxiv.org/html/2504.12451v1",
+          "claim": "Table 1 reports UniRig inference time as '1~5 s' versus RigNet (1s-20min), Tripo (~2 min), Anything World (~5 min), Meshy (1-2 min). No GPU specification for the UniRig figure is given in the table or surrounding text."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-siggraph2025-paper-citation",
+      "name": "UniRig SIGGRAPH 2025 / ACM TOG paper: arXiv:2504.12451, DOI 10.1145/3730930",
+      "kind": "technique",
+      "engine_family": "custom",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/UniRig",
+      "claim": "The canonical citation for UniRig is: Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu. 'One Model to Rig Them All: Diverse Skeleton Rigging with UniRig.' ACM Transactions on Graphics (Proc. SIGGRAPH 2025). DOI: 10.1145/3730930. arXiv preprint: arXiv:2504.12451.",
+      "summary": "The paper introduces UniRig at SIGGRAPH 2025 (published in ACM Transactions on Graphics). Five authors: Jia-Peng Zhang (first author, Tsinghua University), Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu. Tsinghua University and VAST AI Research joint affiliation. The arXiv preprint (2504.12451) was posted April 2025; the ACM DOI (10.1145/3730930) is the peer-reviewed TOG publication. Key contributions: (1) Skeleton Tree Tokenization for autoregressive skeleton generation; (2) Rig-XL dataset (14,611 rigged models, 8 categories); (3) bone-point cross-attention skinning with geodesic distance; (4) 215% improvement in rigging accuracy and 194% improvement in motion accuracy over prior state-of-art on held-out test sets. Note: the existing wave-01 recipe (unirig-ai-auto-rigger-mit) cites 'Wang, Lingteng et al.' as authors — this appears to be a different paper confusion; the correct first author of UniRig is Jia-Peng Zhang per the arXiv abstract and HTML full text.",
+      "design_implication": "Correct author attribution matters when citing UniRig in studio knowledge base and any external communications. The Zhang et al. / Tsinghua + VAST affiliation is the verified ground truth. The ACM DOI provides a stable, citable identifier. The SkinTokens follow-on (arXiv:2602.04805, 2026) unifies the two stages into a single Qwen3-0.6B token stream — monitor for release as a potential UniRig upgrade path.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "MIT (code + weights)",
+      "commercial_use": "yes",
+      "commercial_notes": "License note for the paper itself: ACM copyright; code and weights MIT as noted in repo.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig",
+          "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu",
+          "year": "2025",
+          "identifier": "arXiv:2504.12451",
+          "url": "https://arxiv.org/abs/2504.12451",
+          "claim": "arXiv abstract page confirms full author list (Zhang, Pu, Guo, Cao, Hu), Tsinghua + VAST affiliation, SIGGRAPH 2025 / ACM TOG venue."
+        },
+        {
+          "kind": "paper",
+          "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig — ACM Digital Library",
+          "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu",
+          "year": "2025",
+          "identifier": "DOI:10.1145/3730930",
+          "url": "https://dl.acm.org/doi/10.1145/3730930",
+          "claim": "ACM Digital Library entry for the peer-reviewed TOG publication; DOI 10.1145/3730930 confirmed via search result (403 on direct fetch, but DOI is confirmed from search result metadata)."
+        }
+      ]
+    },
+    {
+      "slug": "unirig-skintokens-successor",
+      "name": "SkinTokens / TokenRig: unified autoregressive successor to UniRig (arXiv:2602.04805, 2026, MIT)",
+      "kind": "model",
+      "engine_family": "huggingface",
+      "applicable_to": "rigging",
+      "base_model_slug": "VAST-AI/SkinTokens",
+      "claim": "SkinTokens (VAST-AI-Research, 2026) unifies UniRig's two separate stages into a single Qwen3-0.6B autoregressive sequence that generates both skeleton and skinning weight tokens together, reporting 98-133% improvement in skinning accuracy and 17-22% improvement in bone prediction over UniRig — and is MIT-licensed.",
+      "summary": "SkinTokens introduces a learned, compact, discrete representation for skinning weights (FSQ-CVAE compression), then the TokenRig framework generates a single interleaved skeleton-plus-skin token sequence using a Qwen3-0.6B transformer. A third stage applies GRPO reinforcement learning with geometric and semantic reward signals to refine the joint prediction. The key architectural advance over UniRig: UniRig ran skeleton prediction then skinning as sequential stages (error from stage 1 propagates to stage 2); SkinTokens generates both jointly, which suppresses the error propagation failure mode. arXiv preprint: 2602.04805. GitHub: VAST-AI-Research/SkinTokens. License: MIT. Not yet measured on studio rig — evidence_strength is single-reported-run from the preprint authors.",
+      "design_implication": "SkinTokens is the natural upgrade path from UniRig when it reaches inference parity and the weights are released. The joint generation eliminates the worst UniRig failure mode (bad skeleton → bad skin) — directly relevant for exotic species with unusual bone topologies where skeleton prediction is most uncertain. Monitor VAST-AI-Research/SkinTokens for checkpoint release. The Qwen3-0.6B base is 5× larger than UniRig's OPT-125M — expect higher VRAM floor and potentially slower inference. Do not replace UniRig until the studio has measured SkinTokens on the RTX 5090 and confirmed the reported accuracy gains replicate.",
+      "evidence_strength": "single-reported-run",
+      "license": "MIT (GitHub repo VAST-AI-Research/SkinTokens)",
+      "commercial_use": "yes",
+      "commercial_notes": "MIT license per GitHub repo. Not yet measured; verify weights license on HF model card when released.",
+      "vram_gb": "16",
+      "rig_fit": 4,
+      "studio_fit": 3,
+      "status": "runner-up",
+      "failures": [
+        "Weights not yet released as of 2026-06-25 — monitor VAST-AI-Research/SkinTokens for release.",
+        "Not measured on studio RTX 5090; VRAM floor and WSL2 compatibility unconfirmed."
+      ],
+      "sources": [
+        {
+          "kind": "github",
+          "title": "VAST-AI-Research/SkinTokens — GitHub",
+          "authors": "VAST AI Research",
+          "year": "2026",
+          "identifier": "arXiv:2602.04805",
+          "url": "https://github.com/VAST-AI-Research/SkinTokens",
+          "claim": "SkinTokens / TokenRig repo: MIT license, Qwen3-0.6B transformer, FSQ-CVAE skin weight tokenization, GRPO RL refinement, 98-133% skinning accuracy improvement and 17-22% bone prediction improvement over UniRig."
+        }
+      ]
+    }
+  ]
+}

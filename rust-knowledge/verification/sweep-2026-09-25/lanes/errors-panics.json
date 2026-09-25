@@ -1,0 +1,376 @@
+{
+  "bucket": "errors-panics",
+  "verifier_note": "Verified by retrieval (never memory): all 49 warrant-source rows across 36 unique URLs resolved and supported their claims, including 3 cases where rustdoc HTML was too large for the fetch tool and I fell back to the actual rustc/std source at the pinned 1.98.1 git tag for ground truth (Termination's Result impl, strict_abs, wrapping_shl). Engine facts were checked read-only against mcp-tool-shop-org/si-rpg-engine main (function names, the single unwrap() at rapier_law.rs:561, Cargo.toml profile flags, and a git diff of commit 6a33297 confirming the continue->return false change) and all matched exactly. All 46 checks in this lane were executed with scripts/compile_oracle.py against the pinned rustc 1.98.1 on this Windows rig and passed with zero mismatches, including host-specific values like the 3221226505 (0xC0000409) abort exit code; I also independently reproduced the 'immediate-abort requires nightly' rejection verbatim. Zero refutations and zero corrections were needed. The one systemic weakness: engine_note claims mix durable anchors (function/constant names, which most recipes correctly use) with a fragile one -- recipe 4 cites an exact source line number pinned to a single commit, in a repo that took two more commits within the same day of this sweep. It still holds at current HEAD, but nothing in the lane structure would catch silent line-number drift on the next unrelated edit above that line. Recipe 6 is marked 'plausible' rather than 'solid' because one prose detail (Node's exact 'RuntimeError: unreachable' trap text) rests on the W3C spec's weaker guarantee (an unspecified-message RuntimeError) rather than a source or execution I could confirm verbatim, and its one background source predates 2021.",
+  "verdicts": [
+    {
+      "slug": "give-a-library-one-error-enum-per-failure-mode-and-let-convert-wrapped-causes-through-from",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "All 7 functions named (signature, build_world, canon_quat, write_body, integrate, rebuild_snapshot, ensure) confirmed live in rapier_law.rs; 4/4 checks passed on rustc 1.98.1.",
+      "evidence_url": "https://doc.rust-lang.org/stable/core/error/trait.Error.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "supported": true,
+          "note": "Verbatim: Err(e) -> return Err(From::from(e)); Option None -> None."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/core/error/trait.Error.html",
+          "supported": true,
+          "note": "core::error::Error 1.81.0; source() 1.30.0; description dep 1.42.0; cause dep 1.33.0 - exact."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2024/09/05/Rust-1.81.0/",
+          "supported": true,
+          "note": "Confirms 1.81 stabilizes core::error::Error for #![no_std]."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/book/ch09-02-recoverable-errors-with-result.html",
+          "supported": true,
+          "note": "Confirms ? uses From::from; can't mix Result/Option; ok/ok_or convert explicitly."
+        },
+        {
+          "url": "https://rust-lang.github.io/api-guidelines/interoperability.html",
+          "supported": true,
+          "note": "Confirms impl Error, () never an error type, lowercase no trailing punctuation."
+        }
+      ]
+    },
+    {
+      "slug": "derive-library-error-enums-with-thiserror-2-use-anyhow-or-box-dyn-error-send-sync-only-in-binaries",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Pinned versions (thiserror 2.0.21, anyhow 1.0.104) match docs.rs exactly; 4/4 checks pass incl. E0277 for non-Send Box<dyn Error>; Cargo.toml shows solver links only rapier3d-f64.",
+      "evidence_url": "https://docs.rs/thiserror/2.0.21/thiserror/",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/thiserror/2.0.21/thiserror/",
+          "supported": true,
+          "note": "#[error]/#[from]/#[source]/transparent semantics all confirmed at v2.0.21."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/dtolnay/thiserror/2.0.21/README.md",
+          "supported": true,
+          "note": "Verbatim: not in public API; hand-impl swap not breaking; thiserror-vs-anyhow framing."
+        },
+        {
+          "url": "https://docs.rs/anyhow/1.0.104/anyhow/",
+          "supported": true,
+          "note": "Confirms trait-object Result<T>, .context(), anyhow!/bail!/ensure! at v1.0.104."
+        },
+        {
+          "url": "https://docs.rs/anyhow/1.0.104/anyhow/struct.Error.html",
+          "supported": true,
+          "note": "Confirms {}/{:#}/{:?} formatting, Send+Sync+'static bound, one-word size."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/boxed/struct.Box.html",
+          "supported": true,
+          "note": "Confirms From<E>/From<&str>/From<String> impls for Box<dyn Error(+Send+Sync)>."
+        },
+        {
+          "url": "https://rust-lang.github.io/api-guidelines/interoperability.html",
+          "supported": true,
+          "note": "Confirms Send needed for thread::spawn, Sync needed for Arc."
+        }
+      ]
+    },
+    {
+      "slug": "return-result-e-debug-from-main-an-err-is-printed-as-error-err-and-the-process-exits-1",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Rustdoc omitted the Result impl's prose, so I read std's own source at 1.98.1: exact match to \"Error: {err:?}\" + ExitCode::FAILURE. 3/3 checks pass (exit 1, exit 2, E0277 no-Debug).",
+      "evidence_url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/std/src/process.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/process/trait.Termination.html",
+          "supported": true,
+          "note": "Stabilized 1.61.0 confirmed; Result<T,E> impl behavior confirmed via std source (rustdoc prose didn't fetch)."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/book/ch09-02-recoverable-errors-with-result.html",
+          "supported": true,
+          "note": "Confirms exit 0 on Ok(()), nonzero on Err; main may return any Termination type."
+        },
+        {
+          "url": "https://docs.rs/anyhow/1.0.104/anyhow/struct.Error.html",
+          "supported": true,
+          "note": "Confirms {:?} (Caused by: + backtrace) is what fn main prints by default."
+        }
+      ]
+    },
+    {
+      "slug": "use-expect-with-a-should-message-only-for-invariants-the-compiler-can-t-see-return-result-for-input",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "rapier_law.rs has exactly one .unwrap()/.expect()/panic!, at line 561 in integrate(), unchanged from e5fbcb9 through current HEAD f84c98b. 3/3 checks pass (exit 101).",
+      "evidence_url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/main/solver/src/rapier_law.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/book/ch09-03-to-panic-or-not-to-panic.html",
+          "supported": true,
+          "note": "Confirms panic-for-broken-invariant framing, Result-as-default, expect w/ documented reason."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/error/index.html",
+          "supported": true,
+          "note": "Confirms panic-system vs error-system split and the 'should' expect-as-precondition style."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html",
+          "supported": true,
+          "note": "Confirms println! does nothing and std::fs always errors on this target."
+        }
+      ]
+    },
+    {
+      "slug": "make-refusals-impossible-to-drop-silently-result-is-must-use-option-and-bool-are-not",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed all 3 rebuild_snapshot call sites + integrate + write_body + ensure currently check the bool; rebuild_snapshot clears out before any false return. 4/4 checks pass.",
+      "evidence_url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/main/solver/src/rapier_law.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/attributes/diagnostics.html",
+          "supported": true,
+          "note": "Verbatim: type/fn-based must_use rules, uninhabited-E exemption, wrap suppresses, trait-impl no-op, let _ idiom."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/result/index.html",
+          "supported": true,
+          "note": "Confirms Result is #[must_use] and triggers unused_must_use when ignored."
+        }
+      ]
+    },
+    {
+      "slug": "know-what-panic-abort-changes-the-hook-still-runs-then-no-unwinding-no-drop-nothing-to-catch",
+      "verdict": "confirmed",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "3 raw stdlib files byte-match at 1.98.1; Windows check measured exit 3221226505 exactly; reproduced \"immediate-abort requires nightly\" verbatim via rustc. Node's exact trap text unverified by me.",
+      "evidence_url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/std/src/sys/pal/windows/mod.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/panic.html",
+          "supported": true,
+          "note": "Confirms -C panic strategy choice, unwind=recoverable/abort=non-recoverable, Drop runs while unwinding."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/panic/fn.catch_unwind.html",
+          "supported": true,
+          "note": "All 6 sub-claims (UnwindSafe, unwind-only, hook-first, not-try/catch, drop-may-panic, foreign unspecified) verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/process/fn.abort.html",
+          "supported": true,
+          "note": "Confirms no destructors on any thread's stack; panic=abort makes panic! ~ abort but hook still runs."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html",
+          "supported": true,
+          "note": "Confirms -Cpanic=abort default; unwind needs nightly -Zbuild-std."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/cargo/reference/profiles.html",
+          "supported": true,
+          "note": "Confirms tests/benches ignore panic setting (need unwind); release default 'unwind' but target-dependent."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/rustc/codegen-options/index.html",
+          "supported": true,
+          "note": "Confirms -C panic takes abort|immediate-abort|unwind, target-dependent default, abort-is-viral rule."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/std/src/sys/pal/windows/mod.rs",
+          "supported": true,
+          "note": "Byte-exact: abort_internal uses asm int 0x29 / FAST_FAIL_FATAL_APP_EXIT."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/std/src/sys/pal/unsupported/common.rs",
+          "supported": true,
+          "note": "Byte-exact: abort_internal is core::intrinsics::abort()."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/std/src/sys/pal/wasm/mod.rs",
+          "supported": true,
+          "note": "Byte-exact: wasm/web module re-exports ../unsupported/common.rs, confirmed not emscripten/WASI."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/core/intrinsics/fn.abort.html",
+          "supported": true,
+          "note": "Confirms invalid-instruction implementation, behavior not guaranteed/stable."
+        },
+        {
+          "url": "https://webassembly.github.io/spec/js-api/",
+          "supported": true,
+          "note": "Confirms a trap on an exported call throws, and that exception should be a WebAssembly RuntimeError."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/book/ch09-01-unrecoverable-errors-with-panic.html",
+          "supported": true,
+          "note": "Confirms unwind walks/cleans stack; panic='abort' in [profile.release] skips cleanup, can shrink binary."
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/cpp/intrinsics/fastfail",
+          "supported": true,
+          "note": "Confirms 0xC0000409 exception, no handlers run, native since Win8 (2019; background, not sole warrant)."
+        }
+      ]
+    },
+    {
+      "slug": "under-overflow-checks-false-negation-abs-and-shifts-wrap-and-indexing-still-panic",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "signature()'s driven|=1u64<<i / carried|=1u64<<i for i<n_bodies<=MAX_BODIES=64 confirmed in lib.rs+rapier_law.rs; 7/7 checks pass incl. E0080, arithmetic_overflow, unconditional_panic.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/behavior-not-considered-unsafe.html",
+          "supported": true,
+          "note": "Confirms overflow-is-programmer-error framing, debug panics, two's-complement wrap otherwise."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "supported": true,
+          "note": "Overflow list verbatim incl. MIN/-1 checked 'even when -C overflow-checks is disabled, for legacy reasons'."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/rustc/codegen-options/index.html",
+          "supported": true,
+          "note": "Confirms overflow-checks defaults to follow debug-assertions when unset."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/cargo/reference/profiles.html",
+          "supported": true,
+          "note": "Confirms dev overflow-checks=true, release=false."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/primitive.i32.html",
+          "supported": true,
+          "note": "Confirms MIN/-1 is the only overflowing signed division and panics in debug and release."
+        },
+        {
+          "url": "https://rust-lang.github.io/rfcs/0560-integer-overflow.html",
+          "supported": true,
+          "note": "Confirms panic/wrap design; its shift-masking text is now superseded (check 3: shift-by-64 panics w/ checks on)."
+        }
+      ]
+    },
+    {
+      "slug": "say-the-overflow-intent-in-the-call-checked-wrapping-saturating-overflowing-strict-1-91",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "i32/u32 rustdoc too large to fetch whole; strict_abs/wrapping_shl confirmed via core's own macro source at 1.98.1. mix_u64 byte-matches engine_note. 5/5 checks pass, incl. identical hash checks-on vs off.",
+      "evidence_url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/core/src/num/int_macros.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u32.html",
+          "supported": true,
+          "note": "Confirms strict_add/sub/mul since 1.91.0, always panic regardless of checks; checked_add returns None."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/primitive.i32.html",
+          "supported": true,
+          "note": "strict_div/neg/shl direct; strict_abs, wrapping_shl formula via core macro source (rustdoc page too large)."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2025/10/30/Rust-1.91.0/",
+          "supported": true,
+          "note": "Confirms full strict_* stabilization list incl. strict_abs, strict_shl, strict_add_signed etc."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/behavior-not-considered-unsafe.html",
+          "supported": true,
+          "note": "Confirms inherent wrapping_* methods and Wrapping<T> newtype give wrapping semantics."
+        }
+      ]
+    },
+    {
+      "slug": "guard-invariants-the-shipped-build-keeps-with-assert-debug-assert-vanishes-without-debug-assertions",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "solver/Cargo.toml's release profile sets overflow-checks=false, panic=abort, no debug-assertions key -> Cargo default (false), matching engine_note exactly. 4/4 checks pass.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/macro.debug_assert.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/macro.debug_assert.html",
+          "supported": true,
+          "note": "Verbatim: non-optimized-only by default, needs -C debug-assertions in opt builds, safe-code-only after profiling."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/macro.assert.html",
+          "supported": true,
+          "note": "Verbatim: always checked, cannot disable; unsafe code may rely on it; message args evaluated only on failure."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/rustc/codegen-options/index.html",
+          "supported": true,
+          "note": "Confirms debug-assertions defaults on only at opt-level 0."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/cargo/reference/profiles.html",
+          "supported": true,
+          "note": "Confirms debug-assertions true for dev, false for release."
+        }
+      ]
+    },
+    {
+      "slug": "keep-panics-out-of-extern-c-exports-refuse-through-an-internal-result-chain-mapped-to-a-u32-status",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Diffed commit 6a33297 (rapier_law.rs unchanged since c64f67a): rebuild_snapshot's continue became return false, all 3 callers now check it -- exact engine_note match. 6/6 checks pass.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/commit/6a33297faeda397734b61f250b0f75ee0fa08537",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://blog.rust-lang.org/2024/09/05/Rust-1.81.0/",
+          "supported": true,
+          "note": "Confirms non-unwind ABIs (e.g. \"C\") abort on uncaught unwind since 1.81, completing the 1.71 C-unwind transition."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/items/functions.html",
+          "supported": true,
+          "note": "Unwinding table verbatim: panic=unwind + non-unwind ABI aborts; C-unwind unwinds; bare extern means C."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/panic/fn.catch_unwind.html",
+          "supported": true,
+          "note": "Confirms extern \"C\" panics should abort the process; catch_unwind is the graceful alternative."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/book/ch09-02-recoverable-errors-with-result.html",
+          "supported": true,
+          "note": "Confirms ? propagates via From and ok_or enables it on an Option in a Result-returning fn."
+        }
+      ]
+    }
+  ]
+}

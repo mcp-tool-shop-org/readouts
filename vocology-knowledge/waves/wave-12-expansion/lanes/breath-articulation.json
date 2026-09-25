@@ -1,0 +1,148 @@
+{
+  "laneSlug": "breath-articulation",
+  "title": "Breath, consonants & articulation in sung voice",
+  "findings": [
+    {
+      "n": 1,
+      "authors": "Sundberg, Bauer-Huppmann",
+      "year": 2007,
+      "title": "When does a sung tone start?",
+      "id": "DOI:10.1016/j.jvoice.2006.01.003",
+      "url": "https://doi.org/10.1016/j.jvoice.2006.01.003",
+      "finding": "Measuring the interval between sung vowel onsets and piano-accompaniment onsets across 552 tones from commercial CD recordings by international vocal artists (two experimenters measuring the same piece independently agreed within ±10 ms), the accompanists most commonly synchronised their tones with the singers' VOWEL onsets, not with the consonant that orthographically starts the syllable; lead and lag examples occurred for expressive purposes and varied greatly between songs, being smallest in a fast-tempo song and longest in a slow-tempo song.",
+      "implication": "The MIDI note-on is a vowel timestamp, not a syllable timestamp: a score-locked pipeline must place the vowel at the note boundary and let the consonant run BEFORE it, and a tool judging a student's timing must detect the vowel onset (not the syllable onset) before it can say 'you were late'."
+    },
+    {
+      "n": 2,
+      "authors": "Chow, Belyk, Tran, Brown",
+      "year": 2015,
+      "title": "Syllable synchronization and the P-center in Cantonese",
+      "id": "DOI:10.1016/j.wocn.2014.10.006",
+      "url": "https://doi.org/10.1016/j.wocn.2014.10.006",
+      "finding": "23 Cantonese speakers (13 M, 10 F, mean age 19.1) repeated monosyllables in sync with a metronome at inter-pulse intervals of at least 600 ms; syllable-initial consonant onset preceded the beat by a mean 15.77 ms (SD 37.10; t(22)=-2.038, p=0.054, not significant) while vowel onset FOLLOWED the beat by 74.62 ms (SD 36.75; t(22)=9.738, p<0.05) — a mean C-to-V interval of roughly 90 ms. Manner of articulation dominated the placement (F(6,136)=11.439, p<0.05 for consonant onset): short consonants (stops, glottal stop) began just after the beat while long ones (fricatives, nasals, laterals, affricates) began before it, and the authors note this Cantonese pattern (P-center at syllable onset) contrasts with Germanic languages, Brazilian Portuguese, Spanish and Japanese where the P-center sits at the consonant-vowel transition.",
+      "implication": "The consonant lead a synthesiser must apply is not a constant — it is roughly the consonant's own duration and it is language-specific, so a fixed pre-note offset (~90 ms) is a starting default that must be scaled per phoneme class and re-derived per language rather than baked in."
+    },
+    {
+      "n": 3,
+      "authors": "Sharma, Gao, Vijayan, Tian, Li",
+      "year": 2021,
+      "title": "NHSS: A speech and singing parallel database",
+      "id": "DOI:10.1016/j.specom.2021.07.002",
+      "url": "https://doi.org/10.1016/j.specom.2021.07.002",
+      "finding": "Parallel sung and spoken recordings of the same English pop lyrics by the same 10 singers (5 M, 5 F; 100 songs, 7 h) give mean phoneme durations in singing vs speech (ms): vowels 830.5/148.0, glides 486.8/102.8, liquids 479.5/101.4, nasals 586.2/103.5, aspirates 168.0/117.7, fricatives 217.5/116.7, affricates 164.8/120.5, stops 172.4/81.5 — sonorants stretch ~4.7-5.7x when sung while obstruents stretch only ~1.4-2.1x. The same paper reports that Montreal Forced Aligner word-boundary deviation from manual annotation is 25.30 ms for speech but 103.90 ms for singing (inter-annotator deviation 5.70 ms speech / 8.70 ms singing), i.e. the alignment tool degrades ~4x on sung audio.",
+      "implication": "Duration stretching must be applied per phoneme class, not per phoneme: giving a long note to the whole syllable stretches the /s/ and /t/ along with the vowel and produces the 'robot slurring a consonant' failure — the obstruent should stay near its spoken length and the vowel absorbs the note. And any forced-aligner ground truth used to build a practice companion carries ~100 ms of word-boundary error on sung audio, which is larger than the entire consonant lead in finding 2."
+    },
+    {
+      "n": 4,
+      "authors": "OpenVPI (openvpi/MakeDiffSinger)",
+      "year": 2024,
+      "title": "MakeDiffSinger — variance-temp-solution: word division and ph_num",
+      "id": "github:openvpi/MakeDiffSinger",
+      "url": "https://github.com/openvpi/MakeDiffSinger/blob/main/variance-temp-solution/README.md",
+      "finding": "The DiffSinger dataset format encodes the vowel-on-the-beat rule directly in its word division: \"In singing, vowels, instead of consonants, are used to align with the beginnings of notes. For this reason, each word should start with a vowel/AP/SP, and end with leading consonant(s) of the next word (if there are any).\" Breath (AP, 'aspiration') and space (SP) are treated as word-initiating units alongside vowels, i.e. a breath is a first-class scored token with its own duration, not a gap. Repo licence BSD-3-Clause; the DiffSinger engine itself is Apache-2.0.",
+      "implication": "A permissively licensed, already-shipping local route exists for honouring an existing MIDI line: the score-to-phoneme contract is 'vowel at note start, trailing consonants borrowed from the next word, breath as an explicit token', and the practice companion should adopt the same representation so its analysis and its synthesis speak the same timing grammar."
+    },
+    {
+      "n": 5,
+      "authors": "Nakano, Ogata, Goto, Hiraga",
+      "year": 2008,
+      "title": "Analysis and Automatic Detection of Breath Sounds in Unaccompanied Singing Voice",
+      "id": "ICMPC10 proceedings, ISBN 978-4-9904208-0-2",
+      "url": "https://staff.aist.go.jp/m.goto/PAPER/ICMPC2008nakano.pdf",
+      "finding": "Hand-marking 1488 breath events across 29 entries (27 RWC-MDB songs by 16 professional singers plus 2 merged AIST-HDB amateur entries; 15 male, 14 female; 128 minutes total) gave a cumulative breath duration of 438.5 s = 5.7% of all audio. Individual breath events ranged 50 ms to 1225 ms; per-entry means ran from 174.0 ms to 487.4 ms with SDs of 47.7-222.2 ms. Long-term average spectra show a common peak at about 1.6 kHz (male) and 1.7 kHz (female) with secondary peaks at 850 Hz-1 kHz (more prominent in females), and the spectral envelope of a given singer's breaths stays essentially invariant across different songs. An HMM detector on MFCC + delta-MFCC + power reached recall 97.5% / precision 77.7% over 27 songs.",
+      "implication": "Breath is ~1/18th of a sung performance's duration and has a stable, singer-specific spectral signature — so a singing engine needs a breath model with a per-voice spectrum and a 50-1225 ms duration distribution, and a practice companion can detect breaths cheaply enough (MFCC + power) to score a student's breath placement without a neural model."
+    },
+    {
+      "n": 6,
+      "authors": "Whalen, Hoequist, Sheffert",
+      "year": 1995,
+      "title": "The effects of breath sounds on the perception of synthetic speech",
+      "id": "DOI:10.1121/1.411875",
+      "url": "https://doi.org/10.1121/1.411875",
+      "finding": "Across five experiments, listeners transcribed synthesized sentences MORE accurately when a naturally produced breath intake sound preceded them (experiment 1), and this was not a generic acoustic-warning effect: replacing the breath with the spectrally similar sound of rustling leaves produced no improvement (experiment 2), and experiment 5 replicated the benefit with leaf sounds rather than silence as the control. Matching the breath's size to sentence length had no effect (experiment 4), possibly because the sentence-duration range was too small.",
+      "implication": "The pre-phrase breath is doing perceptual work for the listener, not just filling time, and a spectrally-plausible-but-wrong noise burst will not substitute — so a synthesis pipeline should splice or model real inhalation spectra rather than gate in filtered noise, and stripping breaths from a synthesised line costs measurable intelligibility, not only 'naturalness'."
+    },
+    {
+      "n": 7,
+      "authors": "Salomoni, van den Hoorn, Hodges",
+      "year": 2016,
+      "title": "Breathing and Singing: Objective Characterization of Breathing Patterns in Classical Singers",
+      "id": "DOI:10.1371/journal.pone.0155084",
+      "url": "https://doi.org/10.1371/journal.pone.0155084",
+      "finding": "Optoelectronic/pneumotachograph measurement of 7 professional classical singers (2 M aged 39-41; 5 F aged 24-72) and 4 untrained males (21-41) during quiet breathing, a standard song and a free-choice piece found that BOTH groups shortened time of inspiration and raised peak airflow when singing versus quiet breathing. Classical singers additionally used a significantly greater abdominal contribution to lung volume (F(1,9)>28.87, p<0.001) and greater rib-cage/abdomen asynchrony with the abdominal peak occurring before the rib-cage peak (F(1,9)>28.92, p<0.001); principal components accounting for >98% of the variance revealed a consistent pre-phonatory INWARD movement of the abdominal wall in singers that untrained controls did not show.",
+      "implication": "A sung inhalation is a compressed, high-flow, rhythmically constrained motor event that ends with a posture change before phonation begins — so breath duration in a singing engine should shrink as tempo rises rather than stay a fixed constant, and a practice companion advising a student on breath should target inspiratory time and abdominal set, which are the two things that measurably separate trained from untrained."
+    },
+    {
+      "n": 8,
+      "authors": "Joliveau, Smith, Wolfe",
+      "year": 2004,
+      "title": "Vocal tract resonances in singing: the soprano voice",
+      "id": "DOI:10.1121/1.1791717",
+      "url": "https://doi.org/10.1121/1.1791717",
+      "finding": "Nine sopranos (5 professionals averaging 12 years of classical training, 4 students averaging 7 years) sang four vowels softly without vibrato while broadband acoustic current injected at the lower lip measured tract resonances directly to a precision of ~11 Hz (reproducibility SD 25 Hz for R1, 60 Hz for R2/R3, 90 Hz for R4). Below the speech value of R1 the resonances stay fixed (e.g. R1 ≈ 420 Hz for /u/ at C4 = 261 Hz); once f0 exceeds it, R1 tracks f0 — at C6 (1046 Hz) R1 and f0 coincided within 20 Hz — with the R1 = f0 line lying inside the data's standard deviations over roughly 600-1000 Hz. Lip-rounded vowels /ɔ/ and /u/ fall below the tuning line near 1 kHz. R3-R5 showed NO tuning (mean |Δf| = 0.24·f0, 0.23·f0, 0.20·f0, i.e. the f0/4 expected from random placement). Consequently, over G5-B5 the four vowels converge and overlap on the (R2,R1) plane to separations comparable with the confusion length.",
+      "implication": "Above roughly 600 Hz the vowel identity a score requests is physically not the vowel that will be produced: a score-locked engine must apply pitch-dependent vowel modification as a first-class transform (F1 -> f0, with an exception for lip-rounded vowels near 1 kHz), and a diction-scoring tool must stop penalising vowel drift above the singer's R1-crossing pitch because correct technique requires it."
+    },
+    {
+      "n": 9,
+      "authors": "Henrich, Smith, Wolfe",
+      "year": 2011,
+      "title": "Vocal tract resonances in singing: Strategies used by sopranos, altos, tenors, and baritones",
+      "id": "DOI:10.1121/1.3518766",
+      "url": "https://doi.org/10.1121/1.3518766",
+      "finding": "Measuring R1 and R2 in 22 classically trained sopranos, altos, tenors and baritones over four vowels across their normal ranges found voice-type-specific tuning: sopranos use R1:f0 over at least part of their upper range for ALL vowels studied, plus R2:2f0 over some of their range and often simultaneously with R1:f0; altos use R1:f0 for vowels with lower speech R1 but can switch to R1:2f0 in the lower part of their range; tenors and baritones generally use R1:2f0 and R1:3f0 over part of their range and various higher-harmonic tunings at low pitch. Singers repeated these tunings with precision, but strategies differed considerably between individuals, especially in the lower voices.",
+      "implication": "A single soprano-derived formant-tuning rule will be wrong for male voices, whose target is a harmonic of f0 rather than f0 itself — so a singing engine's vowel-modification table and a practice tool's 'is this resonance placed correctly' judgement both have to be keyed on voice type, and the per-individual spread means the tool should calibrate against the specific student rather than a population mean."
+    },
+    {
+      "n": 10,
+      "authors": "Deme",
+      "year": 2017,
+      "title": "The Identification of High-pitched Sung Vowels in Sense and Nonsense Words by Professional Singers and Untrained Listeners",
+      "id": "DOI:10.1016/j.jvoice.2016.07.008",
+      "url": "https://doi.org/10.1016/j.jvoice.2016.07.008",
+      "finding": "High-pitched sung vowels are phonetically underspecified for two independent reasons — F1 is tuned to f0 as pitch rises, and the wide harmonic spacing undersamples the vocal-tract transfer function. Testing the widespread claim that surrounding consonants rescue vowel identification, this study compared identification in sense and nonsense CVC sequences and found the positive context effect DISAPPEARS once the number of legal response choices is equated across conditions: the apparent benefit came from higher response probability, not from phonetic context. A second negative result: professional singers showed no perceptual advantage over untrained listeners in identifying high-pitched sung vowels.",
+      "implication": "Do not rely on consonant context to carry intelligibility at high pitch — it does not, and this kills the tempting shortcut of 'crisp consonants will make the high notes understandable'. A practice companion must not mark a student down for unintelligible high vowels, and a synthesis pipeline that wants a lyric understood at pitch has to lower the pitch, change the vowel, or accept that the words are gone."
+    },
+    {
+      "n": 11,
+      "authors": "Condit-Schultz, Huron",
+      "year": 2017,
+      "title": "Word Intelligibility in Multi-voice Singing: The Influence of Chorus Size",
+      "id": "DOI:10.1016/j.jvoice.2016.02.011",
+      "url": "https://doi.org/10.1016/j.jvoice.2016.02.011",
+      "finding": "149 participants identified English words spoken or sung in sync by 1, 4, 8, 16 or 27 members of a high-quality SATB choir. Single-voice recognition exceeded multi-voice recognition in the sung condition, but the difference between four concurrent singers and the full 27 was negligible — intelligibility loss saturates at about four voices. The principal effect of voice density falls specifically on CODA consonants, with plosives /b/, /d/, /g/ and /p/ easily confused and coda liquids /l/, /r/ also a source of confusion; increasing voice density actually FACILITATED the coda nasal /m/.",
+      "implication": "Word-end consonants, not word-start ones, are where sung intelligibility is lost — so a singing engine's release/coda model (and a practice tool's diction scoring) should weight coda plosives and liquids far above onsets, and any doubling/chorusing effect in the pipeline should be told to keep coda releases coherent because the damage is done by the fourth voice, not the twenty-seventh."
+    },
+    {
+      "n": 12,
+      "authors": "Wu, Hsiao, Yang, Friedman, Jackson, Bruzenak, Liu, Yang",
+      "year": 2022,
+      "title": "DDSP-based Singing Vocoders: A New Subtractive-based Synthesizer and A Comprehensive Evaluation",
+      "id": "arXiv:2208.04756",
+      "url": "https://arxiv.org/abs/2208.04756",
+      "finding": "Training six vocoders on MPop600 Mandarin singing (~3 h per singer, one female and one male, held-out test clips, MOS from 23 and 18 listeners) the authors report that with 3 h of data every vocoder including HiFi-GAN V1 reached MOS of only 2-3, and in a 3-minute-data / 3-hour-training scenario HiFi-GAN collapsed to MOS ≈ 1 ('barely audible', FAD 3.50 female / 10.5 male) while the DDSP vocoders stayed above MOS 2 (SawSing FAD < 1.0). Crucially, SawSing produced an audible buzzing artifact 'notably when singers emphasize the airflow with breathy sounds and for unvoiced consonants such as /s/ and /t/' — redundant harmonics bridging adjacent phonemes — and 'this artifact cannot be reflected in any training loss function (and objective metrics) we considered, so the network fails to take it into account'. Post-processing with Parselmouth voiced/unvoiced flags that zero the harmonic amplitudes on non-voiced portions removed much of it.",
+      "implication": "The breath-and-sibilant failure mode is INVISIBLE to the metrics a local pipeline would use to pick a vocoder, so consonant/breath quality has to be checked by listening or by an explicit unvoiced-segment measure; and the cheap fix — driving harmonic amplitude to zero on V/UV flags — is a deterministic DSP guard that belongs in the render path rather than being left to the model."
+    },
+    {
+      "n": 13,
+      "authors": "Kim, Cho, Lee",
+      "year": 2024,
+      "title": "Period Singer: Integrating Periodic and Aperiodic Variational Autoencoders for Natural-Sounding End-to-End Singing Voice Synthesis",
+      "id": "arXiv:2406.09894",
+      "url": "https://arxiv.org/abs/2406.09894",
+      "finding": "This end-to-end system states plainly that 'the alignment estimation in singing tasks is challenging because of the presence of breath sounds and diverse variations in pitch', which lets monotonic alignment search produce meaningless score-to-audio mappings; the fix is to constrain the search inside note boundaries. Removing that note-boundary constraint costs CMOS -1.13 in ablation (versus -0.21 for removing the normalizing flow) — by far the largest single term. Final MOS with 20 Mandarin and 19 Korean raters over 20 samples per system: 3.97 ± 0.07 on Opencpop against a 4.24 ± 0.07 recording, and 4.61 ± 0.05 on the internal Korean set against a 4.65 ± 0.05 recording, achieved WITHOUT ground-truth phoneme durations.",
+      "implication": "Breath is not a cosmetic layer — untagged breath actively corrupts score-to-audio alignment, and the single highest-value architectural decision for honouring an existing MIDI line is to hard-constrain phoneme alignment to note boundaries (worth more than a full point of CMOS) so a breath cannot steal frames from the phonemes on either side of it."
+    },
+    {
+      "n": 14,
+      "authors": "Violeta, Zhang, Shi, Yasuda, Huang, Wu, Toda",
+      "year": 2025,
+      "title": "An Extensive Analysis of the Singing Voice Conversion Challenge 2025 Evaluation Results",
+      "id": "arXiv:2509.15629",
+      "url": "https://arxiv.org/abs/2509.15629",
+      "finding": "Analysing 33 submitted systems, the organisers found top systems reached singer-identity scores comparable to ground-truth samples, but 'modeling the singing style and consequently achieving high naturalness still remains a challenge' — no system reached human-level naturalness, and the named residual difficulty is dynamic information in BREATHY, glissando and vibrato singing styles. They also report that chroma-alignment and speaker-embedding metrics correlate best with subjective scores but are 'still not at a level where it could be considered as a true replacement for subjective scores'.",
+      "implication": "As of the 2025 challenge, timbre is solved and breath-carried dynamics are not — so a product's differentiator is the non-pitch half of the voice, and its evaluation loop cannot be automated: the aspects that still fail are exactly the aspects the objective metrics cannot see (compare finding 12)."
+    }
+  ],
+  "licence_notes": "BLOCKED FOR COMMERCIAL USE. (1) NHSS / NUS-HLT Speak-Sing (finding 3) — End User License Agreement (04/2020), clause 9: 'Any commercial use of the Database is strictly prohibited', explicitly including 'Testing commercial systems' and 'Proving the efficiency of commercial systems'; the licence grants use 'for its own internal and non-commercial use and for the purpose of scientific research only'. The published duration numbers are citable; the audio cannot enter a product or even a commercial benchmark. (2) Opencpop (the corpus behind the AP/SP breath labelling in finding 4 and the Mandarin results in finding 13) — its licence page names the 'Creative Commons Attribution 4.0 International License' but on the same page states the data is 'available to download for non-commercial purposes' and that 'If want to use it commercially, you are welcome to contact us by email'. Those two statements contradict; treat Opencpop as NOT cleared until written permission is obtained. Its derived sets ACE-Opencpop and ACE-KiSing are CC-BY-NC-4.0 — commercial use blocked outright. (3) SawSing reference implementation, YatingMusic/ddsp-singing-vocoders (finding 12) — AGPL-3.0; the finding and the V/UV post-processing technique are free to reimplement, the code is not usable in a closed product. CLEAR FOR COMMERCIAL USE: openvpi/DiffSinger — Apache-2.0; openvpi/MakeDiffSinger — BSD-3-Clause; openvpi/SOME — MIT; stakira/OpenUtau — MIT ('The MIT License (MIT), Copyright (c) 2014 StAkira'). Note the split: the ENGINES are permissive, the DATA is not, so any local route has to be trained on a corpus the studio can actually license.",
+  "gaps": "Could not find any published measurement of sung-breath PLACEMENT — a distribution of where singers actually inhale relative to bar lines, phrase boundaries or notated rests, with ms offsets; Nakano et al. give breath duration and spectrum but not score-relative position, and Salomoni et al. give respiratory kinematics without score alignment. Could not find a sung equivalent of the Whalen breath-perception experiment: no controlled listening test surfaced measuring whether listeners notice the ABSENCE of breath in synthesised singing, so finding 6's evidence is imported from speech. Could not find a per-phoneme intelligibility or spectral-error breakdown for any modern neural singing vocoder — sibilant and plosive failure is described qualitatively (finding 12) but no paper reported /s/, /ʃ/, /t/, /k/ error rates against ground truth, and the SVCC 2025 analysis reports no consonant-level numbers at all. Finally, the measured consonant lead time in finding 2 comes from a SPOKEN syllable-synchronisation task; Sundberg & Bauer-Huppmann established the vowel-onset rule for singing but their published abstract does not release the ms lead/lag distribution and the full text is paywalled, so no sung-specific lead-time distribution could be retrieved."
+}

@@ -1,0 +1,226 @@
+# Grid & tactical movement
+_TileMapLayer grid, coordinate systems, AStarGrid2D vs flood-fill movement range, range highlighting, cursor/selection, + the open-source Godot-4 tactical-RPG frameworks (license + 4.x compat)._ · wave 7 · 2026-09-07 · [‹ catalog index](README.md)
+
+29 recipes · 23 solid.
+
+| Recipe | Godot | Currency | ✓ | What |
+|--------|-------|----------|---|------|
+| Build a grid cursor + unit-selection state machine over the tile grid | 4.3+ | ✅ solid | ✓ | The input spine: a cursor that snaps to cells, emits 'hovered cell changed' and  |
+| Compute movement RANGE with BFS flood-fill (not A*) keyed on Vector2i | 4.3+ | ✅ solid | ✓ | The reachable set of cells a unit can move to within a movement budget. This is  |
+| Convert mouse/world positions to grid cells with local_to_map / map_to_local | 4.3+ | ✅ solid | ✓ | The two-way bridge between pixel space and cell space — the single most-used ope |
+| DEV.to — A* vs Unity NavMesh for games | 4.x | ✅ solid | ✓ | Choosing pathfinding: continuous NavMesh vs discrete A*. |
+| Godot 2D navigation intro — grid vs navmesh | 4.x | ✅ solid | ✓ | AStarGrid2D for cell positions; NavigationServer for any point in navmesh. |
+| Hierarchical any-angle on multi-resolution 3D grids | 4.x | ✅ solid | ✓ | Hierarchical volumetric maps + any-angle when flat A* does not scale. |
+| Highlight range/path with a dedicated overlay TileMapLayer (batched), not per-frame _draw | 4.3+ | ✅ solid | ✓ | The visual feedback layer: blue 'you can move here', red 'attack/loot range', ye |
+| Lucas — 2D TRPG pathfinding (grid A*) | 4.x | ✅ solid | ✓ | Fire Emblem-style boards use grid A*/Dijkstra; NavMesh continuous. |
+| NSRL — NavMesh as long-range locomotion layer | 4.x | ✅ solid | ✓ | FPS map AI uses NavMesh for global nav interleaved with local DRL. |
+| NavigationServer2D — layers filter ≠ AStarGrid2D | 4.x | ✅ solid | ✓ | Maps/regions/agents; navigation_layers filter; RVO ≠ path mesh. |
+| Optimal any-angle path planning (Zou & Borst) | 4.x | ✅ solid | ✓ | Any-angle between non-adjacent vertices for shorter continuous paths. |
+| PiBT string-pull post-process for multi-agent paths | 4.x | ✅ solid | ✓ | Safety-aware string-pull smooths 8-connected paths into free-space trajectories. |
+| RACon retrieval-augmented locomotion control | 4.x | ✅ solid | ✓ | Hierarchical RL retrieves motion experts for character locomotion. |
+| SE(2) Navigation Mesh + ASA string-pull | 4.x | ✅ solid | ✓ | Yaw-dependent SE(2) polygons with A*-String-Pulling-A* over dense triangles. |
+| SURVEY: ramaureirac/godot-tactical-rpg — fullest Godot-4.3 tactical demo (MIT) and where it stops | 4.3 (current main); the project DROPPED support for older engines but keeps archived branches for 3.4 / 4.0 / 4.2. LICENSE: MIT (confirmed). | ✅ solid | ✓ | The most complete OPEN, MIT-licensed, Godot-4-native tactical RPG demo on GitHub |
+| Use AStarGrid2D for the actual MOVE path (shortest route to the chosen cell) | 4.3+ | ✅ solid | ✓ | Godot 4's built-in grid A*. Unlike AStar2D (which makes you add every point and  |
+| Use TileMapLayer (one node per layer) as the grid substrate, not the deprecated TileMap | 4.3+ | ✅ solid | ✓ | The grid a tactical RPG stands on. Godot 4.3 (Aug 2024) split the monolithic Til |
+| Using NavigationAgents — optional route helpers | 4.x | ✅ solid | ✓ | Agents join default map; navigation_layers bitmask; empty path before sync. |
+| Using NavigationServer — physics-frame sync | 4.x | ✅ solid | ✓ | NavigationServer2D/3D changes sync end of physics frame; early path queries wron |
+| Using navigation meshes — TileMapLayer bake | 4.x | ✅ solid | ✓ | parse_source_geometry_data → bake; TileMapLayer parse heavy; agent_radius baked. |
+| Validating Navmesh — voxel QA vs baked mesh | 4.x | ✅ solid | ✓ | Navmesh bake QA: voxel walkability vs engine reachability when terrain drifts. |
+| Vav Labs — AStarGrid2D vs NavigationServer | 4.x | ✅ solid | ✓ | Tile-locked tactics → grid; free-form → navmesh. |
+| Vector-based any-angle with non-convex obstacles | 4.x | ✅ solid | ✓ | Line-of-sight + obstacle-contour walking vs free-space cell expansion. |
+| Recast/Detour — layered floors partial only | 4.x | ▸ plausible | ✓ | Voxel heightfields + walkableClimb for stairs/layers. |
+| SURVEY: GDQuest godot-2d-tactical-rpg-movement — the cleanest movement starter (and where it stops) | Original demo is Godot 3.x-era; a community Godot 4.3 port is published (itch.io 'GDquest tactical RPG movement demo in Godot 4.3'). Treat the upstream as the design/architecture reference and port forward (TileMap→TileMapLayer, yield→await, KinematicBody2D→CharacterBody2D). | ▸ plausible | ✓ | GDQuest's focused demo accompanying the Tactical RPG Movement tutorial series (8 |
+| SURVEY: gdquest-demos/godot-open-rpg — turn-based combat reference (but NOT tactical-grid combat) | 4.3+ (README currently pins a 4.6.x point release; it is kept current with the engine). | ▸ plausible | ✓ | GDQuest's actively-maintained, ground-up Godot-4 rewrite teaching how to structu |
+| GridRoute — cardinal grid LLM route planning bench | 4.x |  | ✓ | Cardinal (4-way) grid route planning; algorithmic A*/Dijkstra guidance still the |
+| JPS4 — Jump Point Search on 4-connected grids | 4.x |  | ✓ | JPS4 adapts JPS to 4-connected uniform grids; order-of-magnitude faster than A*  |
+| Key-Interval A* — structural abstraction pathfinding | 4.x |  | ✓ | Optimal 4-connected pathfinding via interval abstraction; fastest on structured/ |
+
+## Detail
+
+### Build a grid cursor + unit-selection state machine over the tile grid · `✅ solid` · Godot 4.3+
+**The input spine: a cursor that snaps to cells, emits 'hovered cell changed' and 'cell accepted' signals, and a board/controller that runs the select → show-range → preview-path → confirm-move flow. GDQuest's series ships exactly this (Cursor + GameBoard/Grid + Unit) as the canonical structure.**
+- **How:** CURSOR (Node2D): on input, compute cell = tile_layer.local_to_map(tile_layer.get_local_mouse_position()); if cell != _last_cell: _last_cell = cell; position = tile_layer.map_to_local(cell); emit_signal('moved', cell). On click / accept action: emit_signal('accepted', cell). Support keyboard too: on ui_up/down/left/right, clamp _last_cell ± Vector2i and re-emit. CONTROLLER/GameBoard: hold a Dictionary { Vector2i: Unit }; on cursor 'accepted', if no unit selected and the cell holds a player unit → select it, flood-fill its range, paint the HighlightLayer; if a unit is selected and the accepted cell is in range → AStarGrid2D path, animate move, update the unit's cell key, clear highlights; else deselect. Drive this as an explicit enum state machine (SELECTING / MOVING / TARGETING) so part-targeting and AP gating slot in as states.
+- **Gotchas:** (1) Debounce on cell-change (compare to _last_cell) — don't emit 'moved' every mouse-motion pixel or you re-run flood-fill needlessly. (2) Wire interactions with signals, not polling — GDQuest's design connects Cursor.accepted/moved to the board; this keeps the LLM crew's generated scenes loosely coupled. (3) GDQuest's original demo is Godot 3.x-era — when porting, swap any TileMap layer-indexed calls to TileMapLayer, yield→await, and KinematicBody2D→CharacterBody2D (or just Node2D + tween for grid-snapped units, no physics body needed). (4) Keep selection/turn logic out of the Cursor node — Cursor only reports cells; the board decides meaning.
+- **Verify (solid):** All API used (local_to_map/map_to_local/get_local_mouse_position, signals, Input ui_* actions, Vector2i clamping) is valid current Godot 4. Architecture matches GDQuest's Cursor/GameBoard/Unit structure. Port note (TileMap layer-indexed -> TileMapLayer, yield -> await, KinematicBody2D -> CharacterBody2D) is accurate. [Godot 4.7: local_to_map/map_to_local/get_local_mouse_position/CharacterBody2D/await all current. But GDQuest's demo is not Godot-3-only: gdquest-demos ships a godot4/ tree (targets 4.0, still pre-TileMapLayer).]
+- **Sources:** [GDQuest — Tactical RPG Movement: cursor & unit selection lessons](https://www.gdquest.com/tutorial/godot/2d/tactical-rpg-movement/) ; [godot-2d-tactical-rpg-movement (Cursor / GameBoard / Unit structure)](https://github.com/gdquest-demos/godot-2d-tactical-rpg-movement) ; [InputEvent / Input singleton (keyboard+mouse parity) — Godot stable docs](https://docs.godotengine.org/en/stable/tutorials/inputs/inputevent.html)
+
+### Compute movement RANGE with BFS flood-fill (not A*) keyed on Vector2i · `✅ solid` · Godot 4.3+
+**The reachable set of cells a unit can move to within a movement budget. This is a DIFFERENT problem from pathfinding: range = 'all cells within N steps from origin', best solved by breadth-first flood-fill; pathfinding = 'one shortest route to a chosen cell', solved by A*. Conflating them is the #1 beginner mistake. GDQuest's tactical series uses flood-fill for exactly this reason.**
+- **How:** Breadth-first flood-fill from the unit's cell: seed a queue with (origin, 0); pop a cell, and for each of its 4 (orthogonal) neighbors that is in-bounds, not blocked (no occupying unit, not impassable terrain), and not already visited, enqueue it with distance+1 if distance+1 <= max_range; collect all visited cells. Use a Dictionary keyed by Vector2i as the visited set (Godot Dictionaries accept Vector2i keys directly). For variable terrain cost, switch the queue to a min-cost frontier (Dijkstra-style: track best cost per cell, relax when a cheaper path is found) so 'rough' cells subtract more movement. Neighbor generation can lean on TileMapLayer.get_surrounding_cells(coords) for square grids.
+- **Gotchas:** (1) Don't call AStarGrid2D for range — it returns ONE path, forcing you to run it to every cell (O(cells × pathfind), wasteful and awkward); flood-fill computes the whole set in one O(cells) pass. (2) Manhattan/orthogonal range (4-neighbor) reads cleaner for tactics than diagonal; pick 4-neighbor unless the design wants diagonals. (3) Occupying units must block range but you usually still allow path-THROUGH-allies / stop-on-empty — model 'blocked for stopping' vs 'blocked for passing' separately. (4) yield is dead — if you animate the range reveal cell-by-cell, use await get_tree().create_timer(t).timeout, never yield.
+- **Verify (solid):** Algorithmic, version-agnostic; the flood-fill-for-range vs A*-for-path distinction is correct and matches GDQuest's tactical series. Vector2i Dictionary keys and get_surrounding_cells helper are valid Godot 4 API. yield-is-dead / use await get_tree().create_timer().timeout note is correct for Godot 4. [Godot 4.7: get_surrounding_cells returns 4 cells for square tiles; Dictionary docs show Vector2i keys; yield is reserved-but-dead, await correct. BFS-vs-A* cost is general CS correctly applied, not a Godot measurement.]
+- **Sources:** [GDQuest — Tactical RPG Movement: the flood fill algorithm (lesson)](https://www.gdquest.com/tutorial/godot/2d/tactical-rpg-movement/) ; [GDQuest godot-2d-tactical-rpg-movement (reference implementation, GDScript)](https://github.com/gdquest-demos/godot-2d-tactical-rpg-movement) ; [TileMapLayer.get_surrounding_cells (Godot stable docs)](https://docs.godotengine.org/en/stable/classes/class_tilemaplayer.html)
+
+### Convert mouse/world positions to grid cells with local_to_map / map_to_local · `✅ solid` · Godot 4.3+
+**The two-way bridge between pixel space and cell space — the single most-used operation in a grid tactics game (cursor hover, click-to-select, snapping a unit sprite to a cell center).**
+- **How:** On a TileMapLayer: local_to_map(local_position: Vector2) const -> Vector2i converts a LOCAL position to a cell coordinate; map_to_local(map_position: Vector2i) const -> Vector2 returns the CENTERED local position of a cell. The canonical cursor-to-cell line is: var cell: Vector2i = tile_layer.local_to_map(tile_layer.get_local_mouse_position()). To place a unit sprite dead-center on a cell: unit.global_position = tile_layer.to_global(tile_layer.map_to_local(cell)). The full round-trip when you have a global point is to_local() → local_to_map() → (process) → map_to_local() → to_global().
+- **Gotchas:** (1) Do NOT feed get_global_mouse_position() into local_to_map directly unless the TileMapLayer is unscaled and at the origin — use get_local_mouse_position() (already in the layer's space) or wrap with to_local(). (2) KNOWN ENGINE QUIRK: local_to_map/map_to_local ignore the node's scale property (Godot issues #70833/#32222) — keep the gameplay TileMapLayer at scale (1,1) and do any zoom on a Camera2D instead, never by scaling the tile layer. (3) Vector2i is integer cell space, Vector2 is float pixel space — never mix them; pathfinding and range sets must key on Vector2i.
+- **Verify (solid):** local_to_map(Vector2) const -> Vector2i and map_to_local(Vector2i) const -> Vector2 confirmed; map_to_local returns the CENTERED local position as claimed. Scale-quirk gotcha is real and correctly cited (issue #70833, reported 2023-01-02) — keep gameplay layer at scale (1,1), zoom via Camera2D. [Godot 4.7 signatures exact; map_to_local docs say 'centered'; docs advise to_local() first. Issue #70833 confirmed (closed not-planned). But #32222 is a nested-viewport mouse-offset bug, not the node-scale conversion issue.]
+- **Sources:** [TileMapLayer — local_to_map / map_to_local (Godot stable docs)](https://docs.godotengine.org/en/stable/classes/class_tilemaplayer.html) ; [Bug: TileMap.local_to_map and map_to_local don't consider scale (#70833)](https://github.com/godotengine/godot/issues/70833) ; [Smartly Dressed Games — TileMap Movement in Godot (coordinate workflow)](https://blog.smartlydressedgames.com/2024/02/17/tilemap-movement-in-godot/)
+
+### DEV.to — A* vs Unity NavMesh for games · `✅ solid` · Godot 4.x
+**Choosing pathfinding: continuous NavMesh vs discrete A*.**
+- **How:** TRPG range ≠ single-target continuous path.
+- **Verify (solid):** STUDY-024 Verifier ✅ [Article found (P. Sivakumar, dev.to, 2026-02-15) and supports continuous-navmesh vs discrete-A*. It never discusses movement range, reachable area or flood fill, so it cannot source the 'TRPG range != single path' half.]
+- **Sources:** [DEV.to — A* vs Unity NavMesh for games](https://dev.to/prasanth_sivakumar/a-algorithm-vs-unity-navmesh-choosing-the-right-pathfinding-for-your-game-3l5l) — NavMesh fails cell occupation
+
+### Godot 2D navigation intro — grid vs navmesh · `✅ solid` · Godot 4.x
+**AStarGrid2D for cell positions; NavigationServer for any point in navmesh.**
+- **How:** Verdict: cells first.
+- **Verify (solid):** STUDY-024 Verifier ✅ [Godot 4.7 2D nav intro confirms the split: grid A* for 'predefined, distinct positions', NavigationServer for 'any possible position within a navigation mesh defined area'. Page names AStar2D verbatim, not AStarGrid2D.]
+- **Sources:** [Godot 2D navigation intro — grid vs navmesh](https://docs.godotengine.org/en/stable/tutorials/navigation/navigation_introduction_2d.html) — Grid vs NavigationPolygon decisive axis
+
+### Hierarchical any-angle on multi-resolution 3D grids · `✅ solid` · Godot 4.x
+**Hierarchical volumetric maps + any-angle when flat A* does not scale.**
+- **How:** Relevant when 2.5D/multi-level leaves pure TileMap AStarGrid2D.
+- **Verify (solid):** STUDY-024 Verifier ✅ [arXiv:2602.21174 (Reijgwart, Cadena, Siegwart, Ott); planner 'wavestar', hashed octree, code at ethz-asl/wavestar. Confirms flat A* scalability limits on large high-resolution 3D maps. External result, not Godot-measured.]
+- **Sources:** [Hierarchical any-angle on multi-resolution 3D grids](https://arxiv.org/abs/2602.21174) — Hierarchical any-angle 3D
+
+### Highlight range/path with a dedicated overlay TileMapLayer (batched), not per-frame _draw · `✅ solid` · Godot 4.3+
+**The visual feedback layer: blue 'you can move here', red 'attack/loot range', yellow path-preview. Two viable techniques — (A) a second TileMapLayer dedicated to highlight tiles, set/cleared via set_cell, and (B) custom _draw() rectangles on a Node2D. The TileMapLayer overlay is the recommended default because it's GPU-batched and pairs with terrain auto-tiling for clean borders.**
+- **How:** OVERLAY approach: add a HighlightLayer (TileMapLayer) above the ground, with a TileSet containing translucent highlight tiles (one atlas coord per color/state). To show a range set: for cell in walkable_cells: highlight_layer.set_cell(cell, source_id, BLUE_ATLAS). To clear: highlight_layer.clear() (or erase_cell per cell). Because it's one batched draw, hundreds of highlighted cells cost almost nothing. For crisp range borders, author the highlight tiles as a Terrain set so edges auto-connect. _DRAW approach (for thin path lines / reticles): override _draw() on a Node2D and call draw_rect(Rect2(map_to_local(cell) - half, cell_size), color, filled) or draw_polyline for the path; trigger redraws only on state change with queue_redraw() — never every frame.
+- **Gotchas:** (1) Don't rebuild the overlay every frame — only on selection/hover change; set_cell + clear on state change is cheap, per-frame churn is not. (2) Multiple stacked overlay layers with occlusion can tank scene-reload perf (engine issue #84434) — keep highlight layers few and lightweight. (3) For _draw, you MUST call queue_redraw() to refresh; it won't redraw on its own. (4) Use translucent tiles/modulate so the painterly art beneath stays readable — highlights augment, never occlude, the 2.5D sprites.
+- **Verify (solid):** set_cell/clear/erase_cell confirmed; CanvasItem _draw (virtual), draw_rect(rect, color, filled=true, width=-1.0, antialiased=false), draw_polyline, and queue_redraw all confirmed in stable docs. queue_redraw()-required-to-refresh note correct. Occlusion-layer perf issue #84434 is a reasonable caveat. [Godot 4.7: set_cell/clear/erase_cell/queue_redraw/draw_rect/draw_polyline/set_cells_terrain_connect all exist; issue #84434 open and confirmed. The 'one batched draw, costs almost nothing' perf claim is unsourced.]
+- **Sources:** [TileMapLayer.set_cell / clear / erase_cell (Godot stable docs)](https://docs.godotengine.org/en/stable/classes/class_tilemaplayer.html) ; [CanvasItem._draw / draw_rect / queue_redraw (Godot stable docs)](https://docs.godotengine.org/en/stable/classes/class_canvasitem.html) ; [Tilemaps with multiple occlusion layers tank performance (#84434)](https://github.com/godotengine/godot/issues/84434)
+
+### Lucas — 2D TRPG pathfinding (grid A*) · `✅ solid` · Godot 4.x
+**Fire Emblem-style boards use grid A*/Dijkstra; NavMesh continuous.**
+- **How:** Prefer grid over navmesh in turn tactics.
+- **Verify (solid):** STUDY-024 Verifier ✅ [Source is Lucas Gray, '2d Tactical RPG Pathfinding in Unity' (lucasegray.com) -- a Unity article. Dijkstra-for-range / A*-for-path is supported. The NavMesh comparison is absent: zero 'navmesh' occurrences on the page.]
+- **Sources:** [Lucas — 2D TRPG pathfinding (grid A*)](https://lucasegray.com/blog/2d-trpg-pathfinding-in-unity) — TRPG grid A*
+
+### NSRL — NavMesh as long-range locomotion layer · `✅ solid` · Godot 4.x
+**FPS map AI uses NavMesh for global nav interleaved with local DRL.**
+- **How:** Navmesh optional long-range layer, not sole controller.
+- **Verify (solid):** STUDY-024 Verifier ✅ [arXiv:2410.04936 (Zhang et al., 2024). NSRL = Navmesh + Shooting-Rule enhanced RL, deployed in Arena Breakout. Navmesh supplies global navigation; a DRL model predicts when to enable it. 'Interleaved with local DRL' is a fair paraphrase.]
+- **Sources:** [NSRL — NavMesh as long-range locomotion layer](https://arxiv.org/abs/2410.04936) — NavMesh + RL locomotion
+
+### NavigationServer2D — layers filter ≠ AStarGrid2D · `✅ solid` · Godot 4.x
+**Maps/regions/agents; navigation_layers filter; RVO ≠ path mesh.**
+- **How:** region_set_navigation_layers + map_get_path.
+- **Verify (solid):** STUDY-024 Verifier ✅ [Godot 4.7: region_set_navigation_layers(RID,int) and map_get_path(map,origin,destination,optimize,navigation_layers=1) exist; map/region/agent_create confirmed; docs state avoidance ignores regions. Godot ships thirdparty/rvo2.]
+- **Sources:** [NavigationServer2D — layers filter ≠ AStarGrid2D](https://docs.godotengine.org/en/stable/classes/class_navigationserver2d.html) — navigation_layers; ≠ AStarGrid2D
+
+### Optimal any-angle path planning (Zou & Borst) · `✅ solid` · Godot 4.x
+**Any-angle between non-adjacent vertices for shorter continuous paths.**
+- **How:** Continuous shortcut pole beyond 4-connected grid.
+- **Verify (solid):** STUDY-024 Verifier ✅ [arXiv:2607.00065; authors Yiyuan Zou and Clark Borst confirmed. The claim restates the definition of any-angle planning rather than the paper's contribution (Zeta*/Zeta*-SIPP, reported >20x faster than TO-AA-SIPP), but is not wrong.]
+- **Sources:** [Optimal any-angle path planning (Zou & Borst)](https://arxiv.org/abs/2607.00065) — Any-angle optimality under dynamics
+
+### PiBT string-pull post-process for multi-agent paths · `✅ solid` · Godot 4.x
+**Safety-aware string-pull smooths 8-connected paths into free-space trajectories.**
+- **How:** Same geometric idea as navmesh funnel after discrete search.
+- **Verify (solid):** STUDY-024 Verifier ✅ [arXiv:2506.16748 (Chakravarty, Grey, Muthugala, Elara, 2025). Built on real PIBT (Okumura et al.); extends to 8-connected grids with safety-aware string-pulling and SIPP fallback into free space. All claim elements present.]
+- **Sources:** [PiBT string-pull post-process for multi-agent paths](https://arxiv.org/abs/2506.16748) — String-pull post-process
+
+### RACon retrieval-augmented locomotion control · `✅ solid` · Godot 4.x
+**Hierarchical RL retrieves motion experts for character locomotion.**
+- **How:** Locomotion layer complementary to navmesh/grid path queries.
+- **Verify (solid):** STUDY-024 Verifier ✅ [arXiv:2406.17795, IEEE ICME 2024 oral (Mu, Zou, Yin, Tian, Cheng, Zhang, Wang). 'End-to-end hierarchical reinforcement learning' with a retriever that 'searches motion experts from a user-specified database'. Exact match.]
+- **Sources:** [RACon retrieval-augmented locomotion control](https://arxiv.org/abs/2406.17795) — Locomotion ≠ path query replacement
+
+### SE(2) Navigation Mesh + ASA string-pull · `✅ solid` · Godot 4.x
+**Yaw-dependent SE(2) polygons with A*-String-Pulling-A* over dense triangles.**
+- **How:** Polygonal abstraction + string-pull hierarchy.
+- **Verify (solid):** STUDY-024 Verifier ✅ [arXiv:2607.01454 (Shi, Qu, Chen, Kast, Ma, Hutter). SE(2) yaw-dependent polygons and ASA confirmed, but 'over dense triangles' inverts the paper: ASA runs over the polygonal abstraction to AVOID the dense triangle mesh.]
+- **Sources:** [SE(2) Navigation Mesh + ASA string-pull](https://arxiv.org/abs/2607.01454) — SE(2) NavMesh + ASA planner
+
+### SURVEY: ramaureirac/godot-tactical-rpg — fullest Godot-4.3 tactical demo (MIT) and where it stops · `✅ solid` · Godot 4.3 (current main); the project DROPPED support for older engines but keeps archived branches for 3.4 / 4.0 / 4.2. LICENSE: MIT (confirmed).
+**The most complete OPEN, MIT-licensed, Godot-4-native tactical RPG demo on GitHub (~900+ stars). Unlike the GDQuest movement-only starter, this one actually closes the loop: turn-based grid movement AND attacks AND a basic enemy AI, with full 3D camera controls and a Blender-map workflow. Author explicitly frames it as 'a simple project… not a fully functional game framework'.**
+- **How:** Provides: turn-based gameplay, grid-based movement, unit move + attack actions, basic enemy AI, advanced camera (pan/zoom/rotate via mouse/keyboard/gamepad), Blender map integration (with tutorial), controller support, and a toggleable debug overlay. v2.0 released Aug 20 2024.
+- **Gotchas:** WHERE IT STOPS: it is a DEMO/TEMPLATE, not a framework — 'basic' enemy AI, no deep systems (no fixed AP economy such as a 2-AP budget, no part-targeting/loot, no abilities trees, no status/cover depth, no narrative/recruit layer). It also leans on a 3D camera + Blender maps; the target here is painterly 2.5D SPRITES, so adopt its LOGIC (turns, grid actions, AI) but NOT its 3D presentation pipeline. Treat it as a reference to read, not a base to fork wholesale.
+- **Verify (solid):** Verified live: targets Godot 4.3 (dropped older engines), MIT license confirmed, v2.0 released 2024-08-20, includes turn-based grid movement + move/attack + basic enemy AI + advanced 3D camera + Blender map workflow. 'Where it stops' (no AP economy, no part-targeting/loot, 3D-camera/Blender presentation not painterly-2.5D) is accurate — adopt logic, not the 3D pipeline. [961 stars, MIT, project.godot config/version 4.3, v2.0.0 published 2024-08-20 -- all as claimed. Six features confirmed verbatim in README incl. 'Super basic (and stupid) enemy AI'. 3D camera + Blender maps confirmed.]
+- **Sources:** [ramaureirac/godot-tactical-rpg (GitHub, MIT, Godot 4.3, v2.0 2024-08-20)](https://github.com/ramaureirac/godot-tactical-rpg)
+
+### Use AStarGrid2D for the actual MOVE path (shortest route to the chosen cell) · `✅ solid` · Godot 4.3+
+**Godot 4's built-in grid A*. Unlike AStar2D (which makes you add every point and connection by hand), AStarGrid2D is configured by a rectangular region + cell size and auto-connects neighbors — purpose-built for tile grids. Use it for the single shortest path once the player commits to a destination inside the flood-fill range.**
+- **How:** var grid := AStarGrid2D.new(); grid.region = Rect2i(0, 0, cols, rows); grid.cell_size = Vector2(tile_w, tile_h); grid.offset = grid.cell_size / 2 (so path points land on cell centers); grid.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER (orthogonal tactics) — other modes: DIAGONAL_MODE_ALWAYS, _AT_LEAST_ONE_WALKABLE, _ONLY_IF_NO_OBSTACLES; grid.default_compute_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN (use OCTILE if diagonals are on); then grid.update() — MANDATORY after any property change. Mark obstacles with grid.set_point_solid(cell: Vector2i, true) (or fill_solid_region(rect, true) in bulk). Query: grid.get_id_path(from: Vector2i, to: Vector2i, allow_partial_path:=false) -> Array[Vector2i] for cell steps; grid.get_point_path(from, to) -> PackedVector2Array for ready-to-tween world points (already scaled by cell_size). set_point_weight_scale(cell, w) biases routes around (not through) costly terrain.
+- **Gotchas:** (1) region is the current property; the old size (Vector2i) property is DEPRECATED — set region = Rect2i(...). (2) FORGETTING update() after set_point_solid/region/cell_size changes is the classic 'paths are wrong/empty' bug — every mutation needs a following update(). (3) AStarGrid2D's solid grid is SEPARATE from your TileMapLayer — you must sync it: iterate impassable cells and call set_point_solid; the kidscancode recipe notes the engine does NOT auto-read TileMapLayer collision into the grid. (4) get_point_path returns Vector2 world points; get_id_path returns Vector2i cells — pick deliberately. (5) Keep grid.offset = cell_size/2 or path points sit on cell corners, not centers.
+- **Verify (solid):** All confirmed against class ref: region (Rect2i) is current, size (Vector2i) is DEPRECATED ('Use region instead'); DIAGONAL_MODE_* and HEURISTIC_MANHATTAN/OCTILE enum names exact; mandatory update() after mutation; set_point_solid/fill_solid_region/get_id_path(->Array[Vector2i])/get_point_path(->PackedVector2Array)/set_point_weight_scale all match. Grid is separate from TileMapLayer collision — correct, must sync manually. [Godot 4.7: all names, signatures and enum constants correct and 'size' is deprecated as claimed. But gotcha 2 is backwards and destructive -- update() 'will clear all point data (solidity and weight scale)'.]
+- **Sources:** [AStarGrid2D — Godot Engine (stable) class reference](https://docs.godotengine.org/en/stable/classes/class_astargrid2d.html) ; [Pathfinding on a 2D Grid — Godot 4 Recipes (kidscancode)](https://kidscancode.org/godot_recipes/4.x/2d/grid_pathfinding/index.html) ; [Bite-Sized Godot: Easier pathfinding with AStarGrid2D — The Shaggy Dev](https://shaggydev.com/2022/12/19/godot-astargrid2d/)
+
+### Use TileMapLayer (one node per layer) as the grid substrate, not the deprecated TileMap · `✅ solid` · Godot 4.3+
+**The grid a tactical RPG stands on. Godot 4.3 (Aug 2024) split the monolithic TileMap node into individual TileMapLayer nodes that each render one layer and share a single TileSet resource. TileMap is now DEPRECATED — it still loads and plays but receives no new features and is the Godot-3-shaped API. New tactical work must build on TileMapLayer.**
+- **How:** Add one TileMapLayer per visual/logical band (e.g. Ground, Hazard, FX-overlay, Highlight) under a parent Node2D; assign a shared TileSet (.tres). Author the playfield in the editor or via set_cell(coords: Vector2i, source_id: int, atlas_coords: Vector2i, alternative_tile: int=0). Query the authored field with get_used_cells() -> Array[Vector2i], get_used_rect() -> Rect2i, get_cell_source_id(coords) -> int (returns -1 when empty), get_surrounding_cells(coords) -> Array[Vector2i]. To migrate any legacy scene, use the editor's TileMap context-menu 'Extract TileMap layers as individual TileMapLayer nodes' (one-click) — but note it only works on scenes you can open directly; tilemaps stored inside.tres or instanced sub-scenes need a manual rebuild. Per-layer toggles: navigation_enabled (bool, default true), collision_enabled (bool, default true).
+- **Gotchas:** (1) Do NOT reach for KinematicBody2D/Spatial/yield-era TileMap tutorials — TileMap.layer_N API (set_cell with a leading layer int) is the deprecated path; TileMapLayer drops the layer argument entirely. (2) get_used_cells_by_id() was renamed/reshaped — on TileMapLayer use get_used_cells_by_id(source_id, atlas_coords, alternative_tile) with -1/Vector2i(-1,-1) wildcards. (3) The one-click converter silently skips resource-embedded maps; verify after migration.
+- **Verify (solid):** Confirmed against stable docs: TileMap carries the exact deprecation notice recommending TileMapLayer; all listed methods (set_cell, get_used_cells, get_used_rect, get_cell_source_id -> -1 when empty, get_surrounding_cells) and per-layer navigation_enabled/collision_enabled (default true) match signatures verbatim. 4.3+ version tag correct. [Godot 4.7 docs confirm every signature, the -1 empty-cell return, the get_used_cells_by_id wildcards, and navigation_enabled/collision_enabled defaults. 4.3-stable shipped 2024-08-15; converter menu string matches verbatim.]
+- **Sources:** [Godot 4.3 release notes (TileMap → TileMapLayer split)](https://godotengine.org/article/dev-snapshot-godot-4-3-dev-6/) ; [TileMapLayer — Godot Engine (stable) class reference](https://docs.godotengine.org/en/stable/classes/class_tilemaplayer.html) ; [TileMap — Godot Engine (stable) class reference (marked deprecated)](https://docs.godotengine.org/en/stable/classes/class_tilemap.html) ; [Godot TileMap Replaced with TileMapLayers — GameFromScratch](https://gamefromscratch.com/godot-tilemap-replaced-with-tilelayers/)
+
+### Using NavigationAgents — optional route helpers · `✅ solid` · Godot 4.x
+**Agents join default map; navigation_layers bitmask; empty path before sync.**
+- **How:** Agents optional; user moves parent via get_next_path_position.
+- **Verify (solid):** STUDY-024 Verifier ✅ [Godot 4.7 docs match near-verbatim: agents 'automatically join the default navigation map on the World2D/World3D', navigation_layers is a bitmask, pre-sync queries 'might return empty', system 'never moves the parent node'.]
+- **Sources:** [Using NavigationAgents — optional route helpers](https://docs.godotengine.org/en/stable/tutorials/navigation/navigation_using_navigationagents.html) — Agents optional for route
+
+### Using NavigationServer — physics-frame sync · `✅ solid` · Godot 4.x
+**NavigationServer2D/3D changes sync end of physics frame; early path queries wrong.**
+- **How:** Await physics_frame after map/region/agent uploads.
+- **Verify (solid):** STUDY-024 Verifier ✅ [Godot 4.7: 'most NavigationServer changes take effect after the next physics frame'; pre-sync queries 'return empty or wrong'; the doc example uses await get_tree().physics_frame. Docs say mid-physics-frame, not 'end'.]
+- **Sources:** [Using NavigationServer — physics-frame sync](https://docs.godotengine.org/en/stable/tutorials/navigation/navigation_using_navigationservers.html) — Sync before path queries; avoidance order
+
+### Using navigation meshes — TileMapLayer bake · `✅ solid` · Godot 4.x
+**parse_source_geometry_data → bake; TileMapLayer parse heavy; agent_radius baked.**
+- **How:** Deferred parse + async bake; baking_rect/border_size for chunks.
+- **Verify (solid):** STUDY-024 Verifier ✅ [Godot 4.7 nav docs confirm all five: parse_source_geometry_data + bake_from_source_geometry_data_async, main-thread parse with background bake, TileMapLayer parse called heavy, agent_radius shrinks the mesh, baking_rect + border_size.]
+- **Sources:** [Using navigation meshes — TileMapLayer bake](https://docs.godotengine.org/en/stable/tutorials/navigation/navigation_using_navigationmeshes.html) — Bake TileMapLayer→NavigationPolygon
+
+### Validating Navmesh — voxel QA vs baked mesh · `✅ solid` · Godot 4.x
+**Navmesh bake QA: voxel walkability vs engine reachability when terrain drifts.**
+- **How:** Bake QA pole for NavigationServer.
+- **Verify (solid):** STUDY-024 Verifier ✅ [arXiv:2605.21397 (Raghavan et al., May 2026). Voxelised walkable space from heightmaps/collision meshes compared against engine navmesh reachability, with RL-prioritised sampling; terrain drift is the stated motivation.]
+- **Sources:** [Validating Navmesh — voxel QA vs baked mesh](https://arxiv.org/abs/2605.21397) — Voxel walkability vs navmesh reachability
+
+### Vav Labs — AStarGrid2D vs NavigationServer · `✅ solid` · Godot 4.x
+**Tile-locked tactics → grid; free-form → navmesh.**
+- **How:** Holds strongly for a tactical board.
+- **Verify (solid):** STUDY-024 Verifier ✅ [Found at vav-labs.com/blog/godot-pathfinding-grid-vs-navmesh/ (2026-06-06), verbatim: 'tile-locked, frequently-changing, integer-logic worlds lean grid; free-form, mostly-static, smooth-movement worlds lean navmesh.']
+- **Sources:** [Vav Labs — AStarGrid2D vs NavigationServer](https://vav-labs.com/blog/godot-pathfinding-grid-vs-navmesh/) — Grid vs navmesh choice
+
+### Vector-based any-angle with non-convex obstacles · `✅ solid` · Godot 4.x
+**Line-of-sight + obstacle-contour walking vs free-space cell expansion.**
+- **How:** Contour shortcut vs grid expansion.
+- **Verify (solid):** STUDY-024 Verifier ✅ [arXiv:2408.05806 (Yan Kai Lai, 2024) -- a PhD thesis, not a conference paper. Abstract matches: line-of-sight checks between queried points, 'searching along obstacle contours if a check collides', vs free-space planners.]
+- **Sources:** [Vector-based any-angle with non-convex obstacles](https://arxiv.org/abs/2408.05806) — Vector/bug-style any-angle
+
+### Recast/Detour — layered floors partial only · `▸ plausible` · Godot 4.x
+**Voxel heightfields + walkableClimb for stairs/layers.**
+- **How:** Partial for 2.5D height; fails as the primary mover.
+- **Gotchas:** Recast partial only.
+- **Verify (plausible):** STUDY-024 Verifier ✅ [Verified in recastnavigation Recast.h: walkableClimb = 'Maximum ledge height that is considered to still be traversable'; its filter 'allows agents to move up terraced structures like stairs'. Voxel heightfields confirmed.]
+- **Sources:** [Recast/Detour — layered floors partial only](https://recastnav.com/) — Partial only — not cell AP mover
+
+### SURVEY: GDQuest godot-2d-tactical-rpg-movement — the cleanest movement starter (and where it stops) · `▸ plausible` · Godot Original demo is Godot 3.x-era; a community Godot 4.3 port is published (itch.io 'GDquest tactical RPG movement demo in Godot 4.3'). Treat the upstream as the design/architecture reference and port forward (TileMap→TileMapLayer, yield→await, KinematicBody2D→CharacterBody2D).
+**GDQuest's focused demo accompanying the Tactical RPG Movement tutorial series (8 lessons). It is the best-structured, best-documented STARTING POINT for grid tactics in Godot — small, readable GDScript, idiomatic node design (Grid resource, Unit, Cursor, GameBoard, UnitPath/overlay).**
+- **How:** Provides: grid-based movement, a map cursor (keyboard+mouse) for unit selection, walkable-area display via flood-fill, path preview, and confirm/cancel of a move. Structured as reusable nodes you can lift wholesale. Pair the repo with the free tutorial to understand each script.
+- **Gotchas:** WHERE IT STOPS (load-bearing): NO combat, NO turns/initiative, NO action points, NO abilities, NO attack/targeting, NO AI, NO damage/HP. It is movement-and-selection ONLY — the field stops exactly where a deep tactical design (part-targeting, deterministic damage, DEVIATE) begins. LICENSE: GDQuest demos are standardly MIT (engine code) with assets under separate terms — verify the LICENSE file in the repo before shipping any lifted code, and do not assume the art is reusable.
+- **Verify (plausible):** Feature scope (movement+selection only, NO combat/turns/AP) and the 'where it stops' boundary are confirmed from the live README. Minor staleness: the repo now ships an in-tree godot4/ folder beside the legacy godot/ (3.x), so the upstream itself has a Godot 4 version — the recipe's 'original is 3.x-era, port is only the community itch.io build' under-credits the repo. LICENSE caveat (verify before shipping; assets separate) is sound — confirm the MIT LICENSE file directly. [Owner is gdquest-demos. 8 lessons confirmed (00.handling-grid-interactions..07). Grid Resource/Unit/Cursor/GameBoard/UnitPath confirmed in godot4/. Movement-only confirmed. Licence hedge vindicated: art is CC-BY-NC-SA 4.0.]
+- **Sources:** [gdquest-demos/godot-2d-tactical-rpg-movement (GitHub)](https://github.com/gdquest-demos/godot-2d-tactical-rpg-movement) ; [Tactical RPG Movement series (8 lessons, free) — GDQuest](https://www.gdquest.com/tutorial/godot/2d/tactical-rpg-movement/) ; [GDquest tactical RPG movement demo in Godot 4.3 (community port) — itch.io](https://samir-alhindi.itch.io/gdquest-tactical-rpg-movement-demo-in-godot-43)
+
+### SURVEY: gdquest-demos/godot-open-rpg — turn-based combat reference (but NOT tactical-grid combat) · `▸ plausible` · Godot 4.3+ (README currently pins a 4.6.x point release; it is kept current with the engine).
+**GDQuest's actively-maintained, ground-up Godot-4 rewrite teaching how to structure a full 2D RPG: Field (exploration) + Combat states, an active-time-queue turn-based combat system, inventory, progression, map transitions, dialogue, and grid-based FIELD movement. Modern, well-structured GDScript — the most polished GDQuest RPG codebase.**
+- **How:** Provides: grid-based gamepiece movement on the field (FF1-style), an active-time-battle combat system, inventory, character progression, map transitions, dialogue, and full menu UI. Two top-level states (Field/Combat). Requires a recent Godot 4.x (README pins 4.6.x; repo history tracks 4.3+).
+- **Gotchas:** CRITICAL MISMATCH: its COMBAT is active-time / menu-style (Final Fantasy lineage), NOT grid-tactical. The grid-based movement here is for the EXPLORATION field, not a battle grid with movement range + AP. So it does NOT provide the tactical layer (range, cover, part-targeting, squad positioning) — borrow its structure/field/UI, get the tactical-combat grid from ramaureirac or build it on the AStarGrid2D + flood-fill recipes above. LICENSE: GDQuest's standard MIT for code (verify LICENSE; assets separate).
+- **Verify (plausible):** Load-bearing claim is correct: combat is menu/turn-based (NOT grid-tactical), grid movement is for the exploration FIELD, MIT licensed. Version note is accurate — README now pins Godot 4.6.2. One soft point: live README describes combat as 'turn-based' generically; the recipe's specific 'active-time-queue / ATB' label isn't stated on the current repo page, so treat the ATB characterization as unverified detail (the menu-not-grid conclusion stands regardless). [Repo exists, MIT, README pins Godot 4.6.2. ATB claim is dead: CHANGELOG v0.3.4 says ATB combat was 'reworked into a sequential turn-based system'. 'History tracks 4.3+' unsupported; progression is a README goal only.]
+- **Sources:** [gdquest-demos/godot-open-rpg (GitHub)](https://github.com/gdquest-demos/godot-open-rpg) ; [godot-open-rpg README (Field/Combat states, ATB, grid field movement)](https://github.com/gdquest-demos/godot-open-rpg/blob/main/README.md) ; [gdquest-demos/godot-open-rpg — DeepWiki architecture overview](https://deepwiki.com/gdquest-demos/godot-open-rpg)
+
+### GridRoute — cardinal grid LLM route planning bench · `?` · Godot 4.x
+**Cardinal (4-way) grid route planning; algorithmic A*/Dijkstra guidance still the hard spatial prior LLMs lack — aligns with flood-fill/A* split for movement range vs path.**
+- **How:** See source URL; STUDY-002 Verifier-verified finding.
+- **Gotchas:** No invent 5.x.
+- **Verify ():** STUDY-012 from STUDY-002 Verifier ✅; default verified=0 (do not flip 37/42/49) [arXiv:2505.24306 (Li et al., 2025). Cardinal 4-way grid confirmed; paper reports LLM routes 'inconsistent or suboptimal' and that A*/Dijkstra Algorithm-of-Thought prompting boosts all model sizes. Not a Godot claim.]
+- **Sources:** [GridRoute — cardinal grid LLM route planning bench](https://arxiv.org/abs/2505.24306) — cardinal grid; A*/Dijkstra prior
+
+### JPS4 — Jump Point Search on 4-connected grids · `?` · Godot 4.x
+**JPS4 adapts JPS to 4-connected uniform grids; order-of-magnitude faster than A* on dense/game maps; A* still better on open maps — grounds the grid-movement lane without replacing AStarGrid2D recipe.**
+- **How:** See source URL; STUDY-002 Verifier-verified finding.
+- **Gotchas:** No invent 5.x.
+- **Verify ():** STUDY-012 from STUDY-002 Verifier ✅; default verified=0 (do not flip 37/42/49) [arXiv:2501.14816 (Baum, 2025), preprint, no peer-reviewed venue. Abstract verbatim: JPS4 'significantly outperforms A* in scenarios with high obstacle density. However, A* remains more efficient on open maps.' Both halves hold.]
+- **Sources:** [JPS4 — Jump Point Search on 4-connected grids](https://arxiv.org/abs/2501.14816) — JPS4 complements AStarGrid2D
+
+### Key-Interval A* — structural abstraction pathfinding · `?` · Godot 4.x
+**Optimal 4-connected pathfinding via interval abstraction; fastest on structured/game maps (rooms, corridors) while matching A* lengths — relevant when tactical boards outgrow naive cell A*.**
+- **How:** See source URL; STUDY-002 Verifier-verified finding.
+- **Gotchas:** No invent 5.x.
+- **Verify ():** STUDY-012 from STUDY-002 Verifier ✅; default verified=0 (do not flip 37/42/49) [arXiv:2607.23393 (Sui, 2026) exists; optimal/complete on 4-connected and preserves exact path lengths. But scope is overstated: abstract says fastest on 7 of 8 benchmark groups overall; '(rooms, corridors)' is not in the source.]
+- **Sources:** [Key-Interval A* — structural abstraction pathfinding](https://arxiv.org/abs/2607.23393) — KIA* for structured maps
+

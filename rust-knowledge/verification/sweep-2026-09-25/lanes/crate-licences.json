@@ -1,0 +1,150 @@
+{
+  "bucket": "crate-licences",
+  "verifier_note": "Checked all 20 warrant sources by direct retrieval: live WebFetch of every SPDX/cargo-deny/Mozilla page plus a representative sample of docs.rs source pages, cross-checked against the local cargo registry mirror (equivalent per brief) for midly-0.5.3, abc-parser-0.4.0, assert_no_alloc-1.1.2, cpal-0.18.2 and midir-0.11.0 Cargo.toml and LICENSE files at the pinned versions, plus a direct directory listing to confirm cpal 0.18.2 ships no NOTICE file. All 20 source claim sentences held up, several to the word (SPDX BSD-1-Clause text is an exact match to assert_no_alloc's own shipped LICENSE; Apache-2.0 section 4(d) matches cpal's LICENSE verbatim; the cargo-deny gotcha 'GNU licenses are treated pedantically' is a literal quote from the current docs page). This lane has zero checks[] entries across all 10 recipes -- no compile-oracle or config-parse verification anywhere, unlike the Rust-code lanes -- so nothing mechanically catches a bad worked example. That is exactly where the defects clustered: the two recipes that hand-write cargo-deny TOML both got the schema wrong. The exceptions example used a nonexistent `crate = \"...\"` key where the real PackageSpec key is `name`; the clarify example described `path` and `hash` as flat siblings of `expression` and omitted the required `name` key entirely, where the real schema nests them as `license-files = [{ path, hash }]` alongside a required top-level `name`. Both corrected below with the literal counter-example from the docs. The underlying licensing law itself (Unlicense/MIT/BSD-1-Clause/Apache-2.0/MPL-2.0 obligations) is stated accurately and with real precision throughout, including the non-obvious Apache-2.0-only vs MIT-OR-Apache-2.0 NOTICE-propagation distinction and the BSD-1-Clause source-only (no binary-form clause) nuance; several recipes appropriately self-flag their wasm-vs-native binary-linkage claims as unverified assumptions in gotchas rather than presenting them as settled fact, which is why those are marked directional rather than downgraded.",
+  "verdicts": [
+    {
+      "slug": "list-permissive-licences-linked-into-the-wasm32-law-binary",
+      "verdict": "confirmed",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "midly Cargo.toml: license=\"Unlicense\"; abc-parser Cargo.toml: license=\"MIT\" -- both confirmed live+local, exact match. Wasm-cdylib linkage itself is self-flagged 'Assumption' in gotchas, not independently checkable pre-lock.",
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/Cargo.toml",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/midly/0.5.3/source/Cargo.toml", "supported": true, "note": "license = \"Unlicense\" -- confirmed live on docs.rs and in local registry."},
+        {"url": "https://docs.rs/crate/abc-parser/0.4.0/source/Cargo.toml", "supported": true, "note": "license = \"MIT\" -- confirmed live on docs.rs and in local registry."}
+      ]
+    },
+    {
+      "slug": "treat-midly-as-public-domain-under-unlicense",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "midly Cargo.toml license=\"Unlicense\" confirmed. SPDX text: 'released into the public domain...for any purpose...by any means', dedicates 'copyright interest'; no notice-reproduction clause, so the no-obligation claim holds.",
+      "evidence_url": "https://spdx.org/licenses/Unlicense.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/midly/0.5.3/source/Cargo.toml", "supported": true, "note": "license = \"Unlicense\" -- confirmed live on docs.rs."},
+        {"url": "https://spdx.org/licenses/Unlicense.html", "supported": true, "note": "Public-domain dedication, permits binary distribution, no conditions -- exact match."}
+      ]
+    },
+    {
+      "slug": "retain-bsd-1-clause-copyright-notice-for-assert-no-alloc-source",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "assert_no_alloc's own shipped LICENSE (registry, version 1.1.2) is the literal 1-clause BSD form: source-retention clause only, zero binary-form clause -- exact match to both the claim and the SPDX BSD-1-Clause canonical text.",
+      "evidence_url": "https://docs.rs/crate/assert_no_alloc/1.1.2/source/LICENSE",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/assert_no_alloc/1.1.2/source/Cargo.toml", "supported": true, "note": "license = \"BSD-1-Clause\" -- confirmed live on docs.rs."},
+        {"url": "https://spdx.org/licenses/BSD-1-Clause.html", "supported": true, "note": "'Redistributions of source code must retain...' verbatim; no binary-form clause, unlike BSD-2-Clause."}
+      ]
+    },
+    {
+      "slug": "ship-apache-2-0-licence-copy-for-cpal-and-reproduce-notice-if-present",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "cpal 0.18.2's LICENSE is the unmodified 201-line Apache-2.0 text; clause 4(a) requires a licence copy, 4(d) the NOTICE clause quoted matches verbatim. Full package directory listing shows LICENSE present, no NOTICE file anywhere.",
+      "evidence_url": "https://docs.rs/crate/cpal/0.18.2/source/LICENSE",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/cpal/0.18.2/source/Cargo.toml", "supported": true, "note": "license = \"Apache-2.0\" (single, not dual) -- confirmed live on docs.rs."},
+        {"url": "https://docs.rs/crate/cpal/0.18.2/source/LICENSE", "supported": true, "note": "Section 4(d) NOTICE clause quoted verbatim; directory listing confirms no NOTICE file ships."}
+      ]
+    },
+    {
+      "slug": "configure-cargo-deny-explicit-allowlist-for-mit-apache-products",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "cfg.html: 'Licenses not in this list are denied by default.' Gotcha 'GNU licences treated pedantically' is a literal current-docs quote. confidence-threshold is real (default 0.8); 0.95 is valid stricter config, not a false default.",
+      "evidence_url": "https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html", "supported": true, "note": "'Licenses not in this list are denied by default' -- exact match to claim."},
+        {"url": "https://embarkstudios.github.io/cargo-deny/checks/licenses/index.html", "supported": true, "note": "'evaluating the license requirements specified by each crate against the configuration' -- matches."}
+      ]
+    },
+    {
+      "slug": "add-per-crate-licence-exceptions-in-cargo-deny",
+      "verdict": "corrected",
+      "currency": "shaky",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Mechanism confirmed by both sources, but the worked example's `crate = \"assert_no_alloc\"` key does not exist in cargo-deny's schema. The docs' own example uses `name = \"adler32\"` -- the PackageSpec key is `name`, not `crate`.",
+      "evidence_url": "https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html",
+      "corrections": {
+        "claim": "how's example used `crate = \"assert_no_alloc\"`; the real PackageSpec key is `name` (docs' own literal example: `name = \"adler32\", version = \"0.1.1\"`). The per-crate exception concept is correct; only the field name is wrong."
+      },
+      "sources": [
+        {"url": "https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html", "supported": true, "note": "'exceptions field is meant to allow additional licenses only for particular crates' -- exact quote."},
+        {"url": "https://embarkstudios.github.io/cargo-deny/checks/licenses/index.html", "supported": true, "note": "'All licenses are denied unless explicitly allowed' -- exact quote, supports default-deny framing."}
+      ]
+    },
+    {
+      "slug": "clarify-ambiguous-crate-licences-with-hashed-file-assertions",
+      "verdict": "corrected",
+      "currency": "shaky",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Concept confirmed by both sources, but how's 'provide expression, path, and hash' omits the required `name` key and misstates structure: real schema is top-level name+expression, with path/hash nested in `license-files = [{path,hash}]`.",
+      "evidence_url": "https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html",
+      "corrections": {
+        "claim": "how omits the required `name` key (target crate) and lists path/hash as flat keys. Real schema: `name`+`expression` top-level, `license-files = [{ path = \"...\", hash = 0x... }]` nested (docs' own `ring` example)."
+      },
+      "sources": [
+        {"url": "https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html", "supported": true, "note": "'Clarify lets you manually assign an SPDX expression...valid as long as...hashes' match' -- exact match."},
+        {"url": "https://embarkstudios.github.io/cargo-deny/checks/licenses/index.html", "supported": true, "note": "'mechanism for manually specifying the license requirements for crates' -- exact quote."}
+      ]
+    },
+    {
+      "slug": "preserve-mit-copyright-notices-for-abc-parser-and-midir",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "abc-parser and midir LICENSE files both quoted live: 'copyright notice and this permission notice shall be included in all copies or substantial portions' -- exact match, word for word, on both. quick-xml/musicxml also confirmed MIT.",
+      "evidence_url": "https://docs.rs/crate/abc-parser/0.4.0/source/LICENSE",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/abc-parser/0.4.0/source/LICENSE", "supported": true, "note": "MIT text, notice-inclusion sentence confirmed verbatim, live-fetched."},
+        {"url": "https://docs.rs/crate/midir/0.11.0/source/LICENSE", "supported": true, "note": "MIT text, identical notice-inclusion sentence confirmed verbatim, live-fetched."}
+      ]
+    },
+    {
+      "slug": "enumerate-native-host-only-apache-2-0-and-bsd-1-clause-dependencies",
+      "verdict": "confirmed",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "cpal=Apache-2.0, assert_no_alloc=BSD-1-Clause reconfirmed. Host-only claim self-flagged 'Assumption' in how; plausible since cpal needs OS audio APIs incompatible with a files/clocks/threads-free wasm32 cdylib, not independently proven.",
+      "evidence_url": "https://docs.rs/crate/cpal/0.18.2/source/Cargo.toml",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/cpal/0.18.2/source/Cargo.toml", "supported": true, "note": "license = \"Apache-2.0\", single not dual -- confirmed live."},
+        {"url": "https://docs.rs/crate/assert_no_alloc/1.1.2/source/Cargo.toml", "supported": true, "note": "license = \"BSD-1-Clause\" -- confirmed live."}
+      ]
+    },
+    {
+      "slug": "plan-for-mpl-2-0-file-level-copyleft-if-introduced-later",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Mozilla FAQ confirms file-level copyleft, static-link-into-proprietary permission, and modified-MPL-files-vs-whole-binary obligation split verbatim. MPL-2.0 confirmed absent from all 10 pinned tier crates' declared licences.",
+      "evidence_url": "https://www.mozilla.org/en-US/MPL/2.0/FAQ/",
+      "corrections": null,
+      "sources": [
+        {"url": "https://www.mozilla.org/en-US/MPL/2.0/FAQ/", "supported": true, "note": "'file-level copyleft'; 'statically linked to and distributed as part of a larger proprietary' -- exact match."},
+        {"url": "https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html", "supported": true, "note": "'All licenses are denied unless explicitly allowed' -- exact quote, supports the allow/exceptions framing."}
+      ]
+    }
+  ]
+}

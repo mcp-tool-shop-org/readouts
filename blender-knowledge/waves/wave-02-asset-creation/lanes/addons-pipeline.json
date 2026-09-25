@@ -1,0 +1,262 @@
+{
+  "laneSlug": "addons-pipeline",
+  "title": "Add-ons & ecosystem",
+  "recipes": [
+    {
+      "slug": "extensions-platform-4-2",
+      "name": "Blender 4.2 Extensions platform — what changed",
+      "what": "Blender 4.2 LTS (July 2024) replaced the old Add-ons section in Preferences with an Extensions section and launched extensions.blender.org as the official distribution hub. Extensions use a blender_manifest.toml file instead of (or alongside) the old bl_info dict. The old bundled add-ons were split: functionality promoted to Blender core (e.g., some Cycles nodes), popular ones migrated to extensions.blender.org as individual installs, and the rest shipped as a downloadable 'Legacy Add-ons Bundle'. Any pre-4.2 install guide that says 'drop a.py or.zip into the add-ons folder via Preferences > Add-ons > Install' is now stale — the UI path is Preferences > Extensions > Install from Disk.",
+      "how": "Interactive install from extensions.blender.org: open Preferences > Extensions, allow online access, browse or search, click Get. Drag-and-drop from the website into Blender also works in 4.2+. Install from disk (local.zip extension): Preferences > Extensions > dropdown arrow (⌄) > Install from Disk. Legacy add-ons bundle (for offline/airgapped studios): download the separate legacy.zip from blender.org downloads, then Preferences > Extensions > ⌄ > Install Legacy Add-on.",
+      "blender_version": "4.2+ (extensions platform GA); 4.1 and earlier use the old Add-ons panel",
+      "gotchas": [
+        "Pre-4.2 guides reference 'Preferences > Add-ons > Install' — that UI is gone in 4.2+.",
+        "Online access must be explicitly granted the first time; airgapped machines need the legacy bundle or local repo.",
+        "The 'Legacy Add-ons Bundle' is a separate download, not bundled in the main 4.2 installer.",
+        "Extensions require blender_manifest.toml; legacy add-ons still use bl_info — mixing them in the same file is possible but the manifest takes precedence on 4.2+."
+      ],
+      "studio_use": "For a headless pipeline, pre-install extensions into a portable Blender build before shipping; avoid relying on online access at render-time. Use a local directory repository (custom repo in Extensions prefs) to distribute studio extensions to all workstations without internet dependency.",
+      "currency": "solid",
+      "verify_note": "Confirmed via extensions.blender.org/about/, code.blender.org blog (May 2024 beta release), and devtalk.blender.org bundling thread.",
+      "sources": [
+        {
+          "title": "Extensions Platform Beta Release — Blender Developers Blog",
+          "url": "https://code.blender.org/2024/05/extensions-platform-beta-release/",
+          "claim": "Extensions platform went GA in Blender 4.2 LTS; describes install flow and bundling changes"
+        },
+        {
+          "title": "Changes to Add-on and Themes Bundling (4.2 onwards) — Developer Forum",
+          "url": "https://devtalk.blender.org/t/changes-to-add-on-and-themes-bundling-4-2-onwards/34593",
+          "claim": "Official thread detailing which add-ons were removed from core, how the legacy bundle works"
+        },
+        {
+          "title": "Get Extensions — Blender 5.1 Manual",
+          "url": "https://docs.blender.org/manual/en/latest/editors/preferences/extensions.html",
+          "claim": "Current install flow, online access requirement, Install from Disk path"
+        }
+      ]
+    },
+    {
+      "slug": "blender-manifest-toml",
+      "name": "blender_manifest.toml — the extension manifest format",
+      "what": "Extensions in Blender 4.2+ are described by a blender_manifest.toml file in the root of the extension.zip. It replaces the old bl_info dict for extensions distributed via extensions.blender.org or local repos. Legacy add-ons (still using bl_info) are also supported in 4.2+ via the legacy install path but will not appear in extensions.blender.org.",
+      "how": "Minimum required fields: schema_version, id, version, name, tagline, maintainer, type, blender_version_min, license (SPDX string). Example: ```toml\nschema_version = \"1.0.0\"\nid = \"studio_batch_exporter\"\nversion = \"1.0.0\"\nname = \"Studio Batch Exporter\"\ntagline = \"Headless multi-format export for game assets\"\nmaintainer = \"Studio Name <studio@example.com>\"\ntype = \"add-on\"\nblender_version_min = \"4.2.0\"\nlicense = [\"SPDX:GPL-2.0-or-later\"] # Optional:\n# tags = [\"Import-Export\", \"Game Engine\"]\n# blender_version_max = \"5.0.0\"\n# platforms = [\"windows-x64\", \"linux-x64\"]\n# wheels = [\"./wheels/my_lib-1.0-py3-none-any.whl\"]\n# [permissions]\n# files = \"Reads/writes asset directories\"\n``` The id must be globally unique on extensions.blender.org; convention is author_extensionname (underscores). type must be 'add-on' or 'theme'.",
+      "blender_version": "4.2+ only — blender_manifest.toml is not read by Blender 4.1 or earlier",
+      "gotchas": [
+        "id uses underscores (not hyphens); mismatches cause install failures.",
+        "license must be an SPDX identifier array: e.g., [\"SPDX:GPL-2.0-or-later\"]. Plain strings like 'GPL' are rejected.",
+        "blender_version_min must be '4.2.0' or higher to use the extensions platform; setting it to '3.x' is valid but the extension won't appear on extensions.blender.org.",
+        "wheels (bundled Python packages) are a key feature over legacy add-ons — include third-party .whl files in the zip, no pip install needed at runtime.",
+        "If you include both blender_manifest.toml and bl_info in the same __init__.py, Blender 4.2+ prefers the manifest."
+      ],
+      "studio_use": "For studio-internal extensions, host a local repository directory and point all workstations to it via Preferences > Extensions > Repositories. Use wheels to bundle numpy, Pillow, or other deps so headless render nodes need no internet or pip.",
+      "currency": "solid",
+      "verify_note": "Required fields confirmed by fetching github.com/BlenderDefender/blender_manifest_schema (cross-referenced against Pallaidium and MedBlend real extension manifests on GitHub).",
+      "sources": [
+        {
+          "title": "blender_manifest_schema — example TOML (GitHub)",
+          "url": "https://github.com/BlenderDefender/blender_manifest_schema/blob/main/blender_manifest_v1.example.toml",
+          "claim": "Community-maintained JSON Schema for the manifest; shows all required and optional fields"
+        },
+        {
+          "title": "How to Create Extensions — Blender 5.1 Manual",
+          "url": "https://docs.blender.org/manual/en/latest/advanced/extensions/getting_started.html",
+          "claim": "Official manifest field documentation"
+        },
+        {
+          "title": "How to Convert Your Blender Add-on to an Extension — Superhive",
+          "url": "https://superhivemarket.com/posts/how-to-convert-your-blender-add-on-to-an-extension",
+          "claim": "Step-by-step bl_info → blender_manifest.toml migration guide"
+        }
+      ]
+    },
+    {
+      "slug": "bpy-addon-api-register",
+      "name": "bpy add-on API: register/unregister and the minimal operator pattern",
+      "what": "Blender add-ons and extensions both use the same bpy Python API internally. An __init__.py must define register() and unregister() functions. Classes (operators, panels, menus) are registered with bpy.utils.register_class() and unregistered with bpy.utils.unregister_class(). For extensions, bl_info is no longer required (the manifest supplies metadata), but is still valid as a fallback and for backward compatibility.",
+      "how": "Minimal extension __init__.py: ```python\nimport bpy # bl_info retained for Blender < 4.2 compatibility (ignored by 4.2+ if manifest present)\nbl_info = { \"name\": \"My Operator\", \"author\": \"Studio\", \"version\": (1, 0, 0), \"blender\": (4, 2, 0), \"category\": \"Import-Export\",\n} class STUDIO_OT_BatchExport(bpy.types.Operator): bl_idname = \"studio.batch_export\" bl_label = \"Batch Export Assets\" bl_description = \"Export selected objects to FBX/glTF\" def execute(self, context): # pipeline logic here self.report({'INFO'}, \"Export complete\") return {'FINISHED'} classes = [STUDIO_OT_BatchExport] def register(): for cls in classes: bpy.utils.register_class(cls) def unregister(): for cls in reversed(classes): bpy.utils.unregister_class(cls)\n``` Naming convention: operators use CATEGORY_OT_name, panels use CATEGORY_PT_name, menus CATEGORY_MT_name. bl_idname uses dot notation: 'category.action'.",
+      "blender_version": "4.x (pattern unchanged from 3.x; bl_info optional when manifest present in 4.2+)",
+      "gotchas": [
+        "Unregister must iterate classes in reverse order to avoid dependency errors.",
+        "bl_idname must be globally unique; clashes with another registered operator will silently shadow one.",
+        "For 4.2+ extensions, bl_info is IGNORED if blender_manifest.toml is present — do not put version metadata only in bl_info for extensions.",
+        "Operators called headlessly need 'EXEC_DEFAULT' execution context: bpy.ops.studio.batch_export('EXEC_DEFAULT') — the default 'INVOKE_DEFAULT' requires a window."
+      ],
+      "studio_use": "Write studio pipeline operators as extensions with blender_manifest.toml for 4.2+ deploy. Keep bl_info as a fallback comment for any artist who still runs 4.1. Call operators with 'EXEC_DEFAULT' in headless scripts to avoid window context errors.",
+      "currency": "solid",
+      "verify_note": "register/unregister pattern is stable across all Blender 4.x versions; confirmed via Blender addon tutorial docs and multiple GitHub extension examples.",
+      "sources": [
+        {
+          "title": "Add-on Tutorial — Blender Manual",
+          "url": "https://docs.blender.org/manual/en/latest/advanced/scripting/addon_tutorial.html",
+          "claim": "Official register/unregister pattern, bl_info structure, operator basics"
+        },
+        {
+          "title": "Addons — Blender Developer Documentation (2.80 Python API changes)",
+          "url": "https://developer.blender.org/docs/release_notes/2.80/python_api/addons/",
+          "claim": "Describes the register/unregister API that remains the basis in 4.x"
+        }
+      ]
+    },
+    {
+      "slug": "headless-addon-enable",
+      "name": "Enabling add-ons headlessly in --background --python scripts",
+      "what": "When Blender runs in headless mode (blender --background --python script.py), add-ons and extensions are NOT auto-enabled from user preferences unless prefs were saved with them enabled. For pipeline scripts that need an add-on's operators/functions, you must enable it programmatically in the script itself. Two approaches: addon_utils.enable() (session-only, does not modify saved prefs) or bpy.ops.preferences.addon_enable() + bpy.ops.wm.save_userpref() (persistent). For pre-installed extensions (4.2+), the same addon_utils API works.",
+      "how": "Session-only enable (preferred for headless — no prefs mutation):\n```python\nimport addon_utils\n# Enable by module name (for legacy add-ons: the module filename without.py)\naddon_utils.enable(\"io_scene_gltf2\", default_set=False, persistent=True)\n# persistent=True keeps it enabled across bpy.ops.wm.open_mainfile() calls in the same session\n``` Persistent enable (write to prefs — use for initial setup, not per-render):\n```python\nbpy.ops.preferences.addon_enable(module=\"io_scene_gltf2\")\nbpy.ops.wm.save_userpref()\n``` Install + enable a.zip add-on headlessly (legacy method, still works in 4.2):\n```python\nbpy.ops.preferences.addon_install(filepath=\"/path/to/addon.zip\")\nbpy.ops.preferences.addon_enable(module=\"addon_module_name\")\nbpy.ops.wm.save_userpref()\n# Run as: blender --background --python install_addon.py -- /path/to/addon.zip\n``` For Blender 4.2 extensions installed from disk, install with:\n```\nblender --command extension install-file -r user_default --enable studio_batch_exporter-1.0.0.zip\n```\nThe `-r user_default` specifies the local repository (use `blender --command extension repo-list` to see available repos).",
+      "blender_version": "addon_utils.enable() works in 4.x (same API as 3.x). blender --command extension install-file is 4.2+ only.",
+      "gotchas": [
+        "addon_utils.enable() without persistent=True will disable the add-on when bpy.ops.wm.open_mainfile() is called — always pass persistent=True for pipeline scripts that open .blend files.",
+        "bpy.ops.preferences.addon_enable() requires an operator context; in a headless script at module level this is usually fine, but if called inside a modal or from a non-context thread it fails.",
+        "The module name for addon_utils is the Python module name (directory or .py filename), NOT the display name. For extensions in 4.2+, it is the extension id from blender_manifest.toml.",
+        "bpy.context.preferences.addons[module_name] raises KeyError if the add-on was enabled with addon_utils (session-only) but not written to prefs.",
+        "blender --background without --factory-startup loads saved user prefs; if prefs have the add-on enabled, it loads automatically without any Python call needed."
+      ],
+      "studio_use": "The recommended headless pattern: pre-configure a studio Blender build with all extensions pre-enabled and prefs saved; pipeline scripts then run without any addon_enable() boilerplate. For dynamic per-script add-on loading, use addon_utils.enable(module, persistent=True) at the top of the script before any other bpy calls.",
+      "currency": "solid",
+      "verify_note": "Pattern confirmed by Blender developer tracker (T66924), Preferences Operators API docs (bpy.ops.preferences), and a real headless install script from HuggingFace StdGEN space.",
+      "sources": [
+        {
+          "title": "bpy.ops.preferences — Blender Python API",
+          "url": "https://docs.blender.org/api/current/bpy.ops.preferences.html",
+          "claim": "addon_enable() and addon_install() operator signatures"
+        },
+        {
+          "title": "Headless addon install script (StdGEN / HuggingFace)",
+          "url": "https://huggingface.co/spaces/hyz317/StdGEN/blame/6f8045fd0df8fbc08cf155b13232481af379c9e4/blender/install_addon.py",
+          "claim": "Working headless install pattern: addon_install + addon_enable + save_userpref via --background --python"
+        },
+        {
+          "title": "Extensions Command Line Arguments — Blender Manual",
+          "url": "https://docs.blender.org/manual/en/latest/advanced/command_line/extension_arguments.html",
+          "claim": "blender --command extension install-file syntax for 4.2+"
+        }
+      ]
+    },
+    {
+      "slug": "bundled-pipeline-addons-4-2",
+      "name": "Bundled pipeline add-ons in Blender 4.2 — what moved where",
+      "what": "Several workflow-critical add-ons changed status in Blender 4.2. glTF 2.0 and OBJ importers are now native (compiled C) — no enable needed, always available. FBX import/export remains a Python add-on bundled with Blender core, enabled by default. Node Wrangler moved from bundled to extensions.blender.org (install separately in 4.2+). 'Import Images as Planes' similarly moved to extensions.blender.org. The 'legacy add-ons bundle' (separate download from blender.org) contains most of the other previously-bundled add-ons for users who need them.",
+      "how": "glTF 2.0 (native in 4.2+): always available, no enable required. Access via File > Import/Export > glTF 2.0 (.glb/.gltf). Headless: bpy.ops.export_scene.gltf() directly. FBX: bundled, enabled by default. Headless: bpy.ops.export_scene.fbx(). Node Wrangler (4.2+): must be installed from extensions.blender.org or the legacy bundle. After install: addon_utils.enable('node_wrangler', persistent=True) in headless scripts. Node Wrangler adds Ctrl+Shift+Click (viewer node) and Ctrl+T (texture setup) shortcuts — not relevant headlessly, but its batch texture-setup can be scripted. Import Images as Planes (4.2+): now on extensions.blender.org. Headless use: enable via addon_utils then bpy.ops.import_image.to_plane(). Useful for sprite-sheet plane setup in batch.",
+      "blender_version": "4.2+ for the split; Node Wrangler on extensions.blender.org requires 4.2.0 minimum",
+      "gotchas": [
+        "Node Wrangler is NOT included in the standard Blender 4.2 install — users upgrading from 4.1 lose it unless they install the legacy bundle or grab it from extensions.blender.org.",
+        "The glTF exporter changed from Python to native C in 4.x; bpy.ops.export_scene.gltf() still works but some bl_info-based detection scripts checking for the old module name 'io_scene_gltf2' may behave differently.",
+        "The legacy add-ons bundle is a point-in-time snapshot; it will NOT receive updates — extensions.blender.org versions will be maintained going forward.",
+        "Some add-ons from the legacy bundle conflict with their extensions.blender.org counterpart if both are installed; uninstall the legacy version first."
+      ],
+      "studio_use": "For a game-asset headless pipeline: glTF and FBX work out of the box. Node Wrangler is primarily interactive (keyboard shortcuts) — skip enabling it headlessly unless scripting its batch PBR setup. Import Images as Planes is useful for sprite/billboard batch setup.",
+      "currency": "solid",
+      "verify_note": "Node Wrangler extensions.blender.org status confirmed (extensions.blender.org/add-ons/node-wrangler/versions/). glTF native status confirmed via multiple 4.2 release notes references.",
+      "sources": [
+        {
+          "title": "Node Wrangler Version History — Blender Extensions",
+          "url": "https://extensions.blender.org/add-ons/node-wrangler/versions/",
+          "claim": "Node Wrangler on extensions.blender.org, requires Blender 4.2+, GPL-2.0-or-later"
+        },
+        {
+          "title": "Import Images as planes — Extension? — Blender Artists",
+          "url": "https://blenderartists.org/t/import-images-as-planes-extension/1616331",
+          "claim": "Community confirmation that Import Images as Planes moved to extensions.blender.org in 4.2"
+        },
+        {
+          "title": "Changes to Add-on and Themes Bundling (4.2 onwards) — Developer Forum",
+          "url": "https://devtalk.blender.org/t/changes-to-add-on-and-themes-bundling-4-2-onwards/34593",
+          "claim": "Official list of what moved where in the 4.2 bundling restructure"
+        }
+      ]
+    },
+    {
+      "slug": "gpl-caveat-studio",
+      "name": "GPL licensing caveat — what it means for a studio using or shipping add-ons",
+      "what": "Any Python file that imports bpy is legally a derivative work of Blender (GPL-2.0-or-later). This means all add-on CODE must be GPL-compatible. However, the ASSETS created with Blender or its add-ons are not affected — rendered frames, exported meshes, textures, and game assets belong to the studio under whatever license they choose. The GPL only governs the add-on source code itself.",
+      "how": "Three scenarios for a studio: 1. Using third-party GPL add-ons (e.g., from extensions.blender.org): no restrictions on using them commercially. The GPL covers the add-on code, not your output. You can use unlimited seats — GPL prohibits seat-licensing restrictions. 2. Writing in-house add-ons that stay inside the studio: internal tools that are never distributed outside the organization are NOT subject to GPL disclosure. The GPL copyleft only triggers on *distribution*. You can keep a proprietary internal extension as long as you never ship it outside the studio. 3. Distributing add-ons to customers or other studios: the GPL requires you to provide source code to anyone you distribute the add-on to. You can charge for it (you're 'charging for the service of delivering the software'), but you cannot prevent redistribution or modification by the recipient. Bottom line: the studio's rendered output, game assets,.blend scenes, and exported meshes are YOURS, fully proprietary. Only the.py files that import bpy fall under GPL when distributed.",
+      "blender_version": "All Blender versions — GPL has applied since Blender went open-source",
+      "gotchas": [
+        "Including a bpy-importing script in a commercial software product distributed externally triggers GPL disclosure on that script — this is a real risk if you bundle pipeline scripts with a shipped game's asset tools.",
+        "The blender_manifest.toml requires an SPDX license field; submitting to extensions.blender.org requires GPL-compatible license. You cannot submit a proprietary add-on to the official platform.",
+        "GPL-2.0-or-later vs GPL-3.0: Blender itself is GPL-2.0-or-later; using GPL-3.0 for an extension is technically incompatible by strict reading, though in practice the community and Blender Foundation accept either for extensions.",
+        "The 'output is yours' principle is well-established but not a written Blender Foundation statement — it follows from general GPL interpretation of tool vs. work produced by the tool."
+      ],
+      "studio_use": "For in-house pipeline add-ons: keep them internal (never distribute) and GPL does not require disclosure. Document internal tools as 'GPL-2.0-or-later (not distributed)' to make the intent explicit. For tools you might open-source later, author them GPL from day one and host on extensions.blender.org.",
+      "currency": "solid",
+      "verify_note": "GPL derivative-work principle confirmed by multiple sources: cgmarket.net add-on license post, Blender Foundation FAQ, devtalk.blender.org GPL thread. 'Internal use doesn't trigger disclosure' is standard GPL interpretation per FSF guidance.",
+      "sources": [
+        {
+          "title": "What License Should You Use for Blender Add-ons? — CGMarket Blog",
+          "url": "https://blog.cgmarket.net/blender-addon-license/",
+          "claim": "Importing bpy makes code GPL derivative; output assets are not covered; commercial use of add-ons is unrestricted"
+        },
+        {
+          "title": "License — Blender Foundation",
+          "url": "https://www.blender.org/about/license/",
+          "claim": "Blender is GPL-2.0-or-later; the license page clarifies add-on status"
+        },
+        {
+          "title": "How to Make Your Blender Add-on GPL Compliant — Superhive Docs",
+          "url": "https://support.superhivemarket.com/article/294-how-to-make-your-blender-addon-gpl-compliant",
+          "claim": "Practical compliance guide for commercial add-on developers"
+        }
+      ]
+    },
+    {
+      "slug": "game-asset-extensions-picks",
+      "name": "Useful current extensions for a game-asset batch pipeline",
+      "what": "As of 2025-2026, extensions.blender.org hosts several verified game-pipeline add-ons worth knowing. These are extensions (not legacy add-ons), compatible with Blender 4.2+, available for headless batch use via their operators.",
+      "how": "Picks with practical notes: **1. ACT — Asset Creation Toolset** (mrven / MIT/GPL): Batch FBX/glTF export for Unity/UE/Godot, origin alignment, UV tools, renaming. Has a long release history (github.com/mrven/Blender-Asset-Creation-Toolset). Headless: bpy.ops.act.batch_export() pattern. Supports Blender 3.0–5.0+. **2. Game Asset Optimizer**: One-click LOD generation, mesh decimation, dual UV unwrapping, batch optimization presets (CAD Import, Game Asset, VR Optimized, Custom). Good for preparing hi-poly sculpts for engine import. **3. BatchForge / EasyMesh Batch Exporter**: Batch export with per-object origin control, game-engine naming conventions (LOD0/LOD1 suffixes), texture resizing per LOD. Both on extensions.blender.org. **4. Super Duper Batch Exporter**: Auto LOD on export via decimate modifier; Unreal/Unity auto-detect LOD on import. Streamlined single-operator batch export. Install any of these via Preferences > Extensions (online) or blender --command extension install-file for offline. Enable headlessly with addon_utils.enable('act', persistent=True) (module name varies — check the extension id in its blender_manifest.toml).",
+      "blender_version": "All listed target Blender 4.2+; ACT also supports 3.x",
+      "gotchas": [
+        "License: most game pipeline extensions on extensions.blender.org are GPL-2.0-or-later (required by the platform). Some (ACT) carry dual MIT/GPL notice. Check each extension's manifest.",
+        "Module names for addon_utils.enable() must match the 'id' field in blender_manifest.toml, NOT the display name — verify by inspecting the installed extension's toml.",
+        "Batch exporters that use bpy.ops internally need 'EXEC_DEFAULT' context in headless scripts, or they will error with 'context is incorrect'.",
+        "Extensions on extensions.blender.org are reviewed but not audited for security — treat unfamiliar extensions the same as any open-source code before integrating into an automated pipeline."
+      ],
+      "studio_use": "ACT or BatchForge cover the core game-asset-to-engine export loop (FBX/glTF, origin alignment, LOD naming). Pre-bake these into a portable Blender studio build. For Godot-targeted pipeline, glTF via native exporter is sufficient without any add-on; ACT adds per-object batch control on top.",
+      "currency": "plausible",
+      "verify_note": "Extensions confirmed on extensions.blender.org search results (June 2025 search). ACT confirmed at github.com/mrven/Blender-Asset-Creation-Toolset with 2025.x releases. Full headless operator names not independently verified — confirm by inspecting each extension's source.",
+      "sources": [
+        {
+          "title": "Game Asset Optimizer — Blender Extensions",
+          "url": "https://extensions.blender.org/add-ons/asset-optimizer/",
+          "claim": "LOD generation, batch optimization presets, available on extensions.blender.org"
+        },
+        {
+          "title": "ACT: Game Asset Creation Toolset releases — GitHub",
+          "url": "https://github.com/mrven/Blender-Asset-Creation-Toolset/releases",
+          "claim": "Actively maintained batch FBX/glTF exporter for Unity/UE/Godot; 2025.x releases confirm 4.x support"
+        },
+        {
+          "title": "EasyMesh Batch Exporter — Blender Extensions",
+          "url": "https://extensions.blender.org/add-ons/easymesh-batch-exporter/",
+          "claim": "LOD hierarchy export, automatic texture resizing, game-engine naming conventions"
+        }
+      ]
+    },
+    {
+      "slug": "local-repo-studio-distribution",
+      "name": "Studio distribution: local extension repository + portable Blender build",
+      "what": "Blender 4.2 introduces support for custom (local) extension repositories — a directory on disk or network share that Blender treats exactly like extensions.blender.org. This is the correct pattern for a studio that wants to distribute in-house extensions to multiple machines without internet access or publishing to the public platform. Combined with a portable Blender install (extracted, not system-installed), this produces a fully self-contained pipeline build.",
+      "how": "Setup a local repo:\n1. Create a directory: /studio/blender-extensions/\n2. Copy extension.zip files into it\n3. In Blender: Preferences > Extensions > Repositories > + (Add) > Local Repository > path to directory\n4. Blender will scan and list extensions from that directory in the Extensions panel For headless batch nodes:\n- Ship a portable Blender.zip extracted to /studio/blender/\n- Pre-configure user prefs (userpref.blend) with all extensions enabled and the local repo registered\n- Store the userpref.blend in version control alongside the portable build\n- On each render node, copy the portable build — prefs (including enabled extensions) travel with it Portable Blender user data: set BLENDER_USER_RESOURCES env var to a directory inside the portable build so all prefs/extensions are self-contained and don't pollute the OS user profile:\n```\nBLENDER_USER_RESOURCES=/studio/blender/portable blender --background --python pipeline.py\n```",
+      "blender_version": "Local repository support: Blender 4.2+. Portable builds + BLENDER_USER_RESOURCES: all Blender 3.x/4.x",
+      "gotchas": [
+        "BLENDER_USER_RESOURCES is the correct env var for 4.2+; older docs may reference BLENDER_USER_CONFIG, BLENDER_USER_SCRIPTS, BLENDER_USER_DATAFILES — these still work individually but BLENDER_USER_RESOURCES overrides all of them at once.",
+        "Local repo extensions must be valid .zip archives with a blender_manifest.toml at the root — Blender does NOT accept legacy add-on .zips in a local repo (use Install Legacy Add-on for those instead).",
+        "The local repo directory must not require write permission from the render node user if extensions are pre-installed; make it read-only on nodes.",
+        "extensions.blender.org rate limits or network restrictions won't affect a local-repo build — fully offline."
+      ],
+      "studio_use": "Canonical headless pipeline pattern: one portable Blender build in version control, BLENDER_USER_RESOURCES pointed into it, all studio extensions pre-enabled in committed userpref.blend. New render nodes need only a directory copy. No per-node setup, no internet dependency.",
+      "currency": "plausible",
+      "verify_note": "Local repository feature confirmed by the extensions platform beta blog and community coverage. BLENDER_USER_RESOURCES env var confirmed in Blender 4.2 release notes discussion; verify exact name against current docs.blender.org/manual (was blocked by 403 during this research session).",
+      "sources": [
+        {
+          "title": "Extensions Platform Beta Release — Blender Developers Blog",
+          "url": "https://code.blender.org/2024/05/extensions-platform-beta-release/",
+          "claim": "Mentions portable installation and custom bundling of extensions as pipeline features of 4.2"
+        },
+        {
+          "title": "4.2 LTS — Blender (release page)",
+          "url": "https://www.blender.org/download/releases/4-2/",
+          "claim": "Pipeline integration improvements including portable install and environment variable support"
+        }
+      ]
+    }
+  ]
+}

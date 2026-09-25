@@ -1,0 +1,601 @@
+{
+  "date": "2026-06-04",
+  "wave": 1,
+  "title": "Feasibility — research-grounded study-swarm verdict (seeded from wf_965f110f-e24)",
+  "domain_scope": "MoE + dense placement methodology, the Windows/WSL CUDA-UVM premise, and prediction/receipt honesty for the gpu-container planner",
+  "agent_count": 11,
+  "verifier_note": "3-lens, reasoning-stripped: WebFetch retrieval oracle (existence + attribution) + mistral-small:24b (Mistral) + granite4.1:30b (IBM Granite) for groundedness. This is the FAMILY-DIFFERENT verification that the sibling KBs (tensor-engine, model) defer to their P1 backlog. 35 unique sources, 0 fabricated. Dropped 1 misattribution (Auxiliary-Loss-Free Load Balancing arXiv:2408.15664 — real paper, but the inference-skew claim is not in it) and 1 source for unsupported numbers (localllm.in).",
+  "notes": "Seeded from the gpu-container feasibility study-swarm. Full synthesis lives at gpu-container/docs/feasibility.md. Verdict: PASS with three required calibrations.",
+  "lanes": [
+    {
+      "slug": "moe-placement",
+      "name": "MoE expert placement & prefetch",
+      "research": {
+        "domain": "Tiered MoE expert offload (hot-VRAM / warm-RAM / cold-NVMe) + skew, prefetch, eviction on one consumer GPU",
+        "notes": "The flagship lane. The warm tier is production-proven and already shipping; the cold-NVMe tier is conditional on accurate prefetch + sparsity. Two non-negotiable design constraints fell out: calibration must be adaptive (skew is request-level), and expert eviction must be staleness-aware (not LRU).",
+        "findings": [
+          {
+            "name": "Warm-tier MoE offload is production-proven",
+            "slug": "warm-tier-moe-offload-proven",
+            "kind": "benchmark",
+            "claim": "Hot-VRAM + warm-RAM expert placement (or CPU expert compute) clears the >1 tok/s floor on a single consumer GPU today.",
+            "detail": "Fiddler runs uncompressed Mixtral-8x7B (90GB+) at >3 tok/s on one 24GB GPU by computing cold experts on CPU instead of moving weights over PCIe; KTransformers runs DeepSeek-V3 671B at ~8.7-10 tok/s decode on a 4090D + 382GB RAM; llama.cpp --n-cpu-moe field-reports ~12-14 tok/s on huge MoEs; Mixtral-offloading hits 2-3 tok/s on consumer/Colab and is PCIe host-to-device bound.",
+            "applies_to": "moe; llama.cpp; ktransformers",
+            "design_implication": "The hot/warm tier is a safe throughput claim; llama.cpp --n-cpu-moe is the first integration target.",
+            "metric": ">3 tok/s (Fiddler 24GB), ~8.7-10 tok/s (KTransformers 671B), ~12-14 tok/s (llama.cpp)",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Fiddler: CPU-GPU Orchestration for Fast Inference of MoE Models",
+                "authors": "Kamahori et al.",
+                "year": "2024",
+                "identifier": "arXiv:2402.07033",
+                "url": "https://arxiv.org/abs/2402.07033",
+                "claim": "Uncompressed Mixtral-8x7B (90GB+) at >3 tok/s on one 24GB GPU via CPU expert compute.",
+                "quant": ">3 tok/s, single 24GB GPU",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              },
+              {
+                "kind": "paper",
+                "title": "Fast Inference of MoE Language Models with Offloading",
+                "authors": "Eliseev & Mazur",
+                "year": "2023",
+                "identifier": "arXiv:2312.17238",
+                "url": "https://arxiv.org/abs/2312.17238",
+                "claim": "Mixtral-offloading 2-3 tok/s on consumer/Colab; bottlenecked by PCIe host-to-device bandwidth.",
+                "quant": "2-3 tok/s",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              },
+              {
+                "kind": "repo",
+                "title": "KTransformers DeepSeek-V3/R1 tutorial",
+                "authors": "kvcache-ai",
+                "year": "2025",
+                "identifier": "github.com/kvcache-ai/ktransformers",
+                "url": "https://github.com/kvcache-ai/ktransformers",
+                "claim": "DeepSeek-V3 671B at ~8.7-10 tok/s decode on a single 4090D + 382GB RAM, CPU-bound.",
+                "quant": "~8.7-10 tok/s decode",
+                "finding_supported": "PARTIAL",
+                "exists_verified": 1
+              },
+              {
+                "kind": "community",
+                "title": "llama.cpp MoE offload guide (--n-cpu-moe / -ot exps=CPU)",
+                "authors": "Doctor-Shotgun",
+                "year": "2025",
+                "identifier": "hf:Doctor-Shotgun/llamacpp-moe-offload-guide",
+                "url": "https://huggingface.co/blog/Doctor-Shotgun/llamacpp-moe-offload-guide",
+                "claim": "--n-cpu-moe keeps attention/shared in VRAM, routes experts to RAM; ~12-14 tok/s on Kimi-K2.5.",
+                "quant": "~12-14 tok/s",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              }
+            ]
+          },
+          {
+            "name": "Cold-NVMe expert streaming is the danger zone",
+            "slug": "cold-nvme-expert-danger",
+            "kind": "constraint",
+            "claim": "Streaming cold experts from NVMe during decode is feasible only with accurate prefetch + sparsity; otherwise it thrashes.",
+            "detail": "SSD expert offload raises per-token-generation energy ~12x vs an HBM baseline, and prefetching hides latency but NOT the energy/bandwidth penalty. PowerInfer-2 reaches 9.96 tok/s with 50% of FFN on flash by overlapping I/O with compute — but only with a custom SPARSIFIED model with predictable activation.",
+            "applies_to": "moe; nvme",
+            "design_implication": "Gate the cold-NVMe tier: admit only if predicted prefetch hit-rate keeps decode above the floor; default it off for experts otherwise.",
+            "metric": "~12x per-token energy vs HBM; 9.96 tok/s at 50% FFN on flash (sparsified)",
+            "confidence": "high",
+            "rig_relevance": 4,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "SSD Offloading for LLM MoE Weights Considered Harmful in Energy Efficiency",
+                "authors": "Kyung, Yun & Ahn",
+                "year": "2025",
+                "identifier": "arXiv:2508.06978",
+                "url": "https://arxiv.org/abs/2508.06978",
+                "claim": "Cold-expert SSD streaming raises per-token energy up to ~12x; prefetch hides latency not energy.",
+                "quant": "~12x energy",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              },
+              {
+                "kind": "paper",
+                "title": "PowerInfer-2: Fast LLM Inference on a Smartphone",
+                "authors": "Xue et al.",
+                "year": "2024",
+                "identifier": "arXiv:2406.06282",
+                "url": "https://arxiv.org/abs/2406.06282",
+                "claim": "TurboSparse-Mixtral-47B 9.96 tok/s with 50% of FFN on flash by overlapping I/O — sparsified model.",
+                "quant": "9.96 tok/s @ 50% FFN on flash",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              }
+            ]
+          },
+          {
+            "name": "Expert skew is real but request-level (calibration must be adaptive)",
+            "slug": "skew-is-request-level",
+            "kind": "gotcha",
+            "claim": "MoE activation is skewed within a request (<5% of experts) but aggregates toward uniform across diverse prompts.",
+            "detail": "MoE-Infinity measures <5% of experts repeatedly activated per request, but is explicit that the skew is request-level and flattens to uniform when aggregated across many diverse prompts. A one-time global frequency histogram therefore mis-tiers out-of-distribution workloads and thrashes the warm tier.",
+            "applies_to": "moe",
+            "design_implication": "Calibration #1: calibrate on workload-representative traces and refine online from the receipt's measured routing — NOT a single generic-corpus snapshot.",
+            "metric": "<5% experts active per request; 3.1-16.7x per-token latency improvement",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "MoE-Infinity: Efficient MoE Inference on Personal Machines with Sparsity-Aware Expert Cache",
+                "authors": "Xue et al.",
+                "year": "2024",
+                "identifier": "arXiv:2401.14361",
+                "url": "https://arxiv.org/abs/2401.14361",
+                "claim": "<5% experts active per request; activation-traced cache gives 3.1-16.7x per-token latency improvement; skew is request-level and aggregates to uniform.",
+                "quant": "<5% experts/request; 3.1-16.7x",
+                "finding_supported": "PARTIAL",
+                "exists_verified": 1
+              }
+            ]
+          },
+          {
+            "name": "Router lookahead hides the RAM->VRAM transfer",
+            "slug": "router-lookahead-prefetch",
+            "kind": "technique",
+            "claim": "A router can predict next-layer experts during the current layer, overlapping the warm-tier transfer with compute.",
+            "detail": "Pre-gated MoE selects the next layer's experts during the current layer, landing within 19% of GPU-only latency at 4.2x memory reduction with quality preserved; Fate reaches ~99% expert hit-rate (4.1x decode speedup); MoE-Beyond lifts cache hit from 17% to 72% with only 10% of experts resident.",
+            "applies_to": "moe",
+            "design_implication": "A small VRAM hot tier + router-lookahead prefetch is sufficient — the warm tier need not be large.",
+            "metric": "within 19% of GPU-only (Pre-gated); ~99% hit (Fate); 17%->72% hit at 10% resident (MoE-Beyond)",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Pre-gated MoE: Algorithm-System Co-Design for Fast & Scalable MoE Inference",
+                "authors": "Hwang et al.",
+                "year": "2024",
+                "identifier": "arXiv:2308.12066",
+                "url": "https://arxiv.org/abs/2308.12066",
+                "claim": "Pre-gate selects next-layer experts in the current layer; within 19% of GPU-only latency, 4.2x memory cut, quality preserved.",
+                "quant": "within 19% of GPU-only; 4.2x mem",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              },
+              {
+                "kind": "paper",
+                "title": "Fate: Fast Edge Inference of MoE Models via Cross-Layer Gate",
+                "authors": "Fang et al.",
+                "year": "2025",
+                "identifier": "arXiv:2502.12224",
+                "url": "https://arxiv.org/abs/2502.12224",
+                "claim": "Adjacent-layer gate prefetch + shallow cache -> ~99% hit rate, up to 4.1x decode speedup vs load-on-demand.",
+                "quant": "~99% hit; 4.1x decode",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              },
+              {
+                "kind": "paper",
+                "title": "MoE-Beyond: Learning-Based Expert Activation Prediction on Edge Devices",
+                "authors": "Gavhane et al.",
+                "year": "2025",
+                "identifier": "arXiv:2508.17137",
+                "url": "https://arxiv.org/abs/2508.17137",
+                "claim": "Sequence-prediction prefetch ~97.5% accuracy; GPU cache hit 17%->72% at 10% experts resident.",
+                "quant": "17%->72% hit @ 10% resident",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              }
+            ]
+          },
+          {
+            "name": "Expert eviction must be staleness-aware, not LRU",
+            "slug": "staleness-eviction-not-lru",
+            "kind": "constraint",
+            "claim": "MoE expert access is deterministic-sequential, not recency-based, so LRU/LFU evicts the wrong experts.",
+            "detail": "SpecMD finds expert access is deterministic-sequential rather than temporal-locality-based; a Least-Stale eviction policy cuts collision misses up to 85x vs LRU and reaches >88% hit at only 5% (0.6GB) VRAM cache.",
+            "applies_to": "moe",
+            "design_implication": "Calibration #1: use a staleness/sequence-aware eviction policy for experts. (LRU/ARC remains correct for KV-cache spill — it is wrong for experts.)",
+            "metric": "85x fewer collision misses vs LRU; >88% hit at 5% VRAM",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "SpecMD: A Comprehensive Study on Speculative Expert Prefetching",
+                "authors": "Hoang, Jaiswal, Samragh & Cho (Apple)",
+                "year": "2026",
+                "identifier": "arXiv:2602.03921",
+                "url": "https://arxiv.org/abs/2602.03921",
+                "claim": "Expert access is deterministic-sequential (not recency); Least-Stale eviction cuts misses up to 85x vs LRU, >88% hit at 5% VRAM.",
+                "quant": "85x vs LRU; >88% hit @ 5% VRAM",
+                "finding_supported": "PARTIAL",
+                "exists_verified": 1
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "name": "Warm-tier MoE offload is production-proven",
+            "overall": "confirmed",
+            "note": "Fiddler/Mixtral-offloading/llama.cpp verbatim; KTransformers single-socket figure drifted to ~8.73 tok/s (qualitative holds)."
+          },
+          {
+            "name": "Cold-NVMe expert streaming is the danger zone",
+            "overall": "confirmed",
+            "note": "SSD-harmful + PowerInfer-2 confirmed verbatim by oracle; both families plausibility-concurred."
+          },
+          {
+            "name": "Expert skew is real but request-level (calibration must be adaptive)",
+            "overall": "confirmed-with-fixes",
+            "note": "Core <5%/request + 3.1-16.7x confirmed; the '4x less GPU' sub-claim unverified (PARTIAL on source)."
+          },
+          {
+            "name": "Router lookahead hides the RAM->VRAM transfer",
+            "overall": "confirmed-with-fixes",
+            "note": "Pre-gated/Fate/MoE-Beyond confirmed; a Pre-gated SQuAD figure was a misread (corrected); MoE-Beyond year 2024->2025."
+          },
+          {
+            "name": "Expert eviction must be staleness-aware, not LRU",
+            "overall": "confirmed-with-fixes",
+            "note": "Core eviction/hit figures verbatim; 'deterministic-sequential by layer' is paper framing, abstract says 'predictable, not-recency' (PARTIAL)."
+          }
+        ]
+      }
+    },
+    {
+      "slug": "container-runtime",
+      "name": "Container & runtime layer",
+      "research": {
+        "domain": "The Windows/WSL CUDA Unified-Memory premise — the product's load-bearing positioning",
+        "notes": "The moat. NVIDIA's own docs confirm both halves: UVM oversubscription is unavailable on Windows/WSL2, and even where it exists (Linux) it is catastrophically slow for bandwidth-bound decode. This is the strongest-verified part of the study (oracle + both families concurred on the NVIDIA-docs facts).",
+        "findings": [
+          {
+            "name": "No CUDA UVM oversubscription on Windows/WSL2",
+            "slug": "no-uvm-oversub-windows-wsl",
+            "kind": "constraint",
+            "claim": "Full managed-memory oversubscription is unavailable on Windows native and WSL2 by driver design (WDDM).",
+            "detail": "NVIDIA's CUDA-on-WSL guide states verbatim that Full Managed Memory is unavailable on Windows native and WSL2 'for the foreseeable future' and warns of reduced performance / high host-memory use. The CUDA C++ Programming Guide formalizes the split: Linux allows managed-memory oversubscription; Windows/WSL/Tegra do not (cudaDevAttrConcurrentManagedAccess == 0), and such devices cannot allocate more managed memory than physical VRAM (oversubscription needs CC 6.0+ page faulting).",
+            "applies_to": "windows-wsl2",
+            "design_implication": "Explicit, declared placement is the ONLY honest route on the target platform — this is NOT 'Docker VRAM overflow'. The whole product positioning rests here, and it is primary-sourced.",
+            "metric": "cudaDevAttrConcurrentManagedAccess == 0 on Windows/WSL/Tegra",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "docs",
+                "title": "CUDA on WSL User Guide (NVIDIA)",
+                "authors": "NVIDIA",
+                "year": "2025",
+                "identifier": "docs.nvidia.com/cuda/wsl-user-guide",
+                "url": "https://docs.nvidia.com/cuda/wsl-user-guide/index.html",
+                "claim": "Full Managed Memory unavailable on Windows native and WSL2 'for the foreseeable future'; managed-memory apps see reduced perf + high host-mem use.",
+                "quant": "no managed-memory oversubscription",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              },
+              {
+                "kind": "docs",
+                "title": "CUDA C++ Programming Guide — Unified/System Memory + Oversubscription",
+                "authors": "NVIDIA",
+                "year": "2025",
+                "identifier": "docs.nvidia.com/cuda/cuda-programming-guide",
+                "url": "https://docs.nvidia.com/cuda/cuda-programming-guide/",
+                "claim": "Linux = full UM, oversubscription allowed; Windows/WSL/Tegra = limited, oversubscription NOT allowed; needs CC 6.0+ page faulting.",
+                "quant": "Linux yes / Windows-WSL no",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              }
+            ]
+          },
+          {
+            "name": "Even on Linux, UVM oversubscription is wrong for decode",
+            "slug": "uvm-wrong-for-decode-even-on-linux",
+            "kind": "constraint",
+            "claim": "On-demand page-migrated UVM collapses effective bandwidth by orders of magnitude — fatal for bandwidth-bound decode.",
+            "detail": "NVIDIA's own oversubscription blog reports performance can vary up to 100x; on-demand migration falls from ~8-10 GB/s to ~1 GB/s at 2x oversubscription, and random access drops to a few hundred KB/s — vs the hundreds of GB/s decode needs. Chien et al. measured basic UM 9-14x slower than explicit even before oversubscription; GPUVM (2024) confirms stock demand-paging is a known bottleneck being re-engineered. Decode is bandwidth-bound (the Memory Wall).",
+            "applies_to": "linux; windows-wsl2",
+            "design_implication": "Explicit declared placement beats blind demand-paging decisively even where UVM exists — confirms the architecture, not just the platform constraint.",
+            "metric": "up to 100x variation; ~8-10 -> ~1 GB/s at 2x oversub; random to hundreds of KB/s",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "article",
+                "title": "Improving GPU Memory Oversubscription Performance (NVIDIA Technical Blog)",
+                "authors": "Garg & Sakharnykh (NVIDIA)",
+                "year": "2021",
+                "identifier": "developer.nvidia.com/blog/improving-gpu-memory-oversubscription-performance",
+                "url": "https://developer.nvidia.com/blog/improving-gpu-memory-oversubscription-performance/",
+                "claim": "Oversubscription perf varies up to 100x; on-demand migration ~8-10 -> ~1 GB/s at 2x; random warp access to a few hundred KB/s.",
+                "quant": "up to 100x; ~1 GB/s at 2x oversub",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              },
+              {
+                "kind": "paper",
+                "title": "Performance Evaluation of Advanced Features in CUDA Unified Memory",
+                "authors": "Chien, Peng & Markidis",
+                "year": "2019",
+                "identifier": "arXiv:1910.09598",
+                "url": "https://arxiv.org/abs/1910.09598",
+                "claim": "Basic Unified Memory 9-14x slower than explicit management even before oversubscription.",
+                "quant": "9-14x slower",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              },
+              {
+                "kind": "paper",
+                "title": "AI and Memory Wall",
+                "authors": "Gholami et al.",
+                "year": "2024",
+                "identifier": "arXiv:2403.14123",
+                "url": "https://arxiv.org/abs/2403.14123",
+                "claim": "Batch-1 decode is memory-bandwidth-bound (~0.75 FLOP/byte); compute scales 3.0x/2yr vs DRAM bw 1.6x/2yr.",
+                "quant": "decode bandwidth-bound",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "name": "No CUDA UVM oversubscription on Windows/WSL2",
+            "overall": "confirmed",
+            "note": "NVIDIA docs quoted verbatim by the oracle; both mistral + granite SUPPORT=YES. Strongest-verified finding in the study."
+          },
+          {
+            "name": "Even on Linux, UVM oversubscription is wrong for decode",
+            "overall": "confirmed",
+            "note": "NVIDIA blog author corrected to Garg & Sakharnykh (was 'Chien/Markidis'); content + magnitudes confirmed."
+          }
+        ]
+      }
+    },
+    {
+      "slug": "throughput-prediction",
+      "name": "Throughput & memory prediction",
+      "research": {
+        "domain": "Can memory + decode throughput be predicted accurately enough pre-launch for an honest refusal and a +/-10% receipt?",
+        "notes": "Memory is exact; throughput splits sharply by offload regime. Scope the tight receipt to in-VRAM/light-offload.",
+        "findings": [
+          {
+            "name": "Memory is exact; throughput prediction splits by offload regime",
+            "slug": "prediction-splits-by-regime",
+            "kind": "method",
+            "claim": "KV/weight memory is closed-form; throughput is predictable to ~10% in-VRAM but only ~1.5-2x under heavy NVMe offload.",
+            "detail": "KV-cache is closed-form/linear in context (NVIDIA). In-VRAM, Vidur predicts P95 latency within 3.33%. Under heavy offload, static analytical prediction is documented insufficient: roofline over-predicts and needs measured calibration (Imai 2024); FlexGen's own LP 'can run out of memory' and is 'beaten by tuning manually'; LLM-Pilot (a learned predictor) meets its target only 80% of the time; NVMe random QD1-4 is far below sequential, so a sequential assumption over-predicts decode by multiples.",
+            "applies_to": "all; nvme",
+            "design_implication": "Calibration #2: guarantee the +/-10% receipt only for in-VRAM/light-offload; label heavy-NVMe plans 'estimated, receipt-confirmed'; make refusal conservative; the receipt->recalibration loop is load-bearing.",
+            "metric": "3.33% P95 in-VRAM (Vidur); 80% target-hit (LLM-Pilot); roofline insufficient w/o calibration",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Vidur: A Large-Scale Simulation Framework for LLM Inference",
+                "authors": "Agrawal et al.",
+                "year": "2024",
+                "identifier": "arXiv:2405.05465",
+                "url": "https://arxiv.org/abs/2405.05465",
+                "claim": "Predicts P95 latency within 3.33% (static) for in-GPU serving; assumes model fits in VRAM.",
+                "quant": "P95 within 3.33%",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              },
+              {
+                "kind": "paper",
+                "title": "FlexGen: High-Throughput Generative Inference with a Single GPU",
+                "authors": "Sheng et al.",
+                "year": "2023",
+                "identifier": "arXiv:2303.06865",
+                "url": "https://arxiv.org/abs/2303.06865",
+                "claim": "LP cost-model plan 'can run out of memory' and 'a better policy can be obtained by tuning manually'.",
+                "quant": "LP is guidance, not guarantee",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              },
+              {
+                "kind": "paper",
+                "title": "LLM-Pilot: Characterize and Optimize Performance of your LLM Inference Services",
+                "authors": "Lazuka et al. (IBM)",
+                "year": "2024",
+                "identifier": "arXiv:2410.02425",
+                "url": "https://arxiv.org/abs/2410.02425",
+                "claim": "Learned recommender meets the performance requirement only 80% of the time, <20% avg overspend.",
+                "quant": "80% target-hit",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              },
+              {
+                "kind": "docs",
+                "title": "Mastering LLM Techniques: Inference Optimization (NVIDIA)",
+                "authors": "NVIDIA",
+                "year": "2023",
+                "identifier": "developer.nvidia.com/blog/mastering-llm-techniques-inference-optimization",
+                "url": "https://developer.nvidia.com/blog/mastering-llm-techniques-inference-optimization/",
+                "claim": "KV cache size is a closed-form function of layers/kv-heads/head-dim/seq-len/batch — linear in context.",
+                "quant": "closed-form, linear",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "name": "Memory is exact; throughput prediction splits by offload regime",
+            "overall": "confirmed-with-fixes",
+            "note": "Vidur/FlexGen/LLM-Pilot/NVIDIA confirmed verbatim; FlexGen 'LP variables' count corrected 9->11; Imai exact quote treated as paraphrase."
+          }
+        ]
+      }
+    },
+    {
+      "slug": "dense-offload",
+      "name": "Dense-model offload envelope",
+      "research": {
+        "domain": "Single-stream throughput envelope for dense models too big for VRAM, and the latency-vs-throughput tension",
+        "notes": "Dense offload tiers off a cliff; the seminal wins are throughput-at-large-batch, not single-stream latency.",
+        "findings": [
+          {
+            "name": "Dense offload tiers off a cliff; NVMe spill is sub-1 tok/s",
+            "slug": "dense-offload-cliff",
+            "kind": "benchmark",
+            "claim": "Single-stream dense decode falls roughly linearly with RAM offload and collapses below 1 tok/s once weights stream from NVMe.",
+            "detail": "~150 tok/s fully in VRAM (8B int4) -> ~60-70% at 20/32 layers on GPU -> ~3-6 tok/s for 70B on DDR5 partial offload -> sub-1 tok/s once dense weights stream from NVMe (AirLLM: 0.7 tok/s down to ~1 token/hour). The seminal offload wins are throughput-at-large-batch, explicitly 'not suitable for latency sensitive' (FlexGen 1 tok/s on OPT-175B at batch 144; ZeRO-Inference OPT-30B 43 tok/s CPU vs 30 tok/s NVMe, aggregate).",
+            "applies_to": "dense; nvme",
+            "design_implication": "Calibration #3: RAM-offload partial is the serviceable dense envelope; reserve NVMe for cold MoE experts, NOT dense weights (dense has no sparsity to exploit).",
+            "metric": "150 tok/s VRAM -> 3-6 tok/s 70B RAM-offload -> sub-1 tok/s NVMe",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "repo",
+                "title": "AirLLM (70B inference on a 4GB GPU via layer-by-layer disk streaming)",
+                "authors": "lyogavin",
+                "year": "2024",
+                "identifier": "github.com/lyogavin/airllm",
+                "url": "https://github.com/lyogavin/airllm",
+                "claim": "70B layer-by-layer disk streaming is sub-1 tok/s (community-reported 0.7 tok/s down to ~1 token/hour).",
+                "quant": "sub-1 tok/s",
+                "finding_supported": "PARTIAL",
+                "exists_verified": 1
+              },
+              {
+                "kind": "docs",
+                "title": "ZeRO-Inference: Democratizing massive model inference (DeepSpeed)",
+                "authors": "Microsoft DeepSpeed",
+                "year": "2022",
+                "identifier": "deepspeed.ai/2022/09/09/zero-inference.html",
+                "url": "https://www.deepspeed.ai/2022/09/09/zero-inference.html",
+                "claim": "OPT-30B 43 tok/s CPU-offload vs 30 tok/s NVMe-offload; optimized for throughput, 'not suitable for latency sensitive'.",
+                "quant": "43/30 tok/s aggregate",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              },
+              {
+                "kind": "paper",
+                "title": "FlexGen (single-stream vs aggregate tension)",
+                "authors": "Sheng et al.",
+                "year": "2023",
+                "identifier": "arXiv:2303.06865",
+                "url": "https://arxiv.org/abs/2303.06865",
+                "claim": "1 tok/s on OPT-175B only at effective batch 144; explicitly targets latency-insensitive batched workloads.",
+                "quant": "1 tok/s @ batch 144",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "name": "Dense offload tiers off a cliff; NVMe spill is sub-1 tok/s",
+            "overall": "confirmed-with-fixes",
+            "note": "FlexGen/ZeRO-Inference verbatim; AirLLM tok/s figures community-sourced not repo (PARTIAL); localllm.in DROPPED (page was about different models); bmdpat 60-70%@20/32 verbatim."
+          }
+        ]
+      }
+    },
+    {
+      "slug": "refusal-receipt",
+      "name": "Honest refusal & receipts",
+      "research": {
+        "domain": "The >1 tok/s refusal floor and the measured-receipt -> recalibration loop",
+        "notes": "The floor is correctly calibrated and will fire often for dense+NVMe — by design, not as a failure.",
+        "findings": [
+          {
+            "name": "The >1 tok/s floor is correct and will refuse dense+NVMe often",
+            "slug": "refusal-floor-correct",
+            "kind": "policy",
+            "claim": "A >1 tok/s decode floor is well-justified; for dense models spilling to NVMe it will (correctly) refuse frequently.",
+            "detail": "Because sub-1 tok/s single-stream is the documented norm once dense weights hit NVMe, the refusal floor fires correctly there. The product must frame dense+NVMe refusal as honesty, not failure, and surface it with a contrastive frame ('you expected model X to run; it won't clear 1 tok/s because... — options: smaller quant / more RAM / different model').",
+            "applies_to": "dense; nvme; all",
+            "design_implication": "Position NVMe as the cold-MoE-expert lane, not a dense-weight-streaming lane; the measured receipt is the external verifier of the planner's own prediction (different mechanism, never self-grading).",
+            "metric": "floor = >1 tok/s decode",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "DeepSpeed-Inference: Enabling Efficient Inference at Unprecedented Scale",
+                "authors": "Aminabadi et al. (Microsoft)",
+                "year": "2022",
+                "identifier": "arXiv:2207.00032",
+                "url": "https://arxiv.org/abs/2207.00032",
+                "claim": "The offload design space (ZeRO-Inference family) is engineered for aggregate throughput at large batch, not single-stream latency.",
+                "quant": "throughput-oriented",
+                "finding_supported": "SUPPORTED",
+                "exists_verified": 1
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "name": "The >1 tok/s floor is correct and will refuse dense+NVMe often",
+            "overall": "confirmed",
+            "note": "DeepSpeed-Inference throughput-orientation confirmed; floor justification follows from the dense-offload + memory-wall findings."
+          }
+        ]
+      }
+    }
+  ],
+  "measurements": [
+    {
+      "metric": "vram_total",
+      "value": 32607,
+      "unit": "MiB",
+      "context": "in-container (nvidia/cuda:12.4.1-base-ubuntu22.04, --gpus all)",
+      "tool": "nvidia-smi",
+      "source_file": null,
+      "note": "GPU-in-container passthrough smoke test PASSED — RTX 5090 visible from inside the Linux CUDA container.",
+      "measured_date": "2026-06-04"
+    },
+    {
+      "metric": "vram_free",
+      "value": 30612,
+      "unit": "MiB",
+      "context": "in-container (idle)",
+      "tool": "nvidia-smi",
+      "source_file": null,
+      "note": "Free VRAM at smoke-test time.",
+      "measured_date": "2026-06-04"
+    },
+    {
+      "metric": "driver_version",
+      "value": 610.47,
+      "unit": "version",
+      "context": "host + wsl2",
+      "tool": "nvidia-smi",
+      "source_file": null,
+      "note": "Supports WSL2 CUDA passthrough; Docker Desktop Linux-container mode, nvidia runtime registered.",
+      "measured_date": "2026-06-04"
+    }
+  ]
+}

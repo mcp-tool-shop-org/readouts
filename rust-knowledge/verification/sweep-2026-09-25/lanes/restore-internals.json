@@ -1,0 +1,162 @@
+{
+  "bucket": "restore-internals",
+  "verifier_note": "Checked against the pinned registry source on disk (rapier3d-f64-0.35.3, parry3d-f64-0.30.2 under ~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/), 9 live fetches (docs.rs 0.36.0 NarrowPhase, rapier CHANGELOG at v0.35.3 and master, rapier.rs determinism and serialization guides, rustc deny-by-default lint listing, std::ptr::from_ref, the Reference's UB page, docs.rs features), and si-rpg-engine via gh api (rapier_law.rs on main and on the T2 branch at ee2e50a, dispatch-t2-restore.md at both main and ee2e50a, PHASE-2.md, FLAGS.md, solver/Cargo.toml). All 19 checks in this lane were independently reproduced with compile_oracle.py file-mode (9 compile_fail reachability probes, 10 runs behaviour experiments, including all three candidates the brief named) and every one matched its declared expectation exactly, several down to the decimal. Every file:line citation checked out exactly, including several precise to a single line (rigid_body_components.rs:1325, manager.rs:140, contact_pair.rs:237/243/255, the T2 branch's pairs_mut:869/carry_warmstart:880,897/solver_restore's unsafe write at 1193). Systemic weakness: every engine_note's 'pin N' citation to docs/dispatch-t2-restore.md is accurate only against the T2-branch commit ee2e50a the brief pinned; main was revised 48 minutes later the same day ('T2 revised on route (d)', merge 9c47d40) and every pin was renumbered and rewritten around the opposite conclusion (no write into Rapier at all). A reader who resolves 'pin 1' or 'pin 6' against current main gets different, sometimes contradictory content. The substance is unaffected (I verified each citation against the pinned ref, as instructed) but the citation style has no commit anchor, so it is already stale against the doc's own default branch as of this same sweep.",
+  "verdicts": [
+    {
+      "slug": "treat-rapier3d-f64-0-35-3-contact-pairs-as-read-only-no-public-or-hook-path-writes-a-manifold-point",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "5/5 checks reproduced (E0599/E0596/E0616/E0609/E0596). queries.rs all &self; 0.36.0 (live, today) unchanged. Engine main:758 + T2@ee2e50a 869/880/1193 confirmed casting ptr::from_ref.",
+      "evidence_url": "https://docs.rs/rapier3d-f64/0.36.0/rapier3d_f64/geometry/struct.NarrowPhase.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.NarrowPhase.html", "supported": true, "note": "queries.rs read directly: every accessor &self, none returns &mut."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/narrow_phase/queries.rs", "supported": true, "note": "Lines 21-243 confirmed: no &mut self fn in this file."},
+        {"url": "https://docs.rs/rapier3d-f64/0.36.0/rapier3d_f64/geometry/struct.NarrowPhase.html", "supported": true, "note": "Live-fetched: same &self-only surface, page dated 2026-09-25."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/solver/contact_constraint/contact_with_twist_friction.rs", "supported": true, "note": "192-235 reads manifold.points[..].data; writeback_impulses at 783."}
+      ]
+    },
+    {
+      "slug": "never-write-through-a-ptr-from-ref-pointer-to-a-contactpair-parking-it-in-a-vec-only-hides-the-ub",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "Both checks reproduced: one-expr cast rejected (invalid_reference_casting, live-confirmed); Vec-of-pointers shape compiles clean. Engine main:758 and T2@ee2e50a pairs_mut:869-872 use exactly this shape.",
+      "evidence_url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/ptr/fn.from_ref.html", "supported": true, "note": "Live-fetched: never write through it or a derived pointer, except UnsafeCell."},
+        {"url": "https://doc.rust-lang.org/stable/reference/behavior-considered-undefined.html", "supported": true, "note": "Live-fetched: shared-reference bytes are immutable; mutation is UB, verbatim."},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html", "supported": true, "note": "Live-fetched: invalid_reference_casting is deny-by-default, matches oracle run."}
+      ]
+    },
+    {
+      "slug": "count-more-than-warm-start-impulses-as-solver-state-frozen-arms-parry-points-recycle-state-colours",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Check reproduced exactly (\"points 12 vs 11 ... differ: 11\"). solver_dp1/dp2 read + \"frozen at last full update\" comment confirmed. recycle_state/solver_color pub(crate) at contact_pair.rs:237/243/255. try_update_contacts confirmed.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/solver/contact_constraint/contact_with_twist_friction.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/solver/contact_constraint/contact_with_twist_friction.rs", "supported": true, "note": "solver_dp1/solver_dp2 gathered from pt_data; comment: frozen at last full update."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ContactData.html", "supported": true, "note": "Struct read directly: warmstart_tangent_world, solver_dp1, solver_dp2 fields exist."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/narrow_phase/pair_update.rs", "supported": true, "note": "Recycle skipped only if drift small AND no active hooks; hooked pairs never recycled."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/contact_pair.rs", "supported": true, "note": "recycle_state:255, solver_color:237, solver_color_bodies:243, all pub(crate), exact lines."},
+        {"url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/query/contact_manifolds/contact_manifolds_cuboid_cuboid.rs", "supported": true, "note": "try_update_contacts(pos12) returns early, keeping prior manifold, confirmed."}
+      ]
+    },
+    {
+      "slug": "copy-rigidbodyactivation-whole-or-not-at-all-its-pub-crate-sleep-prev-pose-restarts-the-sleep-timer",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "Reproduced exactly: \"whole activation kept: [20,6,6]\", \"pub fields rebuilt: [0,0,0]\". sleep_prev_pose pub(crate) at rigid_body_components.rs:1325 exact; update_energy zeroes time_since_can_sleep on drift, confirmed by reading its body.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/rigid_body_components.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.RigidBodyActivation.html", "supported": true, "note": "Struct read directly: exactly 5 pub fields plus pub(crate) sleep_prev_pose."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/rigid_body_components.rs", "supported": true, "note": "Line 1325 exact match; update_energy replaces sleep_prev_pose, resets timer on drift."},
+        {"url": "https://raw.githubusercontent.com/dimforge/rapier/v0.35.3/CHANGELOG.md", "supported": true, "note": "Live-fetched: v0.35.0 entry matches claim almost verbatim."}
+      ]
+    },
+    {
+      "slug": "write-restored-sleep-state-after-the-load-pass-never-through-wake-up-true-setters",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "All 3 checks reproduced, incl. the debug panic: stdout \"before the pass\", exit 101, panic at \"manager.rs:140:17\" matching the cited assert verbatim. IslandManager fields pub(crate); cooldown constant is 16.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/island_manager/manager.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/rigid_body.rs", "supported": true, "note": "set_linvel/set_translation call wake_up(true) only when the wake_up arg is true; sleep() zeroes vels."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/island_manager/manager.rs", "supported": true, "note": "debug_assert reproduced verbatim at line 140; all IslandManager fields pub(crate)."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/island_manager/persistent.rs", "supported": true, "note": "SPLIT_RETRY_COOLDOWN = 16 exact; constraint_remove_count confirmed."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.RigidBodyActivation.html", "supported": true, "note": "Duplicate of recipe 4's source; 5 pub fields confirmed."}
+      ]
+    },
+    {
+      "slug": "read-warmstart-coefficient-as-a-per-substep-switch-not-as-clearing-the-cached-warm-start",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Both checks reproduced exactly, incl. the 512-quantum stack run (quantum 33 vs 50, sink 2.71e-3 vs 3.57e-2 m). worker.rs:296/438 gate on warmstart_coefficient != 0.0; \"banks the previous substep's impulse\" comment confirmed near line 500.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/solver/staged_island_solver/worker.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/solver/staged_island_solver/worker.rs", "supported": true, "note": "warmstart_coefficient != 0.0 gates fused update (296) and warm-start stage (438), confirmed."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/solver/contact_constraint/contact_with_twist_friction.rs", "supported": true, "note": "update() at 426; \"Bank the previous substep's impulse\" comment matches verbatim."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.IntegrationParameters.html", "supported": true, "note": "Defaults read directly: contact_recycling/contact_clustering true, recycle distance 0.05."}
+      ]
+    },
+    {
+      "slug": "expect-a-rebuilt-broadphasebvh-to-report-fewer-pairs-new-parry-leaves-are-tight-moved-leaves-are-fat",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "Check reproduced exactly (\"pairs at load 0; after 3 quanta: running 1, rebuilt 0\"). CHANGE_DETECTION_FACTOR = 4.0e-2 exact; new leaves store raw aabb, existing leaves grow by margin only when moved out, confirmed.",
+      "evidence_url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/partitioning/bvh/bvh_insert.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/partitioning/bvh/bvh_insert.rs", "supported": true, "note": "0.04 constant and raw-vs-grown leaf logic confirmed by reading the function bodies."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/broad_phase_bvh/mod.rs", "supported": true, "note": "prev_updated_leaves comment \"for determinism after snapshot restore\" matches verbatim."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/broad_phase_bvh/update.rs", "supported": true, "note": "\"new pairs in traversal order\" comment matches almost verbatim (line 398)."}
+      ]
+    },
+    {
+      "slug": "do-not-rebuild-rapier-s-broad-phase-every-step-a-fresh-broadphasebvh-never-deletes-a-narrow-phase-pair",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "Check reproduced exactly (\"box-pillar pair present: kept false, rebuilt every step true\"). Engine_note quote \"the law rebuilds the broad phase...at every step\" is verbatim from dispatch-t2-restore.md pin 6 at ref ee2e50a.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/broad_phase_bvh/update.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/broad_phase_bvh/update.rs", "supported": true, "note": "AddPair in traversal order; DeletePair emitted only near updated/removed colliders."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/narrow_phase/pair_management.rs", "supported": true, "note": "add_pair uses ensure_pair_exists (idempotent); AddPair/DeletePair variants confirmed."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.BroadPhaseBvh.html", "supported": true, "note": "new()/update()/set_aabb() pub confirmed; struct derives Clone + cfg Serialize/Deserialize."}
+      ]
+    },
+    {
+      "slug": "read-enhanced-determinism-as-history-deterministic-iteration-order-not-state-canonical-order",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Check reproduced exactly (\"[30,10,20,5] -> [5,10,20]\"). parry hashmap.rs: HashMap = IndexMap<_,_,FxHasher32> gated on enhanced-determinism, confirmed. Determinism guide and features page live-fetched, both match claims verbatim.",
+      "evidence_url": "https://rapier.rs/docs/user_guides/templates/determinism/",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/utils/hashmap.rs", "supported": true, "note": "cfg(enhanced-determinism) HashMap = IndexMap<K,V,BuildHasherDefault<FxHasher32>>, exact."},
+        {"url": "https://rapier.rs/docs/user_guides/templates/determinism/", "supported": true, "note": "Live-fetched: enhanced-determinism, IEEE754, same insertion order all confirmed."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/features", "supported": true, "note": "Live-fetched: enhanced-determinism enables parry3d-f64/enhanced-determinism + simba/libm_force."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/solver/staged_island_solver/mod.rs", "supported": true, "note": "\"Deterministic: results depend only on the coloring\" matches verbatim."}
+      ]
+    },
+    {
+      "slug": "restore-rapier-through-serde-serialize-or-by-replay-world-bytes-are-stable-and-continue-bit-exactly",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Both checks reproduced exactly: PhysicsWorld not Serialize without serde-serialize (E0277); fresh-pipeline twin continues bit-identically over 120 steps (\"first difference: None\"). physics_pipeline/ccd_solver confirmed serde(skip).",
+      "evidence_url": "https://raw.githubusercontent.com/dimforge/rapier/master/CHANGELOG.md",
+      "corrections": null,
+      "sources": [
+        {"url": "https://rapier.rs/docs/user_guides/rust/serialization/", "supported": true, "note": "Live-fetched: whole-world serialize, pipelines hold no useful state, both verbatim."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/struct.PhysicsWorld.html", "supported": true, "note": "Struct read directly: Serialize/Deserialize gated on feature; fields match."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_world.rs", "supported": true, "note": "physics_pipeline (68) and ccd_solver (87) both #[serde(skip)], confirmed exactly."},
+        {"url": "https://raw.githubusercontent.com/dimforge/rapier/master/CHANGELOG.md", "supported": true, "note": "Live-fetched: v0.36.0 \"Snapshots serialized with previous versions can't be loaded anymore\", exact quote."}
+      ]
+    }
+  ]
+}

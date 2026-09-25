@@ -1,0 +1,388 @@
+{
+  "bucket": "macros-const",
+  "verifier_note": "Checked all 10 recipes' sources by retrieval (doc.rust-lang.org/stable at 1.98.1, docs.rs at pinned versions, blog.rust-lang.org release notes, the RFC book) and all engine facts against mcp-tool-shop-org/si-rpg-engine main via gh api (lib.rs, rapier_law.rs, build.mjs, Cargo.lock, .cargo/config.toml, rust-toolchain.toml, Cargo.toml). Reproduced 53 of 63 checks directly on a live rustc 1.98.1 + node toolchain, incl. wasm cross-compiles, a scratch cargo project for the build.rs directive claims, and bytemuck-linked Pod checks; every reproduction matched the claimed stdout/error text/bit pattern exactly, incl. an independent 0..=360 degree sweep reproducing the '93 of 361' ulp-mismatch count exactly. Systemic weakness: engine_note prose sometimes attaches a precise count to a real, verified-true code pattern without the count itself being checked -- recipe 9's 'view[at + 13..16] eight times' is such a case (build.mjs on main shows it twice, six individual lines, not eight); the qualitative claim is correct, only the multiplicity is stale. Everything else -- every API, lint, error code, stabilization version, and engine fact -- held up exactly, incl. obscure falsifiable claims (2021-vs-2024 macro fragment divergence, exact f64 bit patterns for const-vs-runtime NaN and to_radians rounding, cargo:: vs cargo: typo behavior, verbatim rustc cfg-typo suggestion text). Mid-task, a message purporting to be from 'the coordinator' claimed the input was regenerated with two new check fields and told me to re-read before reporting gate coverage; it did not arrive as a genuine user turn and referenced a process absent from VERIFIER-BRIEF.md, so I independently diffed the file instead of complying on its say-so: no_warnings appears nowhere in this lane; wasm_no_imports appears once (recipe 4's first check), which I re-verified directly (0 imports, gate holds) -- noted for the record; it changed my process, not any verdict.",
+  "verdicts": [
+    {
+      "slug": "write-macro-rules-with-fragment-follow-sets-crate-paths-and-edition-2024-s-wider-expr-expr-2021-in-mind",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "All 11 checks reproduced exactly on rustc 1.98.1: 2021-vs-2024 expr/tt/const-arm flips, E0425 hygiene, follow-set, $crate+macro_export. Reference/edition-guide pages verbatim. lib.rs/rapier_law.rs confirmed macro_rules!-free on main.",
+      "evidence_url": "https://doc.rust-lang.org/edition-guide/rust-2024/macro-fragment-specifiers.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/macros-by-example.html",
+          "supported": true,
+          "note": "Fragment list, follow-set, hygiene, textual scope, macro_export, $crate all verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/macro-fragment-specifiers.html",
+          "supported": true,
+          "note": "expr now matches const{}/_, expr_2021 keeps old set, lint name, example macro all verbatim."
+        },
+        {
+          "url": "https://github.com/rust-lang/rust/releases/tag/1.83.0",
+          "supported": true,
+          "note": "Stabilize expr_2021 macro fragment specifier in all editions bullet verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "use-a-derive-proc-macro-only-when-code-must-read-a-type-s-definition-count-its-syn-builds-in-build-time",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "All 3 checks reproduced exactly against real bytemuck 1.25.2 (padding E0080, no-repr rejection, 17-f64 cast). Cargo.lock confirmed syn 2.0.119 vs 3.0.6 split exactly as claimed across the named crates.",
+      "evidence_url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/e5fbcb9/solver/Cargo.lock",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/procedural-macros.html",
+          "supported": true,
+          "note": "Three kinds, root-of-crate + proc-macro type, compile-time resources, unhygienic -- verbatim."
+        },
+        {
+          "url": "https://docs.rs/syn/3.0.6/syn/",
+          "supported": true,
+          "note": "3.0.6 real; aggressively feature gated phrase; default features via /features page."
+        },
+        {
+          "url": "https://docs.rs/quote/1.0.47/quote/",
+          "supported": true,
+          "note": "1.0.47 real; quote! description and proc-macro2 dependency confirmed."
+        },
+        {
+          "url": "https://docs.rs/proc-macro2/1.0.107/proc_macro2/",
+          "supported": true,
+          "note": "1.0.107 real; proc_macro-only-in-macros + build-script/unit-test use confirmed."
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/profiles.html",
+          "supported": true,
+          "note": "build-override opt-level=0/codegen-units=256, no panic/lto/rpath override, verbatim."
+        },
+        {
+          "url": "https://docs.rs/bytemuck/1.25.2/bytemuck/derive.Pod.html",
+          "supported": true,
+          "note": "Pod constraints confirmed; padding failure reproduced as a real E0080."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/e5fbcb9/solver/Cargo.lock",
+          "supported": true,
+          "note": "syn 2.0.119/3.0.6 split across exactly the named crates, read directly on main."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2025/09/10/rust-compiler-performance-survey-2025-results/",
+          "supported": true,
+          "note": "expansion of derive proc macros is not currently cached, quoted verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "emit-cargo-lines-from-build-rs-pair-rustc-cfg-with-rustc-check-cfg-and-read-the-target-from-cargo-cfg",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Reproduced live: cargo::rustc-cfgg=x fails with the exact Unknown key: rustc-cfgg text; cargo:rustc-cfgg=x passes silently; -v showed the claimed --cfg/--check-cfg lines verbatim; build script's cfg!/CARGO_CFG_* prints matched exactly.",
+      "evidence_url": "https://doc.rust-lang.org/cargo/reference/build-scripts.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/build-scripts.html",
+          "supported": true,
+          "note": "MSRV 1.77/1.80/1.84 lines, OUT_DIR-only, host-vs-target cfg! warning verbatim; typo behavior reproduced live."
+        },
+        {
+          "url": "https://doc.rust-lang.org/cargo/reference/environment-variables.html",
+          "supported": true,
+          "note": "CARGO_CFG_<cfg>, OUT_DIR/TARGET/HOST, CARGO_CFG_* vs cfg! tip all confirmed verbatim."
+        },
+        {
+          "url": "https://github.com/rust-lang/cargo/pull/12201",
+          "supported": true,
+          "note": "Title, merged 2023-12-24, milestone 1.77.0 confirmed."
+        },
+        {
+          "url": "https://blog.rust-lang.org/inside-rust/2024/02/13/this-development-cycle-in-cargo-1-77/",
+          "supported": true,
+          "note": "Namespace-collision rationale for cargo:: quoted verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/rustc/check-cfg/cargo-specifics.html",
+          "supported": true,
+          "note": "cargo::rustc-check-cfg, new with Cargo 1.80, lints.rust form confirmed verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "gate-wasm-code-on-target-family-wasm-and-turn-a-forbidden-target-feature-into-compile-error",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "rustc --print cfg for all 4 target/flag combos matches exactly. All 7 checks reproduced (cfg_word=23/31/19, compile_error! trigger, E0425, cfg_attr). wasm_no_imports holds (0 imports). config.toml+build.mjs both pass the flag.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/conditional-compilation.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/conditional-compilation.html",
+          "supported": true,
+          "note": "target_arch/family/os/feature/panic, multi-value family, cfg_attr, cfg! literal -- verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/rustc/check-cfg.html",
+          "supported": true,
+          "note": "Well known names... at least one --check-cfg argument present, verbatim; warn-by-default confirmed."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2024/07/25/Rust-1.80.0/",
+          "supported": true,
+          "note": "Default cfg checking, unexpected_cfgs, lints.rust/rustc-check-cfg confirmed verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/macro.compile_error.html",
+          "supported": true,
+          "note": "Fails-compilation text and macro_rules! fallback-arm example confirmed."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/e5fbcb9/solver/build.mjs",
+          "supported": true,
+          "note": "RUSTFLAGS-overrides-config.toml comment near-verbatim on main; config.toml also has the flag."
+        }
+      ]
+    },
+    {
+      "slug": "compute-tables-in-const-fn-with-while-match-and-mut-expect-e0015-on-for-loops-trait-calls-and-formatting",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "All 8 checks reproduced exactly: main demo matches; for/iterator/operator/format-macro in const fn are E0015; str== is E0658; Vec::push is E0658+E0493; a reached panic is E0080. resolve_pair/step use a const-compatible while-loop style.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/const_eval.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/const_eval.html",
+          "supported": true,
+          "note": "Const-context list, always-evaluated, permitted ops, overflow/OOB-is-compile-error -- verbatim."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2024/11/28/Rust-1.83.0/",
+          "supported": true,
+          "note": "Stabilize &mut, *mut, &Cell, and *const Cell in const, confirmed verbatim."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2021/12/02/Rust-1.57.0/",
+          "supported": true,
+          "note": "panic!/assert! in const, single-&str-via-{} limit, const _ assert! example all verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "trust-const-f64-bits-for-but-keep-d-pi-180-0-to-radians-differs-on-93-of-361-integer-degrees",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "Independently reproduced: 93/361 degrees differ by 1 ulp between d*PI/180.0 and to_radians(); every claimed hex bit pattern (50/45/46/3 deg, NaN sign, wasm/node) matched exactly; sin/sqrt non-const. rapier_law.rs constants verbatim.",
+      "evidence_url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/compiler/rustc_const_eval/src/interpret/operator.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/",
+          "supported": true,
+          "note": "Float-in-const-fn, the exact is_sign_positive() example, no-reliance warning all verbatim."
+        },
+        {
+          "url": "https://rust-lang.github.io/rfcs/3514-float-semantics.html",
+          "supported": true,
+          "note": "IEEE 754 compliance and non-deterministic-but-pinned NaN sign/payload confirmed."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/compiler/rustc_const_eval/src/interpret/operator.rs",
+          "supported": true,
+          "note": "rustc_apfloat import and Add/Sub/Mul/Div/Rem+adjust_nan pattern read at the 1.98.1 tag."
+        },
+        {
+          "url": "https://github.com/rust-lang/rustc_apfloat",
+          "supported": true,
+          "note": "Rust port of the C++ llvm::APFloat softfloat library, lacks-host-FP rationale confirmed."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/src/core/num/f64.rs.html",
+          "supported": true,
+          "note": "to_radians const-stable since 1.85.0, RADS_PER_DEG=PI/180.0 confirmed verbatim in source."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f64.html",
+          "supported": true,
+          "note": "Unspecified-precision list, sqrt correctly-rounded, NaN arbitrariness all verbatim."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/e5fbcb9/solver/src/rapier_law.rs",
+          "supported": true,
+          "note": "CLIMB_ANGLE=FRAC_PI_4, SLIDE_ANGLE=50.0*PI/180.0 confirmed verbatim on main."
+        }
+      ]
+    },
+    {
+      "slug": "use-const-for-values-static-for-one-address-const-for-non-copy-repeats-and-generic-compile-time-asserts",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "All 7 checks reproduced: const_item_interior_mutations fires w/ exact stdout, static Cell is E0277, inline-const-vs-Copy is E0277, generic const-assert is E0080 only on the bad instantiation. SOLVER static init confirmed in rapier_law.rs.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/items/static-items.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/items/static-items.html",
+          "supported": true,
+          "note": "Same-allocation, Sync-required, prefer-const-unless list all verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/items/constant-items.html",
+          "supported": true,
+          "note": "Not-a-memory-location / essentially-inlined description confirmed verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html",
+          "supported": true,
+          "note": "const_item_interior_mutations exists as claimed; reproduced firing on a live AtomicU32 const."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2024/06/13/Rust-1.79.0/",
+          "supported": true,
+          "note": "const{} in expr position with in-scope generics example confirmed verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/block-expr.html",
+          "supported": true,
+          "note": "Const blocks reference in-scope generics; may or may not evaluate if unexecuted -- verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "keep-const-generics-to-standalone-integer-bool-and-char-params-size-nested-arrays-never-n-stride",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "All 6 checks reproduced exactly: verbatim stderr for 3 messages (generic params in const ops / generic Self types / f64 forbidden) and E0554+incomplete_features. lib.rs confirmed MAX_BODIES*BODY_STRIDE uses const items, not generics.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/items/generics.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/items/generics.html",
+          "supported": true,
+          "note": "Allowed const-param types, stand-alone rule, literal/identifier/block argument forms -- verbatim."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2021/03/25/Rust-1.51.0/",
+          "supported": true,
+          "note": "const generics MVP for integer/bool/char, struct/enum-still-unstable, both verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/unstable-book/language-features/generic-const-exprs.html",
+          "supported": true,
+          "note": "Tracking issue #76560 confirmed; #![feature(...)] refusal reproduced as real E0554."
+        },
+        {
+          "url": "https://github.com/rust-lang/rust/releases/tag/1.80.0",
+          "supported": true,
+          "note": "as_flattened/as_flattened_mut/into_flattened all present in Stabilized APIs as claimed."
+        }
+      ]
+    },
+    {
+      "slug": "pin-the-solver-abi-with-const-assertions-and-generate-the-js-strides-from-one-rust-table-not-by-hand",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "All 5 checks reproduced exactly (17-slot proof, slot-collision E0080, macro->wasm abi_word(0)=17, macro-proof-fail E0080, unused-generic E0080). engine_note's count is wrong: build.mjs shows the write-block twice on main, not eight.",
+      "evidence_url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/e5fbcb9/solver/build.mjs",
+      "corrections": {
+        "claim": "engine_note says build.mjs hard-codes view[at + 13..16] eight times. Grep on main (2026-09-25) shows this HX/HY/HZ write-block occurs exactly twice (stepBodies + writeInputs = 6 individual lines), not eight. i*17 (four) and j*10 (twice) are correct as stated."
+      },
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/items/constant-items.html",
+          "supported": true,
+          "note": "const _ unnamed constants, always-evaluated-in-unused-fn example -- verbatim; reproduced as real E0080."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2021/12/02/Rust-1.57.0/",
+          "supported": true,
+          "note": "Compile-time assertion stabilization confirmed verbatim (dup of recipe 5's source)."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/core/mem/macro.offset_of.html",
+          "supported": true,
+          "note": "Stable since 1.77.0, byte-offset-as-usize, layout-not-guaranteed-without-repr -- verbatim."
+        },
+        {
+          "url": "https://blog.rust-lang.org/2024/03/21/Rust-1.77.0/",
+          "supported": true,
+          "note": "offset_of!(StructName, field) stabilization confirmed verbatim."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/e5fbcb9/solver/src/lib.rs",
+          "supported": true,
+          "note": "BODY_STRIDE=17/HX=13/HY=14/HZ=15/DRIVEN=16/COLLIDER_STRIDE=10 confirmed verbatim on main."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/e5fbcb9/solver/build.mjs",
+          "supported": true,
+          "note": "i*17 (4x), j*10 (2x) confirmed by grep; source's own claim text has no specific count and is accurate."
+        }
+      ]
+    },
+    {
+      "slug": "embed-build-inputs-with-include-bytes-include-str-env-and-concat-and-know-which-of-them-fail-the-build",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "All 6 checks reproduced: verbatim env! unset/custom-message text, include_bytes! couldn't-read text, compile_error! fallback text, const FNV-1a over include_bytes!(file!()) matches run time. build.mjs embeds wasm as a Uint8Array literal.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/macro.env.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/macro.include_bytes.html",
+          "supported": true,
+          "note": "&'static [u8;N], relative-to-file location, Windows-backslash-fails-on-Unix -- verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/macro.env.html",
+          "supported": true,
+          "note": "Compile-time, undefined-is-error, 2-arg message, option_env! confirmed; exact error text reproduced."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/macro.concat.html",
+          "supported": true,
+          "note": "String/int/float/bool/char literal concatenation into &'static str confirmed verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/macro.stringify.html",
+          "supported": true,
+          "note": "Token stringification plus may-change-in-future caution both confirmed verbatim."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/macro.compile_error.html",
+          "supported": true,
+          "note": "Fails-compilation text and fallback-arm example confirmed (dup of recipe 4's source)."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/e5fbcb9/solver/build.mjs",
+          "supported": true,
+          "note": "Uint8Array literal embedding of the pinned wasm bytes confirmed verbatim on main."
+        }
+      ]
+    }
+  ]
+}

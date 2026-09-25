@@ -1,0 +1,1268 @@
+{
+  "laneSlug": "traits-generics",
+  "title": "Traits & generics — the working set",
+  "tier": "essentials",
+  "recipes": [
+    {
+      "name": "Define traits with required and default methods; state generic bounds inline or in a where clause",
+      "what": "A trait's body-less methods are required and its methods with bodies are defaults an implementor may override; generic code can call only what its bounds name.",
+      "how": "Write `trait Solid { fn half_extents(&self) -> [f64; 3]; fn volume(&self) -> f64 { let [x, y, z] = self.half_extents(); 8.0 * x * y * z } }`. Every `impl Solid for T` must supply each required item (a missing one is E0046) and may override `volume`. Bound generic code inline (`fn total<T: Solid>(..)`) or, once the list grows, with `where T: Solid + Debug`; the Reference defines the two spellings as the same bound. Inside the body only methods of the named bounds resolve: `.volume()` on an unbounded `T` is E0599 ('items from traits can only be used if the type parameter is bounded by the trait'), and a caller whose type lacks the impl gets E0277 ('the trait bound `f64: Solid` is not satisfied').",
+      "rust_version": "any (checked on 1.98.1)",
+      "gotchas": "An overriding method cannot call the default it replaces (the Book says so), so put shared logic in a separately named helper that both call. Overriding a default does not excuse a missing required item (the E0046 check below overrides `volume` and still fails). Adding a body-less method to a published trait breaks every existing impl with E0046; adding one with a default body does not trigger E0046.",
+      "engine_note": "solver/src (lib.rs, rapier_law.rs) declares no trait, impl block or derive today (read at origin/main 4782a8a; solver/ is unchanged since 2c2631f): the law is free functions over static f64 buffers. A trait earns a place only where two implementations must be interchangeable; whether the box law and the product law share one is traits-advanced's hook.",
+      "checks": [
+        {
+          "label": "a default method built on a required one; an override; a where-clause generic",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "1 0 9",
+          "source": "use std::fmt::Debug;\n\ntrait Solid {\n    fn half_extents(&self) -> [f64; 3]; // required: no body\n    fn volume(&self) -> f64 {           // default: built on the required method\n        let [x, y, z] = self.half_extents();\n        8.0 * x * y * z\n    }\n}\n\n#[derive(Debug)]\nstruct Cube(f64);\n#[derive(Debug)]\nstruct Trigger { half: [f64; 3] }\n\nimpl Solid for Cube {\n    fn half_extents(&self) -> [f64; 3] { [self.0; 3] }\n}\nimpl Solid for Trigger {\n    fn half_extents(&self) -> [f64; 3] { self.half }\n    fn volume(&self) -> f64 { 0.0 } // overrides the default\n}\n\nfn total_volume<T>(items: &[T]) -> f64\nwhere\n    T: Solid + Debug,\n{\n    items.iter().map(|s| s.volume()).sum()\n}\n\nfn main() {\n    let t = Trigger { half: [1.0; 3] };\n    println!(\"{} {} {}\", Cube(0.5).volume(), t.volume(), total_volume(&[Cube(0.5), Cube(1.0)]));\n}\n"
+        },
+        {
+          "label": "an impl that omits a required method is E0046, even when it overrides the default",
+          "edition": "2024",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0046"
+          ],
+          "stderr_contains": [
+            "missing: `half_extents`"
+          ],
+          "source": "pub trait Solid {\n    fn half_extents(&self) -> [f64; 3];\n    fn volume(&self) -> f64 {\n        let [x, y, z] = self.half_extents();\n        8.0 * x * y * z\n    }\n}\npub struct Cube(pub f64);\nimpl Solid for Cube {\n    fn volume(&self) -> f64 { 8.0 * self.0 * self.0 * self.0 }\n}\n"
+        },
+        {
+          "label": "a generic body cannot call a trait method its bounds do not name (E0599)",
+          "edition": "2024",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0599"
+          ],
+          "stderr_contains": [
+            "items from traits can only be used if the type parameter is bounded by the trait"
+          ],
+          "source": "pub trait Solid {\n    fn volume(&self) -> f64;\n}\npub fn total<T>(items: &[T]) -> f64 {\n    items.iter().map(|s| s.volume()).sum()\n}\n"
+        },
+        {
+          "label": "a caller whose type lacks the impl fails the bound with E0277",
+          "edition": "2024",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "the trait bound `f64: Solid` is not satisfied"
+          ],
+          "source": "trait Solid {\n    fn volume(&self) -> f64;\n}\nfn total<T: Solid>(items: &[T]) -> f64 {\n    items.iter().map(|s| s.volume()).sum()\n}\nfn main() {\n    println!(\"{}\", total(&[1.0_f64, 2.0]));\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Programming Language, 10.2 Defining Shared Behavior with Traits",
+          "url": "https://doc.rust-lang.org/stable/book/ch10-02-traits.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "A default method may call other methods of the same trait, even ones without a default; an overriding implementation cannot call the default it replaces; where clauses hold long bound lists.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Traits",
+          "url": "https://doc.rust-lang.org/stable/reference/items/traits.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "A trait function that defines a body acts as a default for any implementation that does not override it; one without a body must be defined by the implementation.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Trait and lifetime bounds",
+          "url": "https://doc.rust-lang.org/stable/reference/trait-bounds.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "`fn f<A: Copy>()` is the same as `fn f<A>() where A: Copy`; in a generic body the bounds are what let methods of the trait be called on the type.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust error code index: E0046",
+          "url": "https://doc.rust-lang.org/stable/error_codes/E0046.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "An implementation must provide every required item of the trait (methods without defaults, associated types and constants).",
+          "retrieved": true
+        },
+        {
+          "title": "Rust error code index: E0277",
+          "url": "https://doc.rust-lang.org/stable/error_codes/E0277.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Using a type that does not implement a trait where a bound requires it is error E0277.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Prefer monomorphized generics; use Box<dyn Trait> for mixed-type collections or to cut code size",
+      "what": "Generic code is compiled once per concrete type (static dispatch, inlinable, no run-time dispatch cost, paid for in compile time and binary size); a dyn Trait call goes through a vtable (one copy of the code, a run-time lookup, no inlining) and is what lets one container hold different types.",
+      "how": "Default to `fn total<T: Solid>(items: &[T])`: calls resolve at compile time and can be inlined. When one Vec must hold `Cube` and `Slab` together, store `Vec<Box<dyn Solid>>` (or pass `&dyn Solid`); each call then finds the method through the vtable at run time. A pointer to a trait object is a data pointer plus a vtable pointer: `size_of::<&dyn Solid>()` is two `usize`, `size_of::<&Cube>()` is one. Write `dyn` explicitly: from edition 2021 a bare `Box<Solid>` is error E0782.",
+      "rust_version": "any; `dyn` mandatory from edition 2021",
+      "gotchas": "`total(&[Cube(0.5), Slab(..)])` with a generic `T` is E0308: a type parameter is one concrete type per instantiation, which is the moment people reach for dyn. Monomorphization is not free: rustc's own guide names compile time and binary size as the price, and Effective Rust (2024) suggests trait objects when code size or compile time matters. Not every trait can be used as dyn (dyn compatibility, traits-advanced). In editions 2015/2018 a missing `dyn` is only the `bare_trait_objects` warning, so old code breaks at the edition bump, not before.",
+      "engine_note": "The solver's bodies are rows of one flat f64 buffer (`BODIES`, stride 17 in solver/src/lib.rs) and a body's kind is a slot value, so no call site in solver/src needs dyn today; if heterogeneous shapes or laws appear, a generic or an enum plus match (types-patterns) keeps dispatch static.",
+      "checks": [
+        {
+          "label": "a generic T is one concrete type: mixing Cube and Slab in one slice is E0308",
+          "edition": "2024",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0308"
+          ],
+          "stderr_contains": [
+            "expected `Cube`, found `Slab`"
+          ],
+          "source": "trait Solid {\n    fn volume(&self) -> f64;\n}\nstruct Cube(f64);\nstruct Slab(f64, f64, f64);\nimpl Solid for Cube {\n    fn volume(&self) -> f64 { 8.0 * self.0 * self.0 * self.0 }\n}\nimpl Solid for Slab {\n    fn volume(&self) -> f64 { 8.0 * self.0 * self.1 * self.2 }\n}\nfn total<T: Solid>(items: &[T]) -> f64 {\n    items.iter().map(|s| s.volume()).sum()\n}\nfn main() {\n    println!(\"{}\", total(&[Cube(0.5), Slab(2.0, 0.25, 2.0)]));\n}\n"
+        },
+        {
+          "label": "Box<dyn Solid> holds both types; &dyn is two words, &T one",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "9 9\ntrue true",
+          "source": "trait Solid {\n    fn volume(&self) -> f64;\n}\nstruct Cube(f64);\nstruct Slab(f64, f64, f64);\nimpl Solid for Cube {\n    fn volume(&self) -> f64 { 8.0 * self.0 * self.0 * self.0 }\n}\nimpl Solid for Slab {\n    fn volume(&self) -> f64 { 8.0 * self.0 * self.1 * self.2 }\n}\nuse std::mem::size_of;\n\nfn total<T: Solid>(items: &[T]) -> f64 { // monomorphized: one copy per T\n    items.iter().map(|s| s.volume()).sum()\n}\nfn total_dyn(items: &[Box<dyn Solid>]) -> f64 { // one copy, vtable calls\n    items.iter().map(|s| s.volume()).sum()\n}\n\nfn main() {\n    let mixed: Vec<Box<dyn Solid>> = vec![Box::new(Cube(0.5)), Box::new(Slab(2.0, 0.25, 2.0))];\n    println!(\"{} {}\", total(&[Cube(0.5), Cube(1.0)]), total_dyn(&mixed));\n    println!(\"{} {}\",\n        size_of::<&dyn Solid>() == 2 * size_of::<usize>(),\n        size_of::<&Cube>() == size_of::<usize>());\n}\n"
+        },
+        {
+          "label": "edition 2021: a trait object without dyn is error E0782",
+          "edition": "2021",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0782"
+          ],
+          "stderr_contains": [
+            "expected a type, found a trait"
+          ],
+          "source": "pub trait Solid {\n    fn volume(&self) -> f64;\n}\npub fn total(items: &[Box<Solid>]) -> f64 {\n    items.iter().map(|s| s.volume()).sum()\n}\n"
+        },
+        {
+          "label": "edition 2015: the same code only warns (bare_trait_objects)",
+          "edition": "2015",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "lints": [
+            "bare_trait_objects"
+          ],
+          "source": "pub trait Solid {\n    fn volume(&self) -> f64;\n}\npub fn total(items: &[Box<Solid>]) -> f64 {\n    items.iter().map(|s| s.volume()).sum()\n}\n"
+        },
+        {
+          "label": "edition 2018: the same code only warns (bare_trait_objects)",
+          "edition": "2018",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "lints": [
+            "bare_trait_objects"
+          ],
+          "source": "pub trait Solid {\n    fn volume(&self) -> f64;\n}\npub fn total(items: &[Box<Solid>]) -> f64 {\n    items.iter().map(|s| s.volume()).sum()\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Programming Language, 10.1 Generic Data Types (Performance of Code Using Generics)",
+          "url": "https://doc.rust-lang.org/stable/book/ch10-01-syntax.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Monomorphization turns generic code into specific code for each concrete type at compile time, so generics add no run-time cost.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, 18.2 Using Trait Objects to Abstract over Shared Behavior",
+          "url": "https://doc.rust-lang.org/stable/book/ch18-02-trait-objects.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Trait objects use dynamic dispatch, a run-time lookup through the pointers in the object that also prevents inlining; a generic parameter stands for one concrete type at a time, while trait objects allow several.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Trait objects",
+          "url": "https://doc.rust-lang.org/stable/reference/types/trait-object.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "A pointer to a trait object holds a pointer to the value and a vtable of function pointers; trait objects are DSTs used behind a pointer; `dyn` is required from the 2021 edition.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust Edition Guide: Warnings promoted to errors (Rust 2021)",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2021/warnings-promoted-to-error.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Code that triggered bare_trait_objects is an error in Rust 2021: the dyn keyword is mandatory for trait objects.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust Compiler Development Guide: Monomorphization",
+          "url": "https://rustc-dev-guide.rust-lang.org/backend/monomorph.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "rustc stamps out a copy of a generic function per concrete type, giving fast programs at the cost of compile time and binary size.",
+          "retrieved": true
+        },
+        {
+          "title": "Effective Rust, Item 12: Understand the trade-offs between generics and trait objects (David Drysdale)",
+          "url": "https://effective-rust.com/generics.html",
+          "year": 2024,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Generics produce bigger code and longer compiles, trait-object calls need an extra indirection; prefer generics, use trait objects for heterogeneous collections or when code size matters.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Use impl Trait to accept any implementor or return one hidden type; return Box<dyn Trait> for two types",
+      "what": "`impl Trait` in argument position is an anonymous generic parameter; in return position the function picks one concrete type the caller cannot name, and every return path must produce that same type.",
+      "how": "`fn sum_two(a: &impl Solid, b: &impl Solid)` takes two independently chosen types (with `<T: Solid>(a: &T, b: &T)` both must be the same, E0308 otherwise). `fn ticks(n: u32) -> impl Iterator<Item = f64> { (0..n).map(|i| i as f64 / 64.0) }` returns an unnameable closure adapter with no box and no dynamic dispatch. When branches produce different types, return `Box<dyn Solid>` (a heap allocation plus vtable calls) or an enum.",
+      "rust_version": "any (checked on 1.98.1); return-position lifetime capture changed in edition 2024",
+      "gotchas": "Returning `Slab` from one branch and `Cube` from the other under `-> impl Solid` is E0308 ('`if` and `else` have incompatible types'). Callers cannot turbofish an impl-Trait parameter: `show::<Cube>(..)` is E0107 with the note '`impl Trait` cannot be explicitly specified as a generic argument'; use a named `<T: Solid>` when callers must choose. For the same reason, switching a public parameter between `impl Trait` and `<T: Trait>` changes the number of generic arguments and can break callers (the Reference says so). impl Trait is allowed only in function argument and return types: `let c: impl Solid = ..` is E0562. In edition 2024 return-position impl Trait captures all in-scope lifetimes by default (`use<..>` narrows it); depth belongs to traits-advanced.",
+      "engine_note": "",
+      "checks": [
+        {
+          "label": "two &impl params may differ; -> impl Iterator returns a closure adapter; Box<dyn> for two",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "9\n[0.0, 0.015625, 0.03125]\n8 1",
+          "source": "trait Solid {\n    fn volume(&self) -> f64;\n}\nstruct Cube(f64);\nstruct Slab(f64, f64, f64);\nimpl Solid for Cube {\n    fn volume(&self) -> f64 { 8.0 * self.0 * self.0 * self.0 }\n}\nimpl Solid for Slab {\n    fn volume(&self) -> f64 { 8.0 * self.0 * self.1 * self.2 }\n}\n// argument position: each parameter is its own anonymous type parameter\nfn sum_two(a: &impl Solid, b: &impl Solid) -> f64 {\n    a.volume() + b.volume()\n}\n\n// return position: one concrete, unnameable type chosen here; no Box\nfn ticks(n: u32) -> impl Iterator<Item = f64> {\n    (0..n).map(|i| i as f64 / 64.0)\n}\n\n// two concrete types: box them behind a trait object\nfn pick(flat: bool) -> Box<dyn Solid> {\n    if flat { Box::new(Slab(2.0, 0.25, 2.0)) } else { Box::new(Cube(0.5)) }\n}\n\nfn main() {\n    println!(\"{}\", sum_two(&Cube(0.5), &Slab(2.0, 0.25, 2.0)));\n    println!(\"{:?}\", ticks(3).collect::<Vec<_>>());\n    println!(\"{} {}\", pick(true).volume(), pick(false).volume());\n}\n"
+        },
+        {
+          "label": "-> impl Solid returning two different types is E0308",
+          "edition": "2024",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0308"
+          ],
+          "stderr_contains": [
+            "`if` and `else` have incompatible types"
+          ],
+          "source": "pub trait Solid {\n    fn volume(&self) -> f64;\n}\npub struct Cube(pub f64);\npub struct Slab(pub f64, pub f64, pub f64);\nimpl Solid for Cube {\n    fn volume(&self) -> f64 { 8.0 * self.0 * self.0 * self.0 }\n}\nimpl Solid for Slab {\n    fn volume(&self) -> f64 { 8.0 * self.0 * self.1 * self.2 }\n}\npub fn pick(flat: bool) -> impl Solid {\n    if flat { Slab(2.0, 0.25, 2.0) } else { Cube(0.5) }\n}\n"
+        },
+        {
+          "label": "one named T for both params forces the same type (E0308)",
+          "edition": "2024",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0308"
+          ],
+          "stderr_contains": [
+            "expected `&Cube`, found `&Slab`"
+          ],
+          "source": "trait Solid {\n    fn volume(&self) -> f64;\n}\nstruct Cube(f64);\nstruct Slab(f64, f64, f64);\nimpl Solid for Cube {\n    fn volume(&self) -> f64 { 8.0 * self.0 * self.0 * self.0 }\n}\nimpl Solid for Slab {\n    fn volume(&self) -> f64 { 8.0 * self.0 * self.1 * self.2 }\n}\nfn sum_same<T: Solid>(a: &T, b: &T) -> f64 {\n    a.volume() + b.volume()\n}\nfn main() {\n    println!(\"{}\", sum_same(&Cube(0.5), &Slab(2.0, 0.25, 2.0)));\n}\n"
+        },
+        {
+          "label": "callers cannot turbofish an impl-Trait parameter (E0107)",
+          "edition": "2024",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0107"
+          ],
+          "stderr_contains": [
+            "`impl Trait` cannot be explicitly specified as a generic argument"
+          ],
+          "source": "trait Solid {\n    fn volume(&self) -> f64;\n}\nstruct Cube(f64);\nimpl Solid for Cube {\n    fn volume(&self) -> f64 { 8.0 * self.0 * self.0 * self.0 }\n}\nfn show(s: impl Solid) -> f64 {\n    s.volume()\n}\nfn main() {\n    println!(\"{}\", show::<Cube>(Cube(0.5)));\n}\n"
+        },
+        {
+          "label": "impl Trait is not allowed in a let binding (E0562)",
+          "edition": "2024",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0562"
+          ],
+          "stderr_contains": [
+            "`impl Trait` is not allowed in the type of variable bindings"
+          ],
+          "source": "trait Solid {\n    fn volume(&self) -> f64;\n}\nstruct Cube(f64);\nimpl Solid for Cube {\n    fn volume(&self) -> f64 { 8.0 * self.0 * self.0 * self.0 }\n}\nfn main() {\n    let c: impl Solid = Cube(0.5);\n    println!(\"{}\", c.volume());\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Programming Language, 10.2 Defining Shared Behavior with Traits (Traits as Parameters; Returning Types That Implement Traits)",
+          "url": "https://doc.rust-lang.org/stable/book/ch10-02-traits.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "impl Trait in a parameter is sugar for a trait bound, two `&impl Summary` parameters may be different types while a single `T` forces the same type, and `-> impl Trait` works only when a single type is returned.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Impl trait type",
+          "url": "https://doc.rust-lang.org/stable/reference/types/impl-trait.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Argument-position impl Trait is an anonymous type parameter, whereas a caller may name `<T: Trait>` explicitly, so switching between them changes the number of generic arguments and can break callers; return-position impl Trait is chosen by the function, must be one concrete type, avoids the drawbacks of a boxed trait object, appears only in parameters and return types, and captures lifetimes differently in edition 2024.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust error code index: E0107",
+          "url": "https://doc.rust-lang.org/stable/error_codes/E0107.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Supplying a different number of generic arguments than an item declares is E0107.",
+          "retrieved": true
+        },
+        {
+          "title": "Effective Rust, Item 12: Understand the trade-offs between generics and trait objects (David Drysdale)",
+          "url": "https://effective-rust.com/generics.html",
+          "year": 2024,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Writing `impl Trait` in argument position is not exactly equivalent to a named type parameter because it removes the caller's ability to specify the type.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Derive Debug, Clone, Copy, PartialEq and Default on plain data; implement Display by hand",
+      "what": "A derive is legal only when every field implements the trait, and each carries a contract: Copy is an implicit bitwise copy that requires Clone, derived Default uses each field's default, derived Debug output is not stable across Rust versions, and Display cannot be derived.",
+      "how": "`#[derive(Debug, Clone, Copy, PartialEq, Default)] struct Vec3 { x: f64, y: f64, z: f64 }` gives `{:?}` output, implicit copies, field-wise ==, and `Vec3 { x: 1.0, ..Default::default() }`. For an enum put `#[default]` on a unit variant (1.62+). Write Display yourself: `impl fmt::Display for Vec3 { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, \"({}, {}, {})\", self.x, self.y, self.z) } }`, which also provides `to_string()`. A hand-written Clone on a Copy type must be equivalent to `*self`.",
+      "rust_version": "any; enum #[derive(Default)] with #[default] 1.62+",
+      "gotchas": "`#[derive(Clone, Copy)]` on a struct with a Vec field is E0204. There is no Display derive ('cannot find derive macro `Display` in this scope'), and `#[default]` on a variant with fields is rejected ('may only be used on unit enum variants'). Derived Debug formats may change with future Rust versions: never hash, golden-test or parse `{:?}` output. Copy is part of the public API, and a type that implements Drop can never be Copy. On a generic struct a derive adds `T: Trait` bounds to the generated impl.",
+      "engine_note": "Snapshot bytes in solver/src/rapier_law.rs are written value by value with `push_f64` (`canon(x).to_le_bytes()`), never through Debug formatting. Keep it that way: derived Debug output may change across Rust versions, which would move a golden on a toolchain bump (the toolchain is pinned to 1.98.1 by solver/rust-toolchain.toml).",
+      "checks": [
+        {
+          "label": "derived Debug/Copy/PartialEq/Default on f64 fields; enum #[default]; hand-written Display",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "Vec3 { x: 1.0, y: 0.0, z: 0.0 }\n(1, 0, 0) true\nDynamic true",
+          "source": "use std::fmt;\n\n#[derive(Debug, Clone, Copy, PartialEq, Default)]\nstruct Vec3 {\n    x: f64,\n    y: f64,\n    z: f64,\n}\n\nimpl fmt::Display for Vec3 {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        write!(f, \"({}, {}, {})\", self.x, self.y, self.z)\n    }\n}\n\n#[allow(dead_code)]\n#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]\nenum Mode {\n    #[default]\n    Dynamic,\n    Kinematic,\n    Fixed,\n}\n\nfn main() {\n    let a = Vec3 { x: 1.0, ..Default::default() };\n    let b = a; // Copy: `a` stays usable\n    println!(\"{:?}\", a);\n    println!(\"{} {}\", b, b.to_string() == format!(\"{b}\"));\n    println!(\"{:?} {}\", Mode::default(), a == b.clone());\n}\n"
+        },
+        {
+          "label": "Copy on a struct with a Vec field is E0204",
+          "edition": "2024",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0204"
+          ],
+          "stderr_contains": [
+            "the trait `Copy` cannot be implemented for this type"
+          ],
+          "source": "#[derive(Clone, Copy)]\npub struct Body {\n    pub pos: [f64; 3],\n    pub contacts: Vec<u32>,\n}\n"
+        },
+        {
+          "label": "Display has no derive",
+          "edition": "2024",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "cannot find derive macro `Display` in this scope"
+          ],
+          "source": "#[derive(Debug, Display)]\npub struct Pose {\n    pub x: f64,\n}\n"
+        },
+        {
+          "label": "#[default] only on a unit variant",
+          "edition": "2024",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "the `#[default]` attribute may only be used on unit enum variants"
+          ],
+          "source": "#[derive(Debug, Default)]\npub enum Mode {\n    #[default]\n    Dynamic(f64),\n    Fixed,\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "std::marker::Copy",
+          "url": "https://doc.rust-lang.org/stable/std/marker/trait.Copy.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Copy is an implicit bitwise copy that cannot be overloaded; Clone is its supertrait; a type can be Copy only if all its components are (a Vec field gives E0204); Drop types cannot be Copy; implementing Copy is part of the public API.",
+          "retrieved": true
+        },
+        {
+          "title": "std::clone::Clone",
+          "url": "https://doc.rust-lang.org/stable/std/clone/trait.Clone.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Clone is explicit and may be expensive; derive requires every field Clone and adds a Clone bound on generic parameters; for a Copy type, `y.clone()` must be equivalent to `*y`.",
+          "retrieved": true
+        },
+        {
+          "title": "std::fmt::Debug",
+          "url": "https://doc.rust-lang.org/stable/std/fmt/trait.Debug.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Debug can be derived when all fields implement it, and derived Debug formats are not stable and may change with future Rust versions.",
+          "retrieved": true
+        },
+        {
+          "title": "std::fmt::Display",
+          "url": "https://doc.rust-lang.org/stable/std/fmt/trait.Display.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Display is for user-facing output and cannot be derived; implementing it provides ToString, and Display should be implemented rather than ToString.",
+          "retrieved": true
+        },
+        {
+          "title": "std::default::Default",
+          "url": "https://doc.rust-lang.org/stable/std/default/trait.Default.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Default derives when all fields implement Default; an enum chooses its default with #[default], which cannot be used on non-unit or non-exhaustive variants; struct update with ..Default::default().",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.62.0",
+          "url": "https://blog.rust-lang.org/2022/06/30/Rust-1.62.0/",
+          "year": 2022,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Rust 1.62 allowed #[derive(Default)] on enums with a #[default] unit variant.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, Appendix C: Derivable Traits",
+          "url": "https://doc.rust-lang.org/stable/book/appendix-03-derivable-traits.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Display cannot be derived because the compiler cannot know the right user-facing format; Copy requires Clone and all parts Copy; derived Default requires all fields Default.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust error code index: E0204",
+          "url": "https://doc.rust-lang.org/stable/error_codes/E0204.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Implementing Copy on a type with a field that is not Copy (a Vec, a &mut) is E0204.",
+          "retrieved": true
+        },
+        {
+          "title": "Effective Rust, Item 10: Familiarize yourself with standard traits (David Drysdale)",
+          "url": "https://effective-rust.com/std-traits.html",
+          "year": 2024,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Debug can be derived and Display only written by hand; if all components are Copy it is usually worth deriving Copy.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Derive only PartialEq and PartialOrd on structs with f64 fields; derived Eq, Hash and Ord fail with E0277",
+      "what": "f64 implements PartialEq and PartialOrd but not Eq, Ord or Hash, so derives stop at the partial traits, and the derived == inherits float semantics: NaN is unequal to itself and 0.0 equals -0.0.",
+      "how": "For a struct with an f64 field, `#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]` is as far as derive goes. `derive(Eq)`, `derive(Hash)` and `derive(Ord)` each fail with E0277 ('the trait bound `f64: Eq` / `f64: Hash` / `f64: Ord` is not satisfied'). With the derived impls a value holding NaN is not equal to itself, `partial_cmp` returns None, and values at +0.0 and -0.0 compare equal though their bits differ. When you need an Eq/Hash/Ord key, wrap the float and build all the impls from its bits (next recipe).",
+      "rust_version": "any",
+      "gotchas": "The common wrong fix is `impl Eq for Pose {}`: it compiles (Eq has no methods, so the compiler cannot check reflexivity) and is a logic error once a NaN arrives. A HashSet then holds two 'NaN' entries and cannot find either. std calls this a logic error: behaviour unspecified, not UB, and unsafe code must not rely on these impls. Derived PartialOrd compares fields in declaration order, so reordering fields changes the ordering. assert_eq! on a struct holding NaN fails even when compared with itself.",
+      "engine_note": "For T2 (`solver_restore`: restore, rerun, require an identical trace), compare restored state with `to_bits()`, not with a derived `==`: derived PartialEq calls 0.0 and -0.0 equal and NaN unequal to itself, while the hashed snapshot compares bits. The law also uses float == on purpose: `canon` in rapier_law.rs (`if x == 0.0 { 0.0 } else { x }`) folds -0.0 into +0.0 because -0.0 == 0.0, and in `signature` each value passes `bad` (`x.is_nan()`) before it is mixed into `geom`.",
+      "checks": [
+        {
+          "label": "derive(Eq) on a struct with an f64 field is E0277 `f64: Eq`",
+          "edition": "2024",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "the trait bound `f64: Eq` is not satisfied"
+          ],
+          "source": "#[derive(PartialEq, Eq)]\npub struct Pose {\n    pub x: f64,\n    pub id: u32,\n}\n"
+        },
+        {
+          "label": "derive(Hash) on a struct with an f64 field is E0277 `f64: Hash`",
+          "edition": "2024",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "the trait bound `f64: Hash` is not satisfied"
+          ],
+          "source": "#[derive(PartialEq, Hash)]\npub struct Pose {\n    pub x: f64,\n    pub id: u32,\n}\n"
+        },
+        {
+          "label": "derive(Ord) fails on `f64: Ord` even with a hand-written Eq",
+          "edition": "2024",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "the trait bound `f64: Ord` is not satisfied"
+          ],
+          "source": "#[derive(PartialEq, PartialOrd, Ord)]\npub struct Pose {\n    pub x: f64,\n    pub id: u32,\n}\nimpl Eq for Pose {}\n"
+        },
+        {
+          "label": "derived == and partial_cmp: NaN != itself, None ordering, 0.0 == -0.0 with different bits",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "false\nNone\ntrue false",
+          "source": "#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]\nstruct Pose {\n    x: f64,\n    y: f64,\n}\n\nfn main() {\n    let nan = Pose { x: f64::NAN, y: 0.0 };\n    let pz = Pose { x: 0.0, y: 1.0 };\n    let nz = Pose { x: -0.0, y: 1.0 };\n    println!(\"{}\", nan == nan);\n    println!(\"{:?}\", nan.partial_cmp(&pz));\n    println!(\"{} {}\", pz == nz, pz.x.to_bits() == nz.x.to_bits());\n}\n"
+        },
+        {
+          "label": "assert_eq! on a derived-PartialEq value holding NaN panics even against its own copy",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "exit_code": 101,
+          "stdout": "",
+          "source": "#[derive(Debug, Clone, Copy, PartialEq)]\nstruct Pose {\n    x: f64,\n}\n\nfn main() {\n    let p = Pose { x: f64::NAN };\n    let q = p; // the very same bits\n    assert_eq!(p, q); // panics: NaN != NaN\n    println!(\"equal\");\n}\n"
+        },
+        {
+          "label": "a hand-written Eq compiles but lies: a HashSet holds NaN twice and cannot find it",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "false 2 false",
+          "source": "use std::collections::HashSet;\nuse std::hash::{Hash, Hasher};\n\n#[derive(Debug, Clone, Copy, PartialEq)]\nstruct Pose {\n    x: f64,\n}\nimpl Eq for Pose {} // compiles: Eq has no methods and reflexivity is not checked\nimpl Hash for Pose {\n    fn hash<H: Hasher>(&self, h: &mut H) {\n        self.x.to_bits().hash(h)\n    }\n}\n\nfn main() {\n    let nan = Pose { x: f64::NAN };\n    let mut set = HashSet::new();\n    set.insert(nan);\n    set.insert(nan);\n    println!(\"{} {} {}\", nan == nan, set.len(), set.contains(&nan));\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "std::cmp::Eq",
+          "url": "https://doc.rust-lang.org/stable/std/cmp/trait.Eq.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "f32 and f64 implement only PartialEq, not Eq, because NaN != NaN; derive(Eq) requires every field to be Eq; Eq has no methods because reflexivity cannot be checked, and violating it is a logic error.",
+          "retrieved": true
+        },
+        {
+          "title": "std::cmp::PartialEq",
+          "url": "https://doc.rust-lang.org/stable/std/cmp/trait.PartialEq.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Floats implement PartialEq but not Eq because NaN != NaN; derived PartialEq on a struct is equal when all fields are equal; violating the requirements is a logic error that unsafe code must not rely on.",
+          "retrieved": true
+        },
+        {
+          "title": "std::cmp::PartialOrd",
+          "url": "https://doc.rust-lang.org/stable/std/cmp/trait.PartialOrd.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "f64 implements PartialOrd but not Ord; `f64::NAN.partial_cmp(&1.0)` is None; derived PartialOrd on structs is lexicographic in field declaration order.",
+          "retrieved": true
+        },
+        {
+          "title": "f64 primitive type (std)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f64.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The trait implementations listed for f64 include PartialEq and PartialOrd and do not include Eq, Ord or Hash.",
+          "retrieved": true
+        },
+        {
+          "title": "std::hash::Hash",
+          "url": "https://doc.rust-lang.org/stable/std/hash/trait.Hash.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Hash can be derived only if all fields implement Hash, and implementations must satisfy k1 == k2 implies hash(k1) == hash(k2), which HashMap and HashSet rely on.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, Appendix C: Derivable Traits",
+          "url": "https://doc.rust-lang.org/stable/book/appendix-03-derivable-traits.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Two NaN values are not equal, so floats cannot be Eq; partial_cmp with NaN returns None; Eq is required for HashMap keys and Ord for BTreeSet.",
+          "retrieved": true
+        },
+        {
+          "title": "Effective Rust, Item 10: Familiarize yourself with standard traits (David Drysdale)",
+          "url": "https://effective-rust.com/std-traits.html",
+          "year": 2024,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Nothing compares equal to NaN, including NaN itself, which is why PartialEq exists; a manual Eq must be checked against Hash so equal values hash equally.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Key f64 values by their bits: Eq and Hash from to_bits, Ord from total_cmp, never partial_cmp().unwrap()",
+      "what": "`f64::total_cmp` (1.62) orders every bit pattern by IEEE 754 totalOrder and `to_bits` (1.20) exposes the exact pattern; total_cmp compares a sign-adjusted copy of the bits as i64, so it reports Equal exactly when the bits match, and Eq/Hash from to_bits plus Ord from total_cmp form one consistent key.",
+      "how": "`#[derive(Clone, Copy, Debug)] struct Bits(f64);` with `impl PartialEq for Bits { fn eq(&self, o: &Self) -> bool { self.0.to_bits() == o.0.to_bits() } }`, `impl Eq for Bits {}`, `impl Hash for Bits { fn hash<H: Hasher>(&self, h: &mut H) { self.0.to_bits().hash(h) } }`, `impl Ord for Bits { fn cmp(&self, o: &Self) -> Ordering { self.0.total_cmp(&o.0) } }`, `impl PartialOrd for Bits { fn partial_cmp(&self, o: &Self) -> Option<Ordering> { Some(self.cmp(o)) } }`. Sort plain slices with `v.sort_by(f64::total_cmp)`, giving [-NaN, -inf, -0.0, 0.0, 1.5, inf, NaN]. If numerically equal values must collide, canonicalise before keying (map -0.0 to 0.0, refuse NaN). A struct whose float fields are stored as `to_bits()` u64 can simply derive PartialEq, Eq and Hash.",
+      "rust_version": "total_cmp 1.62+; to_bits 1.20+",
+      "gotchas": "`sort_by(|a, b| a.partial_cmp(b).unwrap())` panics as soon as it meets a NaN (exit 101). total_cmp disagrees with ==: -0.0 sorts before +0.0, and NaNs of different sign or payload are different keys (a negative NaN sorts first, and Debug prints both as `NaN`). Mixing policies breaks the Hash/Eq rule (k1 == k2 implies hash(k1) == hash(k2)): a derived PartialEq (0.0 == -0.0) paired with a to_bits Hash hashes equal keys differently. `ordered_float::OrderedFloat` 5.5.0 picks the opposite policy (±0 equal; NaN equal to itself and greater than everything). Choose one policy per key type and build all four impls from it. std says data fed to a Hasher by Hash is not portable across platforms or stable across compiler versions, so a persisted or golden hash should hash explicit bytes (`to_le_bytes`, `to_bits`) with a hasher that documents stability (sim-architecture lane), never a derived Hash through std's hashers.",
+      "engine_note": "`mix_f64(h, x)` in solver/src/rapier_law.rs is `mix_u64(h, x.to_bits())` (multiply by 0x100000001b3, add; seed 0xcbf29ce484222325), so 0.0 and -0.0 feed different words. `push_f64` writes `canon(x).to_le_bytes()` into the snapshot, but `signature` mixes raw collider and height values into `geom`, and `same_sig` compares `geom`: a collider coordinate of -0.0 therefore signs a different world (reload) than 0.0. That is a reading of the code, not a measured failure, and worth one test. `Signature` already keys its float by bits (`cell: u64` = `cell.to_bits()`), so every field is an integer and `#[derive(PartialEq, Eq, Hash)]` would be legal and would replace the hand-written `same_sig`, which silently ignores a field someone forgets to add. The snapshot pair sort keys on pairs of `(u32, u32)` tuples from `into_raw_parts()`; ColliderHandle itself derives Eq and Hash but not Ord in rapier3d-f64 0.35.3, so it cannot be sorted directly, and integer tuples need no float comparator.",
+      "checks": [
+        {
+          "label": "sort_by(f64::total_cmp): -NaN, -inf, -0.0, 0.0, 1.5, inf, NaN",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "[NaN, -inf, -0.0, 0.0, 1.5, inf, NaN]\ntrue",
+          "source": "fn main() {\n    let mut v = vec![f64::NAN, 1.5, f64::INFINITY, 0.0, -0.0, f64::NEG_INFINITY, -f64::NAN];\n    v.sort_by(f64::total_cmp);\n    println!(\"{:?}\", v);\n    println!(\"{}\", v[0].is_nan() && v[0].is_sign_negative()); // the negative NaN sorts first\n}\n"
+        },
+        {
+          "label": "partial_cmp().unwrap() as a sort comparator panics on NaN (exit 101)",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "exit_code": 101,
+          "stdout": "",
+          "source": "fn main() {\n    let mut v = vec![1.0, f64::NAN, 0.5];\n    v.sort_by(|a, b| a.partial_cmp(b).unwrap());\n    println!(\"{:?}\", v);\n}\n"
+        },
+        {
+          "label": "a Bits newtype: to_bits Eq/Hash + total_cmp Ord agree in HashSet and BTreeSet",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "4 4\n[-0.0, 0.0, 1.0, NaN]\n3\ntrue",
+          "source": "use std::cmp::Ordering;\nuse std::collections::{BTreeSet, HashSet};\nuse std::hash::{Hash, Hasher};\n\n/// An f64 key whose identity is its bit pattern.\n#[derive(Clone, Copy, Debug)]\nstruct Bits(f64);\n\nimpl PartialEq for Bits {\n    fn eq(&self, o: &Self) -> bool { self.0.to_bits() == o.0.to_bits() }\n}\nimpl Eq for Bits {}\nimpl Hash for Bits {\n    fn hash<H: Hasher>(&self, h: &mut H) { self.0.to_bits().hash(h) }\n}\nimpl Ord for Bits {\n    fn cmp(&self, o: &Self) -> Ordering { self.0.total_cmp(&o.0) }\n}\nimpl PartialOrd for Bits {\n    fn partial_cmp(&self, o: &Self) -> Option<Ordering> { Some(self.cmp(o)) }\n}\n\n// as in si-rpg-engine solver/src/rapier_law.rs\nfn canon(x: f64) -> f64 {\n    if x == 0.0 { 0.0 } else { x }\n}\n\nfn main() {\n    let raw = [1.0, f64::NAN, 0.0, -0.0, f64::NAN, 1.0];\n    let hashed: HashSet<Bits> = raw.iter().map(|&x| Bits(x)).collect();\n    let ordered: BTreeSet<Bits> = raw.iter().map(|&x| Bits(x)).collect();\n    let canonical: BTreeSet<Bits> = raw.iter().map(|&x| Bits(canon(x))).collect();\n    println!(\"{} {}\", hashed.len(), ordered.len());\n    println!(\"{:?}\", ordered.iter().map(|b| b.0).collect::<Vec<_>>());\n    println!(\"{}\", canonical.len());\n    println!(\"{}\", Bits(f64::NAN) == Bits(f64::NAN));\n}\n"
+        },
+        {
+          "label": "total_cmp is Equal exactly when to_bits is equal (special values + 1e6 pairs)",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "1000196 pairs, 0 disagreements",
+          "source": "use std::cmp::Ordering;\n\nfn main() {\n    let specials: [u64; 14] = [\n        0x0000_0000_0000_0000, 0x8000_0000_0000_0000, // +0, -0\n        0x7FF0_0000_0000_0000, 0xFFF0_0000_0000_0000, // +inf, -inf\n        0x7FF8_0000_0000_0000, 0xFFF8_0000_0000_0000, // quiet NaN, negative quiet NaN\n        0x7FF8_0000_0000_0001, 0x7FF0_0000_0000_0001, // NaN with payload, signaling NaN\n        0x0000_0000_0000_0001, 0x8000_0000_0000_0001, // +/- smallest subnormal\n        0x3FF0_0000_0000_0000, 0xBFF0_0000_0000_0000, // +1, -1\n        0x7FEF_FFFF_FFFF_FFFF, 0xFFEF_FFFF_FFFF_FFFF, // +MAX, -MAX\n    ];\n    let mut pairs = 0u64;\n    let mut bad = 0u64;\n    let mut check = |a: u64, b: u64| {\n        let (x, y) = (f64::from_bits(a), f64::from_bits(b));\n        let ord = x.total_cmp(&y);\n        pairs += 1;\n        if (ord == Ordering::Equal) != (a == b) {\n            bad += 1;\n        }\n        if ord != y.total_cmp(&x).reverse() {\n            bad += 1;\n        }\n    };\n    for &a in &specials {\n        for &b in &specials {\n            check(a, b);\n        }\n    }\n    let mut s = 0x9E37_79B9_7F4A_7C15u64; // xorshift64: equal pairs and one-bit-apart pairs\n    for _ in 0..1_000_000 {\n        s ^= s << 13;\n        s ^= s >> 7;\n        s ^= s << 17;\n        let b = if s & 1 == 0 { s } else { s ^ (1u64 << (s >> 58)) };\n        check(s, b);\n    }\n    println!(\"{} pairs, {} disagreements\", pairs, bad);\n}\n"
+        },
+        {
+          "label": "the solver's mix_f64: -0.0 and 0.0 hash apart until canon folds them",
+          "edition": "2021",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "false\ntrue\ntrue",
+          "source": "// mix_u64 / mix_f64 / canon as written in si-rpg-engine solver/src/rapier_law.rs\nfn mix_u64(h: u64, x: u64) -> u64 {\n    h.wrapping_mul(0x100000001b3).wrapping_add(x)\n}\nfn mix_f64(h: u64, x: f64) -> u64 {\n    mix_u64(h, x.to_bits())\n}\nfn canon(x: f64) -> f64 {\n    if x == 0.0 { 0.0 } else { x }\n}\nconst SEED: u64 = 0xcbf29ce484222325;\n\nfn main() {\n    println!(\"{}\", mix_f64(SEED, 0.0) == mix_f64(SEED, -0.0));\n    println!(\"{}\", mix_f64(SEED, canon(-0.0)) == mix_f64(SEED, 0.0));\n    println!(\"{}\", -0.0 == 0.0); // what canon relies on\n}\n"
+        },
+        {
+          "label": "a struct keeping its float as to_bits() u64 derives Eq and Hash (Signature mirror)",
+          "edition": "2021",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "true false 2",
+          "source": "use std::collections::HashSet;\n\n// Field-for-field mirror of `Signature` in si-rpg-engine solver/src/rapier_law.rs:\n// every field is an integer because `cell` is stored as `cell.to_bits()`.\n#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]\nstruct Signature {\n    world_id: u32,\n    n_bodies: u32,\n    n_colliders: u32,\n    rows: u32,\n    cols: u32,\n    cell: u64,\n    driven: u64,\n    carried: u64,\n    geom: u64,\n    shape: u32,\n}\n\nfn sig(cell: f64) -> Signature {\n    Signature {\n        world_id: 1, n_bodies: 2, n_colliders: 1, rows: 2, cols: 2,\n        cell: cell.to_bits(), driven: 1, carried: 0, geom: 0xcbf29ce484222325, shape: 0,\n    }\n}\n\nfn main() {\n    let (a, b, c) = (sig(0.5), sig(0.5), sig(0.25));\n    let set: HashSet<Signature> = [a, b, c].into_iter().collect();\n    println!(\"{} {} {}\", a == b, a == c, set.len());\n}\n"
+        },
+        {
+          "label": "rapier3d-f64 0.35.3 ColliderHandle is Eq + Hash but not Ord; (u32, u32) is Ord",
+          "edition": "2021",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "the trait bound `ColliderHandle: Ord` is not satisfied"
+          ],
+          "source": "use rapier3d_f64::geometry::ColliderHandle;\n\nfn hashable<T: Eq + std::hash::Hash>() {}\nfn sortable<T: Ord>() {}\n\npub fn probe() {\n    hashable::<ColliderHandle>(); // fine\n    sortable::<(u32, u32)>();     // fine: what into_raw_parts() returns\n    sortable::<ColliderHandle>(); // E0277\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "f64::total_cmp (core primitive f64)",
+          "url": "https://doc.rust-lang.org/stable/core/primitive.f64.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "total_cmp (since 1.62.0) orders values by IEEE 754 (2008) totalOrder: negative quiet NaN, negative signaling NaN, -inf, ..., -0.0, +0.0, ..., +inf, positive signaling NaN, positive quiet NaN; it disagrees with PartialEq/PartialOrd on -0.0 vs +0.0.",
+          "retrieved": true
+        },
+        {
+          "title": "f64::to_bits / from_bits (std primitive f64)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f64.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "to_bits (since 1.20.0) is a raw transmutation to u64, distinct from an `as` cast; from_bits preserves the exact bits including NaN payloads and is portable.",
+          "retrieved": true
+        },
+        {
+          "title": "core::num::f64 source: total_cmp",
+          "url": "https://doc.rust-lang.org/stable/src/core/num/f64.rs.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "total_cmp converts both values with to_bits to i64, XORs the non-sign bits of negative values, and compares the integers.",
+          "retrieved": true
+        },
+        {
+          "title": "std::hash::Hash",
+          "url": "https://doc.rust-lang.org/stable/std/hash/trait.Hash.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "k1 == k2 must imply hash(k1) == hash(k2); hash values fed by std types are not portable across platforms or stable across compiler versions.",
+          "retrieved": true
+        },
+        {
+          "title": "std::cmp::Ord",
+          "url": "https://doc.rust-lang.org/stable/std/cmp/trait.Ord.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Ord must agree with PartialOrd (partial_cmp == Some(cmp)); implement partial_cmp as Some(self.cmp(other)); floats are not a total order, use total_cmp.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.62.0",
+          "url": "https://blog.rust-lang.org/2022/06/30/Rust-1.62.0/",
+          "year": 2022,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "f32::total_cmp and f64::total_cmp were stabilized in Rust 1.62.0.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: ColliderHandle",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ColliderHandle.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "ColliderHandle implements Copy, Clone, Debug, PartialEq, Eq, Hash and Default but not PartialOrd or Ord; into_raw_parts returns (u32, u32).",
+          "retrieved": true
+        },
+        {
+          "title": "ordered-float 5.5.0: OrderedFloat",
+          "url": "https://docs.rs/ordered-float/latest/ordered_float/struct.OrderedFloat.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "OrderedFloat gives floats Eq, Ord and Hash by treating NaN as equal to itself and greater than all values, and -0.0 as equal to +0.0, a policy different from total_cmp.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Implement From for lossless conversions and TryFrom for checked ones; never Into; accept AsRef or Borrow",
+      "what": "From is for infallible, lossless conversions and gives Into for free through a blanket impl, so a hand-written Into for the same pair collides (E0119); TryFrom carries an Error type for conversions that can fail; AsRef is a cheap view, and Borrow additionally promises identical Eq, Ord and Hash.",
+      "how": "`impl From<f64> for Meters` lets call sites write `Meters::from(x)` or `x.into()`, and parameters take `impl Into<Meters>`. For checked construction write `impl TryFrom<f64> for UnitInterval { type Error = f64; fn try_from(v: f64) -> Result<Self, f64> { if (0.0..=1.0).contains(&v) { Ok(Self(v)) } else { Err(v) } } }`; the range test also rejects NaN. `u8::try_from(300u32)` is `Err` where `300u32 as u8` silently gives 44. `HashMap<String, V>::get(\"key\")` works because String: Borrow<str> hashes and compares like str. Accept `impl AsRef<str>` or `impl AsRef<[f64]>` when a function only needs to read.",
+      "rust_version": "TryFrom 1.34+ (in the 2021 prelude)",
+      "gotchas": "From must not fail or lose information; a fallible or lossy From (e.g. f64 to an integer id) breaks its contract, use TryFrom. Do not implement Borrow for a wrapper whose Eq or Hash differ from the inner type's (std's CaseInsensitiveString example); AsRef is the safe choice there. When bounding a generic parameter, prefer `T: TryInto<U>` over `U: TryFrom<T>` (std's advice), and implement only From/TryFrom yourself: the API guidelines say never implement Into or TryInto.",
+      "engine_note": "rapier_law.rs `signature` turns raw ABI values into refusals by returning None (NaN via `bad`, non-positive half-extents, counts over MAX_BODIES or MAX_COLLIDERS). A `TryFrom<f64>` newtype such as a positive half-extent is the trait-shaped version of that check, done once at the boundary; the #[repr(u8)] mode enum with TryFrom<u32> is types-patterns' hook.",
+      "checks": [
+        {
+          "label": "From gives .into(); TryFrom refuses NaN and range; String: Borrow<str>; AsRef<str>",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "Meters(2.5) 1.5\nOk(UnitInterval(0.5)) Err(NaN) Err(2.0)\ntrue 44\nSome(7) 3 4",
+          "source": "use std::collections::HashMap;\n\n#[derive(Debug, Clone, Copy, PartialEq)]\nstruct Meters(f64);\nimpl From<f64> for Meters {\n    fn from(v: f64) -> Self { Meters(v) }\n}\n\n#[derive(Debug, Clone, Copy, PartialEq)]\nstruct UnitInterval(f64);\nimpl TryFrom<f64> for UnitInterval {\n    type Error = f64;\n    fn try_from(v: f64) -> Result<Self, Self::Error> {\n        if (0.0..=1.0).contains(&v) { Ok(UnitInterval(v)) } else { Err(v) }\n    }\n}\n\nfn advance(pos: f64, d: impl Into<Meters>) -> f64 {\n    pos + d.into().0\n}\n\nfn len_of(s: impl AsRef<str>) -> usize {\n    s.as_ref().len()\n}\n\nfn main() {\n    let m: Meters = 2.5.into(); // Into comes from the From impl\n    println!(\"{:?} {}\", m, advance(1.0, 0.5));\n    println!(\"{:?} {:?} {:?}\",\n        UnitInterval::try_from(0.5), UnitInterval::try_from(f64::NAN), UnitInterval::try_from(2.0));\n    println!(\"{} {}\", u8::try_from(300u32).is_err(), 300u32 as u8);\n    let mut ids: HashMap<String, u32> = HashMap::new();\n    ids.insert(\"crate\".to_string(), 7);\n    println!(\"{:?} {} {}\", ids.get(\"crate\"), len_of(\"abc\"), len_of(String::from(\"abcd\")));\n}\n"
+        },
+        {
+          "label": "a hand-written Into next to From conflicts with std's blanket impl (E0119)",
+          "edition": "2024",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0119"
+          ],
+          "stderr_contains": [
+            "conflicting implementations of trait `Into<Meters>` for type `f64`"
+          ],
+          "source": "pub struct Meters(pub f64);\nimpl From<f64> for Meters {\n    fn from(v: f64) -> Self { Meters(v) }\n}\nimpl Into<Meters> for f64 {\n    fn into(self) -> Meters { Meters(self) }\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "std::convert::From",
+          "url": "https://doc.rust-lang.org/stable/std/convert/trait.From.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Prefer implementing From over Into because the standard library's blanket impl provides Into; From must not fail and is for perfect conversions, otherwise use TryFrom; the ? operator converts errors with From.",
+          "retrieved": true
+        },
+        {
+          "title": "std::convert::TryFrom",
+          "url": "https://doc.rust-lang.org/stable/std/convert/trait.TryFrom.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "TryFrom (since 1.34.0) is for conversions that may fail, returning Result<Self, Self::Error>; it implies TryInto, is in the 2021 prelude, and generic bounds should prefer TryInto; `as` silently truncates where try_from errors.",
+          "retrieved": true
+        },
+        {
+          "title": "std::convert::AsRef",
+          "url": "https://doc.rust-lang.org/stable/std/convert/trait.AsRef.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "AsRef is a cheap reference-to-reference conversion that must not fail; unlike Borrow it makes no Hash/Eq/Ord equivalence promise and has no blanket impl for T.",
+          "retrieved": true
+        },
+        {
+          "title": "std::borrow::Borrow",
+          "url": "https://doc.rust-lang.org/stable/std/borrow/trait.Borrow.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Borrow requires Eq, Ord and Hash of the borrowed form to match the owned value, which is why HashMap::get takes &Q with K: Borrow<Q>; CaseInsensitiveString must not implement Borrow<str> but may implement AsRef<str>.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust error code index: E0119",
+          "url": "https://doc.rust-lang.org/stable/error_codes/E0119.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A trait implementation that overlaps a blanket implementation for the same type is a conflicting implementation, E0119.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust API Guidelines: Interoperability (C-CONV-TRAITS)",
+          "url": "https://rust-lang.github.io/api-guidelines/interoperability.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Conversions implement From, TryFrom, AsRef and AsMut, and never Into or TryInto, which have blanket impls based on From and TryFrom.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Overload vector math with std::ops on a Copy Vec3, or reuse Rapier's glam DVec3 that already has the ops",
+      "what": "Each operator is a std::ops trait impl with an Output type, and the binary operators take their operands by value, so a vector type must be Copy (or implement the ops for references) to be used again after `a + b`.",
+      "how": "`#[derive(Debug, Clone, Copy, PartialEq, Default)] struct Vec3 { x: f64, y: f64, z: f64 }` plus `impl Add for Vec3 { type Output = Vec3; .. }`, `Sub`, `Neg`, `impl Mul<f64> for Vec3` (v * s), `impl Mul<Vec3> for f64` (s * v, allowed because Vec3 is local) and `impl AddAssign for Vec3` (+=). Keep operators unsurprising: scale with Mul<f64>, and name dot and cross as methods. Code that already links Rapier has `rapier3d_f64::math::Vector`, which in 0.35.3 is glam's DVec3 with Add, Sub, Neg, Mul<f64>, Mul<DVec3> for f64 and AddAssign, plus Copy, PartialEq, Default and Display, so a homemade Vec3 there duplicates it.",
+      "rust_version": "any; rapier3d-f64 0.35.3 (Vector = glam DVec3 via glamx)",
+      "gotchas": "Without Copy the second use of `a` after `a + b` is E0382 (use of moved value). A missing impl is E0369 ('cannot multiply `Vec3` by `{float}`'). `&&`, `||` and `=` cannot be overloaded. glam's DVec3 implements PartialEq but not Eq, Hash or PartialOrd, so it cannot be a HashMap or BTreeMap key, and the orphan rule stops you adding Hash to it (next recipe). Hash its components by to_bits, or wrap it. Negating a zero component gives -0.0 (the run check prints it), so canonicalise before hashing a negated vector.",
+      "engine_note": "rapier_law.rs already does its vector math on Rapier's `Vector` (`Vector::new(b[3], vy, b[5]) * DT`, `pos.translation + Vector::new(..) * DT`), which in rapier3d-f64 0.35.3 is parry's alias for glam `DVec3`; the ABI stays flat f64 slots. A local Vec3 newtype earns its place only for impls Rapier's type cannot carry, such as a bit-exact Eq/Hash key or a JS-compatible Display, not for arithmetic.",
+      "checks": [
+        {
+          "label": "Add, Sub, Neg, Mul<f64>, f64 * Vec3 and += on a Copy Vec3; Neg yields -0.0",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "Vec3 { x: 0.03125, y: 0.875, z: 0.0078125 }\nVec3 { x: -0.0, y: -1.0, z: -0.0 } true",
+          "source": "use std::ops::{Add, AddAssign, Mul, Neg, Sub};\n\n#[derive(Debug, Clone, Copy, PartialEq, Default)]\nstruct Vec3 {\n    x: f64,\n    y: f64,\n    z: f64,\n}\n\nimpl Vec3 {\n    const fn new(x: f64, y: f64, z: f64) -> Self { Vec3 { x, y, z } }\n}\nimpl Add for Vec3 {\n    type Output = Vec3;\n    fn add(self, o: Vec3) -> Vec3 { Vec3::new(self.x + o.x, self.y + o.y, self.z + o.z) }\n}\nimpl Sub for Vec3 {\n    type Output = Vec3;\n    fn sub(self, o: Vec3) -> Vec3 { Vec3::new(self.x - o.x, self.y - o.y, self.z - o.z) }\n}\nimpl Neg for Vec3 {\n    type Output = Vec3;\n    fn neg(self) -> Vec3 { Vec3::new(-self.x, -self.y, -self.z) }\n}\nimpl Mul<f64> for Vec3 {\n    type Output = Vec3;\n    fn mul(self, s: f64) -> Vec3 { Vec3::new(self.x * s, self.y * s, self.z * s) }\n}\nimpl Mul<Vec3> for f64 { // allowed: Vec3 is local\n    type Output = Vec3;\n    fn mul(self, v: Vec3) -> Vec3 { v * self }\n}\nimpl AddAssign for Vec3 {\n    fn add_assign(&mut self, o: Vec3) { *self = *self + o; }\n}\n\nconst DT: f64 = 1.0 / 64.0;\n\nfn main() {\n    let mut p = Vec3::new(0.0, 1.0, 0.0);\n    let v = Vec3::new(2.0, -8.0, 0.5);\n    p += v * DT;           // AddAssign + Mul<f64>\n    let back = p - DT * v; // Sub + Mul<Vec3> for f64; `v` reused because Vec3 is Copy\n    println!(\"{:?}\", p);\n    println!(\"{:?} {}\", -back, back == Vec3::new(0.0, 1.0, 0.0));\n}\n"
+        },
+        {
+          "label": "without Copy, the operand moved into `+` cannot be used again (E0382)",
+          "edition": "2024",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0382"
+          ],
+          "stderr_contains": [
+            "use of moved value: `a`"
+          ],
+          "source": "use std::ops::Add;\n\n#[derive(Debug, Clone, PartialEq)] // no Copy\nstruct Vec3 {\n    x: f64,\n    y: f64,\n    z: f64,\n}\nimpl Add for Vec3 {\n    type Output = Vec3;\n    fn add(self, o: Vec3) -> Vec3 { Vec3 { x: self.x + o.x, y: self.y + o.y, z: self.z + o.z } }\n}\n\nfn main() {\n    let a = Vec3 { x: 1.0, y: 0.0, z: 0.0 };\n    let b = Vec3 { x: 0.0, y: 1.0, z: 0.0 };\n    let c = a + b;\n    let d = a + c; // `a` was moved by the first `+`\n    println!(\"{:?}\", d);\n}\n"
+        },
+        {
+          "label": "an operator with no impl is E0369",
+          "edition": "2024",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0369"
+          ],
+          "stderr_contains": [
+            "cannot multiply `Vec3` by `{float}`"
+          ],
+          "source": "use std::ops::Add;\n\n#[derive(Debug, Clone, Copy, PartialEq)]\nstruct Vec3 {\n    x: f64,\n    y: f64,\n    z: f64,\n}\nimpl Add for Vec3 {\n    type Output = Vec3;\n    fn add(self, o: Vec3) -> Vec3 { Vec3 { x: self.x + o.x, y: self.y + o.y, z: self.z + o.z } }\n}\n\nfn main() {\n    let a = Vec3 { x: 1.0, y: 0.0, z: 0.0 };\n    println!(\"{:?}\", a * 2.0); // no Mul<f64> impl\n}\n"
+        },
+        {
+          "label": "Rapier's Vector (glam DVec3) already supports +, -, unary -, * f64, f64 *, +=",
+          "edition": "2021",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "use rapier3d_f64::math::Vector;\n\npub fn integrate(p: Vector, v: Vector, dt: f64) -> Vector {\n    let mut q = p;\n    q += v * dt;      // AddAssign, Mul<f64>\n    let r = -(q - p); // Sub, Neg\n    q + 2.0 * r       // Add, Mul<Vector> for f64\n}\n"
+        },
+        {
+          "label": "Rapier's Vector is neither Eq nor Hash, so it cannot key a map directly (E0277)",
+          "edition": "2021",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "the trait bound `DVec3: Eq` is not satisfied",
+            "the trait bound `DVec3: Hash` is not satisfied"
+          ],
+          "source": "use rapier3d_f64::math::Vector;\n\nfn key<T: Eq + std::hash::Hash>(_: T) {}\n\npub fn probe() {\n    key(Vector::ZERO);\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "std::ops (module)",
+          "url": "https://doc.rust-lang.org/stable/std/ops/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Only operators backed by std::ops traits can be overloaded; many take operands by value, so implement the traits for references too or rely on Copy; implementations should be unsurprising; && and || cannot be overloaded.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, 20.2 Advanced Traits (Default Generic Type Parameters and Operator Overloading)",
+          "url": "https://doc.rust-lang.org/stable/book/ch20-02-advanced-traits.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Add is `trait Add<Rhs=Self> { type Output; fn add(self, rhs: Rhs) -> Self::Output; }`; `impl Add<Meters> for Millimeters` overloads a mixed-type +; only the operators listed in std::ops can be overloaded.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust error code index: E0369",
+          "url": "https://doc.rust-lang.org/stable/error_codes/E0369.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A binary operation on a type that does not support it is E0369; most operators can be overloaded for your own type through std::ops.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust error code index: E0382",
+          "url": "https://doc.rust-lang.org/stable/error_codes/E0382.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Using a value after it was moved is E0382; Copy types are copied instead, and a type can derive Copy when all its members are Copy.",
+          "retrieved": true
+        },
+        {
+          "title": "glam 0.33.10: DVec3",
+          "url": "https://docs.rs/glam/0.33.10/glam/f64/struct.DVec3.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "DVec3 is a #[repr(C)] 3-dimensional f64 vector implementing Add, Sub, Neg, Mul<f64>, Mul<DVec3> for f64, AddAssign, Copy, PartialEq, Default and Display, and not Eq, Hash or PartialOrd.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2: math::Vector",
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/math/type.Vector.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "In parry3d-f64 0.30.2 (re-exported by rapier3d-f64 0.35.3 as math::Vector), `pub type Vector = DVec3;`.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust API Guidelines: Predictability (C-OVERLOAD)",
+          "url": "https://rust-lang.github.io/api-guidelines/predictability.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Operator overloads should be unsurprising: implement Mul only for an operation that resembles multiplication and shares its expected properties.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Satisfy the orphan rule with a local newtype and forward its methods; Deref does not confer trait impls",
+      "what": "You may implement a trait only when the trait or the type is local to your crate (E0117 otherwise); a one-field wrapper struct makes the type local at no run-time cost, but Deref on that wrapper only forwards method calls and does not make the wrapper implement the inner type's traits.",
+      "how": "`struct Samples(Vec<f64>); impl fmt::Display for Samples { .. }` compiles where `impl Display for Vec<f64>` is E0117 ('only traits defined in the current crate can be implemented for types defined outside of the crate'; rustc suggests a new trait or new type). The same holds for Rapier: `impl Hash for rapier3d_f64::math::Vector` is E0117, while `struct Key3(Vector)` with a to_bits Hash compiles. Give the wrapper the few methods it needs by delegation (`fn len(&self) -> usize { self.0.len() }`) or define a local trait. With `impl Deref<Target = Cube> for Tagged`, `tagged.volume()` resolves through auto-deref, yet `total(&[tagged])` with `T: Solid` is E0277.",
+      "rust_version": "any",
+      "gotchas": "The Book itself offers Deref as a way to give a wrapper every method of the inner value; std's Deref page says not to implement it when methods may collide with the target's or when deref coercion should not become public API, and the API guidelines reserve Deref for smart pointers. The practical failure is the trait-bound gap: generic code sees the wrapper, not the target. A newtype also loses Debug, Clone, PartialEq and the rest; derive or forward each one.",
+      "engine_note": "Rapier's `Vector` (glam DVec3) and `ColliderHandle` are foreign to si-solver, so any Hash, Ord or Display the law needs on them goes through a local wrapper or a local function. That is what the solver already does: `mix_f64` hashes components one by one, and the pair sort uses `into_raw_parts()` tuples.",
+      "checks": [
+        {
+          "label": "a foreign trait on a foreign type is E0117 (Display for Vec<f64>)",
+          "edition": "2024",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0117"
+          ],
+          "stderr_contains": [
+            "define and implement a trait or new type instead"
+          ],
+          "source": "use std::fmt;\n\nimpl fmt::Display for Vec<f64> {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        write!(f, \"{} samples\", self.len())\n    }\n}\n"
+        },
+        {
+          "label": "std Hash on Rapier's Vector is E0117 too",
+          "edition": "2021",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0117"
+          ],
+          "stderr_contains": [
+            "only traits defined in the current crate can be implemented for types defined outside of the crate"
+          ],
+          "source": "use rapier3d_f64::math::Vector;\nuse std::hash::{Hash, Hasher};\n\nimpl Hash for Vector {\n    fn hash<H: Hasher>(&self, h: &mut H) {\n        self.x.to_bits().hash(h)\n    }\n}\n"
+        },
+        {
+          "label": "a local newtype over Rapier's Vector may implement Eq and Hash by bits",
+          "edition": "2021",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "use rapier3d_f64::math::Vector;\nuse std::hash::{Hash, Hasher};\n\n/// A position key: identity is the bit pattern of each component.\n#[derive(Clone, Copy, Debug)]\npub struct Key3(pub Vector);\n\nimpl PartialEq for Key3 {\n    fn eq(&self, o: &Self) -> bool {\n        self.0.x.to_bits() == o.0.x.to_bits()\n            && self.0.y.to_bits() == o.0.y.to_bits()\n            && self.0.z.to_bits() == o.0.z.to_bits()\n    }\n}\nimpl Eq for Key3 {}\nimpl Hash for Key3 {\n    fn hash<H: Hasher>(&self, h: &mut H) {\n        self.0.x.to_bits().hash(h);\n        self.0.y.to_bits().hash(h);\n        self.0.z.to_bits().hash(h);\n    }\n}\n"
+        },
+        {
+          "label": "the newtype Samples(Vec<f64>) implements Display and delegates len()",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "[0.5, 1, 2] 3",
+          "source": "use std::fmt;\n\nstruct Samples(Vec<f64>);\n\nimpl Samples {\n    fn len(&self) -> usize { self.0.len() } // delegate what you need\n}\nimpl fmt::Display for Samples {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        let parts: Vec<String> = self.0.iter().map(|v| v.to_string()).collect();\n        write!(f, \"[{}]\", parts.join(\", \"))\n    }\n}\n\nfn main() {\n    let s = Samples(vec![0.5, 1.0, 2.0]);\n    println!(\"{} {}\", s, s.len());\n}\n"
+        },
+        {
+          "label": "Deref forwards method calls: tagged.volume() resolves to Cube's",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "1 7",
+          "source": "use std::ops::Deref;\n\ntrait Solid {\n    fn volume(&self) -> f64;\n}\nstruct Cube(f64);\nimpl Solid for Cube {\n    fn volume(&self) -> f64 { 8.0 * self.0 * self.0 * self.0 }\n}\n\n/// A cube plus a tag, \"inheriting\" from Cube through Deref.\nstruct Tagged {\n    inner: Cube,\n    tag: u32,\n}\nimpl Deref for Tagged {\n    type Target = Cube;\n    fn deref(&self) -> &Cube { &self.inner }\n}\n\nfn total<T: Solid>(items: &[T]) -> f64 {\n    items.iter().map(|s| s.volume()).sum()\n}\n\nfn main() {\n    let t = Tagged { inner: Cube(0.5), tag: 7 };\n    println!(\"{} {}\", t.volume(), t.tag); // auto-deref to Cube\n    let _ = total(&[Cube(1.0)]);\n}\n"
+        },
+        {
+          "label": "but Deref does not make Tagged implement Solid (E0277)",
+          "edition": "2024",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "the trait bound `Tagged: Solid` is not satisfied"
+          ],
+          "source": "use std::ops::Deref;\n\ntrait Solid {\n    fn volume(&self) -> f64;\n}\nstruct Cube(f64);\nimpl Solid for Cube {\n    fn volume(&self) -> f64 { 8.0 * self.0 * self.0 * self.0 }\n}\n\n/// A cube plus a tag, \"inheriting\" from Cube through Deref.\nstruct Tagged {\n    inner: Cube,\n    tag: u32,\n}\nimpl Deref for Tagged {\n    type Target = Cube;\n    fn deref(&self) -> &Cube { &self.inner }\n}\n\nfn total<T: Solid>(items: &[T]) -> f64 {\n    items.iter().map(|s| s.volume()).sum()\n}\n\nfn main() {\n    let t = Tagged { inner: Cube(0.5), tag: 7 };\n    println!(\"{} {}\", t.volume(), t.tag);\n    println!(\"{}\", total(&[t])); // the bound sees Tagged, not Cube\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Programming Language, 10.2 Defining Shared Behavior with Traits",
+          "url": "https://doc.rust-lang.org/stable/book/ch10-02-traits.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "A trait can be implemented on a type only if the trait or the type is local to the crate (coherence, the orphan rule); Display cannot be implemented on Vec<T> in your crate.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, 20.2 Advanced Traits (the newtype pattern)",
+          "url": "https://doc.rust-lang.org/stable/book/ch20-02-advanced-traits.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "A tuple-struct wrapper makes the type local so an external trait can be implemented, with no run-time penalty; the wrapper lacks the inner type's methods, and the Book offers delegation or Deref.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Implementations (Orphan rules)",
+          "url": "https://doc.rust-lang.org/stable/reference/items/implementations.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "An impl is allowed only if the trait is local or a local type appears (with no uncovered type parameters before it); orphan impls of a foreign trait for a foreign type are rejected to keep coherence.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust error code index: E0117",
+          "url": "https://doc.rust-lang.org/stable/error_codes/E0117.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Only traits defined in the current crate can be implemented for arbitrary types; the fix is a local type or a local trait.",
+          "retrieved": true
+        },
+        {
+          "title": "std::ops::Deref",
+          "url": "https://doc.rust-lang.org/stable/std/ops/trait.Deref.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Implement Deref only if the type transparently behaves like the target, the deref is cheap and coercion will not surprise; do not if methods may collide with the target's or deref coercion should not be public API.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust API Guidelines: Predictability (C-DEREF)",
+          "url": "https://rust-lang.github.io/api-guidelines/predictability.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Only smart pointers implement Deref and DerefMut, because the compiler uses them implicitly in method resolution.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust Design Patterns: Deref polymorphism (anti-pattern)",
+          "url": "https://rust-unofficial.github.io/patterns/anti_patterns/deref.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Using Deref to emulate inheritance is an anti-pattern: there is no subtyping and traits implemented by the target are not implemented by the wrapper; use traits, facade methods or delegation instead.",
+          "retrieved": true
+        },
+        {
+          "title": "Effective Rust, Item 6: Embrace the newtype pattern (David Drysdale)",
+          "url": "https://effective-rust.com/newtype.html",
+          "year": 2024,
+          "kind": "book",
+          "identifier": "",
+          "claim": "A newtype lets a crate implement a foreign trait for a foreign type; its costs are the .0 access and forwarding every trait impl the inner type had.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Implement Iterator for your own type with type Item and next(); the adapters and for loops come free",
+      "what": "Iterator has one required method, `next(&mut self) -> Option<Self::Item>`; map, filter, zip, sum, collect and for-loop support all come from its provided methods and std's blanket IntoIterator impl.",
+      "how": "Keep the cursor state in a struct and implement next: return `Some(item)` and advance, or `None` when done. Example: `impl<'a> Iterator for Rows<'a> { type Item = &'a [f64]; fn next(&mut self) -> Option<&'a [f64]> { .. } }` over a flat stride-17 buffer then works in `for r in rows`, `.map(|r| r[0]).collect::<Vec<_>>()` and `.filter(..).count()`. Override `size_hint` when the length is known (the default is (0, None)); call `.fuse()` or implement FusedIterator if callers rely on None staying None.",
+      "rust_version": "any",
+      "gotchas": "Omitting `next` or `type Item` is E0046. After next returns None a plain Iterator may resume (the fuse check shows Some, None, Some); `.fuse()` pins None. size_hint is advisory, and unsafe code must not trust it to skip bounds checks. Iterators are lazy: `v.iter().map(f);` with no consumer does nothing and rustc warns (`unused_must_use`: 'iterators are lazy and do nothing unless consumed'). Before writing one, check std: fixed-stride rows are what `slice::chunks_exact` (1.31+) already yields, as the run check confirms (collections lane).",
+      "engine_note": "rapier_law.rs walks bodies by index (`for i in 0..n_bodies as usize { let b = body_at(i); .. }`), where `body_at` copies one 17-slot row out of `static mut BODIES` into a `[f64; BODY_STRIDE]`. An iterator replacing those loops should keep yielding copies (Item = [f64; BODY_STRIDE]) so it holds no reference into the static; static mut rules are the unsafe-ffi lane's.",
+      "checks": [
+        {
+          "label": "only next() written: size_hint default, map/collect, filter/count, for; chunks_exact agrees",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "(0, None)\n[0.0, 0.5, 1.0] 1 1.5 true",
+          "source": "const STRIDE: usize = 17;\n\n/// Walks the first `n` rows of a flat, stride-17 body buffer.\nstruct Rows<'a> {\n    buf: &'a [f64],\n    next_row: usize,\n    n: usize,\n}\n\nimpl<'a> Iterator for Rows<'a> {\n    type Item = &'a [f64];\n    fn next(&mut self) -> Option<&'a [f64]> {\n        if self.next_row == self.n {\n            return None;\n        }\n        let start = self.next_row * STRIDE;\n        self.next_row += 1;\n        Some(&self.buf[start..start + STRIDE])\n    }\n}\n\nfn main() {\n    let mut buf = [0.0f64; 4 * STRIDE];\n    for i in 0..4 {\n        buf[i * STRIDE] = i as f64 * 0.5;        // slot 0: x\n        buf[i * STRIDE + 16] = (i % 2) as f64;   // slot 16: driven flag\n    }\n    let rows = |n| Rows { buf: &buf, next_row: 0, n };\n    println!(\"{:?}\", rows(3).size_hint()); // provided default: (0, None)\n    let xs: Vec<f64> = rows(3).map(|r| r[0]).collect();\n    let driven = rows(3).filter(|r| r[16] == 1.0).count();\n    let mut sum = 0.0;\n    for r in rows(3) {\n        sum += r[0];\n    }\n    // std already walks fixed-stride rows: chunks_exact yields the same slices\n    let via_std: Vec<f64> = buf[..3 * STRIDE].chunks_exact(STRIDE).map(|r| r[0]).collect();\n    println!(\"{:?} {} {} {}\", xs, driven, sum, xs == via_std);\n}\n"
+        },
+        {
+          "label": "an Iterator impl without next is E0046",
+          "edition": "2024",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0046"
+          ],
+          "stderr_contains": [
+            "missing: `next`"
+          ],
+          "source": "pub struct Ticks {\n    pub i: u32,\n}\nimpl Iterator for Ticks {\n    type Item = f64;\n}\n"
+        },
+        {
+          "label": "a plain iterator may resume after None; fuse() keeps it None",
+          "edition": "2024",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "Some(1) None Some(3)\nSome(1) None None",
+          "source": "struct Blink {\n    n: u32,\n}\nimpl Iterator for Blink {\n    type Item = u32;\n    fn next(&mut self) -> Option<u32> {\n        self.n += 1;\n        if self.n % 2 == 0 { None } else { Some(self.n) }\n    }\n}\n\nfn main() {\n    let mut b = Blink { n: 0 };\n    let (x, y, z) = (b.next(), b.next(), b.next());\n    println!(\"{:?} {:?} {:?}\", x, y, z);\n    let mut f = Blink { n: 0 }.fuse();\n    let (x, y, z) = (f.next(), f.next(), f.next());\n    println!(\"{:?} {:?} {:?}\", x, y, z);\n}\n"
+        },
+        {
+          "label": "an unconsumed adapter does nothing and warns unused_must_use",
+          "edition": "2024",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "lints": [
+            "unused_must_use"
+          ],
+          "stderr_contains": [
+            "iterators are lazy and do nothing unless consumed"
+          ],
+          "source": "pub fn scale(v: &[f64]) {\n    v.iter().map(|x| x * 2.0);\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "std::iter::Iterator",
+          "url": "https://doc.rust-lang.org/stable/std/iter/trait.Iterator.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Iterator requires the associated type Item and the method next; the many other methods are provided; an iterator may resume after returning None (use fuse or FusedIterator); size_hint defaults to (0, None) and must not be trusted by unsafe code.",
+          "retrieved": true
+        },
+        {
+          "title": "std::iter (module): Implementing Iterator; for loops and IntoIterator; Laziness",
+          "url": "https://doc.rust-lang.org/stable/std/iter/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A custom iterator is a struct holding state plus an Iterator impl whose next is the only required method; every Iterator implements IntoIterator so it works in for loops; adapters are lazy and rustc warns when one is unused.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, 13.2 Processing a Series of Items with Iterators",
+          "url": "https://doc.rust-lang.org/stable/book/ch13-02-iterators.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The Iterator trait only requires implementors to define next, which returns Some(item) and None when iteration is over.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust By Example: Iterators",
+          "url": "https://doc.rust-lang.org/rust-by-example/trait/iter.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Implementing Iterator for a custom type (a Fibonacci struct) needs only next and the associated Item type; take and skip then come with it.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust error code index: E0046",
+          "url": "https://doc.rust-lang.org/stable/error_codes/E0046.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Every required item of a trait, methods and associated types alike, must be implemented.",
+          "retrieved": true
+        },
+        {
+          "title": "std::slice::ChunksExact",
+          "url": "https://doc.rust-lang.org/stable/std/slice/struct.ChunksExact.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "chunks_exact (ChunksExact since 1.31.0) iterates a slice in non-overlapping chunk_size pieces, leaving any shorter tail to remainder().",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

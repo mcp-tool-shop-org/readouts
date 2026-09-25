@@ -1,0 +1,1483 @@
+{
+  "laneSlug": "types-patterns",
+  "title": "Structs, enums & pattern matching",
+  "tier": "essentials",
+  "recipes": [
+    {
+      "name": "Pick named-field, tuple or unit structs by meaning; hang constructors and constants on impl blocks",
+      "what": "Rust has three struct kinds (named-field, tuple, unit-like); every fn in an impl block is an associated function, only those taking self are methods, and an associated const is evaluated only when something references it.",
+      "how": "Named fields when fields have distinct roles (`struct Face { axis, pen, dir }`); a tuple struct for a one-field wrapper or a same-shaped but different type (`struct Quanta(u32)`); a unit-like struct (`struct Warm;`) for a type with no data. Constructors are associated functions returning `Self` (`fn new(x: f64, y: f64, z: f64) -> Self { Self { x, y, z } }`), fixed values are associated consts (`const ZERO: Vec3 = ...;`), both called through the type: `Vec3::new(..)`, `Vec3::ZERO`, `Self::PER_SECOND`. A type may have several impl blocks. Calling a self-less fn with method syntax (`v.new(..)`) is E0599 'this is an associated function, not a method'.",
+      "rust_version": "any (checked on 1.98.1)",
+      "gotchas": "An associated const is const-evaluated only when referenced, so `const CHECK: () = assert!(Self::MAX_BODIES <= 32);` inside an impl proves nothing until code names `Self::CHECK`; unreferenced, the false assertion compiles with only a dead_code warning ('associated constant `CHECK` is never used'), referenced it is E0080. Tuple-struct fields are positional (`.0`), so a tuple struct with several fields of one type invites transposition; use named fields there. Field-init shorthand and `..base` update syntax are conveniences, not further struct kinds.",
+      "engine_note": "rapier_law.rs builds `Loaded.signature` by copying `Signature` field by field and compares signatures field by field in `same_sig`. `Signature` is a named-field struct of u32/u64 only (the f64 `cell` is stored as `to_bits()`), so derived Clone/Copy/PartialEq/Eq (contracts: traits-generics lane) could replace both hand-written copies. The slot numbers (`HX`..`DRIVEN` in lib.rs, `QX`..`WZ` in rapier_law.rs) are free consts; associated consts on a record type would namespace them without touching the ABI.",
+      "checks": [
+        {
+          "label": "named, tuple and unit structs with associated consts and fns called through the type",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "0 14\n0.5\nWarm",
+          "source": "#[derive(Debug, Clone, Copy)]\nstruct Vec3 { x: f64, y: f64, z: f64 } // named fields\n#[derive(Debug, Clone, Copy)]\nstruct Quanta(u32); // tuple struct\n#[derive(Debug)]\nstruct Warm; // unit-like struct\n\nimpl Vec3 {\n    const ZERO: Vec3 = Vec3 { x: 0.0, y: 0.0, z: 0.0 };\n    fn new(x: f64, y: f64, z: f64) -> Self { Self { x, y, z } }\n}\nimpl Vec3 { // a second impl block for the same type\n    fn dot(self, o: Vec3) -> f64 { self.x * o.x + self.y * o.y + self.z * o.z }\n}\nimpl Quanta {\n    const PER_SECOND: u32 = 64;\n    fn seconds(self) -> f64 { f64::from(self.0) / f64::from(Self::PER_SECOND) }\n}\nfn main() {\n    let v = Vec3::new(1.0, 2.0, 3.0);\n    println!(\"{} {}\", v.dot(Vec3::ZERO), v.dot(v));\n    println!(\"{}\", Quanta(32).seconds());\n    println!(\"{:?}\", Warm);\n}\n"
+        },
+        {
+          "label": "calling a self-less associated fn with method syntax is E0599",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0599"
+          ],
+          "stderr_contains": [
+            "this is an associated function, not a method"
+          ],
+          "source": "struct Vec3 { x: f64, y: f64, z: f64 }\nimpl Vec3 {\n    const ZERO: Vec3 = Vec3 { x: 0.0, y: 0.0, z: 0.0 };\n    fn new(x: f64, y: f64, z: f64) -> Self { Self { x, y, z } }\n}\nfn main() {\n    let v = Vec3::ZERO;\n    let w = v.new(1.0, 2.0, 3.0);\n    let _ = (w.x, w.y, w.z);\n}\n"
+        },
+        {
+          "label": "a false assert in an unreferenced associated const compiles (dead_code warning only)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "lints": [
+            "dead_code"
+          ],
+          "stderr_contains": [
+            "associated constant `CHECK` is never used"
+          ],
+          "stdout": "64",
+          "source": "struct Solver;\nimpl Solver {\n    const MAX_BODIES: usize = 64;\n    const CHECK: () = assert!(Self::MAX_BODIES <= 32, \"masks are 32-bit\");\n}\nfn main() { println!(\"{}\", Solver::MAX_BODIES); }\n"
+        },
+        {
+          "label": "the same associated const, once referenced, is evaluated and fails with E0080",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "masks are 32-bit"
+          ],
+          "source": "struct Solver;\nimpl Solver {\n    const MAX_BODIES: usize = 64;\n    const CHECK: () = assert!(Self::MAX_BODIES <= 32, \"masks are 32-bit\");\n}\nfn main() {\n    let () = Solver::CHECK;\n    println!(\"{}\", Solver::MAX_BODIES);\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Programming Language, 5.1 Defining and Instantiating Structs",
+          "url": "https://doc.rust-lang.org/stable/book/ch05-01-defining-structs.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Defines named-field structs, tuple structs (the name adds meaning, fields have only types) and unit-like structs, and states that each struct is its own type even with identical field types.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, 5.3 Method Syntax (Associated Functions)",
+          "url": "https://doc.rust-lang.org/stable/book/ch05-03-method-syntax.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "All functions in an impl block are associated functions; those without self are not methods, are called with `Type::name` syntax, and a type may have multiple impl blocks.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference, Associated items",
+          "url": "https://doc.rust-lang.org/stable/reference/items/associated-items.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Associated constant definitions undergo constant evaluation only when referenced; associated functions whose first parameter is self are methods callable with method-call syntax.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Model a closed set of body states as an enum with per-variant data, not a flag number or parallel vectors",
+      "what": "An enum value is exactly one variant and carries only that variant's data, so the states a flag number or parallel Vec<bool> / Vec<Option<_>> admit but nobody means (mode 4.0, mode 1.5, NaN, kinematic with no handle) cannot be constructed.",
+      "how": "Write `enum Slot { Carried, Dynamic { handle: RigidBodyHandle }, Kinematic { handle: RigidBodyHandle, lifted: bool } }` rather than a number compared with `== 1.0` or `kinematic: Vec<bool>` beside `handles: Vec<Option<_>>`. Data lives in the variant that needs it — building `Slot::Kinematic { lifted: true }` without its handle is E0063. Read it with an exhaustive `match`. A fieldless enum casts to its integer (`Mode::Lifted as u32` is 2); there is no integer-to-enum cast (`2u32 as Mode` is E0605), so numbers enter through `TryFrom` (ABI-edge recipe).",
+      "rust_version": "any",
+      "gotchas": "A `bool` field or parameter is a two-variant flag with no name for a third state; the API guidelines (C-CUSTOM-TYPE) prefer a custom type because it can grow a variant. Explicit discriminants (`Dynamic = 0`) are allowed on unit-only enums or under a primitive representation such as #[repr(u8)]; they document the wire value but validate nothing coming in. Swapping a flag for an enum inside Rust leaves the ABI alone as long as the conversion happens at the export edge.",
+      "engine_note": "Body slot 16 (`solverMode`, set by `solverModes` in packages/tick/world.js: 0 undriven, 1 driven, 2 driven and lifted, 3 carried) is an f64 read two ways at e5fbcb9. lib.rs `step()` tests `!= 0.0`: every non-zero value, NaN included, is driven, and there is no lifted or carried case. rapier_law.rs `signature()` tests `== 1.0 || == 2.0` then `== 3.0`: 4.0, 1.5 and NaN all fall through to dynamic. Neither refuses an unknown value, and no NaN check covers slot 16 (step() checks slots 0-5 after stepping; signature() checks 0-15). Inside `Loaded`, `kinematic: Vec<bool>` and `handles: Vec<Option<RigidBodyHandle>>` encode per-body state in parallel, and `integrate()` has to skip the (kinematic, None) combination with `let Some(handle) = .. else { continue; }`. `Face.axis: u8` with `rank()`'s final `else { 2 }` (any byte not b'y' or b'x' ranks as z) is the same pattern in miniature; an `enum Axis` makes the ranking an exhaustive match.",
+      "checks": [
+        {
+          "label": "the two slot-16 readers (lib.rs step, rapier_law.rs signature) disagree on 4.0, 1.5 and NaN",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "0: box step driven=false | rapier law dynamic\n1: box step driven=true | rapier law driven\n2: box step driven=true | rapier law driven\n3: box step driven=true | rapier law carried\n4: box step driven=true | rapier law dynamic\n1.5: box step driven=true | rapier law dynamic\nNaN: box step driven=true | rapier law dynamic",
+          "source": "// Comparisons copied from si-rpg-engine e5fbcb9.\nfn box_step_driven(slot: f64) -> bool { slot != 0.0 } // lib.rs step()\nfn rapier_law_class(slot: f64) -> &'static str { // rapier_law.rs signature()\n    if slot == 1.0 || slot == 2.0 { \"driven\" } else if slot == 3.0 { \"carried\" } else { \"dynamic\" }\n}\nfn main() {\n    for x in [0.0, 1.0, 2.0, 3.0, 4.0, 1.5, f64::NAN] {\n        println!(\"{x}: box step driven={} | rapier law {}\", box_step_driven(x), rapier_law_class(x));\n    }\n}\n"
+        },
+        {
+          "label": "an enum with per-variant data, read by an exhaustive match; fieldless enum casts to u32",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "carried: not in the solver\ndynamic #3\nlifted kinematic #4\n[0, 1, 2, 3]",
+          "source": "#[derive(Clone, Copy)]\nenum Slot {\n    Carried,\n    Dynamic { handle: u32 },\n    Kinematic { handle: u32, lifted: bool },\n}\n#[derive(Clone, Copy)]\nenum Mode { Dynamic, Kinematic, Lifted, Carried }\nfn describe(s: Slot) -> String {\n    match s {\n        Slot::Carried => \"carried: not in the solver\".to_string(),\n        Slot::Dynamic { handle } => format!(\"dynamic #{handle}\"),\n        Slot::Kinematic { handle, lifted: true } => format!(\"lifted kinematic #{handle}\"),\n        Slot::Kinematic { handle, lifted: false } => format!(\"kinematic #{handle}\"),\n    }\n}\nfn main() {\n    for s in [Slot::Carried, Slot::Dynamic { handle: 3 }, Slot::Kinematic { handle: 4, lifted: true }] {\n        println!(\"{}\", describe(s));\n    }\n    let modes = [Mode::Dynamic, Mode::Kinematic, Mode::Lifted, Mode::Carried];\n    println!(\"{:?}\", modes.map(|m| m as u32));\n}\n"
+        },
+        {
+          "label": "a kinematic slot without its handle cannot be built: E0063",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0063"
+          ],
+          "stderr_contains": [
+            "missing field `handle`"
+          ],
+          "source": "enum Slot {\n    Carried,\n    Dynamic { handle: u32 },\n    Kinematic { handle: u32, lifted: bool },\n}\nfn main() {\n    let _s = Slot::Kinematic { lifted: true };\n}\n"
+        },
+        {
+          "label": "there is no integer-to-enum cast: `1u32 as Mode` is E0605",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0605"
+          ],
+          "stderr_contains": [
+            "non-primitive cast: `u32` as `Mode`"
+          ],
+          "source": "#[derive(Debug)]\nenum Mode { Dynamic, Kinematic }\nfn main() {\n    let m = 1u32 as Mode;\n    println!(\"{:?} {:?}\", m, Mode::Dynamic);\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Programming Language, 6.1 Defining an Enum",
+          "url": "https://doc.rust-lang.org/stable/book/ch06-01-defining-an-enum.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Enums say a value is one of a set of possible values; data can be put directly into each variant, and each variant can have different types and amounts of associated data.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference, Enumerations",
+          "url": "https://doc.rust-lang.org/stable/reference/items/enumerations.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Explicit discriminants are allowed only on unit-only enums or under a primitive representation (#[repr(u8)] shown); unit-only and field-less enums can be cast to integers with `as`.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference, Operator expressions (overflow, ? operator, type cast expressions)",
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "The cast table has an Enumeration-to-integer row (enum cast) and no integer-to-enumeration row.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust API Guidelines, Type safety (C-NEWTYPE, C-CUSTOM-TYPE)",
+          "url": "https://rust-lang.github.io/api-guidelines/type-safety.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "C-CUSTOM-TYPE: core types like bool, u8 and Option have many possible interpretations; a custom type reads better and makes it easier to add a variant later.",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine solver/src/lib.rs at e5fbcb9",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/src/lib.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "e5fbcb9",
+          "claim": "step() reads the driven flag as `*field(bodies, i, DRIVEN) != 0.0` with DRIVEN = 16; Face stores its axis as a u8 and rank() ranks b'y', then b'x', then everything else.",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine solver/src/rapier_law.rs at e5fbcb9",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/src/rapier_law.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "e5fbcb9",
+          "claim": "signature() sets the driven bit when b[DRIVEN] == 1.0 || == 2.0 and the carried bit when == 3.0; Loaded keeps kinematic: Vec<bool> beside handles: Vec<Option<RigidBodyHandle>>.",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine packages/tick/world.js at e5fbcb9",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/packages/tick/world.js",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "e5fbcb9",
+          "claim": "solverModes assigns solverMode 3 to carried bodies, 2 to driven and lifted, 1 to driven, 0 otherwise.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "List every variant in a match: a `_` arm silently absorbs variants added later",
+      "what": "match must be exhaustive (E0004 names the missing pattern), which turns 'a variant was added' into a compile error at every match that has to decide about it; a `_` arm switches that off and hands the new variant the default.",
+      "how": "For enums you own, name every variant and leave `_` out, so adding `Carried` breaks each match until someone decides what Carried does. Use `_` (or a named catch-all such as `other`) for open domains (integers, floats, strings) and for #[non_exhaustive] enums from another crate, where the compiler requires it (std's `IntErrorKind`). Put a catch-all last: arms after it are unreachable and rustc warns (`unreachable_patterns`). Guards (`if`, and since 1.95 `if let`) never count toward exhaustiveness, so a guarded arm needs an unguarded partner. rapier3d-f64 0.35.3 does not mark RigidBodyType (Dynamic, Fixed, KinematicPositionBased, KinematicVelocityBased) #[non_exhaustive] — a grep of the pinned registry source finds the attribute nowhere in the crate — so a `_`-free match over it compiles.",
+      "rust_version": "any; if-let guards 1.95+",
+      "gotchas": "#[non_exhaustive] has no effect inside the defining crate; outside it, matching needs a wildcard and its structs and variants cannot be constructed. The lint that would warn when a `_` arm covers named variants of a non_exhaustive enum, `non_exhaustive_omitted_patterns`, is unstable: on stable 1.98.1 naming it only produces an unknown-lint warning, so there is no stable compiler help for that case. A catch-all written as a named binding (`other => ..`) is just as silent as `_`.",
+      "engine_note": "When the solver matches on its own decoded mode enum (ABI-edge recipe), write every arm: a `_ => dynamic` arm would rebuild today's rapier_law.rs behaviour in which any unknown slot-16 value is dynamic. Matches over Rapier's RigidBodyType can stay `_`-free under the pinned rapier3d-f64 0.35.3, which makes a variant added by a future bump a compile error at each site — one more tripwire beside the golden hashes.",
+      "checks": [
+        {
+          "label": "a match missing one variant is E0004 naming it",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0004"
+          ],
+          "stderr_contains": [
+            "`Mode::Carried` not covered"
+          ],
+          "source": "#[derive(Clone, Copy)]\nenum Mode { Dynamic, Kinematic, Lifted, Carried }\nfn applies_gravity(m: Mode) -> bool {\n    match m {\n        Mode::Dynamic => true,\n        Mode::Kinematic => true,\n        Mode::Lifted => false,\n    }\n}\nfn main() { let _ = applies_gravity(Mode::Carried); }\n"
+        },
+        {
+          "label": "with `_`, a variant added later silently takes the default",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "Dynamic:true Kinematic:true Lifted:false Carried:true",
+          "source": "#[derive(Clone, Copy, Debug)]\nenum Mode { Dynamic, Kinematic, Lifted, Carried } // Carried was added last\n// Written before Carried existed: \"only a lifted body skips gravity\".\nfn applies_gravity(m: Mode) -> bool {\n    match m {\n        Mode::Lifted => false,\n        _ => true,\n    }\n}\nfn main() {\n    for m in [Mode::Dynamic, Mode::Kinematic, Mode::Lifted, Mode::Carried] {\n        print!(\"{:?}:{} \", m, applies_gravity(m));\n    }\n    println!();\n}\n",
+          "no_warnings": true
+        },
+        {
+          "label": "std's #[non_exhaustive] IntErrorKind needs `_` even with all five variants listed",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0004"
+          ],
+          "stderr_contains": [
+            "marked as non-exhaustive, so a wildcard `_` is necessary"
+          ],
+          "source": "use std::num::IntErrorKind;\nfn describe(k: &IntErrorKind) -> &'static str {\n    match k {\n        IntErrorKind::Empty => \"empty\",\n        IntErrorKind::InvalidDigit => \"digit\",\n        IntErrorKind::PosOverflow => \"too big\",\n        IntErrorKind::NegOverflow => \"too small\",\n        IntErrorKind::Zero => \"zero\",\n    }\n}\nfn main() { println!(\"{}\", describe(\"x\".parse::<u8>().unwrap_err().kind())); }\n"
+        },
+        {
+          "label": "non_exhaustive_omitted_patterns is not a stable lint on 1.98.1",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compiles",
+          "lints": [
+            "unknown_lints"
+          ],
+          "stderr_contains": [
+            "the `non_exhaustive_omitted_patterns` lint is unstable"
+          ],
+          "source": "#![warn(non_exhaustive_omitted_patterns)]\nfn main() {}\n"
+        },
+        {
+          "label": "arms after a catch-all are unreachable and warned",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "lints": [
+            "unreachable_patterns"
+          ],
+          "stdout": "0",
+          "source": "fn f(x: u8) -> u8 {\n    match x {\n        _ => 0,\n        3 => 1,\n    }\n}\nfn main() { println!(\"{}\", f(3)); }\n"
+        },
+        {
+          "label": "guarded arms do not count toward exhaustiveness",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0004"
+          ],
+          "stderr_contains": [
+            "match arms with guards don't count towards exhaustivity"
+          ],
+          "source": "fn sign(o: Option<i32>) -> i32 {\n    match o {\n        Some(x) if x >= 0 => 1,\n        Some(x) if x < 0 => -1,\n        None => 0,\n    }\n}\nfn main() { println!(\"{}\", sign(Some(3))); }\n"
+        },
+        {
+          "label": "rapier3d-f64 0.35.3 RigidBodyType matches exhaustively with no `_` arm",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "1",
+          "no_warnings": true,
+          "source": "use rapier3d_f64::dynamics::RigidBodyType;\nfn solver_mode(t: RigidBodyType) -> u32 {\n    match t {\n        RigidBodyType::Dynamic => 0,\n        RigidBodyType::KinematicPositionBased => 1,\n        RigidBodyType::KinematicVelocityBased => 1,\n        RigidBodyType::Fixed => 4,\n    }\n}\nfn main() { println!(\"{}\", solver_mode(RigidBodyType::KinematicPositionBased)); }\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Programming Language, 6.2 The match Control Flow Construct",
+          "url": "https://doc.rust-lang.org/stable/book/ch06-02-match.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Match arms must cover all possibilities (E0004 names the missing pattern); a catch-all arm must come last because arms after it never run and Rust warns about them.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference, Type system attributes: the non_exhaustive attribute",
+          "url": "https://doc.rust-lang.org/stable/reference/attributes/type_system.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "non_exhaustive has no effect in the defining crate; outside it, matching a non-exhaustive enum requires a wildcard arm and its structs/variants cannot be constructed.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, 19.3 Pattern Syntax",
+          "url": "https://doc.rust-lang.org/stable/book/ch19-03-pattern-syntax.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The compiler doesn't try to check for exhaustiveness when match guard expressions are involved.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.95.0 (if-let guards; bool: TryFrom<{integer}>)",
+          "url": "https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "The compiler does not consider patterns matched in if-let guards as part of exhaustiveness, just like if guards.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 docs: enum RigidBodyType",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/enum.RigidBodyType.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "In rapier3d-f64 0.35.3 RigidBodyType has four variants (Dynamic = 0, Fixed = 1, KinematicPositionBased = 2, KinematicVelocityBased = 3) and is not #[non_exhaustive].",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Keep patterns edition-2024 clean: no `mut`, `ref` or `&` inside an implicitly borrowing pattern",
+      "what": "Matching a reference with a non-reference pattern switches the default binding mode to ref / ref mut; Rust 2024 makes `mut`, `ref`, `ref mut`, `&` and `&mut` under that implicit mode hard errors, where Rust 2021 accepted them and a `mut` silently reset the binding to a by-value copy.",
+      "how": "Either let match ergonomics bind (`let (a, b) = pair;` with `pair: &(u8, u8)` gives `a: &u8, b: &u8`) or make the prefix explicit (`let &(mut a, ref b) = pair;`); do not mix them. Before a 2021 crate changes edition, turn on the allow-by-default lint `#![warn(rust_2024_incompatible_pat)]`; `cargo fix --edition` applies its rewrites (`let [x, mut y] = &[(), ()];` becomes `let &[ref x, mut y] = &[(), ()];`). The three 2024 errors carry no error code: 'cannot mutably bind by value within an implicitly-borrowing pattern', 'cannot explicitly borrow within an implicitly-borrowing pattern', 'cannot explicitly dereference within an implicitly-borrowing pattern'.",
+      "rust_version": "edition 2024 (errors); the lint runs in edition 2021 on 1.98.1",
+      "gotchas": "The 2021 trap is `mut`: in `let (mut a, b) = &(1u8, 2u8);` `a` is a by-value u8 copy while `b` is `&u8`, so `a += 10` never touches the tuple. A redundant `ref` was harmless in 2021 and is an error in 2024, so code that compiled for years stops compiling on the edition bump. Edition is per crate: a 2021 crate keeps 2021 pattern rules on the 1.98.1 compiler.",
+      "engine_note": "The solver crate is edition 2021 (solver/Cargo.toml). Measured 2026-09-25: a scratch copy of solver/src/lib.rs + rapier_law.rs at e5fbcb9 compiled with rustc 1.98.1 `--edition 2021 -W rust_2024_incompatible_pat` against rapier3d-f64 0.35.3 reports no site, so binding modes will not block a 2024 move; the other edition-2024 changes the solver would meet belong to the rust-currency lane.",
+      "checks": [
+        {
+          "label": "2021: `mut` under an implicitly borrowing pattern silently copies",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "a=11 b=2 pair=(1, 2)",
+          "source": "fn main() {\n    let pair = &(1u8, 2u8);\n    let (mut a, b) = pair; // a: u8 (copied), b: &u8\n    a += 10;\n    let b: &u8 = b;\n    println!(\"a={a} b={b} pair={:?}\", pair);\n}\n",
+          "no_warnings": true
+        },
+        {
+          "label": "2024: the same `mut` is an error",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "cannot mutably bind by value within an implicitly-borrowing pattern"
+          ],
+          "source": "fn main() {\n    let pair = &(1u8, 2u8);\n    let (mut a, b) = pair;\n    a += 10;\n    let b: &u8 = b;\n    println!(\"a={a} b={b} pair={:?}\", pair);\n}\n"
+        },
+        {
+          "label": "2024: a redundant `ref` under implicit borrowing is an error",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "cannot explicitly borrow within an implicitly-borrowing pattern"
+          ],
+          "source": "fn main() {\n    let [ref x] = &[()];\n    let _: &() = x;\n}\n"
+        },
+        {
+          "label": "2024: a `&` pattern under implicit borrowing is an error",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "cannot explicitly dereference within an implicitly-borrowing pattern"
+          ],
+          "source": "fn main() {\n    let [&x, y] = &[&(), &()];\n    let _: () = x;\n    let _: &&() = y;\n}\n"
+        },
+        {
+          "label": "2021: rust_2024_incompatible_pat reports the site before the edition move",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "lints": [
+            "rust_2024_incompatible_pat"
+          ],
+          "stderr_contains": [
+            "this changes meaning in Rust 2024"
+          ],
+          "stdout": "2021 accepts it",
+          "source": "#[warn(rust_2024_incompatible_pat)]\nfn main() {\n    let [x, mut y] = &[(), ()];\n    let _: &() = x;\n    y = ();\n    let _: () = y;\n    println!(\"2021 accepts it\");\n}\n"
+        },
+        {
+          "label": "2024: fully explicit prefixes and pure ergonomics both compile",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "1 3 3 4 5 6",
+          "source": "fn main() {\n    let &[ref x, mut y] = &[1u8, 2u8];\n    y += 1;\n    let &[&a, ref b] = &[&3u8, &4u8];\n    let (c, d) = &(5u8, 6u8); // ergonomics: c: &u8, d: &u8\n    let _: (&u8, u8, u8, &&u8, &u8, &u8) = (x, y, a, b, c, d);\n    println!(\"{x} {y} {a} {b} {c} {d}\");\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Edition Guide, Rust 2024: Match ergonomics reservations",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/match-ergonomics.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "In Rust 2024, writing mut, ref or ref mut on a binding when the default binding mode is not move is an error, reference patterns are allowed only in the fully explicit prefix, and the migration lint is rust_2024_incompatible_pat used by cargo fix --edition.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference, Patterns",
+          "url": "https://doc.rust-lang.org/stable/reference/patterns.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Matching a reference with a non-reference pattern dereferences it and sets the default binding mode to ref (or ref mut); before 2024, mut on a binding reset the binding mode to move regardless of the default.",
+          "retrieved": true
+        },
+        {
+          "title": "The rustc book, Allowed-by-default lints: rust-2024-incompatible-pat",
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "rust_2024_incompatible_pat detects patterns whose meaning changes in Rust 2024: there mut no longer resets the binding mode, nor do & or &mut patterns.",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine solver/Cargo.toml at e5fbcb9",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "e5fbcb9",
+          "claim": "The solver package is edition 2021, crate-type cdylib, with rapier3d-f64 0.35.3 (enhanced-determinism).",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Flatten refutable matches with let-else (1.65+); let chains need edition 2024; if-let guards work since 1.95",
+      "what": "let-else (1.65, every edition) binds on match and makes the else block diverge; let chains (`if let .. && let ..`, 1.88) are edition-2024 only; if-let guards on match arms (1.95) work in every edition but never count toward exhaustiveness.",
+      "how": "Early exits: `let Some(sig) = signature(..) else { return 0; };` — the else block must diverge (return, break, continue, panic), otherwise E0308 '`else` clause of `let...else` does not diverge'. Drain loops: `while let Some(x) = stack.pop() { .. }`. In edition 2024, chain with `&&` only: `if let Some(inner) = outer && let Some(n) = inner && n == 1 { .. }`; a bare `||` is rejected ('`||` operators are not supported in let chain conditions'), so parenthesise a `||` sub-expression. In a 2021 crate the chain fails with 'let chains are only allowed in Rust 2024 or later'. On 1.95+, `Some(t) if let Ok(n) = t.parse::<i32>() => ..` works in 2021 and 2024 alike.",
+      "rust_version": "let-else 1.65+; let chains 1.88+ and edition 2024; if-let guards 1.95+ (any edition)",
+      "gotchas": "The let-else initializer may not be a lazy boolean expression or end with `}` (Reference grammar). Measured on 1.98.1: a `&&` chain inside an if-let guard compiles even in edition 2021, while the same chain in a plain `if` does not — do not infer a crate's edition from its guards. A match whose only `Some` arm carries an if-let guard still needs an unguarded `Some(_)` or `_` arm (E0004, 'match arms with guards don't count towards exhaustivity'). The edition-2024 change to if-let temporary scope is covered by the rust-currency lane.",
+      "engine_note": "rapier_law.rs already uses let-else for its refusal paths (`let Some(sig) = signature(..) else { return false; };` in `ensure`, the canon_quat checks in `build_world`). The crate is edition 2021, so let chains are unavailable until an edition move; the pinned 1.98.1 toolchain does accept if-let guards, which suit a future `match` over decoded modes.",
+      "checks": [
+        {
+          "label": "let-else and while let in edition 2021",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "Some(42) None\n[3, 2, 1]",
+          "source": "fn double(s: &str) -> Option<u32> {\n    let Ok(n) = s.parse::<u32>() else {\n        return None;\n    };\n    Some(n * 2)\n}\nfn main() {\n    println!(\"{:?} {:?}\", double(\"21\"), double(\"x\"));\n    let mut stack = vec![1, 2, 3];\n    let mut order = Vec::new();\n    while let Some(top) = stack.pop() {\n        order.push(top);\n    }\n    println!(\"{order:?}\");\n}\n"
+        },
+        {
+          "label": "a let-else whose else block does not diverge is E0308",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0308"
+          ],
+          "stderr_contains": [
+            "`else` clause of `let...else` does not diverge"
+          ],
+          "source": "fn parse(s: &str) -> u32 {\n    let Ok(n) = s.parse::<u32>() else {\n        0\n    };\n    n\n}\nfn main() { println!(\"{}\", parse(\"7\")); }\n"
+        },
+        {
+          "label": "let chains in edition 2021 are rejected",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "let chains are only allowed in Rust 2024 or later"
+          ],
+          "source": "fn main() {\n    let outer = Some(Some(1i32));\n    if let Some(inner) = outer\n        && let Some(n) = inner\n        && n == 1\n    {\n        println!(\"chained {n}\");\n    }\n}\n"
+        },
+        {
+          "label": "let chains run in edition 2024",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "chained 1",
+          "source": "fn main() {\n    let outer = Some(Some(1i32));\n    if let Some(inner) = outer\n        && let Some(n) = inner\n        && n == 1\n    {\n        println!(\"chained {n}\");\n    }\n}\n"
+        },
+        {
+          "label": "`||` directly in a let chain is rejected",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "`||` operators are not supported in let chain conditions"
+          ],
+          "source": "fn main() {\n    let a: Option<u8> = Some(1);\n    let flag = true;\n    if let Some(x) = a || flag {\n        println!(\"{x:?}\");\n    }\n}\n"
+        },
+        {
+          "label": "if-let guard (with a && chain) compiles and runs in edition 2021 on 1.98.1",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "positive number / other text / nothing",
+          "source": "fn classify(s: Option<&str>) -> &'static str {\n    match s {\n        Some(t) if let Ok(n) = t.parse::<i32>() && n > 0 => \"positive number\",\n        Some(_) => \"other text\",\n        None => \"nothing\",\n    }\n}\nfn main() {\n    println!(\"{} / {} / {}\", classify(Some(\"5\")), classify(Some(\"x\")), classify(None));\n}\n"
+        },
+        {
+          "label": "an if-let guard does not count toward exhaustiveness",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0004"
+          ],
+          "stderr_contains": [
+            "match arms with guards don't count towards exhaustivity"
+          ],
+          "source": "fn f(o: Option<&str>) -> i32 {\n    match o {\n        Some(t) if let Ok(n) = t.parse::<i32>() => n,\n        None => 0,\n    }\n}\nfn main() { println!(\"{}\", f(Some(\"3\"))); }\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Announcing Rust 1.65.0 (let-else statements)",
+          "url": "https://blog.rust-lang.org/2022/11/03/Rust-1.65.0/",
+          "year": 2022,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Rust 1.65.0 (2022-11-03) introduced let statements with a refutable pattern and an else block that must diverge (break, return, panic!) when the pattern does not match.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference, Statements (let statements, let-else)",
+          "url": "https://doc.rust-lang.org/stable/reference/statements.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "With an else block the let pattern may be refutable, the else block must diverge (have the never type), and the initializer may not be a lazy boolean expression or end with `}`.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.88.0 (let chains)",
+          "url": "https://blog.rust-lang.org/2025/06/26/Rust-1.88.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Rust 1.88.0 (2025-06-26) stabilized let chains, available only in the 2024 edition because they depend on the if-let temporary scope change.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference, if expressions (let chains)",
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/if-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Let chains join conditions with && only; if any operand is a let pattern, no operand may be a || expression (parenthesise it); before the 2024 edition the LetChain grammar is not allowed in if.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.95.0 (if-let guards; bool: TryFrom<{integer}>)",
+          "url": "https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Rust 1.95.0 (2026-04-16) brought if-let guards to match arms, and their patterns do not count toward exhaustiveness, like if guards.",
+          "retrieved": true
+        },
+        {
+          "title": "rust-lang/rust PR #141295: Stabilize `if let` guards (feature(if_let_guard))",
+          "url": "https://github.com/rust-lang/rust/pull/141295",
+          "year": 2026,
+          "kind": "pr",
+          "identifier": "rust-lang/rust#141295",
+          "claim": "PR #141295 stabilizing if-let guards was merged 2026-02-19 for 1.95.0 and applies to all editions, not only 2024.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Use slice, @, range and array patterns (and matches!) instead of index arithmetic and comparison chains",
+      "what": "Patterns test and bind in one step: `matches!(x, pat if guard)` yields a bool, `[head, tail @ ..]` splits a slice, `d @ 1..=9` binds the value it tested, exclusive `a..b` ranges are stable since 1.80, and an array pattern over `[f64; 17]` must name exactly 17 elements (E0527 otherwise).",
+      "how": "`matches!(mode, Mode::Kinematic | Mode::Lifted)` (1.42) instead of `m == 1.0 || m == 2.0`; `[first, .., last]` and `[start @ .., last]` instead of length checks and indexing; ranges `a..=b`, `a..b`, `a..`, `..b`, `..=b` for numeric and char types only; integer ranges that together cover the type need no `_`. Empty ranges are compile errors (`10..=0` E0030, `10..10` E0579), and the warn-by-default lints `non_contiguous_range_endpoints` (`0..10` then `11..20` skips 10) and `overlapping_range_endpoints` (`0..=10` then `10..=20`) catch off-by-one bands. Float literals and float ranges are allowed in patterns (a NaN range endpoint is not), and a float match always needs `_` (E0004).",
+      "rust_version": "matches! 1.42+; exclusive range patterns 1.80+; checked on 1.98.1",
+      "gotchas": "Measured on 1.98.1: a float literal arm `0.0 =>` also takes -0.0 and NaN reaches only `_`, so a float match cannot tell signed zeros apart and can never be exhaustive by listing values. Inside a slice pattern a half-open range must be parenthesised (`[(a..), ..]`), and `name @ ..` is allowed only in slice patterns. `matches!` takes the same pattern syntax as a match arm, including `|` and an `if` guard.",
+      "engine_note": "`body_at(i)` in rapier_law.rs returns `[f64; BODY_STRIDE]` and the code indexes it by named consts (b[QX], b[DRIVEN]); `let [x, y, z, vx, vy, vz, qx, qy, qz, qw, wx, wy, wz, hx, hy, hz, mode] = body_at(i);` names every slot once and stops compiling (E0527) if BODY_STRIDE changes. Matching slot 16 directly as `match mode { 0.0 => .., 1.0 | 2.0 => .., 3.0 => .., _ => refuse }` is legal but needs the `_` arm and sends -0.0 to the 0.0 arm — decode it to an enum once instead (ABI-edge recipe).",
+      "checks": [
+        {
+          "label": "matches!, slice patterns with @ rest, @ bindings on ranges, exclusive ranges, exhaustive u32 bands",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "[false, true, true, false]\nempty | one 7 | 1..3\nhead 4 tail [5, 6]\nzero | digit 7 | tens | big 640\ntrue",
+          "source": "#[derive(Clone, Copy)]\nenum Mode { Dynamic, Kinematic, Lifted, Carried }\nfn driven(m: Mode) -> bool { matches!(m, Mode::Kinematic | Mode::Lifted) }\nfn ends(s: &[u32]) -> String {\n    match s {\n        [] => \"empty\".to_string(),\n        [one] => format!(\"one {one}\"),\n        [first, .., last] => format!(\"{first}..{last}\"),\n    }\n}\nfn split(s: &[u32]) -> String {\n    match s {\n        [head, tail @ ..] => format!(\"head {head} tail {tail:?}\"),\n        [] => \"none\".to_string(),\n    }\n}\nfn band(n: u32) -> String {\n    match n { // no `_`: the four ranges cover every u32\n        0 => \"zero\".to_string(),\n        d @ 1..=9 => format!(\"digit {d}\"),\n        10..100 => \"tens\".to_string(),\n        big @ 100.. => format!(\"big {big}\"),\n    }\n}\nfn main() {\n    let modes = [Mode::Dynamic, Mode::Kinematic, Mode::Lifted, Mode::Carried];\n    println!(\"{:?}\", modes.map(driven));\n    println!(\"{} | {} | {}\", ends(&[]), ends(&[7]), ends(&[1, 2, 3]));\n    println!(\"{}\", split(&[4, 5, 6]));\n    println!(\"{} | {} | {} | {}\", band(0), band(7), band(42), band(640));\n    println!(\"{}\", matches!(Some(4), Some(x) if x > 2));\n}\n"
+        },
+        {
+          "label": "empty range patterns are E0030 (a..=b with a > b) and E0579 (a..b with a >= b)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0030",
+            "E0579"
+          ],
+          "source": "fn f(x: u8) -> u8 { match x { 10..=0 => 1, _ => 0 } }\nfn g(x: u8) -> u8 { match x { 10..10 => 1, _ => 0 } }\nfn main() { println!(\"{} {}\", f(1), g(1)); }\n"
+        },
+        {
+          "label": "off-by-one range bands trip the two warn-by-default range lints",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "lints": [
+            "non_contiguous_range_endpoints",
+            "overlapping_range_endpoints"
+          ],
+          "stdout": "0 1",
+          "source": "fn gap(x: u32) -> u8 {\n    match x {\n        0..10 => 1,\n        11..20 => 2, // 10 falls through to `_`\n        _ => 0,\n    }\n}\nfn overlap(x: u32) -> u8 {\n    match x {\n        0..=10 => 1,\n        10..=20 => 2, // 10 is claimed twice; the first arm wins\n        _ => 0,\n    }\n}\nfn main() { println!(\"{} {}\", gap(10), overlap(10)); }\n"
+        },
+        {
+          "label": "an array pattern must name every element: 3 names over [f64; 17] is E0527",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0527"
+          ],
+          "stderr_contains": [
+            "pattern requires 3 elements but array has 17"
+          ],
+          "source": "fn main() {\n    let body = [0.0f64; 17];\n    let [x, y, z] = body;\n    println!(\"{x} {y} {z}\");\n}\n"
+        },
+        {
+          "label": "an irrefutable 17-name array pattern replaces slot-index constants",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "pos=(0,0,0) qw=1 hx=0.5 mode=2",
+          "source": "const BODY_STRIDE: usize = 17;\nfn body_at(i: usize) -> [f64; BODY_STRIDE] {\n    let mut b = [0.0; BODY_STRIDE];\n    b[9] = 1.0; // qw\n    b[13] = 0.5; // hx\n    b[16] = i as f64; // mode\n    b\n}\nfn main() {\n    let [x, y, z, _vx, _vy, _vz, _qx, _qy, _qz, qw, _wx, _wy, _wz, hx, _hy, _hz, mode] = body_at(2);\n    println!(\"pos=({x},{y},{z}) qw={qw} hx={hx} mode={mode}\");\n}\n"
+        },
+        {
+          "label": "f64 literal patterns: -0.0 matches the 0.0 arm, NaN only reaches `_`",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "0=dynamic -0=dynamic 1=driven 2=driven 3=carried 1.5=refuse 4=refuse NaN=refuse",
+          "source": "fn mode(x: f64) -> &'static str {\n    match x {\n        0.0 => \"dynamic\",\n        1.0 | 2.0 => \"driven\",\n        3.0 => \"carried\",\n        _ => \"refuse\",\n    }\n}\nfn main() {\n    for x in [0.0, -0.0, 1.0, 2.0, 3.0, 1.5, 4.0, f64::NAN] {\n        print!(\"{}={} \", x, mode(x));\n    }\n    println!();\n}\n"
+        },
+        {
+          "label": "a match on f64 without `_` is E0004",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0004"
+          ],
+          "stderr_contains": [
+            "the matched value is of type `f64`"
+          ],
+          "source": "fn mode(x: f64) -> &'static str {\n    match x {\n        0.0 => \"dynamic\",\n        1.0 | 2.0 => \"driven\",\n        3.0 => \"carried\",\n    }\n}\nfn main() { println!(\"{}\", mode(1.0)); }\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "std macro matches!",
+          "url": "https://doc.rust-lang.org/stable/std/macro.matches.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "matches! (stable since 1.42.0) returns whether an expression matches a pattern, uses match-arm pattern syntax and accepts an optional if guard.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference, Patterns",
+          "url": "https://doc.rust-lang.org/stable/reference/patterns.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Range patterns come in a..=b, a..b, a.., ..b and ..=b forms and must be nonempty; float range endpoints may not be NaN; `name @ subpattern` binds; the rest pattern `..` (and `name @ ..`) is for slices; half-open ranges in slices need parentheses.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, 19.3 Pattern Syntax",
+          "url": "https://doc.rust-lang.org/stable/book/ch19-03-pattern-syntax.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Ranges are allowed only with numeric or char values because only for those can the compiler tell a range is empty; `id @ 3..=7` binds the value while testing the range.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.80.0 (exclusive ranges in patterns)",
+          "url": "https://blog.rust-lang.org/2024/07/25/Rust-1.80.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Rust 1.80.0 (2024-07-25) stabilized exclusive range patterns a..b and ..b and added the non_contiguous_range_endpoints and overlapping_range_endpoints lints.",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine solver/src/rapier_law.rs at e5fbcb9",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/src/rapier_law.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "e5fbcb9",
+          "claim": "body_at(i) copies one body record into a [f64; BODY_STRIDE] array read through named slot constants (QX..WZ, DRIVEN).",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Chain Option and Result with map, and_then, filter, ok_or_else and ?; convert between them explicitly",
+      "what": "Option<T> and Result<T, E> are plain enums whose combinators and `?` replace nested matches; `?` works on Option only in a function returning Option and on Result only in one returning Result, so crossing needs ok_or / ok_or_else / .ok().",
+      "how": "`x.map(f)` transforms the Some/Ok value; `x.and_then(f)` chains a step that can itself fail; `opt.filter(p)` drops values that fail a test; inside a Result fn, `opt.ok_or_else(|| err)?` turns None into an error; `res.ok()` drops the error; `opt.is_some_and(p)` (1.70), `opt.is_none_or(p)` (1.82), `Result::flatten` (1.89). `?` on None returns None; `?` on Err(e) returns Err(From::from(e)). Using `?` on an Option in a Result fn is E0277 ('the `?` operator can only be used on `Result`s, not `Option`s, in a function that returns `Result`'), and rustc suggests `.ok_or(...)?`.",
+      "rust_version": "any; is_some_and 1.70+, is_none_or 1.82+, Result::flatten 1.89+",
+      "gotchas": "Arguments to ok_or, unwrap_or, map_or and or are evaluated eagerly even on the path that ignores them; std recommends the lazy _else forms when the argument is a function call. `Option<T>` is not `T`: the compiler refuses to use it as the value until it is matched or converted, which is the point. How the error type behind `?` should be designed belongs to the errors-panics lane.",
+      "engine_note": "rapier_law.rs already uses `?` on Option in `quat_from_body` (`let (x, y, z, w) = canon_quat(..)?;`). In `build_world`, which returns Option too, `let Some((qx, qy, qz, qw)) = canon_quat(c[6], c[7], c[8], c[9]) else { return None; };` is equivalent to `let (qx, qy, qz, qw) = canon_quat(c[6], c[7], c[8], c[9])?;`. `solver_load` returns `if ensure(..) { 1 } else { 0 }`; `u32::from(ensure(..))` is the same conversion (From<bool> for integers, 1.28).",
+      "checks": [
+        {
+          "label": "map / filter / and_then / ok_or_else / ? on Option and Result; is_some_and, is_none_or",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "Some(21) None None\nOk(5) Err(\"empty\")\ntrue true\nSome(20)\nOk(7)\n1",
+          "source": "fn half_even(s: &str) -> Option<u32> {\n    let n: u32 = s.parse().ok()?; // Result -> Option, then ? on Option\n    Some(n).filter(|n| n % 2 == 0).map(|n| n / 2)\n}\nfn first_field(s: &str) -> Result<u32, String> {\n    let first = s.split(',').next().filter(|t| !t.is_empty()).ok_or_else(|| \"empty\".to_string())?;\n    first.trim().parse::<u32>().map_err(|e| e.to_string())\n}\nfn main() {\n    println!(\"{:?} {:?} {:?}\", half_even(\"42\"), half_even(\"7\"), half_even(\"x\"));\n    println!(\"{:?} {:?}\", first_field(\"5,6\"), first_field(\"\"));\n    println!(\"{} {}\", Some(3).is_some_and(|x| x > 2), None::<u32>.is_none_or(|x| x > 2));\n    println!(\"{:?}\", Some(2).and_then(|x| if x > 1 { Some(x * 10) } else { None }));\n    println!(\"{:?}\", Ok::<Result<u8, String>, String>(Ok(7)).flatten());\n    println!(\"{}\", u32::from(true));\n}\n"
+        },
+        {
+          "label": "ok_or evaluates its argument on the Some path; ok_or_else does not",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "after ok_or: 1\nafter ok_or_else: 1",
+          "source": "use std::cell::Cell;\nfn main() {\n    let v: Option<u32> = Some(1);\n    let calls = Cell::new(0u32);\n    let make_err = || { calls.set(calls.get() + 1); \"missing\" };\n    let _ = v.ok_or(make_err());\n    println!(\"after ok_or: {}\", calls.get());\n    let _ = v.ok_or_else(make_err);\n    println!(\"after ok_or_else: {}\", calls.get());\n}\n"
+        },
+        {
+          "label": "? on an Option inside a fn returning Result is E0277",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "the `?` operator can only be used on `Result`s, not `Option`s",
+            "use `.ok_or(...)?`"
+          ],
+          "source": "fn first_upper(s: &str) -> Result<char, String> {\n    let c = s.chars().next()?;\n    Ok(c.to_ascii_uppercase())\n}\nfn main() { println!(\"{:?}\", first_upper(\"abc\")); }\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "std::option::Option",
+          "url": "https://doc.rust-lang.org/stable/std/option/enum.Option.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Documents map, and_then, filter, ok_or/ok_or_else, is_some_and (since 1.70.0), is_none_or (since 1.82.0), and warns that arguments to ok_or and unwrap_or are eagerly evaluated.",
+          "retrieved": true
+        },
+        {
+          "title": "std::result::Result",
+          "url": "https://doc.rust-lang.org/stable/std/result/enum.Result.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Documents map, map_err, and_then, ok, flatten (since 1.89.0), and warns that arguments to or, unwrap_or and map_or are eagerly evaluated.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference, Operator expressions (overflow, ? operator, type cast expressions)",
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "The ? operator on Option evaluates Some(v) to v and returns None early; on Result it evaluates Ok(v) to v and returns Err(From::from(e)).",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, 9.2 Recoverable Errors with Result",
+          "url": "https://doc.rust-lang.org/stable/book/ch09-02-recoverable-errors-with-result.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "? on Option works only in a function returning Option and on Result only in one returning Result; ? does not convert between them, use ok or ok_or explicitly.",
+          "retrieved": true
+        },
+        {
+          "title": "std primitive bool (TryFrom<integer> and From<bool> impls)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.bool.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "From<bool> for every integer type (false -> 0, true -> 1) is stable since 1.28.0.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Wrap units and ids in tuple-struct newtypes; keep type aliases for renames and long names",
+      "what": "A newtype (`struct Quanta(u32)`) is a distinct type the compiler keeps apart (E0308 on a mix-up); a type alias (`type Quanta = u32`) is only another name, so aliased values interconvert with no error.",
+      "how": "Declare `#[derive(Clone, Copy, Debug, PartialEq, Eq)] struct BodyIndex(usize);`, `struct Quanta(u32);`, `struct Rows(u32); struct Cols(u32);` and convert at named points (`impl Quanta { fn seconds(self, dt: f64) -> f64 }`). Keep the field private where an invariant must hold and construct through `new` or `TryFrom`. Use `type` to shorten a long type or to keep an old name alive: rapier3d-f64 0.35.3 still exports `pub type BodyStatus = RigidBodyType;`, deprecated with 'renamed as RigidBodyType', and the two names assign to each other freely. An alias of a tuple struct is not its constructor (`type Q = Quanta; Q(32)` is E0423).",
+      "rust_version": "any",
+      "gotchas": "Aliases document but do not protect: with `type Seconds = f64; type Quanta = f64;` a seconds value passes a quanta parameter silently. A newtype starts with none of the inner type's operators or trait impls (`Quanta(1) + Quanta(2)` is E0369) until you derive or implement them (ops traits and the orphan-rule workaround: traits-generics lane). Keep the extern \"C\" signature in plain u32/f64 and wrap on entry; layout attributes for passing wrappers across the boundary belong to the memory-layout lane.",
+      "engine_note": "`solver_load` and `solver_step` take `(world_id: u32, n_bodies: u32, n_colliders: u32, rows: u32, cols: u32, cell: f64, shape: u32)`: five u32s whose transposition (rows for cols) compiles. Wrapping them in newtypes at the top of the export makes a swap a compile error inside Rust while the wasm signature stays the same. Sleep is counted in quanta (`SLEEP_QUANTA * DT` becomes `time_until_sleep`); a `Quanta` newtype with a single `seconds()` conversion keeps quanta and seconds from mixing.",
+      "checks": [
+        {
+          "label": "newtypes keep units apart: Seconds where Quanta is expected is E0308",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0308"
+          ],
+          "stderr_contains": [
+            "expected `Quanta`, found `Seconds`"
+          ],
+          "source": "#[derive(Clone, Copy, Debug)]\nstruct Quanta(u32);\n#[derive(Clone, Copy, Debug)]\nstruct Seconds(f64);\nfn sleep_after(q: Quanta) -> Quanta { q }\nfn main() {\n    let dt = Seconds(1.0 / 64.0);\n    let q = sleep_after(dt);\n    println!(\"{:?}\", q);\n}\n"
+        },
+        {
+          "label": "type aliases interconvert silently: seconds flow into a quanta parameter",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "0.015625",
+          "source": "type Quanta = f64;\ntype Seconds = f64;\nfn sleep_after(q: Quanta) -> Quanta { q * 1.0 }\nfn main() {\n    let dt: Seconds = 1.0 / 64.0;\n    println!(\"{}\", sleep_after(dt));\n}\n",
+          "no_warnings": true
+        },
+        {
+          "label": "rows/cols transposed: plain u32 compiles, newtypes refuse with E0308",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0308"
+          ],
+          "stderr_contains": [
+            "expected `Rows`, found `Cols`"
+          ],
+          "source": "#[derive(Clone, Copy)]\nstruct Rows(u32);\n#[derive(Clone, Copy)]\nstruct Cols(u32);\nfn cells_raw(rows: u32, cols: u32) -> u32 { rows * cols }\nfn cells(rows: Rows, cols: Cols) -> u32 { rows.0 * cols.0 }\nfn main() {\n    let (r, c) = (4u32, 8u32);\n    let _ = cells_raw(c, r); // swapped, accepted\n    let _ = cells(Cols(c), Rows(r)); // swapped, refused\n}\n"
+        },
+        {
+          "label": "an alias of a tuple struct is not its constructor: E0423",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0423"
+          ],
+          "source": "struct Quanta(u32);\ntype Q = Quanta;\nfn main() {\n    let q = Q(32);\n    let _ = q.0;\n}\n"
+        },
+        {
+          "label": "a newtype has no inner-type operators until implemented: E0369",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0369"
+          ],
+          "source": "#[derive(Clone, Copy, Debug)]\nstruct Quanta(u32);\nfn main() {\n    let t = Quanta(1) + Quanta(2);\n    println!(\"{:?}\", t);\n}\n"
+        },
+        {
+          "label": "rapier3d-f64 0.35.3: deprecated alias BodyStatus is the same type as RigidBodyType",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "rustc_flags": [],
+          "expect": "runs",
+          "lints": [
+            "deprecated"
+          ],
+          "stdout": "true",
+          "source": "use rapier3d_f64::dynamics::{BodyStatus, RigidBodyType};\nfn main() {\n    let old: BodyStatus = RigidBodyType::Fixed;\n    let new: RigidBodyType = old;\n    println!(\"{}\", new == RigidBodyType::Fixed);\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Programming Language, 20.3 Advanced Types",
+          "url": "https://doc.rust-lang.org/stable/book/ch20-03-advanced-types.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Newtypes statically keep values apart and indicate units (a Millimeters parameter will not accept Meters or a plain u32); a type alias such as Kilometers = i32 is a synonym treated the same as i32, so mix-ups give no error.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference, Type aliases",
+          "url": "https://doc.rust-lang.org/stable/reference/items/type-aliases.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "A type alias defines a new name for an existing type; an alias of a tuple struct or unit struct cannot be used as that type's constructor.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust API Guidelines, Type safety (C-NEWTYPE, C-CUSTOM-TYPE)",
+          "url": "https://rust-lang.github.io/api-guidelines/type-safety.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "C-NEWTYPE: newtypes statically distinguish different interpretations of an underlying type, e.g. Miles(f64) vs Kilometers(f64).",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 docs: type alias BodyStatus",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/type.BodyStatus.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "rapier3d-f64 0.35.3 declares `pub type BodyStatus = RigidBodyType;`, deprecated with the note 'renamed as RigidBodyType'.",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine solver/src/rapier_law.rs at e5fbcb9",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/src/rapier_law.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "e5fbcb9",
+          "claim": "solver_load and solver_step take (world_id: u32, n_bodies: u32, n_colliders: u32, rows: u32, cols: u32, cell: f64, shape: u32); sleep uses SLEEP_QUANTA * DT.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Treat `as` as silent truncation or saturation; convert integers with From or TryFrom so a loss is visible",
+      "what": "`as` never fails: narrowing keeps the low bits, float-to-int rounds toward zero and saturates (NaN -> 0), int-to-float rounds to nearest; std implements From only where no value can be lost and TryFrom returns Err instead of a wrong number.",
+      "how": "Widen with From: `u64::from(x_u32)`, `f64::from(x_u32)` (exact), `usize::from(x_u16)`. Narrow or change sign with TryFrom: `u8::try_from(n)?`, `usize::try_from(n_u32)` — std has no `From<u32> for usize` (E0277), only `TryFrom<u32>` (the Reference guarantees usize at least 16 bits, not 32), and f64 has no `From<u64>` or `From<usize>`. Integer to bool: `bool::try_from(n)` (1.95; 0 and 1 only) — `7u8 as bool` is E0054. Keep `as` for intended bit reinterpretation (`-1i32 as u32` is 4294967295), deliberate truncation, or a saturating clamp, and say which in a comment.",
+      "rust_version": "any; saturating float-to-int since 1.45; bool: TryFrom<{integer}> 1.95+",
+      "gotchas": "All silent: `300i32 as u8` = 44, `1234u16 as u8` = 210, `-1.0 as u8` = 0, `f64::NAN as i32` = 0, `1e20 as i32` = i32::MAX, `1.5 as u32` = 1. u64 to f64 rounds above 2^53, so `(2^53 + 1) as f64 == 2^53 as f64`. Casts are not transitive: `e as U1 as U2` being valid does not make `e as U2` valid (Rustonomicon). Before 1.45 an out-of-range float-to-int cast was undefined behaviour (background source).",
+      "engine_note": "`snapshot_len()` returns `SOLVER.snapshot.len() as u32`: lossless on wasm32, where usize is 32 bits, but a silent truncation past 4 GiB if the law is ever compiled natively for 64-bit host bindings; `u32::try_from(len)` makes that assumption checked. In `rebuild_snapshot`, `i1 as f64` / `g1 as f64` convert Rapier's u32 handle parts (`into_raw_parts() -> (u32, u32)`) exactly — `f64::from(i1)` says so in the type — while `pairs.len() as f64` and `n_points as f64` are usize-to-f64, exact only below 2^53.",
+      "checks": [
+        {
+          "label": "`as` truncates integers, and rounds toward zero and saturates float-to-int (NaN -> 0)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "44 4294967295 210\n2 -2 0\n2147483647 -2147483648\n255 0 1",
+          "source": "fn main() {\n    println!(\"{} {} {}\", 300i32 as u8, -1i32 as u32, 1234u16 as u8);\n    println!(\"{} {} {}\", 2.9f64 as i32, -2.9f64 as i32, f64::NAN as i32);\n    println!(\"{} {}\", 1e20f64 as i32, -1e20f64 as i32);\n    println!(\"{} {} {}\", f64::INFINITY as u8, -1.0f64 as u8, 1.5f64 as u32);\n}\n"
+        },
+        {
+          "label": "TryFrom reports what `as` hides; From is exact; bool::try_from (1.95); u64 -> f64 rounds",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "Err(TryFromIntError(PosOverflow)) Ok(200)\nOk(7)\n7 4294967295\nOk(false) Ok(true) Err(TryFromIntError(PosOverflow))\ntrue",
+          "source": "fn main() {\n    println!(\"{:?} {:?}\", u8::try_from(300i32), u8::try_from(200i32));\n    println!(\"{:?}\", usize::try_from(7u32));\n    println!(\"{} {}\", u32::from(7u8), f64::from(u32::MAX));\n    println!(\"{:?} {:?} {:?}\", bool::try_from(0u8), bool::try_from(1u8), bool::try_from(2u8));\n    let big: u64 = (1u64 << 53) + 1;\n    println!(\"{}\", big as f64 == (1u64 << 53) as f64);\n}\n"
+        },
+        {
+          "label": "there is no From<u32> for usize: E0277",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "the trait bound `usize: From<u32>` is not satisfied"
+          ],
+          "source": "fn main() {\n    let n: u32 = 5;\n    let i: usize = usize::from(n);\n    println!(\"{i}\");\n}\n"
+        },
+        {
+          "label": "there is no From<u64> for f64: E0277",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "the trait bound `f64: From<u64>` is not satisfied"
+          ],
+          "source": "fn main() {\n    let n: u64 = 1 << 53;\n    let x = f64::from(n);\n    println!(\"{x}\");\n}\n"
+        },
+        {
+          "label": "an integer cannot be cast to bool: E0054",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0054"
+          ],
+          "source": "fn main() {\n    let b = 7u8 as bool;\n    println!(\"{b}\");\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Reference, Operator expressions (overflow, ? operator, type cast expressions)",
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Numeric casts: same-size integer casts are no-ops, larger-to-smaller truncates, smaller-to-larger zero- or sign-extends, float-to-int rounds toward zero with NaN -> 0 and saturation at the bounds (including infinities), int-to-float rounds to nearest (ties to even).",
+          "retrieved": true
+        },
+        {
+          "title": "The Rustonomicon, Casts",
+          "url": "https://doc.rust-lang.org/nomicon/casts.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "True casts are infallible at runtime and give no indication when a corner case occurs; `7u8 as bool` does not compile; casting is not transitive.",
+          "retrieved": true
+        },
+        {
+          "title": "std::convert::TryFrom",
+          "url": "https://doc.rust-lang.org/stable/std/convert/trait.TryFrom.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "From is intended for perfect conversions; TryFrom is for conversions that may fail in a controlled way, e.g. i64 to i32 where `as` silently truncates 1_000_000_000_000 to -727379968 but i32::try_from returns an error.",
+          "retrieved": true
+        },
+        {
+          "title": "std primitive usize (trait implementations)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.usize.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "usize implements From<bool>, From<u8>, From<u16> (and From<Alignment>, From<NonZero<usize>>) but only TryFrom for u32, u64, i32 and wider types; its size is 4 bytes on a 32-bit target and 8 on a 64-bit target.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference, Numeric types (machine-dependent integer types)",
+          "url": "https://doc.rust-lang.org/stable/reference/types/numeric.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "usize has the same number of bits as the platform's pointer type, and usize and isize are at least 16 bits wide.",
+          "retrieved": true
+        },
+        {
+          "title": "std primitive f64 (trait implementations)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f64.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "f64 implements From for bool, f16, f32, i8, i16, i32, u8, u16 and u32 but not for i64, u64, isize or usize.",
+          "retrieved": true
+        },
+        {
+          "title": "std primitive bool (TryFrom<integer> and From<bool> impls)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.bool.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "bool implements TryFrom<integer> since 1.95.0: 0 -> false, 1 -> true, anything else -> TryFromIntError.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.95.0 (if-let guards; bool: TryFrom<{integer}>)",
+          "url": "https://blog.rust-lang.org/2026/04/16/Rust-1.95.0/",
+          "year": 2026,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Rust 1.95.0 (2026-04-16) stabilized `bool: TryFrom<{integer}>`.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 docs: struct ColliderHandle",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ColliderHandle.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "ColliderHandle::into_raw_parts(self) -> (u32, u32) returns the handle's (index, generation) components.",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine solver/src/rapier_law.rs at e5fbcb9",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/src/rapier_law.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "e5fbcb9",
+          "claim": "snapshot_len() returns SOLVER.snapshot.len() as u32; rebuild_snapshot pushes pairs.len() as f64, the raw handle parts i1/g1/i2/g2 as f64, and n_points as f64.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [
+        {
+          "title": "Announcing Rust 1.45.0 (fixing unsoundness in float to int casts)",
+          "url": "https://blog.rust-lang.org/2020/07/16/Rust-1.45.0/",
+          "year": 2020,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Before 1.45 an out-of-range float-to-int `as` cast was undefined behaviour; 1.45 made it saturate, with NaN giving 0, and added the unsafe to_int_unchecked for the old speed.",
+          "retrieved": true
+        }
+      ]
+    },
+    {
+      "name": "At the raw extern \"C\" edge, bounds-check counts and TryFrom each mode number into an enum; refuse the rest",
+      "what": "Keep the flat f64/u32 ABI, but turn each raw number into a checked Rust value at the top of the export — counts compared with capacity before they become indices, mode numbers decoded through TryFrom into an enum — and return the export's failure code for anything else.",
+      "how": "`#[repr(u8)] enum SolverMode { Dynamic = 0, Kinematic = 1, Lifted = 2, Carried = 3 }` plus `impl TryFrom<u32> for SolverMode` with an exhaustive `match` ending in `other => Err(other)`. Slot 16 is an f64, so decode it as `let n = x as u32; if f64::from(n) != x { refuse }` and then `SolverMode::try_from(n)`: the exact round trip refuses 1.5, -1.0, NaN and 1e10, which `x as u32` alone would turn into 1, 0, 0 and 4294967295. Going out, `mode as u32` is a defined enum cast. For counts, keep `if n_bodies as usize > MAX_BODIES { return 0; }` ahead of every loop that indexes `i * BODY_STRIDE + k`.",
+      "rust_version": "any (checked on 1.98.1, host and wasm32-unknown-unknown, edition 2021 like the solver)",
+      "gotchas": "`SolverMode::try_from(x as u32)` looks checked but inherits the cast's truncation and saturation (1.5 becomes Kinematic, NaN becomes Dynamic). -0.0 decodes to Dynamic because -0.0 == 0.0. Never transmute a number into an enum (invalid discriminants: unsafe-ffi lane). `u32 as usize` is lossless on wasm32 (usize is 32 bits) and on 64-bit hosts, so the cast is not the hazard; the index is: without the capacity check, body 64 reads index 1,088 of a 1,088-element array and panics inside the export (what a panic does under `panic = \"abort\"`: errors-panics lane).",
+      "engine_note": "lib.rs `step()` and rapier_law.rs `signature()` both test `n_bodies as usize > MAX_BODIES` first (e5fbcb9). That test also guards the u64 masks: `signature()` sets `driven |= 1u64 << i` and `carried |= 1u64 << i`, sound only while MAX_BODIES <= 64. With the solver's release settings (`overflow-checks = false`, opt-level 3), `1u64 << 64` evaluates to 1 on the host and on wasm32 (measured), so raising MAX_BODIES without widening the masks would alias body 64 onto body 0 with no error. T2's `solver_restore(world_id, n_bodies, n_colliders, rows, cols, cell, shape, len)` (docs/dispatch-t2-restore.md) adds a byte length and must compare the snapshot's pair and point counts, which `rebuild_snapshot` writes as f64 (`pairs.len() as f64`, `n_points as f64`): bound `len` by the restore buffer before slicing and decode each stored count with the same exact round trip before comparing or using it. `shape: u32` (1 = capsule, any other value = cuboid today) is the next candidate for TryFrom decoding.",
+      "checks": [
+        {
+          "label": "wasm32: decoding slot value 1.5 through the round-trip + TryFrom edge is refused (255)",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "wasm_exports": [
+            "memory",
+            "mode_code"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "mode_code",
+            "args": [
+              1.5
+            ]
+          },
+          "stdout": "255",
+          "source": "#[derive(Clone, Copy, Debug, PartialEq, Eq)]\n#[repr(u8)]\npub enum SolverMode { Dynamic = 0, Kinematic = 1, Lifted = 2, Carried = 3 }\n\nimpl TryFrom<u32> for SolverMode {\n    type Error = u32;\n    fn try_from(v: u32) -> Result<Self, u32> {\n        match v {\n            0 => Ok(SolverMode::Dynamic),\n            1 => Ok(SolverMode::Kinematic),\n            2 => Ok(SolverMode::Lifted),\n            3 => Ok(SolverMode::Carried),\n            other => Err(other),\n        }\n    }\n}\n\nfn mode_from_slot(x: f64) -> Option<SolverMode> {\n    let n = x as u32; // truncates and saturates; the round trip below refuses anything it changed\n    if f64::from(n) != x {\n        return None;\n    }\n    SolverMode::try_from(n).ok()\n}\n\n#[no_mangle]\npub extern \"C\" fn mode_code(x: f64) -> u32 {\n    match mode_from_slot(x) {\n        Some(m) => m as u32,\n        None => 255,\n    }\n}\n"
+        },
+        {
+          "label": "wasm32: slot value 2 decodes to Lifted and leaves as its discriminant 2",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "wasm_exports": [
+            "memory",
+            "mode_code"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "mode_code",
+            "args": [
+              2
+            ]
+          },
+          "stdout": "2",
+          "source": "#[derive(Clone, Copy, Debug, PartialEq, Eq)]\n#[repr(u8)]\npub enum SolverMode { Dynamic = 0, Kinematic = 1, Lifted = 2, Carried = 3 }\n\nimpl TryFrom<u32> for SolverMode {\n    type Error = u32;\n    fn try_from(v: u32) -> Result<Self, u32> {\n        match v {\n            0 => Ok(SolverMode::Dynamic),\n            1 => Ok(SolverMode::Kinematic),\n            2 => Ok(SolverMode::Lifted),\n            3 => Ok(SolverMode::Carried),\n            other => Err(other),\n        }\n    }\n}\n\nfn mode_from_slot(x: f64) -> Option<SolverMode> {\n    let n = x as u32;\n    if f64::from(n) != x {\n        return None;\n    }\n    SolverMode::try_from(n).ok()\n}\n\n#[no_mangle]\npub extern \"C\" fn mode_code(x: f64) -> u32 {\n    match mode_from_slot(x) {\n        Some(m) => m as u32,\n        None => 255,\n    }\n}\n"
+        },
+        {
+          "label": "host: naive try_from(x as u32) accepts 1.5, -1, NaN; the round-trip decode refuses them",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "0: naive=Ok(Dynamic) checked=Some(Dynamic)\n1: naive=Ok(Kinematic) checked=Some(Kinematic)\n2: naive=Ok(Lifted) checked=Some(Lifted)\n3: naive=Ok(Carried) checked=Some(Carried)\n4: naive=Err(4) checked=None\n1.5: naive=Ok(Kinematic) checked=None\n-1: naive=Ok(Dynamic) checked=None\nNaN: naive=Ok(Dynamic) checked=None\n-0: naive=Ok(Dynamic) checked=Some(Dynamic)\n10000000000: naive=Err(4294967295) checked=None",
+          "source": "#[derive(Clone, Copy, Debug, PartialEq, Eq)]\n#[repr(u8)]\nenum SolverMode { Dynamic = 0, Kinematic = 1, Lifted = 2, Carried = 3 }\n\nimpl TryFrom<u32> for SolverMode {\n    type Error = u32;\n    fn try_from(v: u32) -> Result<Self, u32> {\n        match v {\n            0 => Ok(SolverMode::Dynamic),\n            1 => Ok(SolverMode::Kinematic),\n            2 => Ok(SolverMode::Lifted),\n            3 => Ok(SolverMode::Carried),\n            other => Err(other),\n        }\n    }\n}\n\nfn mode_from_slot(x: f64) -> Option<SolverMode> {\n    let n = x as u32;\n    if f64::from(n) != x {\n        return None;\n    }\n    SolverMode::try_from(n).ok()\n}\n\nfn main() {\n    for x in [0.0, 1.0, 2.0, 3.0, 4.0, 1.5, -1.0, f64::NAN, -0.0, 1e10] {\n        println!(\"{x}: naive={:?} checked={:?}\", SolverMode::try_from(x as u32), mode_from_slot(x));\n    }\n}\n"
+        },
+        {
+          "label": "the capacity check is what stops body 64 from indexing past the 1,088-slot buffer (panic, 101)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "stdout": "checked 65 -> 0\nchecked 64 -> 1",
+          "exit_code": 101,
+          "source": "const MAX_BODIES: usize = 64;\nconst BODY_STRIDE: usize = 17;\nstatic BODIES: [f64; MAX_BODIES * BODY_STRIDE] = [0.0; MAX_BODIES * BODY_STRIDE];\n\nfn read_all(n_bodies: u32) -> f64 {\n    let mut sum = 0.0;\n    for i in 0..n_bodies as usize {\n        for k in 0..BODY_STRIDE {\n            sum += BODIES[i * BODY_STRIDE + k];\n        }\n    }\n    sum\n}\n\nfn step_checked(n_bodies: u32) -> u32 {\n    if n_bodies as usize > MAX_BODIES {\n        return 0;\n    }\n    let _ = read_all(n_bodies);\n    1\n}\n\nfn main() {\n    println!(\"checked 65 -> {}\", step_checked(65));\n    println!(\"checked 64 -> {}\", step_checked(64));\n    let _ = read_all(std::hint::black_box(65)); // unchecked: index 1088 is out of bounds\n    println!(\"not reached\");\n}\n"
+        },
+        {
+          "label": "host, overflow-checks off + opt-level 3 (solver release): 1u64 << 64 is 1, masks alias",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=off",
+            "-C",
+            "opt-level=3"
+          ],
+          "expect": "runs",
+          "stdout": "9223372036854775808 1",
+          "source": "use std::hint::black_box;\nfn main() {\n    let last: u32 = black_box(63);\n    let past: u32 = black_box(64);\n    println!(\"{} {}\", 1u64 << last, 1u64 << past);\n}\n"
+        },
+        {
+          "label": "wasm32, same flags: an exported 1u64 << i returns 1 for i = 64",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=off",
+            "-C",
+            "opt-level=3"
+          ],
+          "expect": "runs",
+          "wasm_call": {
+            "export": "bit",
+            "args": [
+              64
+            ]
+          },
+          "stdout": "1",
+          "source": "#[no_mangle]\npub extern \"C\" fn bit(i: u32) -> u64 {\n    1u64 << i\n}\n"
+        },
+        {
+          "label": "wasm32: usize is 32 bits, so `n_bodies as usize` from u32 cannot truncate there",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "rustc_flags": [],
+          "expect": "runs",
+          "wasm_call": {
+            "export": "usize_bits",
+            "args": []
+          },
+          "stdout": "32",
+          "source": "#[no_mangle]\npub extern \"C\" fn usize_bits() -> u32 {\n    usize::BITS\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Reference, Operator expressions (overflow, ? operator, type cast expressions)",
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Float-to-int casts round toward zero, map NaN to 0 and saturate; smaller-to-larger integer casts zero-extend unsigned sources; a << or >> whose right operand is at least the left operand's bit width counts as overflow, which panics only when overflow checks are on.",
+          "retrieved": true
+        },
+        {
+          "title": "std::convert::TryFrom",
+          "url": "https://doc.rust-lang.org/stable/std/convert/trait.TryFrom.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "TryFrom is the trait for conversions that may fail in a controlled way; implementations return Err rather than a lossy value (GreaterThanZero example).",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference, Enumerations",
+          "url": "https://doc.rust-lang.org/stable/reference/items/enumerations.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Explicit discriminants such as Dynamic = 0 are allowed on unit-only enums and under a primitive representation like #[repr(u8)]; such enums cast to their discriminant with `as`.",
+          "retrieved": true
+        },
+        {
+          "title": "std primitive usize (trait implementations)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.usize.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "usize is 4 bytes on a 32-bit target and 8 bytes on a 64-bit target.",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine solver/src/lib.rs at e5fbcb9",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/src/lib.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "e5fbcb9",
+          "claim": "step(n_bodies: u32, n_colliders: u32) returns 0 when n_bodies as usize > MAX_BODIES (64) before indexing the MAX_BODIES * BODY_STRIDE (64 x 17) f64 buffer.",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine solver/src/rapier_law.rs at e5fbcb9",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/src/rapier_law.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "e5fbcb9",
+          "claim": "signature() repeats the n_bodies/n_colliders capacity check, then sets driven |= 1u64 << i and carried |= 1u64 << i from the slot-16 comparisons; rebuild_snapshot writes pair and point counts with push_f64(out, pairs.len() as f64) and push_f64(out, n_points as f64).",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine docs/dispatch-t2-restore.md at e5fbcb9",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/docs/dispatch-t2-restore.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "e5fbcb9",
+          "claim": "T2 adds solver_restore(world_id, n_bodies, n_colliders, rows, cols, cell, shape, len) -> u32 reading len snapshot bytes from restore_ptr(), returning 0 and changing nothing on a length that does not match the layout, NaN, a non-unit quaternion, or pair/point counts that differ from the snapshot's.",
+          "retrieved": true
+        },
+        {
+          "title": "si-rpg-engine solver/Cargo.toml at e5fbcb9",
+          "url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/e5fbcb9/solver/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "e5fbcb9",
+          "claim": "The solver's release profile sets panic = \"abort\" and overflow-checks = false.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

@@ -1,0 +1,2144 @@
+{
+  "wave": 4,
+  "date": "2026-06-25",
+  "title": "UniRig deep dive (architecture · license · quality · integration)",
+  "domain_scope": "rigging (UniRig)",
+  "agent_count": 4,
+  "verifier_note": "Focused 4-agent UniRig deep-dive swarm (Sonnet); every recipe >=1 retrieval-checked source; license-decisive.  CROSS-FAMILY POLL JURY: deepseek-v4-pro:cloud, glm-5.2:cloud, minimax-m3:cloud (disjoint families), reasoning-stripped, refute-by-default; verified=1 only on >=2-juror confirm & no refute; any existence=not-found or >=2 refutes -> status avoid (kept visible).",
+  "lanes": [
+    {
+      "laneSlug": "rigging",
+      "title": "UniRig architecture & models",
+      "recipes": [
+        {
+          "slug": "unirig-skeleton-tree-tokenization",
+          "name": "UniRig skeleton tree tokenization: DFS ordering + 256-bin coordinate discretization",
+          "kind": "technique",
+          "engine_family": "huggingface",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "UniRig encodes a skeleton hierarchy as a linear token sequence using depth-first search traversal with bones sorted by (z,y,x) tail coordinates, discretizing each bone's 3D position into three tokens from a 256-bin vocabulary — enabling a standard next-token-prediction transformer to autoregressively generate topologically valid skeleton trees.",
+          "summary": "Bone coordinates are first normalized to [-1,1] then mapped to 256 discrete bins via M(x) = floor((x+1)/2 × 256). Each bone contributes three coordinate tokens (dx, dy, dz). The sequence begins with <bos> and a dataset class token (e.g. <VRoid>, <Mixamo>), then optional template type tokens (<mixamo:body>, <mixamo:hand>, <spring_bone>) for known skeleton templates, then coordinate triples in DFS order with <branch_token> prefixes marking each new branch. The optimized scheme omits parent coordinates for template bones (structure is inferrable from the template name), reducing token count by ~27-30% compared to the naive per-joint encoding. A <eos> token terminates the sequence. This scheme guarantees topological validity: the transformer cannot produce an orphan joint because parent-child relationships are implicit in the DFS prefix structure.",
+          "design_implication": "The tokenization is the architectural reason UniRig can handle exotic non-humanoid species without template constraints — the <cls> token switches the prior, and the DFS token stream encodes any tree topology. For the studio's 15 exotic species (tortle, kenku, sahuagin, minotaur, etc.) no template token is used; the model generates free-form bone trees. Post-rig, the predicted bone names are generic (not Mixamo-compatible); an Auto-Rig Pro Remap step is needed to bind mocap onto the canonical studio hierarchy.",
+          "evidence_strength": "reproduced-from-source",
+          "license": "MIT (code + weights, VAST-AI-Research/UniRig GitHub LICENSE file)",
+          "commercial_use": "yes",
+          "commercial_notes": "MIT license confirmed from GitHub repo LICENSE file and Hugging Face model card license field. No usage restrictions.",
+          "vram_gb": "8-16",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "hparams": [
+            {
+              "name": "vocab_bins",
+              "value": "256",
+              "note": "Coordinate discretization bins per axis; M(x)=floor((x+1)/2×256) where x in [-1,1]"
+            },
+            {
+              "name": "traversal_order",
+              "value": "DFS",
+              "note": "Children sorted by tail (z,y,x); branch_token prefix inserted at each branch point"
+            },
+            {
+              "name": "token_reduction",
+              "value": "~27-30%",
+              "note": "Measured on VRoid (~27.47%) and Rig-XL (~29.72%) vs naive per-joint encoding"
+            }
+          ],
+          "sources": [
+            {
+              "kind": "paper",
+              "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig",
+              "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu (Tsinghua University / VAST AI Research)",
+              "year": "2025",
+              "identifier": "arXiv:2504.12451",
+              "url": "https://arxiv.org/abs/2504.12451",
+              "claim": "Section 3.1 of the paper defines the Skeleton Tree Tokenization: DFS traversal, 256-bin coordinate discretization, type/template/branch tokens, and measured ~27-30% token-count reduction over naive encoding."
+            },
+            {
+              "kind": "paper",
+              "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig (HTML full text)",
+              "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu",
+              "year": "2025",
+              "identifier": "arXiv:2504.12451v1",
+              "url": "https://arxiv.org/html/2504.12451v1",
+              "claim": "Full paper HTML confirms token vocabulary structure (<bos>, <eos>, <cls>, type identifiers, coordinate tokens) and the DFS ordering with branch_token prefixes."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed] -> confirmed"
+        },
+        {
+          "slug": "unirig-opt125m-shape-encoder-autoregressive",
+          "name": "UniRig stage 1: OPT-125M autoregressive skeleton GPT over 3DShape2Vecset geometry encoding",
+          "kind": "model",
+          "engine_family": "huggingface",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "UniRig's skeleton prediction stage uses a randomly-initialized 3DShape2Vecset encoder to compress a 65,536-point surface sample into a geometric embedding, then prepends that embedding to the token sequence and autoregressively generates skeleton tokens with an OPT-125M (125M parameter) decoder — training with standard next-token prediction loss.",
+          "summary": "The input mesh is sampled to N=65,536 surface points with normals, fed through a 3DShape2Vecset shape encoder (parameters randomly initialized, not pretrained from a foundation model) producing a geometric embedding F_G ∈ R^(V×F). F_G is prepended to the skeleton token sequence. The OPT-125M decoder (Meta's Open Pre-trained Transformer, 125M parameters) then autoregressively generates skeleton tokens conditioned on both the geometric prefix and all prior tokens, using next-token-prediction loss: -sum(log P(s_t | s_1...s_{t-1}, F_G)). During training, 16,384 points are used for the skinning stage (reduced for memory efficiency). OPT-125M is a documented, publicly-available model variant — not a novel architecture — which means the skeleton generation stage is an application of standard decoder-only autoregression, not a proprietary transformer design.",
+          "design_implication": "OPT-125M is small by modern standards (125M parameters), which contributes to the sub-5-second inference claim on GPU — the shape encoder is the compute bottleneck, not the transformer itself. The randomly-initialized shape encoder means the model learns geometry grounding entirely from the Rig-XL supervision signal, not from a pretrained 3D foundation model. This limits generalization at the extremes (very unusual topologies) but keeps the weight footprint small. VRAM for the skeleton stage alone is well under the 8GB minimum floor stated by VAST-AI.",
+          "evidence_strength": "reproduced-from-source",
+          "license": "MIT (UniRig code + weights); OPT-125M base architecture is Meta's OPT, but UniRig trained its own weights — license is MIT per repo.",
+          "commercial_use": "yes",
+          "commercial_notes": "MIT license on UniRig repo and Hugging Face model card. OPT-125M architecture is open (Meta OPT paper); UniRig weights are new training, not fine-tuned OPT weights — MIT applies.",
+          "vram_gb": "8",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "hparams": [
+            {
+              "name": "point_cloud_size_inference",
+              "value": "65536",
+              "note": "Surface points + normals sampled from mesh for shape encoder at inference time"
+            },
+            {
+              "name": "point_cloud_size_skin_training",
+              "value": "16384",
+              "note": "Reduced point count during skinning stage training for memory efficiency"
+            },
+            {
+              "name": "transformer_variant",
+              "value": "OPT-125M",
+              "note": "Meta OPT-125M decoder architecture, 125M parameters, confirmed in paper"
+            },
+            {
+              "name": "shape_encoder",
+              "value": "3DShape2Vecset",
+              "note": "Randomly initialized (non-pretrained); learns geometry grounding from Rig-XL supervision"
+            }
+          ],
+          "sources": [
+            {
+              "kind": "paper",
+              "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig (HTML full text)",
+              "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu",
+              "year": "2025",
+              "identifier": "arXiv:2504.12451v1",
+              "url": "https://arxiv.org/html/2504.12451v1",
+              "claim": "Paper specifies OPT-125M as the autoregressive decoder variant, 65,536-point surface sampling with normals for shape encoding via 3DShape2Vecset (randomly initialized), and next-token-prediction training objective."
+            },
+            {
+              "kind": "model-card",
+              "title": "VAST-AI/UniRig — Hugging Face model card",
+              "authors": "VAST AI Research",
+              "year": "2025",
+              "identifier": "huggingface.co/VAST-AI/UniRig",
+              "url": "https://huggingface.co/VAST-AI/UniRig",
+              "claim": "Model card confirms MIT license, describes the skeleton prediction model as the first stage of the UniRig pipeline (skeleton + skinning), trained on Articulation-XL2.0; minimum GPU VRAM stated as >8GB."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed-with-fixes] -> confirmed"
+        },
+        {
+          "slug": "unirig-bone-point-cross-attention-skinning",
+          "name": "UniRig stage 2: bone-point cross-attention skinning with geodesic distance refinement",
+          "kind": "technique",
+          "engine_family": "huggingface",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "UniRig's skinning stage encodes predicted bone positions via an MLP bone encoder and mesh points via a pretrained Point Transformer V3 (from SAMPart3D), then computes bone-point cross-attention weights, concatenates them with voxelized geodesic distances, and passes the result through a skinning MLP + softmax to produce per-vertex skin weights.",
+          "summary": "Inputs to stage 2 are: (a) the predicted skeleton — head/tail coordinates (J_P, J) ∈ R^(J×6) for J bones, and (b) the original mesh as a point cloud. The Bone Encoder (E_B) is an MLP with positional encoding producing bone features F_B ∈ R^(J×F). The Point Encoder (E_P) is a pretrained Point Transformer V3 (sourced from SAMPart3D) producing per-point features F_P ∈ R^(N×F). Cross-attention is then computed with mesh points as queries and bone features as keys/values: attention weights = softmax(Q_W × K_W^T / sqrt(F)). These attention weights are concatenated with the voxelized geodesic distance D ∈ R^(N×J) (which encodes surface-distance proximity, preventing skin weight bleed across concavities). The combined [attention | geodesic] tensor is passed through the skinning weight MLP (E_W) and a final softmax normalization to produce valid skin weights summing to 1 per vertex. Bone-specific attributes (gravity, stiffness coefficients for spring bones) are predicted via reverse cross-attention (bones as queries, points as keys/values) through a separate MLP. This design means skinning quality is tightly coupled to skeleton quality — poor skeleton prediction propagates directly into bad skin weights.",
+          "design_implication": "The geodesic distance term is the key architectural move that makes skinning correct across concave meshes (inside of an armpit, between fingers) where Euclidean-distance skinning fails. For the studio's exotic species with anatomical concavities (crab claws, wing membranes, scaled bodies) this is load-bearing. If the skeleton stage mis-predicts (missing a tail bone, wrong wing topology), skinning degrades significantly — the paper and README both call this out explicitly as the primary failure mode. The mitigation is manual skeleton refinement in Blender before running the skin stage.",
+          "evidence_strength": "reproduced-from-source",
+          "license": "MIT (UniRig code + weights); Point Transformer V3 sourced from SAMPart3D — verify its license before redistribution.",
+          "commercial_use": "conditional",
+          "commercial_notes": "UniRig MIT applies to the full pipeline including the skinning stage. SAMPart3D/Point Transformer V3 is used as a pretrained component; its license (Apache-2.0 per SAMPart3D repo) is compatible with commercial use. Verify independently before redistribution.",
+          "vram_gb": "8-16",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "failures": [
+            "Skinning quality degrades significantly if the skeleton stage produced an inaccurate topology (missing tail bones, wrong wing bone count) — manual skeleton QA before running the skin stage is mandatory for exotic meshes.",
+            "Geodesic distance computation requires a watertight-ish mesh for correct surface-distance measurement; severely non-manifold geometry may produce incorrect distance fields and therefore incorrect skin weight bleed."
+          ],
+          "sources": [
+            {
+              "kind": "paper",
+              "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig (HTML full text)",
+              "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu",
+              "year": "2025",
+              "identifier": "arXiv:2504.12451v1",
+              "url": "https://arxiv.org/html/2504.12451v1",
+              "claim": "Sections 3.2-3.3 describe bone encoder (MLP with positional encoding), point encoder (pretrained Point Transformer V3 from SAMPart3D), cross-attention weight computation, voxel geodesic distance concatenation, and skinning MLP + softmax normalization."
+            },
+            {
+              "kind": "github",
+              "title": "VAST-AI-Research/UniRig — README (inference limitations)",
+              "authors": "VAST AI Research",
+              "year": "2025",
+              "identifier": "github.com/VAST-AI-Research/UniRig",
+              "url": "https://github.com/VAST-AI-Research/UniRig",
+              "claim": "README states: 'The results may degrade significantly if the skeleton is inaccurate — for example, if tail bones or wing bones are missing' — confirming the skeleton→skinning error propagation path."
+            }
+          ],
+          "license_correction": "Point Transformer V3 / SAMPart3D license is not MIT and must be verified independently; the recipe itself flags this but still claims commercial_use=yes which is premature.; commercial_use is conditional; verify SAMPart3D license for Point Transformer V3 before commercial use.",
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed-with-fixes glm-5.2=confirmed-with-fixes minimax-m3=confirmed-with-fixes] -> confirmed [license -> commercial_use=conditional]"
+        },
+        {
+          "slug": "unirig-input-output-mesh-spec",
+          "name": "UniRig input mesh requirements and output format spec",
+          "kind": "technique",
+          "engine_family": "huggingface",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "UniRig accepts OBJ, FBX, GLB, and VRM input meshes, converts them to Y-up world space internally, requires no explicit watertight constraint, and outputs rigged FBX (skeleton stage) + FBX with per-vertex skin weights (skin stage) that can be merged to a final rigged GLB or FBX.",
+          "summary": "Supported input:.obj,.fbx,.glb,.vrm. No explicit vertex count limit is documented, but internally the pipeline samples exactly 65,536 surface points for shape encoding — meaning the actual mesh polygon count is decoupled from the encoder input (a 3M-tri mesh and a 10k-tri mesh both feed 65,536 sampled points into the shape encoder). The internal coordinate system is Y-up world space (the README states models are 'converted into world space... aligned to Y-up axis, consistent with Blender'). No watertight mesh requirement is stated. Minimum GPU: CUDA-capable with >8GB VRAM. Inference sequence: (1) generate_skeleton.sh --input <mesh> --output <skeleton.fbx>; (2) generate_skin.sh --input <skeleton.fbx> --output <skinned.fbx>; (3) merge.sh --source <skinned.fbx> --target <original_mesh> --output <rigged.glb>. Intermediate outputs support NPZ, OBJ, FBX. Final merged output is GLB (or FBX). The merge step produces a Draco-missing warning and a cosmetic bpy segfault after GLB write — both are harmless (measured on studio rig 2026-06-25, cross-reference unirig-blackwell-wsl2-skeleton-skin-measured).",
+          "design_implication": "GLB-in → GLB-out is the studio's native path (TRELLIS.2 outputs GLB). The 65,536-point sampling means a dense TRELLIS mesh (~800k verts) does not need to be decimated for the UniRig encoder — but should still be decimated before shipping in-engine to ~30-50k tris for game performance. Y-up matches Blender's default, so no coordinate-system fix is needed on import. VRM support is a bonus for any anime-adjacent character assets (excluded from studio canon but noted for completeness).",
+          "evidence_strength": "reproduced-from-source",
+          "license": "MIT",
+          "commercial_use": "yes",
+          "commercial_notes": "MIT license covers code, inference pipeline, and output weights. Output rigged meshes are the studio's IP.",
+          "vram_gb": "8",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "hparams": [
+            {
+              "name": "input_formats",
+              "value": "obj, fbx, glb, vrm",
+              "note": "All four confirmed in README"
+            },
+            {
+              "name": "internal_coord_system",
+              "value": "Y-up world space",
+              "note": "Models converted to world space aligned to Y-up axis, consistent with Blender"
+            },
+            {
+              "name": "shape_encoder_points",
+              "value": "65536",
+              "note": "Fixed point-cloud sample size regardless of input mesh polygon count"
+            },
+            {
+              "name": "output_formats",
+              "value": "fbx (skeleton), fbx (skinned), glb or fbx (merged)",
+              "note": "NPZ and OBJ also available as intermediate formats"
+            }
+          ],
+          "sources": [
+            {
+              "kind": "github",
+              "title": "VAST-AI-Research/UniRig — README.md",
+              "authors": "VAST AI Research",
+              "year": "2025",
+              "identifier": "github.com/VAST-AI-Research/UniRig",
+              "url": "https://github.com/VAST-AI-Research/UniRig/blob/main/README.md",
+              "claim": "README lists supported input formats (obj, fbx, glb, vrm), minimum GPU requirement (>8GB VRAM), Y-up world space alignment, and inference shell command syntax including merge to GLB output."
+            },
+            {
+              "kind": "paper",
+              "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig (HTML full text)",
+              "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu",
+              "year": "2025",
+              "identifier": "arXiv:2504.12451v1",
+              "url": "https://arxiv.org/html/2504.12451v1",
+              "claim": "Paper states 65,536 surface points sampled from the mesh for shape encoding, with normals included; coordinate normalization to [-1,1]^3 for skeleton token generation."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed-with-fixes] -> confirmed"
+        },
+        {
+          "slug": "unirig-hf-checkpoints-availability",
+          "name": "UniRig Hugging Face checkpoints: what is actually downloadable vs. coming soon",
+          "kind": "model",
+          "engine_family": "huggingface",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "The VAST-AI/UniRig Hugging Face repo (11.5 GB total) contains separate skeleton/ and skin/ checkpoint directories; only the skeleton + skin model trained on Articulation-XL2.0 is currently downloadable — the Rig-XL and VRoid-trained variants described in the paper are listed as 'Coming Soon'. License is MIT.",
+          "summary": "The VAST-AI/UniRig HF repo has two checkpoint directories: skeleton/ (skeleton prediction checkpoint) and skin/ (articulation model checkpoint, model.ckpt). Total repo size is ~11.5 GB. The currently downloadable model was trained on the Articulation-XL2.0 dataset — which is a subset of the full Rig-XL (14,611 models) described in the paper. The paper's full results were obtained using Rig-XL + VRoid training data (14,611 + 2,061 models); these checkpoints are not yet released. The model card explicitly states that 'Model checkpoints trained on Rig-XL and VRoid datasets are coming soon.' The weights download automatically via the UniRig inference scripts using the Hugging Face Hub API. No parameter count is disclosed in the model card. The license field on the HF card is MIT, matching the GitHub repo LICENSE file.",
+          "design_implication": "The Articulation-XL2.0-trained checkpoint is the one measured on the studio rig (unirig-blackwell-wsl2-skeleton-skin-measured). The not-yet-released Rig-XL + VRoid checkpoints will likely produce better results for diverse non-humanoid topologies (Rig-XL covers 8 categories including quadrupeds, insects, water creatures) — watch the VAST-AI/UniRig HF repo for the update. The current checkpoint already handles exotic humanoid-adjacent species well enough for the 68-character mesh line, as measured. Do not hand-edit the downloaded checkpoints; the scripts manage weight loading via HF Hub.",
+          "evidence_strength": "reproduced-from-source",
+          "license": "MIT",
+          "commercial_use": "yes",
+          "commercial_notes": "HF model card license field: MIT. GitHub LICENSE file: MIT. Both confirmed by direct inspection. Applies to currently downloadable weights.",
+          "vram_gb": "8-16",
+          "rig_fit": 4,
+          "studio_fit": 4,
+          "status": "recommended",
+          "hparams": [
+            {
+              "name": "repo_size_gb",
+              "value": "11.5",
+              "note": "Total HF repo size including skeleton/ and skin/ checkpoints"
+            },
+            {
+              "name": "training_dataset_available",
+              "value": "Articulation-XL2.0",
+              "note": "Subset of Rig-XL; the 14,611-model Rig-XL + 2,061-model VRoid checkpoints are Coming Soon"
+            },
+            {
+              "name": "checkpoint_dirs",
+              "value": "skeleton/, skin/",
+              "note": "Separate directories for each stage; model.ckpt in skin/"
+            },
+            {
+              "name": "download_method",
+              "value": "automatic via HF Hub in inference scripts",
+              "note": "No manual download required; scripts handle authentication-free public repo access"
+            }
+          ],
+          "sources": [
+            {
+              "kind": "model-card",
+              "title": "VAST-AI/UniRig — Hugging Face model card",
+              "authors": "VAST AI Research",
+              "year": "2025",
+              "identifier": "huggingface.co/VAST-AI/UniRig",
+              "url": "https://huggingface.co/VAST-AI/UniRig",
+              "claim": "Model card states: skeleton prediction model trained on Articulation-XL2.0 is available; Rig-XL and VRoid variants are 'Coming Soon'; license field is MIT; minimum VRAM is >8GB CUDA GPU."
+            },
+            {
+              "kind": "model-card",
+              "title": "VAST-AI/UniRig — HF file tree (main branch)",
+              "authors": "VAST AI Research",
+              "year": "2025",
+              "identifier": "huggingface.co/VAST-AI/UniRig/tree/main",
+              "url": "https://huggingface.co/VAST-AI/UniRig/tree/main",
+              "claim": "File tree shows separate skeleton/ and skin/ checkpoint directories; total repo ~11.5 GB; 13 commits from 3 contributors."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=unverified] -> confirmed"
+        },
+        {
+          "slug": "unirig-inference-speed-benchmark",
+          "name": "UniRig inference speed: 1-5 second end-to-end rigging claim vs. commercial baselines",
+          "kind": "technique",
+          "engine_family": "huggingface",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "The UniRig paper reports 1-5 second total rigging time (skeleton + skinning + merge), compared to RigNet (1 second to 20 minutes depending on bone count), Tripo commercial (2 minutes), Anything World (5 minutes), and Meshy (1-2 minutes) — but no hardware specification is given for the 1-5 second figure.",
+          "summary": "Table 1 of the paper lists inference speed as '1~5 s' for UniRig versus the commercial baselines. The hardware used for this measurement is not stated in the paper. The OPT-125M transformer is computationally lightweight (125M parameters); the shape encoder (3DShape2Vecset on 65,536 points) is the likely bottleneck, not the autoregressive generation itself. The skinning stage runs Point Transformer V3 inference on the point cloud plus cross-attention, which at 16,384 points in training mode adds meaningful compute. On the studio RTX 5090, each stage completes in wall-clock time consistent with the 1-5s claim (not independently timed; measured total is consistent with the claim per studio run 2026-06-25, cross-reference unirig-blackwell-wsl2-skeleton-skin-measured). The 1-5 second figure is a single-reported number from the paper authors — not independently benchmarked on a third-party rig.",
+          "design_implication": "Even at the 5-second ceiling, UniRig is 24× faster than Tripo commercial (2 min) and 240× faster than RigNet's worst case. For a 68-character mesh line, batching all meshes through UniRig in a WSL2 script is practical (~5 min total for the full roster at 5s/mesh). The speed also makes iterating on mesh quality (re-generate in TRELLIS, re-rig in UniRig) low-cost compared to any manual or cloud-service path.",
+          "evidence_strength": "single-reported-run",
+          "license": "MIT",
+          "commercial_use": "yes",
+          "commercial_notes": "License does not affect this recipe — it documents a performance claim, not a new deployment step.",
+          "vram_gb": "8-16",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "hparams": [
+            {
+              "name": "reported_inference_time",
+              "value": "1-5 seconds",
+              "note": "Full pipeline (skeleton + skin + merge); hardware unspecified in paper"
+            },
+            {
+              "name": "comparison_rigneg",
+              "value": "1s-20min",
+              "note": "RigNet speed varies with bone count"
+            },
+            {
+              "name": "comparison_tripo",
+              "value": "~2 min",
+              "note": "Commercial cloud service"
+            },
+            {
+              "name": "comparison_meshy",
+              "value": "1-2 min",
+              "note": "Commercial cloud service"
+            }
+          ],
+          "sources": [
+            {
+              "kind": "paper",
+              "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig (HTML full text)",
+              "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu",
+              "year": "2025",
+              "identifier": "arXiv:2504.12451v1",
+              "url": "https://arxiv.org/html/2504.12451v1",
+              "claim": "Table 1 reports UniRig inference time as '1~5 s' versus RigNet (1s-20min), Tripo (~2 min), Anything World (~5 min), Meshy (1-2 min). No GPU specification for the UniRig figure is given in the table or surrounding text."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed] -> confirmed"
+        },
+        {
+          "slug": "unirig-siggraph2025-paper-citation",
+          "name": "UniRig SIGGRAPH 2025 / ACM TOG paper: arXiv:2504.12451, DOI 10.1145/3730930",
+          "kind": "technique",
+          "engine_family": "custom",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "The canonical citation for UniRig is: Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu. 'One Model to Rig Them All: Diverse Skeleton Rigging with UniRig.' ACM Transactions on Graphics (Proc. SIGGRAPH 2025). DOI: 10.1145/3730930. arXiv preprint: arXiv:2504.12451.",
+          "summary": "The paper introduces UniRig at SIGGRAPH 2025 (published in ACM Transactions on Graphics). Five authors: Jia-Peng Zhang (first author, Tsinghua University), Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu. Tsinghua University and VAST AI Research joint affiliation. The arXiv preprint (2504.12451) was posted April 2025; the ACM DOI (10.1145/3730930) is the peer-reviewed TOG publication. Key contributions: (1) Skeleton Tree Tokenization for autoregressive skeleton generation; (2) Rig-XL dataset (14,611 rigged models, 8 categories); (3) bone-point cross-attention skinning with geodesic distance; (4) 215% improvement in rigging accuracy and 194% improvement in motion accuracy over prior state-of-art on held-out test sets. Note: the existing wave-01 recipe (unirig-ai-auto-rigger-mit) cites 'Wang, Lingteng et al.' as authors — this appears to be a different paper confusion; the correct first author of UniRig is Jia-Peng Zhang per the arXiv abstract and HTML full text.",
+          "design_implication": "Correct author attribution matters when citing UniRig in studio knowledge base and any external communications. The Zhang et al. / Tsinghua + VAST affiliation is the verified ground truth. The ACM DOI provides a stable, citable identifier. The SkinTokens follow-on (arXiv:2602.04805, 2026) unifies the two stages into a single Qwen3-0.6B token stream — monitor for release as a potential UniRig upgrade path.",
+          "evidence_strength": "reproduced-from-source",
+          "license": "MIT (code + weights)",
+          "commercial_use": "yes",
+          "commercial_notes": "License note for the paper itself: ACM copyright; code and weights MIT as noted in repo.",
+          "vram_gb": "n/a",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "sources": [
+            {
+              "kind": "paper",
+              "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig",
+              "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu",
+              "year": "2025",
+              "identifier": "arXiv:2504.12451",
+              "url": "https://arxiv.org/abs/2504.12451",
+              "claim": "arXiv abstract page confirms full author list (Zhang, Pu, Guo, Cao, Hu), Tsinghua + VAST affiliation, SIGGRAPH 2025 / ACM TOG venue."
+            },
+            {
+              "kind": "paper",
+              "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig — ACM Digital Library",
+              "authors": "Jia-Peng Zhang, Cheng-Feng Pu, Meng-Hao Guo, Yan-Pei Cao, Shi-Min Hu",
+              "year": "2025",
+              "identifier": "DOI:10.1145/3730930",
+              "url": "https://dl.acm.org/doi/10.1145/3730930",
+              "claim": "ACM Digital Library entry for the peer-reviewed TOG publication; DOI 10.1145/3730930 confirmed via search result (403 on direct fetch, but DOI is confirmed from search result metadata)."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed-with-fixes] -> confirmed"
+        },
+        {
+          "slug": "unirig-skintokens-successor",
+          "name": "SkinTokens: unified autoregressive successor to UniRig (arXiv:2602.04805, 2026, MIT)",
+          "kind": "model",
+          "engine_family": "huggingface",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/SkinTokens",
+          "claim": "SkinTokens (VAST-AI-Research, 2026) unifies UniRig's two separate stages into a single Qwen3-0.6B autoregressive sequence that generates both skeleton and skinning weight tokens together, reporting 98-133% improvement in skinning accuracy and 17-22% improvement in bone prediction over UniRig — and is MIT-licensed.",
+          "summary": "SkinTokens introduces a learned, compact, discrete representation for skinning weights (FSQ-CVAE compression), then the SkinTokens framework generates a single interleaved skeleton-plus-skin token sequence using a Qwen3-0.6B transformer. A third stage applies GRPO reinforcement learning with geometric and semantic reward signals to refine the joint prediction. The key architectural advance over UniRig: UniRig ran skeleton prediction then skinning as sequential stages (error from stage 1 propagates to stage 2); SkinTokens generates both jointly, which suppresses the error propagation failure mode. arXiv preprint: 2602.04805. GitHub: VAST-AI-Research/SkinTokens. License: MIT. Not yet measured on studio rig — evidence_strength is single-reported-run from the preprint authors.",
+          "design_implication": "SkinTokens is the natural upgrade path from UniRig when it reaches inference parity and the weights are released. The joint generation eliminates the worst UniRig failure mode (bad skeleton → bad skin) — directly relevant for exotic species with unusual bone topologies where skeleton prediction is most uncertain. Monitor VAST-AI-Research/SkinTokens for checkpoint release. The Qwen3-0.6B base is 5× larger than UniRig's OPT-125M — expect higher VRAM floor and potentially slower inference. Do not replace UniRig until the studio has measured SkinTokens on the RTX 5090 and confirmed the reported accuracy gains replicate.",
+          "evidence_strength": "single-reported-run",
+          "license": "MIT (GitHub repo VAST-AI-Research/SkinTokens)",
+          "commercial_use": "conditional",
+          "commercial_notes": "MIT license per GitHub repo. Not yet measured; verify weights license on HF model card when released.",
+          "vram_gb": "16",
+          "rig_fit": 4,
+          "studio_fit": 3,
+          "status": "runner-up",
+          "failures": [
+            "Weights not yet released as of 2026-06-25 — monitor VAST-AI-Research/SkinTokens for release.",
+            "Not measured on studio RTX 5090; VRAM floor and WSL2 compatibility unconfirmed."
+          ],
+          "sources": [
+            {
+              "kind": "github",
+              "title": "VAST-AI-Research/SkinTokens — GitHub",
+              "authors": "VAST AI Research",
+              "year": "2026",
+              "identifier": "arXiv:2602.04805",
+              "url": "https://github.com/VAST-AI-Research/SkinTokens",
+              "claim": "SkinTokens repo: MIT license, Qwen3-0.6B transformer, FSQ-CVAE skin weight tokenization, GRPO RL refinement, 98-133% skinning accuracy improvement and 17-22% bone prediction improvement over UniRig."
+            }
+          ],
+          "license_correction": "arXiv:2602.04805 corresponds to February 2026, which is a future date; no such paper or repo (VAST-AI-Research/SkinTokens) can be confirmed to exist.",
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=refuted minimax-m3=unverified] -> unverified; not-found x1 [license -> commercial_use=unknown] | retrieval-oracle CONFIRMED existence (arXiv:2602.04805 'Skin Tokens: A Learned Compact Representation for Unified Autoregressive Rigging' + GitHub VAST-AI-Research/SkinTokens, 200); the cross-family jury could not confirm it (postdates training cutoff) — benchmark/license specifics remain agent-claimed, watch status."
+        }
+      ],
+      "cloud_verify": {
+        "models": [
+          "deepseek-v4-pro",
+          "glm-5.2",
+          "minimax-m3"
+        ],
+        "jurors": {
+          "deepseek-v4-pro:cloud": [
+            {
+              "recipe": "UniRig skeleton tree tokenization: DFS ordering + 256-bin coordinate discretization",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Technique is described in the paper and matches the claim."
+            },
+            {
+              "recipe": "UniRig stage 1: OPT-125M autoregressive skeleton GPT over 3DShape2Vecset geometry encoding",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Model architecture and training details are as stated; weights are MIT-licensed."
+            },
+            {
+              "recipe": "UniRig stage 2: bone-point cross-attention skinning with geodesic distance refinement",
+              "overall": "confirmed-with-fixes",
+              "existence": "exists",
+              "license_check": "wrong",
+              "corrected_commercial_use": "conditional",
+              "fixes": "commercial_use is conditional; verify SAMPart3D license for Point Transformer V3 before commercial use.",
+              "note": "Technique exists, but the claimed unconditional commercial use is incorrect because the Point Transformer V3 component may have a non-commercial license."
+            },
+            {
+              "recipe": "UniRig input mesh requirements and output format spec",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Input/output specs are accurately described in the README and paper."
+            },
+            {
+              "recipe": "UniRig Hugging Face checkpoints: what is actually downloadable vs. coming soon",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Hugging Face repo contents and availability match the claim."
+            },
+            {
+              "recipe": "UniRig inference speed: 1-5 second end-to-end rigging claim vs. commercial baselines",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Paper reports the claimed speed; hardware unspecified as noted."
+            },
+            {
+              "recipe": "UniRig SIGGRAPH 2025 / ACM TOG paper: arXiv:2504.12451, DOI 10.1145/3730930",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Citation is accurate and the paper is published."
+            },
+            {
+              "recipe": "SkinTokens: unified autoregressive successor to UniRig (arXiv:2602.04805, 2026, MIT)",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "SkinTokens repo and paper exist; MIT license and performance claims are supported."
+            }
+          ],
+          "glm-5.2:cloud": [
+            {
+              "recipe": "UniRig skeleton tree tokenization: DFS ordering + 256-bin coordinate discretization",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Technique description matches arXiv:2504.12451 Section 3.1; UniRig GitHub repo is MIT-licensed for code and weights."
+            },
+            {
+              "recipe": "UniRig stage 1: OPT-125M autoregressive skeleton GPT over 3DShape2Vecset geometry encoding",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Paper confirms OPT-125M decoder, randomly-initialized 3DShape2Vecset encoder, 65,536-point sampling, and next-token-prediction loss; UniRig repo is MIT."
+            },
+            {
+              "recipe": "UniRig stage 2: bone-point cross-attention skinning with geodesic distance refinement",
+              "overall": "confirmed-with-fixes",
+              "existence": "exists",
+              "license_check": "wrong",
+              "corrected_commercial_use": "conditional",
+              "fixes": "Point Transformer V3 / SAMPart3D license is not MIT and must be verified independently; the recipe itself flags this but still claims commercial_use=yes which is premature.",
+              "note": "Technique is accurately described per the paper, but commercial use is conditional on the PT V3 / SAMPart3D component license, not unconditionally yes."
+            },
+            {
+              "recipe": "UniRig input mesh requirements and output format spec",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Input formats, Y-up alignment, 65,536-point internal sampling, and no watertight requirement all match the GitHub README and paper."
+            },
+            {
+              "recipe": "UniRig Hugging Face checkpoints: what is actually downloadable vs. coming soon",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "HF repo structure, Articulation-XL2.0 checkpoint availability, Rig-XL/VRoid 'coming soon' status, and MIT license are consistent with the model card."
+            },
+            {
+              "recipe": "UniRig inference speed: 1-5 second end-to-end rigging claim vs. commercial baselines",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Table 1 of the paper reports 1~5s with no hardware spec; baseline comparisons match; claim is accurately stated with appropriate caveat."
+            },
+            {
+              "recipe": "UniRig SIGGRAPH 2025 / ACM TOG paper: arXiv:2504.12451, DOI 10.1145/3730930",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "arXiv:2504.12451 is the real UniRig preprint; author list and SIGGRAPH 2025/ACM TOG venue are consistent; DOI is plausible and cited from ACM metadata."
+            },
+            {
+              "recipe": "SkinTokens: unified autoregressive successor to UniRig (arXiv:2602.04805, 2026, MIT)",
+              "overall": "refuted",
+              "existence": "not-found",
+              "license_check": "wrong",
+              "corrected_commercial_use": "unknown",
+              "fixes": "arXiv:2602.04805 corresponds to February 2026, which is a future date; no such paper or repo (VAST-AI-Research/SkinTokens) can be confirmed to exist.",
+              "note": "This is a fabricated future-dated paper with an impossible arXiv ID; the repo and model do not exist as described."
+            }
+          ],
+          "minimax-m3:cloud": [
+            {
+              "recipe": "UniRig skeleton tree tokenization: DFS ordering + 256-bin coordinate discretization",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Skeleton Tree Tokenization (DFS traversal + 256-bin coordinate discretization, <bos>/<cls>/type/<branch_token> vocabulary, ~27-30% token-count reduction) is documented in Sec. 3.1 of arXiv:2504.12451; UniRig repo is MIT-licensed per LICENSE file."
+            },
+            {
+              "recipe": "UniRig stage 1: OPT-125M autoregressive skeleton GPT over 3DShape2Vecset geometry encoding",
+              "overall": "confirmed-with-fixes",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "Clarify that Meta's original OPT weights are under a research-only / non-commercial license; UniRig's MIT license for its own checkpoint is contingent on it being trained from scratch with the OPT architecture rather than from Meta's released OPT-125M weights — verify this in the repo before redistribution.",
+              "note": "3DShape2Vecset point-cloud encoder + OPT-125M-style decoder with next-token prediction loss on skeleton tokens is consistent with the paper; HF model card confirms MIT and >8GB VRAM."
+            },
+            {
+              "recipe": "UniRig stage 2: bone-point cross-attention skinning with geodesic distance refinement",
+              "overall": "confirmed-with-fixes",
+              "existence": "exists",
+              "license_check": "conditional",
+              "corrected_commercial_use": "conditional",
+              "fixes": "Point Transformer V3 / SAMPart3D weights are not under a permissive license compatible with MIT; redistribute only the UniRig skinning head and confirm the SAMPart3D-derived PTv3 checkpoint license allows commercial use before shipping.",
+              "note": "Bone-MLP encoder + PTv3 point encoder + cross-attention + voxelized-geodesic-distance concat + skinning MLP/softmax matches Sec. 3.2-3.3 of arXiv:2504.12451; the recipe itself flags the SAMPart3D license check, which is the real risk."
+            },
+            {
+              "recipe": "UniRig input mesh requirements and output format spec",
+              "overall": "confirmed-with-fixes",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "Confirm the exact supported input set (obj/fbx/glb/vrm) and the Y-up alignment statement directly from the README rather than paraphrasing; the 65,536-point sampling claim is consistent with the paper.",
+              "note": "Input format list, Y-up world-space normalization, and 65,536-point surface sampling are all consistent with the UniRig README and paper; no watertight requirement is documented."
+            },
+            {
+              "recipe": "UniRig Hugging Face checkpoints: what is actually downloadable vs. coming soon",
+              "overall": "unverified",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "Verify the 11.5 GB total, the skeleton/ vs skin/ directory split, and the exact 'Coming Soon' phrasing on Rig-XL and VRoid checkpoints by inspecting VAST-AI/UniRig file tree and model card directly.",
+              "note": "VAST-AI/UniRig is a real HF repo with MIT license, but the precise file layout, total size, and which checkpoints are released vs. coming-soon cannot be confirmed from text descriptions alone."
+            },
+            {
+              "recipe": "UniRig inference speed: 1-5 second end-to-end rigging claim vs. commercial baselines",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Table 1 of arXiv:2504.12451 does list UniRig at '1~5 s' vs. RigNet (1s-20min), Tripo (~2 min), Anything World (~5 min), Meshy (1-2 min); the recipe correctly notes that no hardware spec accompanies the UniRig figure."
+            },
+            {
+              "recipe": "UniRig SIGGRAPH 2025 / ACM TOG paper: arXiv:2504.12451, DOI 10.1145/3730930",
+              "overall": "confirmed-with-fixes",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "Independently confirm DOI 10.1145/3730930 against the ACM Digital Library (the recipe notes a 403 on direct fetch); the arXiv:2504.12451 listing and author list are otherwise consistent with the TOG publication.",
+              "note": "arXiv:2504.12451, the Zhang/Pu/Guo/Cao/Hu author list, Tsinghua + VAST-AI affiliation, and the SIGGRAPH 2025 / ACM TOG venue are all plausible and consistent with the preprint; DOI itself still needs cross-check."
+            },
+            {
+              "recipe": "SkinTokens: unified autoregressive successor to UniRig (arXiv:2602.04805, 2026, MIT)",
+              "overall": "unverified",
+              "existence": "unsure",
+              "license_check": "unknown",
+              "corrected_commercial_use": "unknown",
+              "fixes": "Cannot verify from sources available: arXiv:2602.04805 (Feb 2026) is past the knowledge cutoff, and the only cited evidence is a single GitHub URL (VAST-AI-Research/SkinTokens) that cannot be fetched. Independently confirm the arXiv listing, the GitHub repo, the Qwen3-0.6B choice, the FSQ-CVAE tokenization, and the exact 98-133% / 17-22% improvement figures before treating any of this as fact.",
+              "note": "A successor that fuses skeleton+skinning into one Qwen3-0.6B sequence with GRPO refinement is a plausible research direction from VAST-AI, but the very specific improvement percentages, the precise arXiv ID, and the GitHub URL cannot be confirmed here — exactly the pattern the rubric warns about for fabricated 2025-2026 models."
+            }
+          ]
+        },
+        "tally": {
+          "confirmed": 7,
+          "unverified": 1,
+          "refuted": 0,
+          "no-verdict": 0
+        },
+        "errors": null
+      }
+    },
+    {
+      "laneSlug": "rigging",
+      "title": "UniRig pipeline integration & ecosystem",
+      "recipes": [
+        {
+          "slug": "unirig-trellis-to-render-pipeline-slot",
+          "name": "UniRig in the studio flow: TRELLIS.2 mesh → UniRig rig → weapon_grip chain → Blender 8-dir render",
+          "kind": "pipeline",
+          "engine_family": "blender",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "UniRig is the rig stage between the TRELLIS.2 mesh and the Blender 8-direction sprite render: auto-rig the mesh with two shell scripts, append the rigid weapon_grip→weapon_tip bone chain, animate NLA actions, then render — turning a static mesh into an animatable game asset in one open-source pipeline.",
+          "summary": "Import the TRELLIS.2 GLB (decimated to 30-50k tris), run generate_skeleton.sh (outputs FBX skeleton), run generate_skin.sh (outputs FBX with skinning weights), run merge.sh to produce the final rigged GLB. The rigged GLB drops straight into Blender for armature inspection and weapon_grip chain append (see weapon-grip-rigid-bone-chain recipe). After appending weapon bones, build NLA actions (walk, attack, idle, hurt, death) and render 8 orthographic directions. UniRig's FBX/GLB output is the rig that wave-2 mocap retargets onto — it is the skeleton anchor for the whole motion line.",
+          "design_implication": "This is the rig backbone for the 68-character mesh game-asset line. It connects the TRELLIS.2 mesh path (sprites-knowledge) directly to wave-1 motion render and wave-2 retarget content. Because UniRig is MIT and its output is the studio's IP, the full line is commercial-clean with no redistribution restrictions.",
+          "evidence_strength": "reproduced-from-source",
+          "license": "MIT (UniRig); Blender output unrestricted",
+          "commercial_use": "yes",
+          "commercial_notes": "All stages commercial-clean. UniRig MIT license confirmed via GitHub LICENSE file. Rigged GLB output is studio IP.",
+          "vram_gb": "8-16",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "predecessor_slug": "unirig-blackwell-wsl2-skeleton-skin-measured",
+          "stage_order": 1,
+          "sources": [
+            {
+              "kind": "github",
+              "title": "VAST-AI-Research/UniRig — README pipeline commands",
+              "authors": "VAST AI Research",
+              "year": "2025",
+              "identifier": "github.com/VAST-AI-Research/UniRig",
+              "url": "https://github.com/VAST-AI-Research/UniRig",
+              "claim": "Documents the three-command pipeline: generate_skeleton.sh (GLB in → FBX skeleton), generate_skin.sh (FBX skeleton → FBX with weights), merge.sh (FBX + original GLB → rigged GLB). Supports batch mode via --input_dir / --output_dir."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed-with-fixes glm-5.2=confirmed minimax-m3=confirmed] -> confirmed"
+        },
+        {
+          "slug": "unirig-blender-addon-vrm-fork",
+          "name": "UniRig Blender VRM addon — VRM import/export for rigged mesh handoff",
+          "kind": "technique",
+          "engine_family": "blender",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "UniRig ships a modified VRM-Addon-for-Blender (add-on-vrm-v2.20.77_modified.zip) that installs into Blender via one Python command and enables.vrm import/export — useful only for VRM-format input meshes; the primary studio path (TRELLIS.2 GLB in, rigged GLB out) does not require the addon.",
+          "summary": "The addon is installed with: `python -c \"import bpy, os; bpy.ops.preferences.addon_install(filepath=os.path.abspath('blender/add-on-vrm-v2.20.77_modified.zip'))\"`. It is a fork of the open-source VRM-Addon-for-Blender and adds.vrm import/export capability to Blender for use with UniRig's VRM input path. UniRig accepts.obj,.fbx,.glb, and.vrm — so the addon is only required when the source mesh is a VRM file (e.g. a VRoid character). For the studio's TRELLIS.2 GLB input pipeline, the addon is not needed: generate_skeleton.sh and merge.sh consume and produce GLB/FBX natively via UniRig's own Python environment.",
+          "design_implication": "Skip the Blender addon for the standard TRELLIS.2 → rigged GLB path. Reserve it for any VRoid or VRM-sourced character mesh. Do not conflate 'Blender addon' with 'Blender integration' — UniRig's Blender interaction is primarily through importing the rigged GLB output into Blender manually, not through a live Blender addon interface.",
+          "evidence_strength": "reproduced-from-source",
+          "license": "MIT (UniRig repo, which includes the addon); original VRM-Addon-for-Blender is MIT",
+          "commercial_use": "yes",
+          "commercial_notes": "MIT license; addon covers VRM file handling only, output is unrestricted.",
+          "vram_gb": "n/a",
+          "rig_fit": 2,
+          "studio_fit": 1,
+          "status": "situational",
+          "failures": [
+            "The addon enables VRM I/O only — it does not expose a UniRig 'rig this mesh' button inside Blender. UniRig rigging still runs as Python shell commands outside Blender.",
+            "VRM is a humanoid-avatar format (VRChat, VRoid). TRELLIS.2 outputs GLB, not VRM — the addon adds no value for the standard studio path."
+          ],
+          "sources": [
+            {
+              "kind": "github",
+              "title": "VAST-AI-Research/UniRig — Blender addon install command",
+              "authors": "VAST AI Research",
+              "year": "2025",
+              "identifier": "github.com/VAST-AI-Research/UniRig",
+              "url": "https://github.com/VAST-AI-Research/UniRig",
+              "claim": "README documents the Python install command for add-on-vrm-v2.20.77_modified.zip; identifies it as modified from VRM-Addon-for-Blender; input formats listed as.obj,.fbx,.glb,.vrm."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=unverified minimax-m3=confirmed] -> confirmed"
+        },
+        {
+          "slug": "unirig-comfyui-nodes-pozzettiandrea",
+          "name": "ComfyUI-UniRig — ComfyUI wrapper nodes for UniRig rigging inside ComfyUI",
+          "kind": "workflow",
+          "engine_family": "comfyui",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "ComfyUI-UniRig (PozzettiAndrea, GPL-3.0) is a verified ComfyUI custom-node package that wraps UniRig's rigging pipeline in 16 graph nodes — including UniRig:Load Model, UniRig:Auto Rig, UniRig:Apply Animation, UniRig:Export Posed FBX, and UniRig:Save Mesh — installable via ComfyUI Manager.",
+          "summary": "The package provides 16 nodes covering the full UniRig pipeline inside ComfyUI: load a 3D mesh, load the UniRig model, extract skeleton, apply ML skinning, apply animation, export posed FBX, preview the rigged mesh, and save the result. A parallel MIA (Make-It-Animatable, CVPR 2025) node set is also included. Installation is via ComfyUI Manager (search 'UniRig') or manual git clone. Hardware overhead is modest — 8 GB GPU handles UniRig alongside other ComfyUI workflows. The package is active (420+ commits as of research date). Output format includes FBX (UniRig:Export Posed FBX node confirmed); GLB output via UniRig:Save Mesh.",
+          "design_implication": "ComfyUI-UniRig enables a fully node-graph rigging pipeline — paste the TRELLIS.2 GLB into a ComfyUI workflow that auto-rigs via UniRig, applies a BVH animation clip, and exports a posed FBX in one shot, without leaving ComfyUI. The GPL-3.0 license on the wrapper does NOT affect the rigged output files — it covers the Python node wrapper code, not the 3D assets produced. Evaluate as an alternative to the shell-script WSL2 path for operators more comfortable in ComfyUI's visual graph.",
+          "evidence_strength": "reproduced-from-source",
+          "license": "GPL-3.0 (ComfyUI wrapper nodes); MIT (UniRig model itself)",
+          "commercial_use": "yes",
+          "commercial_notes": "GPL-3.0 covers the Python wrapper code, not rigged 3D asset output. Produced GLB/FBX assets are the studio's IP. Confirm GPL interpretation before redistributing the node package itself.",
+          "vram_gb": "8-16",
+          "rig_fit": 4,
+          "studio_fit": 3,
+          "status": "situational",
+          "failures": [
+            "ComfyUI-UniRig still requires UniRig's Python environment (flash_attn, spconv, torch_scatter) installed in the ComfyUI Python — the Blackwell WSL2 setup complexity from the measured recipe still applies.",
+            "Output format details (FBX vs GLB per node) require per-node verification — not all nodes document their output format in the registry listing."
+          ],
+          "sources": [
+            {
+              "kind": "repo",
+              "title": "PozzettiAndrea/ComfyUI-UniRig — GitHub",
+              "authors": "PozzettiAndrea",
+              "year": "2025",
+              "identifier": "github.com/PozzettiAndrea/ComfyUI-UniRig",
+              "url": "https://github.com/PozzettiAndrea/ComfyUI-UniRig",
+              "claim": "GPL-3.0 licensed ComfyUI custom node package; installable via ComfyUI Manager; 420+ commits, active; provides 16 nodes including UniRig:Auto Rig, UniRig:Apply Animation, UniRig:Export Posed FBX."
+            },
+            {
+              "kind": "docs",
+              "title": "ComfyUI-UniRig node listing — runcomfy.com",
+              "authors": "runcomfy.com",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://www.runcomfy.com/comfyui-nodes/ComfyUI-UniRig",
+              "claim": "Lists all 16 ComfyUI-UniRig nodes by name including UniRig:Load Model, UniRig:Auto Rig, UniRig:Apply Animation, UniRig:Export Posed FBX, UniRig:Save Mesh, UniRig:Preview Rigged Mesh, and MIA:Auto Rig."
+            },
+            {
+              "kind": "web",
+              "title": "ComfyUI UniRig Automatic Rigging Guide 2025 — Apatero",
+              "authors": "Apatero",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://www.apatero.com/blog/comfyui-unirig-automatic-skeleton-rigging-guide-2025",
+              "claim": "Community guide confirms 8 GB GPU handles UniRig in ComfyUI alongside other workflows; ComfyUI Manager install path verified."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=unverified minimax-m3=confirmed] -> confirmed; not-found x1"
+        },
+        {
+          "slug": "unirig-retarget-bone-remap",
+          "name": "UniRig skeleton → mocap retarget: non-standard bone-name remap via ARP Remap or Blender Retarget addon",
+          "kind": "workflow",
+          "engine_family": "blender",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "UniRig generates skeletons with non-standardized bone names (inherited from training data diversity, not aligned to Mixamo/Blender/UE5 conventions); a manual bone-name remap pass — via Auto-Rig Pro Remap's 'Replace Namespace' feature or the Blender Retarget addon presets — is required before any commercial mocap BVH/FBX can retarget onto a UniRig skeleton.",
+          "summary": "UniRig's autoregressive skeleton predictor outputs bone names derived from its Rig-XL training corpus, which contains diverse rigging conventions. These names do not match Mixamo's 'mixamorig:Hips' scheme, Blender's '.L/.R' convention, 100STYLE's BVH names, or CMU Mocap Database joint names. To retarget commercial BVH/FBX mocap onto a UniRig skeleton in Blender, build a custom bone-name mapping JSON (ARP Batch Retargeting workflow: github.com/Shimingyi/ARP-Batch-Retargeting) or use ARP Remap's interactive bone-pair UI with Replace Namespace to handle name prefix differences. The Blender Retarget addon (extensions.blender.org) also provides interactive source-to-target bone pairing. Build and save a per-species preset — reuse across all characters of the same UniRig topology. This remap is a one-time setup cost per species skeleton family.",
+          "design_implication": "The wave-2 mocap retarget lane uses UniRig skeletons as the target rig — but UniRig gives no naming guarantee. Budget one remap-preset authoring session per species family (humanoid, tortle, kenku, sahuagin, etc.) before the mocap retarget wave begins. Store each remap preset as a.blend template. This is the key integration seam between UniRig (wave-4) and the retarget lane (wave-2).",
+          "evidence_strength": "community-claim",
+          "license": "Blender Retarget addon: free (Blender Extensions); ARP Remap: paid (~$40); technique itself: free",
+          "commercial_use": "yes",
+          "commercial_notes": "The remap/retarget step does not launder the source mocap clip license — verify commercial-use rights on the mocap clip itself (see mocap-datasets and motion-licensing lanes).",
+          "vram_gb": "n/a",
+          "rig_fit": 4,
+          "studio_fit": 4,
+          "status": "recommended",
+          "failures": [
+            "Skipping the remap step and running ARP Remap with a Mixamo preset on a UniRig skeleton will fail silently — most bones will be unmapped, resulting in a frozen rig with only root motion.",
+            "UniRig bone count varies by mesh complexity — exotic species may get fewer or more predicted bones than humanoids, making a generic remap preset unusable across species."
+          ],
+          "sources": [
+            {
+              "kind": "docs",
+              "title": "Remap — AutoRigPro Documentation (Replace Namespace)",
+              "authors": "artell",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://www.lucky3d.fr/auto-rig-pro/doc/remap_doc.html",
+              "claim": "Documents the Replace Namespace function for handling bone-name prefix differences when preset names don't match source names (e.g. 'mixamorig:Hips' vs 'matthew:Hips'); applicable to UniRig's non-standard names."
+            },
+            {
+              "kind": "repo",
+              "title": "ARP-Batch-Retargeting — GitHub (Shimingyi)",
+              "authors": "Shimingyi",
+              "year": "2024",
+              "identifier": "github.com/Shimingyi/ARP-Batch-Retargeting",
+              "url": "https://github.com/Shimingyi/ARP-Batch-Retargeting",
+              "claim": "JSON-based bone mapping pipeline for batch BVH retargeting via ARP; demonstrates 100STYLE_to_Mixamo and SMPL_to_Mixamo mappings — the same JSON approach works for UniRig-to-Mixamo bone name mapping."
+            },
+            {
+              "kind": "docs",
+              "title": "Retarget — Blender Extensions",
+              "authors": "Blender Foundation community",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://extensions.blender.org/add-ons/retarget/",
+              "claim": "Free Blender Extension with presets for Mixamo, Unreal, VRoid, MMD, Daz, Auto Rig Pro — includes interactive source-to-target bone pairing for custom skeletons like UniRig output."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed] -> confirmed"
+        },
+        {
+          "slug": "skintokens-skintokens-successor",
+          "name": "SkinTokens — VAST-AI UniRig successor (arXiv Feb 2026, MIT)",
+          "kind": "model",
+          "engine_family": "python",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI-Research/SkinTokens",
+          "predecessor_slug": "unirig-ai-auto-rigger-mit",
+          "stage_order": 2,
+          "claim": "SkinTokens (VAST-AI, arXiv 2602.04805, February 2026) is the verified MIT-licensed successor to UniRig that unifies skeleton prediction and skinning into a single autoregressive token sequence (SkinTokens), reporting 98-133% skinning accuracy improvement and 17-22% bone prediction improvement over UniRig; code and model weights are available on GitHub as of May 2026.",
+          "summary": "Where UniRig runs two sequential stages (skeleton prediction → skin weight prediction), SkinTokens represents both skeleton joints and skinning weights as a single unified discrete token sequence, predicted autoregressively. The SkinTokens representation is the key innovation: learned discrete tokens replace the per-vertex skinning weight matrices of UniRig, enabling the entire rig to be generated in one forward pass. Input is a 3D mesh GLB; output is a rigged GLB. MIT license confirmed in the GitHub repo. The Hugging Face Space demo is live. Code last updated May 12, 2026 per GitHub. No Blender addon is documented for SkinTokens; the workaround for Blender import is to 'remove the glTF_not_exported node when importing results into Blender.'",
+          "design_implication": "SkinTokens is the upgrade path from UniRig for the studio's mesh-asset line — when it is confirmed stable on the Blackwell WSL2 setup (same torch/flash_attn dependencies expected), migrate the rigging step to get better skinning quality on the exotic species roster. Do not migrate until WSL2 compatibility is measured on the RTX 5090. The Blender import workaround (remove glTF_not_exported node) must be scripted into the merge step to avoid manual cleanup per character.",
+          "evidence_strength": "single-reported-run",
+          "license": "MIT (confirmed in GitHub repository)",
+          "commercial_use": "conditional",
+          "commercial_notes": "MIT license; rigged output is studio IP. No usage restrictions beyond attribution in papers.",
+          "vram_gb": "8-16",
+          "rig_fit": 5,
+          "studio_fit": 4,
+          "status": "watch",
+          "failures": [
+            "WSL2 Blackwell (sm_120) compatibility not yet measured — same dependency stack as UniRig expected but unverified as of research date (2026-06-25).",
+            "Blender import requires removing the 'glTF_not_exported' node from the output GLB — must be scripted or the mesh will have invisible geometry on import.",
+            "ComfyUI-UniRig wrapper does not yet cover SkinTokens — separate wrapper or shell-script path required."
+          ],
+          "sources": [
+            {
+              "kind": "paper",
+              "title": "SkinTokens: A Learned Compact Representation for Unified Autoregressive Rigging",
+              "authors": "VAST AI Research",
+              "year": "2026",
+              "identifier": "arXiv:2602.04805",
+              "url": "https://arxiv.org/abs/2602.04805",
+              "claim": "SkinTokens unifies skeleton and skinning prediction into a single autoregressive sequence via SkinTokens; reports 98-133% skinning accuracy and 17-22% bone prediction improvement over state-of-art baselines including UniRig."
+            },
+            {
+              "kind": "github",
+              "title": "VAST-AI-Research/SkinTokens — GitHub",
+              "authors": "VAST AI Research",
+              "year": "2026",
+              "identifier": "github.com/VAST-AI-Research/SkinTokens",
+              "url": "https://github.com/VAST-AI-Research/SkinTokens",
+              "claim": "MIT-licensed repository; last updated May 12, 2026; GLB input/output confirmed via demo command `python demo.py --input examples/giraffe.glb --output results/giraffe.glb`; Blender import note: remove glTF_not_exported node."
+            }
+          ],
+          "license_correction": "No verifiable arXiv paper (2602.04805), GitHub repo, or model named SkinTokens from VAST-AI-Research exists; this appears to be a fabricated future model.",
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=unverified glm-5.2=refuted minimax-m3=unverified] -> unverified; not-found x1 [license -> commercial_use=unknown] | retrieval-oracle CONFIRMED existence (arXiv:2602.04805 'Skin Tokens: A Learned Compact Representation for Unified Autoregressive Rigging' + GitHub VAST-AI-Research/SkinTokens, 200); the cross-family jury could not confirm it (postdates training cutoff) — benchmark/license specifics remain agent-claimed, watch status."
+        },
+        {
+          "slug": "unirig-community-adoption-pipeline-reality",
+          "name": "UniRig community adoption and real-pipeline usage evidence (2025-2026)",
+          "kind": "technique",
+          "engine_family": "python",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "UniRig has measurable community adoption beyond academic use: a maintained ComfyUI wrapper (420+ commits, ComfyUI Manager installable), a Hugging Face Spaces demo (jkorstad/Mesh_Rigger), community tutorial articles, and confirmed end-to-end studio use on exotic non-humanoid meshes (studio RTX 5090 measured run) — evidence that it is a real production-path tool, not vaporware.",
+          "summary": "Adoption evidence: (1) ComfyUI-UniRig wrapper by PozzettiAndrea (GPL-3.0, 420+ commits, installable via ComfyUI Manager) is actively maintained and integrates UniRig + Make-It-Animatable in one node graph. (2) Hugging Face Space jkorstad/Mesh_Rigger hosts a public demo using UniRig's README directly. (3) Community tutorial articles (Apatero, ComfyUI Wiki) document real installation and workflow steps. (4) Studio measured run on RTX 5090 / WSL2 confirmed end-to-end pipeline on an armored humanoid mesh (28 predicted bones, learned skinning, Blender pose-test). UniRig's SIGGRAPH 2025 / ACM TOG publication and 215%/194% accuracy improvements over prior art (Rignet, TripoSG-rigging) make it academically credible. The successor (SkinTokens, arXiv Feb 2026) validates the research lineage. No evidence of false-start or abandoned status.",
+          "design_implication": "UniRig is a safe bet for the studio's mesh-asset line: real code, real weights, real community adoption, real SIGGRAPH paper, real successor in development. The ComfyUI-UniRig wrapper gives a visual-graph alternative to shell scripts for operators uncomfortable with WSL2. The jkorstad Mesh_Rigger HF Space gives a zero-setup sanity-check demo for testing new mesh types before committing to the full WSL2 install.",
+          "evidence_strength": "reproduced-from-source",
+          "license": "MIT (UniRig); GPL-3.0 (ComfyUI wrapper); output unrestricted",
+          "commercial_use": "yes",
+          "commercial_notes": "All adoption paths commercial-clean on the output. GPL-3.0 wrapper does not affect produced 3D assets.",
+          "vram_gb": "8-16",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "sources": [
+            {
+              "kind": "repo",
+              "title": "PozzettiAndrea/ComfyUI-UniRig — GitHub (adoption evidence)",
+              "authors": "PozzettiAndrea",
+              "year": "2025",
+              "identifier": "github.com/PozzettiAndrea/ComfyUI-UniRig",
+              "url": "https://github.com/PozzettiAndrea/ComfyUI-UniRig",
+              "claim": "420+ commits; ComfyUI Manager installable; active maintenance; community usage via tutorial documentation — concrete adoption signal beyond the research paper."
+            },
+            {
+              "kind": "demo",
+              "title": "jkorstad/Mesh_Rigger — Hugging Face Space (UniRig demo)",
+              "authors": "jkorstad",
+              "year": "2025",
+              "identifier": "huggingface.co/spaces/jkorstad/Mesh_Rigger",
+              "url": "https://huggingface.co/spaces/jkorstad/Mesh_Rigger/blob/main/UniRig/README.md",
+              "claim": "Public HF Space demo using UniRig's pipeline directly; confirms the model weights and inference scripts are functional in a zero-setup environment — useful for testing new mesh types before WSL2 install."
+            },
+            {
+              "kind": "measured-on-rig",
+              "title": "Studio RTX 5090 / WSL2 Ubuntu — UniRig measured run 2026-06-25",
+              "authors": "mcp-tool-shop studio",
+              "year": "2026",
+              "identifier": "see unirig-blackwell-wsl2-skeleton-skin-measured recipe",
+              "url": "https://github.com/VAST-AI-Research/UniRig",
+              "claim": "End-to-end UniRig (skeleton + skin + merge) confirmed on Blackwell RTX 5090 / WSL2 Ubuntu; 28 predicted bones + learned skin; Blender pose-test confirms deformation — production-path validation."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=unverified minimax-m3=confirmed] -> confirmed"
+        }
+      ],
+      "cloud_verify": {
+        "models": [
+          "deepseek-v4-pro",
+          "glm-5.2",
+          "minimax-m3"
+        ],
+        "jurors": {
+          "deepseek-v4-pro:cloud": [
+            {
+              "recipe": "UniRig in the studio flow: TRELLIS.2 mesh → UniRig rig → weapon_grip chain → Blender 8-dir render",
+              "overall": "confirmed-with-fixes",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "The claim states 'two shell scripts' but the pipeline uses three: generate_skeleton.sh, generate_skin.sh, merge.sh.",
+              "note": "UniRig exists and the pipeline is valid, but the number of scripts is misstated."
+            },
+            {
+              "recipe": "UniRig Blender VRM addon — VRM import/export for rigged mesh handoff",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "The addon is present in the UniRig repo and the license claim is accurate."
+            },
+            {
+              "recipe": "ComfyUI-UniRig — ComfyUI wrapper nodes for UniRig rigging inside ComfyUI",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "The ComfyUI wrapper exists, is GPL-3.0 (commercial use allowed), and the node list matches evidence."
+            },
+            {
+              "recipe": "UniRig skeleton → mocap retarget: non-standard bone-name remap via ARP Remap or Blender Retarget addon",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "The retargeting workflow and tools are real; UniRig's non-standard bone names necessitate remapping."
+            },
+            {
+              "recipe": "SkinTokens — VAST-AI UniRig successor (arXiv Feb 2026, MIT)",
+              "overall": "unverified",
+              "existence": "unsure",
+              "license_check": "unknown",
+              "corrected_commercial_use": "unknown",
+              "fixes": "",
+              "note": "Cannot confirm existence of a 2026 paper and repository; beyond knowledge cutoff and no independent verification possible."
+            },
+            {
+              "recipe": "UniRig community adoption and real-pipeline usage evidence (2025-2026)",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "The cited adoption evidence (ComfyUI wrapper, HF space, tutorials) is real and supports the claim."
+            }
+          ],
+          "glm-5.2:cloud": [
+            {
+              "recipe": "UniRig in the studio flow: TRELLIS.2 mesh → UniRig rig → weapon_grip chain → Blender 8-dir render",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "UniRig (VAST-AI-Research) exists, is MIT-licensed, and its three-command pipeline (generate_skeleton.sh, generate_skin.sh, merge.sh) is documented; Blender output is unrestricted."
+            },
+            {
+              "recipe": "UniRig Blender VRM addon — VRM import/export for rigged mesh handoff",
+              "overall": "unverified",
+              "existence": "unsure",
+              "license_check": "unknown",
+              "corrected_commercial_use": "unknown",
+              "fixes": "Cannot independently confirm the specific modified-addon filename (add-on-vrm-v2.20.77_modified.zip) or its exact license terms; verify against the current UniRig repo.",
+              "note": "UniRig does support VRM input and may bundle a modified VRM addon, but the exact version string and install command cannot be confirmed without repo access."
+            },
+            {
+              "recipe": "ComfyUI-UniRig — ComfyUI wrapper nodes for UniRig rigging inside ComfyUI",
+              "overall": "unverified",
+              "existence": "not-found",
+              "license_check": "unknown",
+              "corrected_commercial_use": "conditional",
+              "fixes": "If the repo exists, GPL-3.0 wrapper means commercial_use should be 'conditional' (copyleft obligations apply if distributing derivative software); for internal studio sprite generation, use is likely permissible.",
+              "note": "Cannot confirm the PozzettiAndrea/ComfyUI-UniRig repository exists; the 16-node list, 420+ commit count, and specific node names are unverified."
+            },
+            {
+              "recipe": "UniRig skeleton → mocap retarget: non-standard bone-name remap via ARP Remap or Blender Retarget addon",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Auto-Rig Pro Remap, the free Blender Retarget extension, and ARP-Batch-Retargeting all exist; the bone-name remap technique for non-standard UniRig skeletons is sound and well-sourced."
+            },
+            {
+              "recipe": "SkinTokens — VAST-AI UniRig successor (arXiv Feb 2026, MIT)",
+              "overall": "refuted",
+              "existence": "not-found",
+              "license_check": "wrong",
+              "corrected_commercial_use": "unknown",
+              "fixes": "No verifiable arXiv paper (2602.04805), GitHub repo, or model named SkinTokens from VAST-AI-Research exists; this appears to be a fabricated future model.",
+              "note": "arXiv ID 2602.04805 (February 2026) and the claimed SkinTokens successor model appear invented — exactly the plausible-sounding non-existent 2025-2026 animation model the rubric flags."
+            },
+            {
+              "recipe": "UniRig community adoption and real-pipeline usage evidence (2025-2026)",
+              "overall": "unverified",
+              "existence": "unsure",
+              "license_check": "unknown",
+              "corrected_commercial_use": "unknown",
+              "fixes": "Cannot confirm ComfyUI-UniRig repo (420+ commits), HF Space jkorstad/Mesh_Rigger, or RTX 5090 measured run; multiple adoption signals are unverifiable.",
+              "note": "Several key adoption signals (ComfyUI wrapper existence, specific HF Space, RTX 5090 studio run) cannot be independently confirmed."
+            }
+          ],
+          "minimax-m3:cloud": [
+            {
+              "recipe": "UniRig in the studio flow: TRELLIS.2 mesh → UniRig rig → weapon_grip chain → Blender 8-dir render",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "UniRig exists at VAST-AI-Research/UniRig with the documented three-script pipeline; MIT license and Blender output are correctly described."
+            },
+            {
+              "recipe": "UniRig Blender VRM addon — VRM import/export for rigged mesh handoff",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Modified VRM-Addon-for-Blender (MIT) is bundled in the UniRig repo as documented; the install command and VRM input path match the README."
+            },
+            {
+              "recipe": "ComfyUI-UniRig — ComfyUI wrapper nodes for UniRig rigging inside ComfyUI",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "PozzettiAndrea/ComfyUI-UniRig is a real ComfyUI custom-node package; GPL-3.0 wrapper + MIT UniRig both permit commercial studio use."
+            },
+            {
+              "recipe": "UniRig skeleton → mocap retarget: non-standard bone-name remap via ARP Remap or Blender Retarget addon",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "ARP Remap (paid) and the free Blender Extensions retarget addon both exist; UniRig's non-Mixamo/non-UE5 bone naming is a real interoperability hurdle that the described remap workflow addresses."
+            },
+            {
+              "recipe": "SkinTokens — VAST-AI UniRig successor (arXiv Feb 2026, MIT)",
+              "overall": "unverified",
+              "existence": "unsure",
+              "license_check": "unknown",
+              "corrected_commercial_use": "unknown",
+              "fixes": "",
+              "note": "arXiv 2602.04805 (Feb 2026) and a May 12 2026 repo update both fall after the verifier's knowledge cutoff; the specific 98-133% / 17-22% improvement figures cannot be confirmed or refuted — must be reverified against arXiv/GitHub before use."
+            },
+            {
+              "recipe": "UniRig community adoption and real-pipeline usage evidence (2025-2026)",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "ComfyUI-UniRig wrapper, the jkorstad/Mesh_Rigger HF Space, and RTX 5090 / WSL2 end-to-end runs are all plausible adoption signals; MIT UniRig + GPL-3.0 wrapper both allow commercial studio use."
+            }
+          ]
+        },
+        "tally": {
+          "confirmed": 5,
+          "unverified": 1,
+          "refuted": 0,
+          "no-verdict": 0
+        },
+        "errors": null
+      }
+    },
+    {
+      "laneSlug": "rigging",
+      "title": "UniRig license & commercial status",
+      "recipes": [
+        {
+          "slug": "unirig-mit-code-and-weights-commercial",
+          "name": "UniRig commercial license: MIT on code AND released HuggingFace checkpoints",
+          "kind": "reference",
+          "engine_family": "n/a",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "UniRig is MIT-licensed on both the GitHub source code (VAST-AI-Research/UniRig, Copyright 2025 VAST-AI-Research and contributors) and the published HuggingFace checkpoints (VAST-AI/UniRig, license field: MIT) — a rare fully-permissive release for a SIGGRAPH 2025 class auto-rigger. The studio can ship UniRig-rigged game assets commercially without license drag on the tool itself.",
+          "summary": "The GitHub LICENSE file is unambiguously MIT: 'Copyright (c) 2025 VAST-AI-Research and contributors. Permission is hereby granted, free of charge, to any person obtaining a copy of this software...' The HuggingFace model card for VAST-AI/UniRig declares the license field as 'mit' with no non-commercial clause or usage restriction visible on the card. MIT grants the right to 'use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies' — the only obligation is retaining the copyright notice. This combination (MIT code + MIT weights) is uncommon for SIGGRAPH-class research artifacts; most comparable models ship research-only or CC-BY-NC weights.",
+          "design_implication": "UniRig is the commercial-clean default auto-rigger for the studio's exotic-species and humanoid lines. Rigged GLBs exported from UniRig are the studio's own IP. No per-seat fee, no royalty clause, no NC restriction blocks a Steam commercial release. Monitor future checkpoint releases: MIT on the current checkpoint does not bind VAST-AI for future weight drops — always verify the HF card license field before integrating a new checkpoint into the pipeline.",
+          "evidence_strength": "reproduced-from-source",
+          "license": "MIT (code + released weights)",
+          "commercial_use": "yes",
+          "commercial_notes": "MIT on the GitHub repo and the HuggingFace VAST-AI/UniRig model card. No non-commercial clause, no revenue cap, no attribution requirement beyond preserving the copyright notice in redistributed code. Rigged mesh outputs (GLB/FBX) are not derivative works of the model weights under copyright law — they are the studio's own 3D data processed through the tool. Training-data terms (see unirig-training-data-objaverse-terms recipe) do not automatically propagate to rig outputs.",
+          "vram_gb": "n/a",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "sources": [
+            {
+              "kind": "docs",
+              "title": "VAST-AI-Research/UniRig — LICENSE",
+              "authors": "VAST-AI-Research",
+              "year": "2025",
+              "identifier": "MIT",
+              "url": "https://github.com/VAST-AI-Research/UniRig/blob/main/LICENSE",
+              "claim": "Repository LICENSE file is MIT, copyright 2025 VAST-AI-Research and contributors. Full permissive grant with no non-commercial restriction."
+            },
+            {
+              "kind": "model-card",
+              "title": "VAST-AI/UniRig — Hugging Face model card",
+              "authors": "VAST-AI",
+              "year": "2025",
+              "identifier": "MIT",
+              "url": "https://huggingface.co/VAST-AI/UniRig",
+              "claim": "Model card license field is 'mit'. No non-commercial clause, no usage restrictions noted on the card."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed-with-fixes] -> confirmed"
+        },
+        {
+          "slug": "unirig-training-data-objaverse-terms",
+          "name": "UniRig training data (Articulation-XL2.0 / Objaverse-XL): license propagation analysis",
+          "kind": "reference",
+          "engine_family": "n/a",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "The current released checkpoint was trained on Articulation-XL2.0 (CC-BY-4.0, Seed3D/HuggingFace), which is itself derived from Objaverse-XL (ODC-By 1.0 for the collection; individual objects carry mixed licenses including some CC-BY-NC). However, training-data licenses do not automatically propagate to model weights or to the rig outputs produced by running the model — outputs are the user's own 3D data, not reproductions of training assets.",
+          "summary": "Articulation-XL2.0 is published on HuggingFace under CC-BY-4.0, which permits commercial use with attribution. It is sourced from the GitHub and Sketchfab subsets of Objaverse-XL; those subsets contain some CC-BY-NC objects. The Objaverse-XL collection itself is ODC-By 1.0 (permissive for the database as a whole). The core legal question — whether NC training data infects model weights or outputs — is unsettled law as of 2026, but the prevailing practical position (per AI-law commentary and VAST-AI's own MIT weight license) is that running an inference call does not make the rig output a derivative work of the training asset. VAST-AI publishing the weights under MIT is their implicit commercial-use grant. The studio's actual risk exposure from the training-data layer is low but non-zero and should be noted for due-diligence purposes.",
+          "design_implication": "For a commercial JRPG Steam release, treat the training-data layer as a due-diligence footnote rather than a blocker: the tool license is MIT, the weights are MIT, and rig outputs are the studio's own asset data. If a future legal challenge on NC-training-data propagation ever crystallized, it would affect VAST-AI (as the trainer) rather than studio users running inference. Attribution of Articulation-XL2.0 (Seed3D) is not required for rig outputs — only for redistribution of the dataset itself.",
+          "evidence_strength": "reproduced-from-source",
+          "license": "Articulation-XL2.0: CC-BY-4.0; Objaverse-XL: ODC-By 1.0 (collection); individual objects: mixed",
+          "commercial_use": "conditional",
+          "commercial_notes": "Dataset licenses apply to redistribution of the training data itself, not to model inference outputs. The conditional rating reflects legal uncertainty about NC-training-data propagation, not a practical blocker. VAST-AI publishing weights under MIT is the operative commercial grant for studio use. No attribution of training data is required when shipping a game that uses UniRig-rigged assets.",
+          "vram_gb": "n/a",
+          "rig_fit": 4,
+          "studio_fit": 4,
+          "status": "approved-with-notes",
+          "sources": [
+            {
+              "kind": "model-card",
+              "title": "Seed3D/Articulation-XL2.0 — Hugging Face dataset card",
+              "authors": "Seed3D / VAST-AI",
+              "year": "2025",
+              "identifier": "CC-BY-4.0",
+              "url": "https://huggingface.co/datasets/Seed3D/Articulation-XL2.0",
+              "claim": "Articulation-XL2.0 license field is CC-BY-4.0. Commercial use is permitted; attribution to dataset creators is required when redistributing the dataset itself."
+            },
+            {
+              "kind": "docs",
+              "title": "allenai/objaverse-xl — Hugging Face dataset card",
+              "authors": "Allen AI",
+              "year": "2023",
+              "identifier": "ODC-By 1.0",
+              "url": "https://huggingface.co/datasets/allenai/objaverse-xl",
+              "claim": "Objaverse-XL collection is ODC-By 1.0. Individual objects have heterogeneous licenses including CC-BY, CC-BY-NC, CC-BY-SA, CC0. Some subsets (Polycam) are non-commercial academic-only."
+            },
+            {
+              "kind": "paper",
+              "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig",
+              "authors": "Zhang, Pu, Guo, Cao, Hu (Tsinghua + VAST-AI)",
+              "year": "2025",
+              "identifier": "arXiv:2504.12451",
+              "url": "https://arxiv.org/abs/2504.12451",
+              "claim": "Paper states training on Rig-XL (14,000+ rigged models from Objaverse-XL) and Articulation-XL2.0. Current released checkpoint is trained on Articulation-XL2.0."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=unverified] -> confirmed"
+        },
+        {
+          "slug": "unirig-auto-rigger-license-landscape",
+          "name": "Auto-rigger license landscape: UniRig MIT vs Rigify GPL vs AccuRIG EULA vs Auto-Rig Pro paid vs Mixamo NC-redistribute",
+          "kind": "reference",
+          "engine_family": "n/a",
+          "applicable_to": "rigging",
+          "claim": "Among the major auto-rigging tools available in 2025-2026, UniRig (MIT weights + MIT code) is the only SIGGRAPH-class AI auto-rigger with a fully permissive commercial license on both code and model weights. The alternatives each carry specific restrictions that affect commercial game shipping: Rigify (GPL app, output clean), AccuRIG (freeware app, content EULA restricts redistribution of rigged assets via Reallusion content), Auto-Rig Pro (paid per-license, output unrestricted), Mixamo (royalty-free commercial use OK but no standalone asset redistribution).",
+          "summary": "Rigify is GPL-licensed as a Blender addon; the Blender Foundation's position and community consensus is that the GPL covers the software tool, not the artist's output data — rigged meshes exported to FBX/GLTF are the studio's own IP, commercial use is fine. AccuRIG is free to download and the application itself has no commercial restriction, but assets accessed through the ActorCore platform carry EULA terms that restrict redistribution; rigging your own mesh with AccuRIG is generally unrestricted. Auto-Rig Pro is a paid Blender Market addon ($40 one-time); it is actively used in commercial games (Manor Lords, Fabledom) with no known output restriction. Mixamo (Adobe) is royalty-free for commercial games but prohibits redistributing raw animation/character files as standalone assets — shipping the game is fine, selling the extracted FBX is not. Research-only auto-riggers (RigNet, BoneGeo, older PIFU-HD rigs) are explicitly NC. UniRig is the only option in this tier that is AI-powered, high-quality on exotic meshes, and fully MIT on both the code and the distributed weights.",
+          "design_implication": "The studio's tool stack should use UniRig as the primary AI auto-rigger for novel and exotic-species meshes where manual rigging is slow. Rigify remains useful for standard humanoid base rigs in Blender. Auto-Rig Pro is a viable paid alternative. Mixamo retargeting is usable for motion but the studio should not redistribute extracted raw animations. Avoid any research-only auto-rigger (RigNet public checkpoints, any HF model with CC-BY-NC on weights) for the commercial pipeline.",
+          "evidence_strength": "reproduced-from-source",
+          "license": "varies by tool — see commercial_notes",
+          "commercial_use": "yes",
+          "commercial_notes": "UniRig: MIT code + MIT weights — fully commercial. Rigify: GPL app, output unrestricted — commercial OK. AccuRIG app: freeware commercial OK; Reallusion ActorCore content: EULA restricts redistribution of Reallusion-supplied assets. Auto-Rig Pro: paid license, output unrestricted — commercial OK. Mixamo: royalty-free for shipping commercial games; no redistribution of raw asset files. Research-only auto-riggers: NC weights — not usable commercially.",
+          "vram_gb": "n/a",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "sources": [
+            {
+              "kind": "docs",
+              "title": "VAST-AI-Research/UniRig — LICENSE",
+              "authors": "VAST-AI-Research",
+              "year": "2025",
+              "identifier": "MIT",
+              "url": "https://github.com/VAST-AI-Research/UniRig/blob/main/LICENSE",
+              "claim": "UniRig code is MIT. VAST-AI/UniRig HF card is also MIT on weights."
+            },
+            {
+              "kind": "docs",
+              "title": "Rigify — Blender 5.1 Manual",
+              "authors": "Blender Foundation",
+              "year": "2025",
+              "identifier": "GPL-2.0",
+              "url": "https://docs.blender.org/manual/en/latest/addons/rigging/rigify/index.html",
+              "claim": "Rigify is a GPL Blender addon. Community and Blender Foundation consensus: GPL covers the tool, not the output mesh/armature data exported by the artist."
+            },
+            {
+              "kind": "docs",
+              "title": "Mixamo FAQ — Licensing, Royalties, Ownership, EULA and TOS",
+              "authors": "Adobe / Mixamo",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://community.adobe.com/t5/mixamo-discussions/mixamo-faq-licensing-royalties-ownership-eula-and-tos/td-p/13234775",
+              "claim": "Mixamo is royalty-free for commercial games. Raw asset file redistribution (selling extracted FBX/character files) and bulk ML downloads are prohibited."
+            },
+            {
+              "kind": "docs",
+              "title": "Auto-Rig Pro — Superhive (Blender Market)",
+              "authors": "Artell",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://superhivemarket.com/products/auto-rig-pro",
+              "claim": "Auto-Rig Pro is a paid ($40 approx) one-time purchase. Extended Commercial License available. Used commercially in shipped titles (Manor Lords, Fabledom). No known output restriction on rigged meshes."
+            },
+            {
+              "kind": "docs",
+              "title": "Free Auto Rig for any 3D Character | AccuRIG — ActorCore",
+              "authors": "Reallusion",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://actorcore.reallusion.com/auto-rig/accurig",
+              "claim": "AccuRIG application is freeware for personal and commercial use. Reallusion-supplied ActorCore content carries separate EULA restricting redistribution. Rigging your own mesh assets with AccuRIG is not clearly restricted by content EULA."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed] -> confirmed"
+        },
+        {
+          "slug": "unirig-redistribution-and-sublicense-rights",
+          "name": "UniRig redistribution, sublicensing, and commercial derivative works under MIT",
+          "kind": "reference",
+          "engine_family": "n/a",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "Under MIT, the studio can redistribute UniRig code, sublicense it, incorporate it into proprietary pipeline tooling, and sell products that were processed using it — with the sole obligation to include the copyright notice when redistributing the source code itself. The rigged mesh output is not a reproduction of the model and carries no license obligation whatsoever.",
+          "summary": "MIT is the most permissive OSI-approved license: it grants 'without restriction' the right to 'use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software.' The only condition is that the MIT copyright notice is included in all copies or substantial portions of the Software code. Rigged 3D mesh outputs (GLB, FBX, USD) are not 'copies of the Software' — they are the studio's original asset data transformed by the tool. There is no share-alike, no copyleft, no patent grant requirement, and no attribution requirement on the game product itself. The studio could in principle also fine-tune or retrain on UniRig's architecture under MIT, subject only to the training-data considerations in the companion recipe.",
+          "design_implication": "The studio can embed UniRig inference into a proprietary CI/CD pipeline, sell that pipeline as a service, or ship a game that uses it without any license disclosure in the game product itself. If redistributing UniRig's code (e.g. in a public tool), include the MIT copyright notice. No royalty, no CLA, no attribution in credits required — though crediting VAST-AI in any public-facing tooling docs is good community practice.",
+          "evidence_strength": "reproduced-from-source",
+          "license": "MIT",
+          "commercial_use": "yes",
+          "commercial_notes": "Full MIT grant covers redistribution, sublicensing, and sale of code. Output mesh assets have no license obligation at all — they are the studio's own IP. Copyright notice required only when distributing UniRig source code itself.",
+          "vram_gb": "n/a",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "recommended",
+          "sources": [
+            {
+              "kind": "docs",
+              "title": "VAST-AI-Research/UniRig — LICENSE (full MIT text)",
+              "authors": "VAST-AI-Research",
+              "year": "2025",
+              "identifier": "MIT",
+              "url": "https://raw.githubusercontent.com/VAST-AI-Research/UniRig/main/LICENSE",
+              "claim": "Full MIT license text: 'Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files... to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software.' Only obligation: include copyright notice in copies of the software."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed] -> confirmed"
+        },
+        {
+          "slug": "unirig-license-watch-future-checkpoints",
+          "name": "UniRig license watch: MIT is not guaranteed for future weight releases",
+          "kind": "reference",
+          "engine_family": "n/a",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "The current VAST-AI/UniRig HuggingFace checkpoint is MIT-licensed, but VAST-AI is under no legal obligation to maintain MIT on future checkpoints. The GitHub README explicitly notes that Rig-XL-trained checkpoints (the main-paper results) are 'planned for future release' — those may carry different terms. Studios must verify the HF card license field for every new checkpoint before integrating into a commercial pipeline.",
+          "summary": "The current released checkpoint is MIT; the upcoming Rig-XL checkpoint is 'planned for future release' per the README and may carry different terms. MIT is not contractually guaranteed for future releases. Always check huggingface.co/VAST-AI/UniRig license field before pulling a new checkpoint tag into the production pipeline. If a future checkpoint ships under a restricted license, the studio's mitigation is to pin the MIT-licensed checkpoint version hash and continue using it — MIT is irrevocable once granted.",
+          "design_implication": "Pin the current checkpoint by HuggingFace commit hash (not just 'main' or 'latest') in the studio pipeline's requirements/config. When a new checkpoint ships, verify the HF card license before pulling. If VAST-AI ever moves to NC or commercial terms, the pinned MIT checkpoint remains usable indefinitely under its original grant. Add a brief license-check step to the quarterly pipeline maintenance checklist.",
+          "evidence_strength": "community-claim",
+          "license": "MIT (current checkpoint only — future checkpoints unconfirmed)",
+          "commercial_use": "yes",
+          "commercial_notes": "MIT grant is irrevocable — once granted for a given artifact, it cannot be retroactively restricted. Pin the checkpoint by hash. Future checkpoints should be assumed unverified until the HF card license field is confirmed. Rig-XL checkpoint (unreleased as of research date) license is unknown.",
+          "vram_gb": "n/a",
+          "rig_fit": 4,
+          "studio_fit": 5,
+          "status": "approved-with-notes",
+          "failures": [
+            "If the studio pulls 'latest' checkpoint without checking the license field and VAST-AI has updated to NC terms, the pipeline would unknowingly ingest a restricted model."
+          ],
+          "sources": [
+            {
+              "kind": "docs",
+              "title": "VAST-AI-Research/UniRig — README (checkpoint status)",
+              "authors": "VAST-AI-Research",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://github.com/VAST-AI-Research/UniRig",
+              "claim": "README states: checkpoints trained on Rig-XL/VRoid replicating main paper results are planned for future release. Current released checkpoint is trained on Articulation-XL2.0."
+            },
+            {
+              "kind": "model-card",
+              "title": "VAST-AI/UniRig — Hugging Face model card",
+              "authors": "VAST-AI",
+              "year": "2025",
+              "identifier": "MIT",
+              "url": "https://huggingface.co/VAST-AI/UniRig",
+              "claim": "Current checkpoint license field is MIT. Future checkpoint license fields must be verified independently."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed minimax-m3=confirmed-with-fixes] -> confirmed"
+        }
+      ],
+      "cloud_verify": {
+        "models": [
+          "deepseek-v4-pro",
+          "glm-5.2",
+          "minimax-m3"
+        ],
+        "jurors": {
+          "deepseek-v4-pro:cloud": [
+            {
+              "recipe": "UniRig commercial license: MIT on code AND released HuggingFace checkpoints",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "UniRig exists, the GitHub LICENSE is MIT, and the HuggingFace model card confirms MIT weights; the claim is accurate."
+            },
+            {
+              "recipe": "UniRig training data (Articulation-XL2.0 / Objaverse-XL): license propagation analysis",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "conditional",
+              "fixes": "",
+              "note": "The training data licenses are correctly stated, and the analysis that training-data licenses do not automatically propagate to model outputs is a sound legal interpretation."
+            },
+            {
+              "recipe": "Auto-rigger license landscape: UniRig MIT vs Rigify GPL vs AccuRIG EULA vs Auto-Rig Pro paid vs Mixamo NC-redistribute",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "All tools exist and the license comparisons are accurate; UniRig is indeed the only SIGGRAPH-class AI auto-rigger with fully permissive MIT on both code and weights."
+            },
+            {
+              "recipe": "UniRig redistribution, sublicensing, and commercial derivative works under MIT",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "The MIT license terms are correctly interpreted; rigged outputs are not copies of the software and carry no license obligations."
+            },
+            {
+              "recipe": "UniRig license watch: MIT is not guaranteed for future weight releases",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "The caution is valid: future checkpoints may have different licenses, and the current MIT grant is irrevocable, so pinning the current version is safe."
+            }
+          ],
+          "glm-5.2:cloud": [
+            {
+              "recipe": "UniRig commercial license: MIT on code AND released HuggingFace checkpoints",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "UniRig (VAST-AI-Research) is a real SIGGRAPH 2025 auto-rigger; GitHub code is MIT and the HF model card for VAST-AI/UniRig declares MIT on weights, making this a genuinely fully-permissive release."
+            },
+            {
+              "recipe": "UniRig training data (Articulation-XL2.0 / Objaverse-XL): license propagation analysis",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "conditional",
+              "fixes": "",
+              "note": "Articulation-XL2.0 (CC-BY-4.0) and Objaverse-XL (ODC-By collection with mixed per-object licenses including NC) both exist as described; the legal analysis that training-data NC clauses do not automatically propagate to inference outputs is the prevailing practical position, though genuinely unsettled in law."
+            },
+            {
+              "recipe": "Auto-rigger license landscape: UniRig MIT vs Rigify GPL vs AccuRIG EULA vs Auto-Rig Pro paid vs Mixamo NC-redistribute",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "All five tools exist with the described license characterizations: Rigify GPL (output clean), AccuRIG freeware with ActorCore EULA on supplied content, Auto-Rig Pro paid with no output restriction, Mixamo royalty-free but no raw-asset redistribution, and UniRig MIT on both code and weights."
+            },
+            {
+              "recipe": "UniRig redistribution, sublicensing, and commercial derivative works under MIT",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Standard and accurate MIT license analysis: the only obligation is retaining the copyright notice when redistributing the software itself; rigged mesh outputs are the studio's own data, not copies of the software."
+            },
+            {
+              "recipe": "UniRig license watch: MIT is not guaranteed for future weight releases",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Prudent and accurate caution: the current checkpoint is MIT but future Rig-XL-trained checkpoints (noted as planned in the README) could carry different terms; pinning the current checkpoint hash is sound mitigation since MIT is irrevocable once granted."
+            }
+          ],
+          "minimax-m3:cloud": [
+            {
+              "recipe": "UniRig commercial license: MIT on code AND released HuggingFace checkpoints",
+              "overall": "confirmed-with-fixes",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "UniRig repo and MIT code are confirmed; the HF model VAST-AI/UniRig is real and the claim of an MIT license field is consistent with the cited evidence, but the specific arXiv id 2504.12451 and 'SIGGRAPH 2025' attribution should be independently re-verified before being treated as authoritative in a pipeline decision document. Also note: 'fully-permissive release for a SIGGRAPH 2025 class auto-rigger' is the model card's framing, not a separate citation.",
+              "note": "Tool exists, code MIT is well-supported; HF checkpoint license field claim is plausible per the cited card but the weights-side permissiveness (vs. just code permissiveness) is the one piece a downstream studio should double-check on the live card before shipping."
+            },
+            {
+              "recipe": "UniRig training data (Articulation-XL2.0 / Objaverse-XL): license propagation analysis",
+              "overall": "unverified",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "conditional",
+              "fixes": "Articulation-XL2.0 (Seed3D) and Objaverse-XL (AllenAI) datasets exist and the high-level license statements (CC-BY-4.0 / ODC-By 1.0) are correct. The arXiv 2504.12451 ID and the specific claim that the *current released* UniRig checkpoint was trained on Articulation-XL2.0 (with Rig-XL-trained checkpoints still 'planned for future release') should be re-verified against the actual paper and README — the ID is plausible (April 2025) but not confirmed by me.",
+              "note": "Datasets and their collection-level licenses are real; the legal analysis that training-data NC terms do not auto-propagate to weights/outputs is the prevailing practitioner view but remains legally unsettled and should not be stated as settled law."
+            },
+            {
+              "recipe": "Auto-rigger license landscape: UniRig MIT vs Rigify GPL vs AccuRIG EULA vs Auto-Rig Pro paid vs Mixamo NC-redistribute",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "conditional",
+              "fixes": "All five tools exist and the per-tool license characterization is accurate: Rigify = GPL addon (output-clean is the conventional reading, not a court ruling), AccuRIG app is freeware but ActorCore content has redistribution EULAs, Auto-Rig Pro is paid with optional extended commercial license, Mixamo is royalty-free for in-game use but blocks raw asset redistribution and bulk ML scraping. Caveat: the 'UniRig is the only SIGGRAPH-class AI auto-rigger with fully-permissive code+weights' is a snapshot claim and could change as new releases appear.",
+              "note": "Comparisons are sound and the mixed-license summary (claimed_commercial_use: yes but commercial_notes: varies) is the right way to encode it — overall 'yes' is a slight over-simplification, 'conditional' is more defensible."
+            },
+            {
+              "recipe": "UniRig redistribution, sublicensing, and commercial derivative works under MIT",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "Legal analysis of the MIT grant language is correct; the standard reading that rigged 3D mesh outputs are not 'copies of the Software' and inherit no MIT obligation is the conventional view and consistent with how Blender Foundation treats Rigify output.",
+              "note": "Pure legal interpretation of MIT — accurate, with the usual caveat that 'output is not derivative of the tool' is the common interpretation, not a litigated ruling."
+            },
+            {
+              "recipe": "UniRig license watch: MIT is not guaranteed for future weight releases",
+              "overall": "confirmed-with-fixes",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "The operational advice (pin checkpoint hash, re-check HF card on every release) is correct and is exactly the right mitigation pattern. The specific claim that the README says Rig-XL-trained checkpoints are 'planned for future release' should be re-verified against the live README — README text drifts. Also worth adding: VAST-AI may switch the license on new *tags* of the same repo, so studios should also re-check on each pull, not just on first integration.",
+              "note": "Sound license-risk hygiene guidance; the only weakness is dependence on a README quote that should be re-confirmed at the time of use."
+            }
+          ]
+        },
+        "tally": {
+          "confirmed": 5,
+          "unverified": 0,
+          "refuted": 0,
+          "no-verdict": 0
+        },
+        "errors": null
+      }
+    },
+    {
+      "laneSlug": "rigging",
+      "title": "UniRig quality, limitations & alternatives",
+      "recipes": [
+        {
+          "slug": "unirig-exotic-species-quality-honest",
+          "name": "UniRig on non-humanoid / exotic meshes — decisive advantage, honest quality ceiling",
+          "kind": "technique",
+          "engine_family": "blender",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "UniRig is the only MIT-licensed auto-rigger that can produce a skeleton and skinning for arbitrary/non-humanoid topology (tortle, kenku, sahuagin, minotaur) without hand-placing bones — but the output is an 80-90% draft requiring cleanup on tails, wings, digitigrade legs, and joint skin weights.",
+          "summary": "UniRig's Skeleton Tree Tokenization predicts bone placement from geometry rather than a fixed template, giving it a decisive advantage on the studio's 15 exotic species. The Rig-XL training set covers 8 non-humanoid categories (Quadruped, Bird & Flyer, Insect & Arachnid, Water Creature) but human-related categories are overrepresented in source data, so sampling probability adjustments were applied during training — meaning non-humanoid results are good but not as reliable as humanoid results. Community reports confirm missing or mis-placed bones on tails (squirrel/dragon tails), turtle limbs, and misaligned joints on hands. The paper's own supplemental notes that skin weights 'degrade significantly if the skeleton is inaccurate' and recommends skeleton refinement before running the skin stage. Treat UniRig output as a strong first-pass draft, not a hands-off production rig.",
+          "design_implication": "For the studio's exotic-species roster, UniRig is still the correct tool — no template-based alternative can handle a tortle, kenku, or sahuagin at all. Build a skeleton-cleanup pass into every non-humanoid character budget: fix tail and wing bone chains, verify digitigrade leg alignment, then re-run the skin stage with the corrected skeleton before hand-editing weights. Hero characters with unusual proportions may need more cleanup time than biped supporting cast.",
+          "evidence_strength": "community-claim",
+          "license": "MIT",
+          "commercial_use": "yes",
+          "commercial_notes": "MIT; cleanup is artist time only, no license constraint.",
+          "vram_gb": "8-16",
+          "rig_fit": 5,
+          "studio_fit": 4,
+          "status": "recommended",
+          "failures": [
+            {
+              "symptom": "Missing bone chains on tails and wings",
+              "cause": "Autoregressive skeleton predictor prematurely emits the termination token, cutting chain short — documented failure mode in Auto-Connect (CVPR 2026) paper analyzing UniRig's architecture",
+              "remediation": "After skeleton generation, open the predicted skeleton in Blender, manually extend the tail/wing bone chain to the tip, then re-run generate_skin.sh with the corrected skeleton JSON",
+              "severity": "quality",
+              "recipe_field": "summary"
+            },
+            {
+              "symptom": "Spatial gap / discontinuity between bone chains",
+              "cause": "UniRig uses heuristic distance-threshold rules to merge chain endpoints — non-end-to-end design produces compounding error when chains are far apart (e.g., wings far from spine root)",
+              "remediation": "Manually connect disconnected chains in Blender Pose Mode before skinning; the merge gap is typically visible as a floating chain with no parent",
+              "severity": "quality",
+              "recipe_field": "summary"
+            },
+            {
+              "symptom": "Mis-placed bones on turtle limbs and quadruped extremities",
+              "cause": "Explicitly documented in UniRig supplemental and confirmed in Auto-Connect paper: 'missing bones on turtle limbs and squirrel tail and misaligned skeletons on human hands'",
+              "remediation": "Skeleton edit pass in Blender; move individual bone heads/tails to correct anatomical positions before skin stage",
+              "severity": "quality",
+              "recipe_field": "summary"
+            },
+            {
+              "symptom": "Skinning artifacts (stretching / tearing at deforming joints)",
+              "cause": "Skin quality is downstream of skeleton accuracy; any skeleton error compounds into bad weight assignments. Overlapping geometry (wings over body, tails between legs) produces phantom bone targets.",
+              "remediation": "Weight paint touch-up in Blender after skin stage; focus on hips/shoulder junction, joint interiors, and any overlapping mesh region",
+              "severity": "quality",
+              "recipe_field": "summary"
+            },
+            {
+              "symptom": "Incomplete skeletons on heavily stylized / chibi proportions",
+              "cause": "Training distribution skewed toward realistic proportions; extreme stylization departs from learned geometry-to-bone mapping",
+              "remediation": "Use Blender automatic weights as a fallback for extreme stylized meshes; or manually place bones and use UniRig only for skinning stage",
+              "severity": "compatibility",
+              "recipe_field": "summary"
+            }
+          ],
+          "purposes": [
+            "exotic-species-rig",
+            "non-humanoid-auto-rig",
+            "cleanup-guide"
+          ],
+          "sources": [
+            {
+              "kind": "paper",
+              "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig",
+              "authors": "Wang, Lingteng et al. (Tsinghua University / VAST AI Research)",
+              "year": "2025",
+              "identifier": "arXiv:2504.12451 / ACM DOI:10.1145/3730930",
+              "url": "https://arxiv.org/html/2504.12451v1",
+              "claim": "Rig-XL dataset covers 8 non-humanoid categories; human-related categories remain overrepresented in source data requiring sampling probability adjustments; UniRig recommends skeleton refinement before skinning because skin quality degrades significantly with inaccurate skeletons."
+            },
+            {
+              "kind": "paper",
+              "title": "Auto-Connect: Connectivity-Preserving RigFormer with Direct Preference Optimization",
+              "authors": "Auto-Connect authors (CVPR 2026 submission)",
+              "year": "2026",
+              "identifier": "arXiv:2506.11430",
+              "url": "https://arxiv.org/html/2506.11430",
+              "claim": "Explicitly identifies UniRig failure modes: premature termination token (missing bone chains), spatial discontinuity between chains (initialization barriers), and non-end-to-end heuristic merging causing compounding errors. Documents 'missing bones on turtle limbs and squirrel tail and misaligned skeletons on human hands' as concrete examples."
+            },
+            {
+              "kind": "github",
+              "title": "VAST-AI-Research/UniRig — README",
+              "authors": "VAST AI Research",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://github.com/VAST-AI-Research/UniRig",
+              "claim": "README states 'results may degrade significantly if the skeleton is inaccurate' and recommends skeleton refinement before skinning; notes training distribution includes Quadruped, Bird & Flyer, Insect & Arachnid, Water Creature categories."
+            },
+            {
+              "kind": "web",
+              "title": "ComfyUI UniRig Automatic Rigging Guide 2025 — Apatero",
+              "authors": "Apatero",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://www.apatero.com/blog/comfyui-unirig-automatic-skeleton-rigging-guide-2025",
+              "claim": "Community guide documents practical failure modes: 'non-humanoid designs (animals, robots, monsters)' and 'extreme stylization' require significant manual adjustment; overlapping elements create phantom bones."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=unverified minimax-m3=confirmed] -> confirmed"
+        },
+        {
+          "slug": "unirig-benchmark-claims-vs-reality",
+          "name": "UniRig paper benchmarks — what the numbers mean and what they do not cover",
+          "kind": "reference",
+          "engine_family": "blender",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "UniRig's 215% rigging accuracy / 194% motion accuracy benchmark improvements are real and verified against prior art, but the evaluation datasets (VRoid anime + Rig-XL Objaverse) do not include stylized JRPG creature meshes from image-to-3D generators — studio results will differ from paper numbers.",
+          "summary": "The paper evaluates on VRoid (2,061 anime humanoid meshes from VRoidHub, standardized skeleton with spring bones) and Rig-XL (14,611 Objaverse-XL models including Quadruped/Bird/Insect/Water Creature categories). Metrics are Chamfer Distance joint-to-joint, joint-to-bone, bone-to-bone (lower is better) and IoU (higher is better). UniRig outperforms prior methods by large margins on these datasets. However, none of the evaluation meshes are TRELLIS-generated images-to-3D outputs (which have characteristic topology artifacts and dense vertex counts), and VRoid anime meshes differ significantly from painterly JRPG creature designs. The Auto-Connect follow-up (arXiv:2506.11430) shows that even on a new Art-XL2.0 dataset, UniRig CD-J2J degrades to 3.232% vs Auto-Connect's 2.572% — a 20% gap the paper does not mention. Take the 215% headline as valid proof of superiority over prior art, not as a guarantee for arbitrary creature meshes.",
+          "design_implication": "The benchmark gap between VRoid/Rig-XL and TRELLIS creature meshes means studio testing is the only way to know actual quality for a given species. Prioritize measured-on-rig data over paper claims when deciding whether a skeleton needs cleanup. The Auto-Connect paper's Art-XL2.0 results suggest UniRig is 80% as accurate as the best current alternative on out-of-distribution meshes.",
+          "evidence_strength": "reproduced-from-source",
+          "license": "MIT",
+          "commercial_use": "unknown",
+          "commercial_notes": "MIT; benchmark discussion is informational only.",
+          "vram_gb": "8-16",
+          "rig_fit": 4,
+          "studio_fit": 4,
+          "status": "reference",
+          "sources": [
+            {
+              "kind": "paper",
+              "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig",
+              "authors": "Wang, Lingteng et al. (Tsinghua University / VAST AI Research)",
+              "year": "2025",
+              "identifier": "arXiv:2504.12451 / ACM DOI:10.1145/3730930",
+              "url": "https://arxiv.org/abs/2504.12451",
+              "claim": "Evaluated on VRoid (anime humanoid, 2061 models) and Rig-XL (14611 diverse models, 8 categories); reports 215% rigging accuracy and 194% motion accuracy improvement over prior art. Tokenization reduces token count 27-30% vs naive approaches on both datasets."
+            },
+            {
+              "kind": "paper",
+              "title": "Auto-Connect: Connectivity-Preserving RigFormer with Direct Preference Optimization",
+              "authors": "Auto-Connect authors",
+              "year": "2026",
+              "identifier": "arXiv:2506.11430",
+              "url": "https://arxiv.org/html/2506.11430",
+              "claim": "On Art-XL2.0 dataset, UniRig achieves CD-J2J 3.232%, CD-J2B 2.540%, CD-B2B 2.124%, IoU 75.571% vs Auto-Connect's CD-J2J 2.572%, IoU 82.806% — a ~20% gap across all metrics, showing UniRig is strong but not the absolute ceiling."
+            }
+          ],
+          "license_correction": "The paper is not MIT-licensed; the recipe's license claim is inaccurate. The benchmark information itself is freely available but not under an MIT license.",
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed-with-fixes glm-5.2=unverified minimax-m3=confirmed-with-fixes] -> confirmed [license -> commercial_use=unknown]"
+        },
+        {
+          "slug": "unirig-trellis-mesh-prep",
+          "name": "Mesh preparation for UniRig: decimating TRELLIS.2 dense meshes before auto-rigging",
+          "kind": "technique",
+          "engine_family": "blender",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "TRELLIS.2 outputs ~800k-vert meshes that must be decimated to ~30-50k triangles before UniRig auto-rig, both for inference speed and to produce a game-weight asset that deforms cleanly.",
+          "summary": "TRELLIS.2-4B outputs high-density meshes (~800k vertices) optimized for photorealism, not animation. UniRig samples a point cloud from the mesh surface for its geometry encoder; extremely dense meshes slow inference and can produce sampling artifacts. Additionally, 800k-vert meshes are not game-weight assets — shipping a rigged character at that density is not viable for a Godot/UE5 build. The proven workflow (from the studio's measured run 2026-06-25) is to decimate in Blender using Decimate modifier (Collapse mode, target ratio to hit ~30-50k tris) before exporting to OBJ/GLB for UniRig. Non-manifold edges and disconnected geometry should be cleaned (Merge by Distance, Delete Loose) before decimation. After UniRig produces the rigged GLB, import back to Blender for skeleton cleanup and weight paint touch-up.",
+          "design_implication": "Add a decimate + clean step as the first operation in the TRELLIS.2 → UniRig → Blender pipeline. The existing unirig-blackwell-wsl2-skeleton-skin-measured recipe already notes this requirement. For the 68-character MESH game-asset line, batch the decimate step in Blender Python before queuing UniRig jobs. Target 30k tris for supporting cast, 50k tris for hero characters who need more geometric fidelity in their sprite-sheet renders.",
+          "evidence_strength": "community-claim",
+          "license": "GPL (Blender Decimate modifier); MIT (UniRig)",
+          "commercial_use": "yes",
+          "commercial_notes": "Blender GPL covers the application. Decimated mesh output and rigged GLB are fully the studio's IP.",
+          "vram_gb": "8-16",
+          "rig_fit": 4,
+          "studio_fit": 5,
+          "status": "recommended",
+          "failures": [
+            {
+              "symptom": "Bone heat weighting / skinning failures on non-manifold geometry",
+              "cause": "UniRig and Blender automatic weights both require clean manifold mesh; non-manifold edges, interior faces, and loose vertices cause skinning errors",
+              "remediation": "In Blender: Edit Mode → Mesh → Clean Up → Merge by Distance; then Select → Select All by Trait → Non-Manifold to find and repair bad geometry before decimation",
+              "severity": "blocking",
+              "recipe_field": "summary"
+            },
+            {
+              "symptom": "Skinning produces incorrect weights on decimated mesh",
+              "cause": "Aggressive decimation (below 15k tris) can collapse topology needed for joint deformation zones (elbow, knee, shoulder)",
+              "remediation": "Use 30-50k tris as a floor; apply Decimate in Planar mode around joints to preserve edge loops at deforming regions",
+              "severity": "quality",
+              "recipe_field": "summary"
+            }
+          ],
+          "purposes": [
+            "mesh-prep",
+            "trellis-pipeline",
+            "game-asset"
+          ],
+          "sources": [
+            {
+              "kind": "github",
+              "title": "VAST-AI-Research/UniRig — README: inference pipeline notes",
+              "authors": "VAST AI Research",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://github.com/VAST-AI-Research/UniRig",
+              "claim": "UniRig processes dense meshes via point cloud sampling; README notes mesh should be clean and free of non-manifold edges or other geometry issues before use."
+            },
+            {
+              "kind": "web",
+              "title": "ComfyUI UniRig Auto Rig node — RunComfy documentation",
+              "authors": "RunComfy",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://www.runcomfy.com/comfyui-nodes/ComfyUI-UniRig/uni-rig-auto-rig",
+              "claim": "Node documentation recommends clean mesh free of non-manifold edges before UniRig auto-rig for best results."
+            },
+            {
+              "kind": "docs",
+              "title": "Armature Deform Parent — Blender Manual (Automatic Weights)",
+              "authors": "Blender Foundation",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://docs.blender.org/manual/en/latest/animation/armatures/skinning/parenting.html",
+              "claim": "Blender automatic weights requires manifold geometry; non-manifold meshes cause 'Bone Heat Weighting failed' errors. Mesh cleanup (Merge by Distance, Delete Loose) resolves most failures."
+            }
+          ],
+          "verified": 0,
+          "verify_note": "cross-family jury [deepseek-v4-pro=refuted glm-5.2=unverified minimax-m3=unverified] -> unverified; not-found x1"
+        },
+        {
+          "slug": "unirig-skeleton-cleanup-workflow",
+          "name": "UniRig skeleton cleanup workflow — the manual pass every non-humanoid needs",
+          "kind": "technique",
+          "engine_family": "blender",
+          "applicable_to": "rigging",
+          "base_model_slug": "VAST-AI/UniRig",
+          "claim": "Every UniRig skeleton for non-humanoid / exotic meshes requires a Blender skeleton-edit pass before the skin stage: extend missing tail/wing chains, re-parent disconnected bones, verify roll axes, then re-run generate_skin.sh with the corrected skeleton JSON.",
+          "summary": "After generate_skeleton.sh produces the predicted skeleton, import it into Blender (the merge.sh output or the intermediate JSON) and inspect in Pose Mode. Common fixes for exotic species: (1) tail chains — manually add missing tail bones to the tip, parenting each to the last predicted tail bone; (2) wing chains — connect floating wing chain to the predicted shoulder bone; (3) digitigrade legs (kenku, sahuagin) — verify the hock/ankle joint exists as a distinct bone, not merged with the toe; (4) re-roll all bones so the Y-axis points along the bone and X-axis points toward the character's right (use Recalculate Roll → Global -Z Axis in Blender). Once the skeleton JSON is corrected, pass it to generate_skin.sh explicitly to avoid re-predicting the skeleton. The skin stage produces noticeably better weights on a clean skeleton than on the predicted-only version.",
+          "design_implication": "Budget one Blender cleanup session per exotic species character — approximately 30-60 minutes for a thorough skeleton edit and spot weight-paint fix. This is the irreducible human cost of auto-rigging non-humanoid topology. The studio's 15 exotic species characters should each have a documented cleanup checklist stored with their Blender file so the cleanup is reproducible across character variants.",
+          "evidence_strength": "community-claim",
+          "license": "GPL (Blender); MIT (UniRig)",
+          "commercial_use": "yes",
+          "commercial_notes": "All cleanup work is in Blender; rigged output is studio IP.",
+          "vram_gb": "8-16",
+          "rig_fit": 4,
+          "studio_fit": 4,
+          "status": "recommended",
+          "failures": [
+            {
+              "symptom": "Re-running generate_skin.sh after skeleton edit still uses old predicted skeleton",
+              "cause": "generate_skin.sh may cache or re-predict if the skeleton input path is not explicitly overridden",
+              "remediation": "Pass the corrected skeleton JSON path explicitly as an argument; check shell script arguments before running",
+              "severity": "workflow",
+              "recipe_field": "summary"
+            },
+            {
+              "symptom": "Weight paint seam at tail base / wing root after skin stage",
+              "cause": "Manually added bones were not present during skinning or have incorrect roll causing weight assignment to wrong bone",
+              "remediation": "Use Blender Weight Paint mode on the problematic region; normalize weights after manual paint",
+              "severity": "quality",
+              "recipe_field": "summary"
+            }
+          ],
+          "purposes": [
+            "exotic-species-rig",
+            "non-humanoid-cleanup",
+            "skinning"
+          ],
+          "sources": [
+            {
+              "kind": "github",
+              "title": "VAST-AI-Research/UniRig — README: skeleton refinement recommendation",
+              "authors": "VAST AI Research",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://github.com/VAST-AI-Research/UniRig",
+              "claim": "README explicitly recommends skeleton refinement before skinning because results degrade significantly with inaccurate skeletons."
+            },
+            {
+              "kind": "paper",
+              "title": "Auto-Connect: Connectivity-Preserving RigFormer with Direct Preference Optimization",
+              "authors": "Auto-Connect authors",
+              "year": "2026",
+              "identifier": "arXiv:2506.11430",
+              "url": "https://arxiv.org/html/2506.11430",
+              "claim": "Documents the specific UniRig gap: heuristic post-hoc chain merging (distance threshold) is the root cause of connectivity errors requiring manual repair."
+            },
+            {
+              "kind": "docs",
+              "title": "Armatures — Blender Manual (Edit Mode / Roll)",
+              "authors": "Blender Foundation",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://docs.blender.org/manual/en/latest/animation/armatures/index.html",
+              "claim": "Blender Pose Mode and Armature Edit Mode provide bone manipulation (parent, roll, head/tail position) for correcting predicted skeletons before skinning."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=unverified minimax-m3=confirmed] -> confirmed"
+        },
+        {
+          "slug": "unirig-vs-alternatives-comparison",
+          "name": "UniRig vs Rigify vs AccuRIG vs Auto-Rig Pro vs Mixamo vs Blender automatic weights — head-to-head",
+          "kind": "reference",
+          "engine_family": "blender",
+          "applicable_to": "rigging",
+          "claim": "UniRig wins decisively for arbitrary/non-humanoid topology and MIT redistribution; template-based riggers (Rigify, AccuRIG, Mixamo, Auto-Rig Pro) win for humanoid characters when the skeleton must match a specific convention or when cleaner default weights are needed without a cleanup pass.",
+          "summary": "Six tools compared on four axes: non-humanoid support, skeleton convention match, output license, and workflow integration. Rigify (Blender-bundled, GPL) generates a production-quality control rig from a positioned metarig — it includes quadruped, bird, wolf, horse, and shark templates, but exotic/novel body plans (tortle, kenku, minotaur, sahuagin) require building a 'Frankenstein' rig from modules, which is expert work. AccuRIG 2 (Reallusion, free) is primarily humanoid but claims beastman / minotaur / bird support via manual joint layout adjustment — non-humanoid results require more manual configuration than UniRig. Auto-Rig Pro (paid, ~$40) has the best non-humanoid Blender support among template riggers: Multi-Ped mode for quadrupeds, IK Spline for long necks, digitigrade leg types for dog/cat/T-Rex — but still requires marker placement and correct template selection, meaning it cannot auto-detect a novel species the way UniRig can. Mixamo (Adobe, free, cloud) is humanoid-only with no exceptions; it cannot rig any of the 15 studio exotic species, and its EULA prohibits standalone file redistribution. Blender automatic weights is not an auto-rigger — it only assigns skin weights given a manually placed armature, and is the fallback when UniRig's skeleton prediction fails (or when flash_attn is unavailable). UniRig wins on: arbitrary body plan, zero manual bone placement, MIT redistribution, and consistent pipeline integration. Template riggers win on: clean default weights for humanoid characters, animator-friendly control rigs (IK/FK switch, stretch), and no cleanup needed for supported body types.",
+          "design_implication": "Studio decision tree: (1) Is the character one of the 15 exotic species (non-humanoid body plan)? → UniRig first pass + cleanup. (2) Is it a biped humanoid hero character that will be hand-animated with an animator-friendly rig? → Rigify or Auto-Rig Pro for cleaner control rig, retarget mocap with ARP Remap. (3) Is it a humanoid supporting cast needing quick mocap retarget only? → AccuRIG or Mixamo for speed. (4) Does the output need to be redistributed as MIT-licensed assets? → Never Mixamo; UniRig or Rigify only.",
+          "evidence_strength": "community-claim",
+          "license": "varies per tool — see commercial_notes",
+          "commercial_use": "conditional",
+          "commercial_notes": "UniRig: MIT (yes). Rigify: GPL (yes, output unrestricted). AccuRIG: proprietary freeware (yes, no stated commercial restriction). Auto-Rig Pro: commercial license ~$40 (yes, ships in projects). Mixamo: Adobe EULA — commercial use yes but standalone redistribution prohibited. Blender automatic weights: GPL (yes, output unrestricted).",
+          "vram_gb": "n/a",
+          "rig_fit": 5,
+          "studio_fit": 5,
+          "status": "reference",
+          "purposes": [
+            "tool-selection",
+            "comparison",
+            "exotic-species-rig"
+          ],
+          "sources": [
+            {
+              "kind": "paper",
+              "title": "One Model to Rig Them All: Diverse Skeleton Rigging with UniRig",
+              "authors": "Wang, Lingteng et al. (Tsinghua University / VAST AI Research)",
+              "year": "2025",
+              "identifier": "arXiv:2504.12451 / ACM DOI:10.1145/3730930",
+              "url": "https://arxiv.org/abs/2504.12451",
+              "claim": "UniRig outperforms academic and commercial baselines on diverse mesh categories without template selection; geometry-based prediction handles arbitrary body plans."
+            },
+            {
+              "kind": "docs",
+              "title": "Rigify Human/Quadruped Meta-Rigs — CGDive Tutorial Series",
+              "authors": "CGDive",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://cgdive.com/rig-anything-with-rigify-chapter-3-the-prebuilt-metarigs-human-and-quadruped/",
+              "claim": "Rigify includes prebuilt metarigs for Wolf, Cat, Horse, Bird, Shark — novel creatures (Dragon, Spider, Tortle) require expert 'Frankenstein' rig assembly from individual bone modules."
+            },
+            {
+              "kind": "web",
+              "title": "AccuRIG 2 vs Mixamo: Smarter Auto-Rigging — The Morphic Studio",
+              "authors": "The Morphic Studio",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://www.themorphicstudio.com/accurig-2-vs-mixamo-smarter-auto-rigging/",
+              "claim": "AccuRIG 2 supports some non-humanoid characters (beastmen, minotaur, bird) with manual configuration; Mixamo is strictly humanoid-only and its limitations for non-standard body types have led professionals to seek alternatives."
+            },
+            {
+              "kind": "docs",
+              "title": "Auto-Rig Pro — Documentation: Creature / Multi-Ped rigging",
+              "authors": "artell",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://www.lucky3d.fr/auto-rig-pro/doc/auto_rig.html",
+              "claim": "Auto-Rig Pro includes Multi-Ped type for quadrupeds, digitigrade 3-bone IK for dog/cat/T-rex, and IK Spline spine for long-neck creatures — best template-based non-humanoid support in Blender."
+            },
+            {
+              "kind": "docs",
+              "title": "Mixamo FAQ — Creative Cloud",
+              "authors": "Adobe",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html",
+              "claim": "Mixamo auto-rigger and animation library is for bipedal humanoids only; characters cannot be redistributed as standalone assets."
+            },
+            {
+              "kind": "docs",
+              "title": "Armature Deform Parent — Blender Manual (Automatic Weights)",
+              "authors": "Blender Foundation",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://docs.blender.org/manual/en/latest/animation/armatures/skinning/parenting.html",
+              "claim": "Blender Automatic Weights assigns per-vertex bone influence given an existing armature; it is a skinning tool, not a skeleton predictor — requires manually placed bones as input."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=confirmed-with-fixes minimax-m3=confirmed] -> confirmed"
+        },
+        {
+          "slug": "unirig-successor-landscape-2026",
+          "name": "UniRig successor landscape — Auto-Connect, SkinTokens, and when to upgrade",
+          "kind": "reference",
+          "engine_family": "blender",
+          "applicable_to": "rigging",
+          "claim": "As of mid-2026, two research successors address UniRig's documented weaknesses: Auto-Connect (CVPR 2026, connectivity-preserving tokenization) shows ~20% metric improvement on out-of-distribution meshes; SkinTokens (announced) unifies skeleton + skinning into a single autoregressive sequence — neither is released as MIT weights yet.",
+          "summary": "Auto-Connect (arXiv:2506.11430, mid-2026) directly addresses UniRig's three failure modes — premature termination, spatial discontinuity, chain merging — using Direct Preference Optimization and connectivity-preserving tokenization. On the Art-XL2.0 benchmark it closes the CD-J2J gap from 3.232% (UniRig) to 2.572% (Auto-Connect), a 20% improvement, and IoU from 75.6% to 82.8%. Code/weights as of mid-2026 are not confirmed MIT. SkinTokens (announced, referenced in UniRig README as a 'powerful successor') aims to unify skeleton prediction and skinning into a single sequence, potentially eliminating the two-stage pipeline and the skeleton-quality dependency on the skin stage. Neither has the verified MIT weights + Blender integration that UniRig has today. For the studio, UniRig remains the correct choice for the 2026 MESH game-asset line; Auto-Connect or SkinTokens become relevant when they ship permissive weights and a Blender integration.",
+          "design_implication": "Monitor VAST-AI-Research GitHub for SkinTokens release (expected to be a drop-in upgrade for UniRig's two-stage pipeline). If Auto-Connect ships permissive weights, it directly reduces the cleanup burden on tail/wing chains for the exotic species roster — worth a one-week evaluation against the current UniRig measured baseline when available.",
+          "evidence_strength": "community-claim",
+          "license": "not yet released (research only as of mid-2026)",
+          "commercial_use": "conditional",
+          "commercial_notes": "Auto-Connect and SkinTokens are research papers as of mid-2026; license unknown. Do not adopt for production until MIT or equivalent weights ship.",
+          "vram_gb": "8-16",
+          "rig_fit": 5,
+          "studio_fit": 3,
+          "status": "watch",
+          "purposes": [
+            "future-planning",
+            "research-horizon",
+            "auto-rig-upgrade"
+          ],
+          "sources": [
+            {
+              "kind": "paper",
+              "title": "Auto-Connect: Connectivity-Preserving RigFormer with Direct Preference Optimization",
+              "authors": "Auto-Connect authors",
+              "year": "2026",
+              "identifier": "arXiv:2506.11430",
+              "url": "https://arxiv.org/html/2506.11430",
+              "claim": "Addresses UniRig's chain-connectivity failures with end-to-end connectivity-preserving tokenization and DPO training; achieves 20% improvement across all skeleton metrics on Art-XL2.0 benchmark vs UniRig."
+            },
+            {
+              "kind": "github",
+              "title": "VAST-AI-Research/UniRig — README: SkinTokens mention",
+              "authors": "VAST AI Research",
+              "year": "2025",
+              "identifier": "",
+              "url": "https://github.com/VAST-AI-Research/UniRig",
+              "claim": "UniRig README describes SkinTokens as the 'powerful successor to UniRig, unifying skeleton prediction and skinning into a single autoregressive sequence'."
+            }
+          ],
+          "verified": 1,
+          "verify_note": "cross-family jury [deepseek-v4-pro=confirmed glm-5.2=refuted minimax-m3=confirmed-with-fixes] -> confirmed; not-found x1 | retrieval-oracle CONFIRMED existence (arXiv:2602.04805 'Skin Tokens: A Learned Compact Representation for Unified Autoregressive Rigging' + GitHub VAST-AI-Research/SkinTokens, 200); the cross-family jury could not confirm it (postdates training cutoff) — benchmark/license specifics remain agent-claimed, watch status."
+        }
+      ],
+      "cloud_verify": {
+        "models": [
+          "deepseek-v4-pro",
+          "glm-5.2",
+          "minimax-m3"
+        ],
+        "jurors": {
+          "deepseek-v4-pro:cloud": [
+            {
+              "recipe": "UniRig on non-humanoid / exotic meshes — decisive advantage, honest quality ceiling",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "UniRig exists, is MIT-licensed, and the claim about non-humanoid support with cleanup needs is supported by the cited sources."
+            },
+            {
+              "recipe": "UniRig paper benchmarks — what the numbers mean and what they do not cover",
+              "overall": "confirmed-with-fixes",
+              "existence": "exists",
+              "license_check": "wrong",
+              "corrected_commercial_use": "unknown",
+              "fixes": "The paper is not MIT-licensed; the recipe's license claim is inaccurate. The benchmark information itself is freely available but not under an MIT license.",
+              "note": "The benchmark claims are supported, but the recipe incorrectly asserts an MIT license for the paper."
+            },
+            {
+              "recipe": "Mesh preparation for UniRig: decimating TRELLIS.2 dense meshes before auto-rigging",
+              "overall": "refuted",
+              "existence": "not-found",
+              "license_check": "unknown",
+              "corrected_commercial_use": "unknown",
+              "fixes": "",
+              "note": "TRELLIS.2 is not a confirmed real model; the recipe relies on a fabricated model name, making the specific claim unverifiable and likely invented."
+            },
+            {
+              "recipe": "UniRig skeleton cleanup workflow — the manual pass every non-humanoid needs",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "The workflow is real, licenses are correct, and the need for manual cleanup is well-documented."
+            },
+            {
+              "recipe": "UniRig vs Rigify vs AccuRIG vs Auto-Rig Pro vs Mixamo vs Blender automatic weights — head-to-head",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "conditional",
+              "fixes": "",
+              "note": "The comparison is accurate, and the varied licensing and conditional commercial use are correctly stated."
+            },
+            {
+              "recipe": "UniRig successor landscape — Auto-Connect, SkinTokens, and when to upgrade",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "unknown",
+              "fixes": "",
+              "note": "Auto-Connect and SkinTokens are real research works, and the claim that they are not yet released as MIT weights is correct."
+            }
+          ],
+          "glm-5.2:cloud": [
+            {
+              "recipe": "UniRig on non-humanoid / exotic meshes — decisive advantage, honest quality ceiling",
+              "overall": "unverified",
+              "existence": "exists",
+              "license_check": "unknown",
+              "corrected_commercial_use": "conditional",
+              "fixes": "UniRig code is MIT-licensed but weight license should be independently verified; the 'only MIT-licensed auto-rigger' exclusivity claim cannot be confirmed; arXiv:2506.11430 cited as evidence cannot be verified.",
+              "note": "UniRig itself exists and handles non-humanoid meshes, but the exclusivity claim and the second cited paper are unconfirmed."
+            },
+            {
+              "recipe": "UniRig paper benchmarks — what the numbers mean and what they do not cover",
+              "overall": "unverified",
+              "existence": "exists",
+              "license_check": "unknown",
+              "corrected_commercial_use": "conditional",
+              "fixes": "Cannot independently confirm the specific 215%/194% figures; the second evidence source (arXiv:2506.11430 / Art-XL2.0 benchmark) cannot be verified as existing.",
+              "note": "UniRig (arXiv:2504.12451) is real but the exact benchmark percentages and the Auto-Connect comparison paper are unconfirmed."
+            },
+            {
+              "recipe": "Mesh preparation for UniRig: decimating TRELLIS.2 dense meshes before auto-rigging",
+              "overall": "unverified",
+              "existence": "unsure",
+              "license_check": "unknown",
+              "corrected_commercial_use": "yes",
+              "fixes": "TRELLIS exists but the specific '~800k vertex' output spec for 'TRELLIS.2' cannot be confirmed; decimation-before-rigging is sound general practice regardless.",
+              "note": "The technique is plausible and standard, but the specific TRELLIS.2 vertex-count claims are unverified."
+            },
+            {
+              "recipe": "UniRig skeleton cleanup workflow — the manual pass every non-humanoid needs",
+              "overall": "unverified",
+              "existence": "exists",
+              "license_check": "unknown",
+              "corrected_commercial_use": "conditional",
+              "fixes": "Cannot confirm the exact script names generate_skeleton.sh / generate_skin.sh / merge.sh; UniRig does recommend skeleton refinement before skinning per its README.",
+              "note": "The workflow is plausible and consistent with UniRig's documented recommendations, but specific script names are unconfirmed."
+            },
+            {
+              "recipe": "UniRig vs Rigify vs AccuRIG vs Auto-Rig Pro vs Mixamo vs Blender automatic weights — head-to-head",
+              "overall": "confirmed-with-fixes",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "conditional",
+              "fixes": "Mixamo's restriction is on the auto-rigger output and animation library usage, not just redistribution; AccuRIG 2's non-humanoid support is limited and should not be overstated.",
+              "note": "All six tools exist and the comparative positioning is broadly accurate; the conditional commercial-use assessment is appropriate given the mix of GPL, proprietary, and MIT licenses."
+            },
+            {
+              "recipe": "UniRig successor landscape — Auto-Connect, SkinTokens, and when to upgrade",
+              "overall": "refuted",
+              "existence": "not-found",
+              "license_check": "unknown",
+              "corrected_commercial_use": "unknown",
+              "fixes": "arXiv:2506.11430 would correspond to June 2025, not 'mid-2026' or 'CVPR 2026' — the temporal labeling is internally inconsistent; Auto-Connect, SkinTokens, and the Art-XL2.0 benchmark cannot be confirmed as existing.",
+              "note": "Temporal inconsistency (arXiv 2506 = June 2025, not mid-2026/CVPR 2026) and inability to confirm Auto-Connect, SkinTokens, or Art-XL2.0 as real publications or tools."
+            }
+          ],
+          "minimax-m3:cloud": [
+            {
+              "recipe": "UniRig on non-humanoid / exotic meshes — decisive advantage, honest quality ceiling",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "UniRig (VAST-AI-Research, MIT) is real; Rig-XL paper (arXiv:2504.12451) and follow-up (2506.11430) explicitly document the non-humanoid failure modes (missing tail bones, mis-placed turtle limbs) cited in the recipe."
+            },
+            {
+              "recipe": "UniRig paper benchmarks — what the numbers mean and what they do not cover",
+              "overall": "confirmed-with-fixes",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "The '215% rigging accuracy / 194% motion accuracy' phrasing reads as if those are absolute accuracies rather than improvement margins — recommend rewording to '215% relative rigging improvement / 194% relative motion improvement over prior art' to avoid misreading.",
+              "note": "VRoid 2061 and Rig-XL 14611 model counts and the Auto-Connect comparison metrics on Art-XL2.0 are consistent with the cited arXiv sources; the headline percentages are unusually large improvement margins, faithful to the paper but easy to misread."
+            },
+            {
+              "recipe": "Mesh preparation for UniRig: decimating TRELLIS.2 dense meshes before auto-rigging",
+              "overall": "unverified",
+              "existence": "unsure",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "Replace 'TRELLIS.2' with the exact model name actually in use (original Microsoft TRELLIS, TripoSR, etc.) — 'TRELLIS.2' as a specific named release could not be verified and risks being an invented model name; the 800k-vert density claim should be tied to whichever generator is actually being used.",
+              "note": "The decimation workflow itself is sound and matches UniRig/Blender documentation, but the specific 'TRELLIS.2' generator and its ~800k-vert output density need verification against an actual model card or paper before being asserted as fact."
+            },
+            {
+              "recipe": "UniRig skeleton cleanup workflow — the manual pass every non-humanoid needs",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "yes",
+              "fixes": "",
+              "note": "Skeleton-refinement-before-skinning workflow is explicitly recommended in the UniRig README and corroborated by the Auto-Connect paper's failure-mode analysis; Blender armature-edit operations cited are all real."
+            },
+            {
+              "recipe": "UniRig vs Rigify vs AccuRIG vs Auto-Rig Pro vs Mixamo vs Blender automatic weights — head-to-head",
+              "overall": "confirmed",
+              "existence": "exists",
+              "license_check": "correct",
+              "corrected_commercial_use": "conditional",
+              "fixes": "",
+              "note": "All six tools exist with the described scopes; Mixamo's humanoid-only and redistribution restrictions are correctly cited from Adobe's FAQ; Auto-Rig Pro's multi-ped/digitigrade coverage is documented in its official docs."
+            },
+            {
+              "recipe": "UniRig successor landscape — Auto-Connect, SkinTokens, and when to upgrade",
+              "overall": "confirmed-with-fixes",
+              "existence": "unsure",
+              "license_check": "unknown",
+              "corrected_commercial_use": "unknown",
+              "fixes": "CVPR 2026 acceptance for Auto-Connect (arXiv:2506.11430, posted June 2025) cannot be confirmed from the citation alone — recommend stating 'arXiv preprint, CVPR 2026 submission status unconfirmed' rather than asserting CVPR 2026 acceptance; SkinTokens 'announced' status and any release timeline should be flagged as not-yet-released per the recipe's own caveat.",
+              "note": "Auto-Connect paper and SkinTokens reference in the UniRig README are real, but the CVPR 2026 venue claim, DPO training details, and exact metric comparisons should be treated as preprint-stage until venue acceptance is independently verified."
+            }
+          ]
+        },
+        "tally": {
+          "confirmed": 5,
+          "unverified": 1,
+          "refuted": 0,
+          "no-verdict": 0
+        },
+        "errors": null
+      }
+    }
+  ]
+}

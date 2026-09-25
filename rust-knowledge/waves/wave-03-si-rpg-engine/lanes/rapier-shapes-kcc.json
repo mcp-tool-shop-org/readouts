@@ -1,0 +1,984 @@
+{
+  "laneSlug": "rapier-shapes-kcc",
+  "title": "Rapier shapes, meshes & the character controller",
+  "tier": "si-rpg-engine",
+  "recipes": [
+    {
+      "name": "Pick parry 0.30.2 shapes by body role: primitives, convex or compound on moving bodies, trimeshes on fixed",
+      "what": "At parry3d-f64 0.30.2 SharedShape covers ball, cuboid, capsule, cylinder, cone, round variants, convex polyhedra, compounds, trimeshes, heightfields and voxels; a TriMesh has no interior, so it belongs on fixed bodies only.",
+      "how": "Bodies that move: SharedShape::cuboid(hx, hy, hz) / ball / capsule_y(half_height, radius) / cylinder, ColliderBuilder::convex_mesh(points, &indices) for one hull, or ColliderBuilder::compound(vec![(Pose, SharedShape), ..]) of convex parts for a concave object. Fixed level geometry: ColliderBuilder::trimesh_with_flags(vertices, indices, flags) on RigidBodyBuilder::fixed(), and ColliderBuilder::heightfield_with_flags for terrain. Voxels exist at this pin (SharedShape::voxels(voxel_size, &[IVector]), voxels_from_points, voxelized_mesh; ShapeType::Voxels). Rapier's MeshConverter (TriMesh, TriMeshWithFlags, Obb, Aabb, ConvexHull, ConvexDecomposition, ConvexDecompositionWithParams) with ColliderBuilder::converted_trimesh picks a conversion at runtime.",
+      "rust_version": "parry3d-f64 0.30.2, rapier3d-f64 0.35.3",
+      "gotchas": "An open trimesh has mass 0 and ccd_thickness 0 (measured), so a dynamic body carrying one gets no mass from it and bodies can pass into its hollow inside. A closed, outward-wound trimesh does report its volume (1/6 for the unit tetrahedron, the same as its convex hull), which makes a trimesh on a dynamic body look fine when it is not. Rapier's guide discourages trimeshes and polylines on dynamic bodies and recommends a convex decomposition in a compound. That guide page is labelled Rust 0.36; every API name above was checked on docs.rs at the pins.",
+      "engine_note": "solver/src/rapier_law.rs builds only ColliderBuilder::cuboid colliders (static slabs and every body), one ColliderBuilder::heightfield, and character_shape's SharedShape::cuboid / capsule_y for the controller. The post-Phase-2 collision-from-meshes slice should put TriMesh only on RigidBodyBuilder::fixed() and give dynamic bodies convex_mesh or compound colliders; Signature's geom hash would then have to cover the mesh buffers the way it covers collider rows today.",
+      "checks": [
+        {
+          "label": "every shape family builds at parry3d-f64 0.30.2, voxels included",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "Ball Cuboid RoundCuboid Capsule Cylinder Cone ConvexPolyhedron Compound TriMesh HeightField Voxels\n",
+          "exit_code": 0,
+          "source": "// Every shape family a collider can use at parry3d-f64 0.30.2, including voxels.\nuse parry3d_f64::math::{IVector, Pose, Vector};\nuse parry3d_f64::shape::SharedShape;\nuse parry3d_f64::utils::Array2;\n\nfn v(x: f64, y: f64, z: f64) -> Vector { Vector::new(x, y, z) }\n\nfn main() {\n    let tet = [v(0., 0., 0.), v(1., 0., 0.), v(0., 1., 0.), v(0., 0., 1.)];\n    let shapes = vec![\n        SharedShape::ball(0.5),\n        SharedShape::cuboid(0.5, 0.5, 0.5),\n        SharedShape::round_cuboid(0.4, 0.4, 0.4, 0.1),\n        SharedShape::capsule_y(0.25, 0.25),\n        SharedShape::cylinder(0.5, 0.25),\n        SharedShape::cone(0.5, 0.25),\n        SharedShape::convex_hull(&tet).unwrap(),\n        SharedShape::compound(vec![(Pose::IDENTITY, SharedShape::ball(0.5)), (Pose::from_translation(v(1., 0., 0.)), SharedShape::cuboid(0.2, 0.2, 0.2))]),\n        SharedShape::trimesh(tet.to_vec(), vec![[0, 2, 1], [0, 1, 3], [0, 3, 2], [1, 2, 3]]).unwrap(),\n        SharedShape::heightfield(Array2::new(2, 2, vec![0.0; 4]), v(1., 1., 1.)),\n        SharedShape::voxels(v(0.5, 0.5, 0.5), &[IVector::new(0, 0, 0), IVector::new(1, 0, 0)]),\n    ];\n    let names: Vec<String> = shapes.iter().map(|s| format!(\"{:?}\", s.shape_type())).collect();\n    println!(\"{}\", names.join(\" \"));\n}\n"
+        },
+        {
+          "label": "an open trimesh has mass 0 and ccd_thickness 0; a closed one matches its hull",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "open trimesh: mass=0 ccd_thickness=0\nclosed tetra: trimesh mass=0.166667 convex hull mass=0.166667\n",
+          "exit_code": 0,
+          "source": "// A trimesh has no interior: an open surface has zero mass and zero CCD thickness.\nuse parry3d_f64::math::Vector;\nuse parry3d_f64::shape::{Shape, SharedShape, TriMesh};\n\nfn v(x: f64, y: f64, z: f64) -> Vector { Vector::new(x, y, z) }\n\nfn main() {\n    let open = TriMesh::new(vec![v(0., 0., 0.), v(1., 0., 0.), v(0., 0., 1.), v(1., 0., 1.)], vec![[0, 2, 1], [1, 2, 3]]).unwrap();\n    println!(\"open trimesh: mass={} ccd_thickness={}\", open.mass_properties(1.0).mass(), open.ccd_thickness());\n    let p = vec![v(0., 0., 0.), v(1., 0., 0.), v(0., 1., 0.), v(0., 0., 1.)];\n    let closed = TriMesh::new(p.clone(), vec![[0, 2, 1], [0, 1, 3], [0, 3, 2], [1, 2, 3]]).unwrap();\n    let hull = SharedShape::convex_hull(&p).unwrap();\n    println!(\"closed tetra: trimesh mass={:.6} convex hull mass={:.6}\", closed.mass_properties(1.0).mass(), hull.mass_properties(1.0).mass());\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "parry3d-f64 0.30.2: SharedShape",
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.SharedShape.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Lists the SharedShape constructors at the pin: ball, cuboid, round_*, capsule(_x/_y/_z), cylinder, cone, halfspace, segment, triangle, polyline, trimesh(_with_flags), voxels, voxels_from_points, voxelized_mesh, convex_decomposition(_with_params), convex_hull, convex_mesh, heightfield(_with_flags), compound.",
+          "retrieved": true
+        },
+        {
+          "title": "Rapier user guide: Colliders (Rust 0.36)",
+          "url": "https://rapier.rs/docs/user_guides/rust/colliders",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Discourages triangle meshes and polylines on dynamic bodies because they have no interior and objects get stuck in them, recommends a convex decomposition in a compound instead, and separates convex_hull from convex_mesh.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: ColliderBuilder",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ColliderBuilder.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Documents trimesh, trimesh_with_flags, converted_trimesh, convex_hull (None if the points don't form a valid convex shape), convex_mesh, convex_decomposition(_with_params), heightfield(_with_flags), and calls the heightfield `scale` the 'Size of each grid cell in X and Z directions'.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: geometry/mesh_converter.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/mesh_converter.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "MeshConverter has TriMesh (default), TriMeshWithFlags, Obb, Aabb, ConvexHull, ConvexDecomposition and ConvexDecompositionWithParams; MeshConverterError is ConvexHullFailed or TriMeshBuilderError.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Validate mesh buffers before TriMesh::with_flags: parry 0.30.2 drops TopologyError and panics on bad indices",
+      "what": "TriMesh::new and with_flags return Err only for an empty index buffer (EmptyIndices); a TopologyError under HALF_EDGE_TOPOLOGY is discarded (Ok, topology() == None), NaN and infinite vertices are accepted, and an index past the vertex buffer panics.",
+      "how": "Refuse before parry: at least one triangle, every coordinate finite, every index < vertices.len(), no triangle repeating an index. Build with TriMesh::new(vertices, indices), then call mesh.set_flags(TriMeshFlags::HALF_EDGE_TOPOLOGY), which does return Result<(), TopologyError> (BadTriangle(u32) or BadAdjacentTrianglesOrientation { triangle1, triangle2, edge }), and refuse on Err, or check mesh.topology().is_some() after with_flags. Return refusals as an enum, never as a panic.",
+      "rust_version": "parry3d-f64 0.30.2",
+      "gotchas": "The docs.rs page says with_flags errors when HALF_EDGE_TOPOLOGY is set and the topology is invalid; the pinned source runs `let _ = result.set_flags(flags);` and the oracle gets Ok with no topology while flags() still claims HALF_EDGE_TOPOLOGY. Two TopologyError doc tests are commented out in the source as failing. A NaN vertex is left out of the local AABB (x = [0, 0] measured for a triangle with a NaN x), so the bounding volume no longer describes the triangle. Index 7 on 3 vertices panics with 'index out of bounds' in rebuild_bvh. Rapier 0.35's quarantine acts on bodies and colliders that go non-finite during a step; it is not a load-time validator.",
+      "engine_note": "The post-Phase-2 mesh loader must refuse before any parry call, the way signature() refuses body rows today (bad() on every f64, canon_quat on rotations): solver/Cargo.toml's release profile has panic = \"abort\", so parry's index panic inside TriMesh::new would trap the wasm module instead of making solver_load return 0.",
+      "checks": [
+        {
+          "label": "with_flags returns Ok with no topology on bad winding; set_flags returns the TopologyError",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "empty indices: Some(EmptyIndices)\nwith_flags(HALF_EDGE_TOPOLOGY) on bad winding: is_ok=true topology_is_some=false flags_claim_topology=true\nset_flags(HALF_EDGE_TOPOLOGY): Err(BadAdjacentTrianglesOrientation { triangle1: 0, triangle2: 1, edge: (0, 1) })\n",
+          "exit_code": 0,
+          "source": "// What a bad mesh returns at parry3d-f64 0.30.2.\nuse parry3d_f64::math::Vector;\nuse parry3d_f64::shape::{TriMesh, TriMeshFlags};\n\nfn quad() -> Vec<Vector> {\n    vec![Vector::new(0., 0., 0.), Vector::new(1., 0., 0.), Vector::new(0., 0., 1.), Vector::new(1., 0., 1.)]\n}\n\nfn main() {\n    println!(\"empty indices: {:?}\", TriMesh::new(quad(), vec![]).err());\n    // Two triangles traverse the shared edge (0,1) in the same direction.\n    let bad = vec![[0, 1, 2], [0, 1, 3]];\n    let m = TriMesh::with_flags(quad(), bad.clone(), TriMeshFlags::HALF_EDGE_TOPOLOGY);\n    let ok = m.is_ok();\n    let m = m.unwrap();\n    println!(\"with_flags(HALF_EDGE_TOPOLOGY) on bad winding: is_ok={} topology_is_some={} flags_claim_topology={}\", ok, m.topology().is_some(), m.flags().contains(TriMeshFlags::HALF_EDGE_TOPOLOGY));\n    let mut m = TriMesh::new(quad(), bad).unwrap();\n    println!(\"set_flags(HALF_EDGE_TOPOLOGY): {:?}\", m.set_flags(TriMeshFlags::HALF_EDGE_TOPOLOGY));\n}\n"
+        },
+        {
+          "label": "TriMesh::new accepts NaN and infinite vertices; the NaN is missing from the AABB",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "NaN vertex accepted: aabb x=[0, 0]\ninfinite vertex accepted: aabb max x=inf\n",
+          "exit_code": 0,
+          "source": "// TriMesh::new accepts non-finite vertices; the NaN one is missing from the bounding box.\nuse parry3d_f64::math::Vector;\nuse parry3d_f64::shape::TriMesh;\n\nfn main() {\n    let nan = vec![Vector::new(0., 0., 0.), Vector::new(f64::NAN, 0., 0.), Vector::new(0., 0., 1.)];\n    let m = TriMesh::new(nan, vec![[0, 2, 1]]).unwrap();\n    let a = m.local_aabb();\n    println!(\"NaN vertex accepted: aabb x=[{}, {}]\", a.mins.x, a.maxs.x);\n    let inf = vec![Vector::new(0., 0., 0.), Vector::new(f64::INFINITY, 0., 0.), Vector::new(0., 0., 1.)];\n    let m = TriMesh::new(inf, vec![[0, 2, 1]]).unwrap();\n    println!(\"infinite vertex accepted: aabb max x={}\", m.local_aabb().maxs.x);\n}\n"
+        },
+        {
+          "label": "an index past the vertex buffer panics inside TriMesh::new (exit 101)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "building\n",
+          "exit_code": 101,
+          "source": "// An index past the vertex buffer is not an Err: TriMesh::new panics (a trap under panic = \"abort\").\nuse parry3d_f64::math::Vector;\nuse parry3d_f64::shape::TriMesh;\n\nfn main() {\n    let tri = vec![Vector::new(0., 0., 0.), Vector::new(1., 0., 0.), Vector::new(0., 0., 1.)];\n    println!(\"building\");\n    let r = TriMesh::new(tri, vec![[0, 2, 7]]);\n    println!(\"returned ok={}\", r.is_ok());\n}\n"
+        },
+        {
+          "label": "a validating loader refuses NaN, bad indices, repeats and bad winding as data",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "good: loaded 2 triangles\nnan: refused NonFinite { vertex: 1 }\nindex 7: refused IndexOutOfRange { triangle: 0, index: 7 }\nrepeated: refused RepeatedIndex { triangle: 0 }\nbad winding: refused Topology(BadAdjacentTrianglesOrientation { triangle1: 0, triangle2: 1, edge: (0, 1) })\n",
+          "exit_code": 0,
+          "source": "// The fix: refuse before parry, then take the topology verdict from set_flags, not with_flags.\nuse parry3d_f64::math::Vector;\nuse parry3d_f64::shape::{TopologyError, TriMesh, TriMeshFlags};\n\n#[derive(Debug)]\nenum Refusal {\n    Empty,\n    NonFinite { vertex: usize },\n    IndexOutOfRange { triangle: usize, index: u32 },\n    RepeatedIndex { triangle: usize },\n    Topology(TopologyError),\n}\n\nfn load(vertices: &[[f64; 3]], indices: &[[u32; 3]]) -> Result<TriMesh, Refusal> {\n    if indices.is_empty() { return Err(Refusal::Empty); }\n    if let Some(vertex) = vertices.iter().position(|p| !p.iter().all(|c| c.is_finite())) {\n        return Err(Refusal::NonFinite { vertex });\n    }\n    for (triangle, t) in indices.iter().enumerate() {\n        if let Some(&index) = t.iter().find(|&&i| i as usize >= vertices.len()) {\n            return Err(Refusal::IndexOutOfRange { triangle, index });\n        }\n        if t[0] == t[1] || t[1] == t[2] || t[0] == t[2] { return Err(Refusal::RepeatedIndex { triangle }); }\n    }\n    let v: Vec<Vector> = vertices.iter().map(|p| Vector::new(p[0], p[1], p[2])).collect();\n    let mut mesh = TriMesh::new(v, indices.to_vec()).map_err(|_| Refusal::Empty)?;\n    mesh.set_flags(TriMeshFlags::HALF_EDGE_TOPOLOGY).map_err(Refusal::Topology)?;\n    Ok(mesh)\n}\n\nfn main() {\n    let q = [[0., 0., 0.], [1., 0., 0.], [0., 0., 1.], [1., 0., 1.]];\n    let nan = [[0., 0., 0.], [f64::NAN, 0., 0.], [0., 0., 1.], [1., 0., 1.]];\n    let cases: [(&str, &[[f64; 3]], &[[u32; 3]]); 5] = [\n        (\"good\", &q, &[[0, 2, 1], [1, 2, 3]]),\n        (\"nan\", &nan, &[[0, 2, 1]]),\n        (\"index 7\", &q, &[[0, 2, 7]]),\n        (\"repeated\", &q, &[[0, 0, 1]]),\n        (\"bad winding\", &q, &[[0, 1, 2], [0, 1, 3]]),\n    ];\n    for (name, v, i) in cases {\n        match load(v, i) {\n            Ok(m) => println!(\"{name}: loaded {} triangles\", m.indices().len()),\n            Err(r) => println!(\"{name}: refused {:?}\", r),\n        }\n    }\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "parry3d-f64 0.30.2: TriMesh",
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.TriMesh.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Says with_flags errors when HALF_EDGE_TOPOLOGY is set and the topology is invalid, that set_flags returns Result<(), TopologyError>, and that vertices() keeps construction order; the pinned code and the oracle contradict the first and the last.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2 source: shape/trimesh.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/trimesh.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "with_flags runs `let _ = result.set_flags(flags);` (the TopologyError is dropped); merge_duplicate_vertices keys HashablePartialEq and numbers vertices by first reference; FIX_INTERNAL_EDGES = (1 << 7) | MERGE_DUPLICATE_VERTICES.bits(); two TopologyError doc tests are commented out as failing.",
+          "retrieved": true
+        },
+        {
+          "title": "parry CHANGELOG at v0.30.2",
+          "url": "https://raw.githubusercontent.com/dimforge/parry/v0.30.2/CHANGELOG.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "0.30.2 fixes an out-of-bounds panic in the binned BVH builder on degenerate leaf AABBs (rapier#961), a composite-shape projection panic on non-finite points (#395), and a shape-cast time of impact that was short by an amount scaling with the shape's extent (#429).",
+          "retrieved": true
+        },
+        {
+          "title": "rapier CHANGELOG at v0.35.3",
+          "url": "https://raw.githubusercontent.com/dimforge/rapier/v0.35.3/CHANGELOG.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "0.35.0-beta.0 adds a NaN/infinity quarantine for bodies and colliders whose pose, velocity or geometry goes non-finite during a step, and says max_ccd_substeps = 0 disables CCD entirely.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Canonicalise -0.0 and weld vertices offline: MERGE_DUPLICATE_VERTICES keys raw bits and renumbers the mesh",
+      "what": "MERGE_DUPLICATE_VERTICES (and FIX_INTERNAL_EDGES, whose bits 144 include it) keys vertices by raw bytes but compares with ==, so (-0.0, 0, 0) welds to (0, 0, 0) in a 4- or 16-vertex mesh and not in a 64-vertex one; merging also renumbers and drops unreferenced vertices, and DELETE_DEGENERATE_TRIANGLES only removes repeated-index triangles.",
+      "how": "In the offline tool: pass every coordinate through canon() (x == 0.0 -> 0.0), refuse NaN, weld exact duplicates yourself, drop zero-area triangles by computing their area, and write the vertex buffer in first-reference order with every vertex referenced. Such buffers pass through FIX_INTERNAL_EDGES unchanged (measured), so the stored bytes are the bytes parry uses. Never keep outside references to input vertex indices across a merging flag.",
+      "rust_version": "parry3d-f64 0.30.2 (enhanced-determinism)",
+      "gotchas": "TriMeshFlags documents MERGE as joining 'vertices with the exact same coordinates' and TriMesh documents vertices() as keeping construction order; signed zero breaks the first, and any merging flag breaks the second (7 vertices in, 4 out, (9, 9, 9) dropped). The ±0 result depends on hash-table probing: the key hashes the raw bytes, equality is ==, and under enhanced-determinism the map is an IndexMap with FxHasher32. Whether the flip point differs on wasm32 was not measured. A mesh whose every triangle repeats an index comes back with 0 triangles, not EmptyIndices, because the emptiness check runs before the deletion. A zero-area triangle with three distinct indices is kept.",
+      "engine_note": "signature() in rapier_law.rs mixes every geometry f64 with mix_f64 (to_bits), so -0.0 and 0.0 already give different world signatures. The mesh slice's offline tool should apply the same canon() that write_body uses, and the loader should refuse a non-canonical value, which is the pattern T3's load-time refusal of non-finite authored values already follows.",
+      "checks": [
+        {
+          "label": "a -0.0 duplicate welds in 4 and 16 vertex meshes but not in 64 or 1024; canon() fixes it",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "4 grid vertices: +0.0 -> 4, -0.0 -> 4, -0.0 canonicalised -> 4\n16 grid vertices: +0.0 -> 16, -0.0 -> 16, -0.0 canonicalised -> 16\n64 grid vertices: +0.0 -> 64, -0.0 -> 65, -0.0 canonicalised -> 64\n1024 grid vertices: +0.0 -> 1024, -0.0 -> 1025, -0.0 canonicalised -> 1024\n",
+          "exit_code": 0,
+          "source": "// MERGE_DUPLICATE_VERTICES keys on raw bytes but compares with ==, so whether (-0.0, 0, 0)\n// welds to (0, 0, 0) depends on the hash-table layout, i.e. on the mesh size.\nuse parry3d_f64::math::Vector;\nuse parry3d_f64::shape::{TriMesh, TriMeshFlags};\n\n// The engine's canon(): -0.0 becomes 0.0, every other value is unchanged.\nfn canon(x: f64) -> f64 { if x == 0.0 { 0.0 } else { x } }\n\n// An n x n grid of distinct vertices plus one extra triangle whose first vertex is `zero`,\n// value-equal to grid vertex 0 = (0, 0, 0). Returns the vertex count after merging.\nfn welded(n: u32, zero: f64, canonicalise: bool) -> usize {\n    let mut v = Vec::new();\n    for i in 0..n { for j in 0..n { v.push(Vector::new(j as f64, 0.0, i as f64)); } }\n    let mut idx = Vec::new();\n    for i in 0..n - 1 { for j in 0..n - 1 {\n        let a = i * n + j;\n        idx.push([a, a + n, a + 1]);\n        idx.push([a + 1, a + n, a + n + 1]);\n    } }\n    let extra = v.len() as u32;\n    v.push(Vector::new(zero, 0.0, 0.0));\n    idx.push([extra, n, 1]);\n    if canonicalise { for p in v.iter_mut() { *p = Vector::new(canon(p.x), canon(p.y), canon(p.z)); } }\n    TriMesh::with_flags(v, idx, TriMeshFlags::MERGE_DUPLICATE_VERTICES).unwrap().vertices().len()\n}\n\nfn main() {\n    for n in [2u32, 4, 8, 32] {\n        println!(\"{} grid vertices: +0.0 -> {}, -0.0 -> {}, -0.0 canonicalised -> {}\", n * n, welded(n, 0.0, false), welded(n, -0.0, false), welded(n, -0.0, true));\n    }\n}\n"
+        },
+        {
+          "label": "FIX_INTERNAL_EDGES implies a merge that renumbers; pre-welded buffers pass unchanged",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "FIX_INTERNAL_EDGES bits=144 includes MERGE_DUPLICATE_VERTICES=true\nraw buffers: 7 vertices in, 4 out, first=(0, 0, 0), indices=[[0, 1, 2], [2, 1, 3]]\npre-welded buffers: vertices unchanged=true indices unchanged=true\nDELETE_DEGENERATE_TRIANGLES: zero-area triangle kept=1, repeated-index mesh left 0 triangles\n",
+          "exit_code": 0,
+          "source": "// What the preprocessing flags do to the buffers.\nuse parry3d_f64::math::Vector;\nuse parry3d_f64::shape::{TriMesh, TriMeshFlags};\n\nfn v(x: f64, y: f64, z: f64) -> Vector { Vector::new(x, y, z) }\n\nfn main() {\n    let f = TriMeshFlags::FIX_INTERNAL_EDGES;\n    println!(\"FIX_INTERNAL_EDGES bits={} includes MERGE_DUPLICATE_VERTICES={}\", f.bits(), f.contains(TriMeshFlags::MERGE_DUPLICATE_VERTICES));\n    // Vertex 0 is unreferenced; vertices 4 and 5 duplicate 2 and 3.\n    let raw = vec![v(9., 9., 9.), v(0., 0., 0.), v(1., 0., 0.), v(0., 0., 1.), v(1., 0., 0.), v(0., 0., 1.), v(1., 0., 1.)];\n    let m = TriMesh::with_flags(raw, vec![[1, 3, 2], [4, 5, 6]], f).unwrap();\n    let p = m.vertices()[0];\n    println!(\"raw buffers: 7 vertices in, {} out, first=({}, {}, {}), indices={:?}\", m.vertices().len(), p.x, p.y, p.z, m.indices());\n    // Buffers already welded, all referenced, in first-reference order: the merge changes nothing.\n    let welded = vec![v(0., 0., 0.), v(0., 0., 1.), v(1., 0., 0.), v(1., 0., 1.)];\n    let idx = vec![[0, 1, 2], [2, 1, 3]];\n    let m = TriMesh::with_flags(welded.clone(), idx.clone(), f).unwrap();\n    let same = m.vertices().iter().zip(&welded).all(|(a, b)| a.x.to_bits() == b.x.to_bits() && a.y.to_bits() == b.y.to_bits() && a.z.to_bits() == b.z.to_bits());\n    println!(\"pre-welded buffers: vertices unchanged={} indices unchanged={}\", same && m.vertices().len() == welded.len(), m.indices() == &idx[..]);\n    let col = vec![v(0., 0., 0.), v(1., 0., 0.), v(2., 0., 0.)];\n    let kept = TriMesh::with_flags(col.clone(), vec![[0, 1, 2]], TriMeshFlags::DELETE_DEGENERATE_TRIANGLES).unwrap();\n    let emptied = TriMesh::with_flags(col, vec![[0, 0, 1]], TriMeshFlags::DELETE_DEGENERATE_TRIANGLES).unwrap();\n    println!(\"DELETE_DEGENERATE_TRIANGLES: zero-area triangle kept={}, repeated-index mesh left {} triangles\", kept.indices().len(), emptied.indices().len());\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "parry3d-f64 0.30.2: TriMeshFlags",
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.TriMeshFlags.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Documents the eight flags: MERGE_DUPLICATE_VERTICES merges 'vertices with the exact same coordinates', DELETE_DEGENERATE_TRIANGLES removes triangles 'sharing two vertices with identical index values', and FIX_INTERNAL_EDGES fixes contact normals that 'could lead to incorrect bumps'.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2 source: shape/trimesh.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/trimesh.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "with_flags runs `let _ = result.set_flags(flags);` (the TopologyError is dropped); merge_duplicate_vertices keys HashablePartialEq and numbers vertices by first reference; FIX_INTERNAL_EDGES = (1 << 7) | MERGE_DUPLICATE_VERTICES.bits(); two TopologyError doc tests are commented out as failing.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2 source: utils/hashable_partial_eq.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/utils/hashable_partial_eq.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "HashablePartialEq takes Eq from PartialEq but hashes with state.write(self.value.as_bytes()), the raw bytes; new() warns to be sure you want partial equality treated as an equivalence.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2 source: utils/hashmap.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/utils/hashmap.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Under enhanced-determinism parry's HashMap is indexmap::IndexMap with BuildHasherDefault<FxHasher32>; without it, hashbrown's HashMap with foldhash's FixedState.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2: TriMesh",
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.TriMesh.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Says with_flags errors when HALF_EDGE_TOPOLOGY is set and the topology is invalid, that set_flags returns Result<(), TopologyError>, and that vertices() keeps construction order; the pinned code and the oracle contradict the first and the last.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Compute convex hulls and VHACD parts offline with pinned parameters, then load stored buffers with convex_mesh",
+      "what": "SharedShape::convex_hull is None for fewer than 3 points, NaN, coincident or collinear points, but Some for coplanar points: a flat polyhedron of mass 0. VHACD output follows its parameters: a two-box mesh of volume 2 became 2 parts (mass 2.0000) at resolution 64 and 13 parts (summed mass 3.1227) at resolution 16.",
+      "how": "Offline: parry3d_f64::transformation::try_convex_hull(&points) -> (vertices, indices); refuse Err and refuse a hull whose mass_properties(1.0).mass() is 0. For concave parts call SharedShape::convex_decomposition_with_params(&v, &idx, &VHACDParameters { .. }) with every field written out (0.30.2 defaults: resolution 64, concavity 0.01, alpha 0.05, beta 0.05, plane_downsampling 4, convex_hull_downsampling 4, convex_hull_approximation true, max_convex_hulls 1024) and store each part's vertex and index buffers. At load: ColliderBuilder::convex_mesh(points, &indices) per part, which skips the hull computation and gave the same mass bits as convex_hull, then ColliderBuilder::compound.",
+      "rust_version": "parry3d-f64 0.30.2, rapier3d-f64 0.35.3",
+      "gotchas": "ConvexHullError's docs say nearly coplanar 3D input gives MissingSupportPoint; the pinned code triangulates coplanar input as a flat hull and from_convex_mesh accepts it (measured Some, mass 0), and ColliderBuilder::convex_hull ('None if the points don't form a valid convex shape') and MeshConverter::ConvexHull pass it too (both returned a mass-0 shape). The hull code counts dimensions with a 1.0e-7 eigenvalue threshold, so a nearly flat cloud can land on either side. VHACD memory grows as O(resolution^3) and convex_hull_approximation = false costs 2-5x time (VHACDParameters docs). A summed compound mass above the source volume means overlapping parts.",
+      "engine_note": "The post-Phase-2 slice plans 'hull point sets stored offline for determinism': store try_convex_hull's vertex and triangle-index buffers rather than only the points, load them with ColliderBuilder::convex_mesh, and refuse a mass-0 hull at load. VHACD belongs in the offline tool: its O(resolution^3) voxel grid would be a transient allocation inside a solver binary whose memory T3's lint forbids from growing.",
+      "checks": [
+        {
+          "label": "convex_hull: None for collinear, coincident, 2 points, NaN; Some(mass 0) for coplanar",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "tetra: try_convex_hull=Ok(4 verts, 4 tris) convex_hull=Some(mass 0.16666666666666666)\ncoplanar: try_convex_hull=Ok(4 verts, 4 tris) convex_hull=Some(mass 0)\ncollinear: try_convex_hull=Ok(2 verts, 2 tris) convex_hull=None\ncoincident: try_convex_hull=Err(MissingSupportPoint) convex_hull=None\ntwo points: try_convex_hull=Err(IncompleteInput) convex_hull=None\nnan: try_convex_hull=Err(MissingSupportPoint) convex_hull=None\ncoplanar through ColliderBuilder::convex_hull: Some(0.0); through MeshConverter::ConvexHull: Some(0.0)\n",
+          "exit_code": 0,
+          "source": "// convex_hull on degenerate input at parry3d-f64 0.30.2 (through rapier3d-f64 0.35.3's re-export):\n// None in most cases, but Some(mass 0) for coplanar points, and Rapier's wrappers pass it on.\nuse rapier3d_f64::geometry::MeshConverter;\nuse rapier3d_f64::parry::transformation::try_convex_hull;\nuse rapier3d_f64::prelude::*;\n\nfn v(x: f64, y: f64, z: f64) -> Vector { Vector::new(x, y, z) }\n\nfn main() {\n    let cases: [(&str, Vec<Vector>); 6] = [\n        (\"tetra\", vec![v(0., 0., 0.), v(1., 0., 0.), v(0., 1., 0.), v(0., 0., 1.)]),\n        (\"coplanar\", vec![v(0., 0., 0.), v(1., 0., 0.), v(0., 0., 1.), v(1., 0., 1.)]),\n        (\"collinear\", vec![v(0., 0., 0.), v(1., 0., 0.), v(2., 0., 0.)]),\n        (\"coincident\", vec![v(1., 1., 1.), v(1., 1., 1.), v(1., 1., 1.)]),\n        (\"two points\", vec![v(0., 0., 0.), v(1., 0., 0.)]),\n        (\"nan\", vec![v(0., 0., 0.), v(1., 0., 0.), v(0., 1., 0.), v(0., 0., f64::NAN)]),\n    ];\n    for (name, pts) in &cases {\n        let raw = match try_convex_hull(pts) { Ok((vs, is)) => format!(\"Ok({} verts, {} tris)\", vs.len(), is.len()), Err(e) => format!(\"Err({:?})\", e) };\n        let shape = match SharedShape::convex_hull(pts) { Some(s) => format!(\"Some(mass {})\", s.mass_properties(1.0).mass()), None => \"None\".to_string() };\n        println!(\"{name}: try_convex_hull={raw} convex_hull={shape}\");\n    }\n    let flat = cases[1].1.clone();\n    let builder = ColliderBuilder::convex_hull(&flat).map(|b| b.build().mass());\n    let converted = MeshConverter::ConvexHull.convert(flat, vec![]).map(|(s, _)| s.mass_properties(1.0).mass());\n    println!(\"coplanar through ColliderBuilder::convex_hull: {:?}; through MeshConverter::ConvexHull: {:?}\", builder, converted.ok());\n}\n"
+        },
+        {
+          "label": "a stored hull reloaded with convex_mesh has the same mass bits; VHACD defaults",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "27 points -> hull of 8 vertices, 12 triangles; convex_mesh mass bits == convex_hull mass bits: true\nVHACDParameters::default(): resolution=64 concavity=0.01 alpha=0.05 beta=0.05 plane_downsampling=4 convex_hull_downsampling=4 convex_hull_approximation=true max_convex_hulls=1024\n",
+          "exit_code": 0,
+          "source": "// Offline: keep the hull's vertex and index buffers. At load: convex_mesh, no hull computation.\nuse parry3d_f64::math::Vector;\nuse parry3d_f64::shape::SharedShape;\nuse parry3d_f64::transformation::try_convex_hull;\nuse parry3d_f64::transformation::vhacd::VHACDParameters;\n\nfn main() {\n    let mut pts = Vec::new();\n    for i in 0..3 { for j in 0..3 { for k in 0..3 {\n        pts.push(Vector::new(i as f64 * 0.5, j as f64 * 0.5, k as f64 * 0.5));\n    } } }\n    let (verts, idx) = try_convex_hull(&pts).unwrap();\n    let loaded = SharedShape::convex_mesh(verts.clone(), &idx).unwrap();\n    let direct = SharedShape::convex_hull(&pts).unwrap();\n    let (ml, md) = (loaded.mass_properties(1.0).mass(), direct.mass_properties(1.0).mass());\n    println!(\"{} points -> hull of {} vertices, {} triangles; convex_mesh mass bits == convex_hull mass bits: {}\", pts.len(), verts.len(), idx.len(), ml.to_bits() == md.to_bits());\n    let p = VHACDParameters::default();\n    println!(\"VHACDParameters::default(): resolution={} concavity={} alpha={} beta={} plane_downsampling={} convex_hull_downsampling={} convex_hull_approximation={} max_convex_hulls={}\",\n        p.resolution, p.concavity, p.alpha, p.beta, p.plane_downsampling, p.convex_hull_downsampling, p.convex_hull_approximation, p.max_convex_hulls);\n}\n"
+        },
+        {
+          "label": "VHACD resolution 64 vs 16 on one mesh: 2 parts vs 13 parts",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "resolution 64: 2 convex parts, summed mass 2.0000\nresolution 16: 13 convex parts, summed mass 3.1227\n",
+          "exit_code": 0,
+          "source": "// The same mesh, two VHACD resolutions: the decomposition is a function of its parameters.\nuse parry3d_f64::math::Vector;\nuse parry3d_f64::shape::SharedShape;\nuse parry3d_f64::transformation::vhacd::VHACDParameters;\n\n// An axis-aligned box as 8 vertices and 12 outward-wound triangles.\nfn cuboid_mesh(min: [f64; 3], max: [f64; 3], v: &mut Vec<Vector>, idx: &mut Vec<[u32; 3]>) {\n    let b = v.len() as u32;\n    for i in 0..8u32 {\n        v.push(Vector::new(if i & 1 == 0 { min[0] } else { max[0] }, if i & 2 == 0 { min[1] } else { max[1] }, if i & 4 == 0 { min[2] } else { max[2] }));\n    }\n    for t in [[0, 2, 1], [1, 2, 3], [4, 5, 6], [5, 7, 6], [0, 1, 4], [1, 5, 4], [2, 6, 3], [3, 6, 7], [0, 4, 2], [2, 4, 6], [1, 3, 5], [3, 7, 5]] {\n        idx.push([b + t[0], b + t[1], b + t[2]]);\n    }\n}\n\nfn main() {\n    // Two unit boxes with a gap between them: true volume 2.\n    let (mut v, mut idx) = (Vec::new(), Vec::new());\n    cuboid_mesh([0.0, 0.0, 0.0], [1.0, 1.0, 1.0], &mut v, &mut idx);\n    cuboid_mesh([2.0, 0.0, 0.0], [3.0, 1.0, 1.0], &mut v, &mut idx);\n    for resolution in [64u32, 16] {\n        let d = SharedShape::convex_decomposition_with_params(&v, &idx, &VHACDParameters { resolution, ..Default::default() });\n        println!(\"resolution {resolution}: {} convex parts, summed mass {:.4}\", d.as_compound().unwrap().shapes().len(), d.mass_properties(1.0).mass());\n    }\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "parry3d-f64 0.30.2: try_convex_hull",
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/transformation/fn.try_convex_hull.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Returns Ok((vertices, indices)) or Err(ConvexHullError), with IncompleteInput for fewer than 3 points.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2: ConvexHullError",
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/transformation/enum.ConvexHullError.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Says MissingSupportPoint covers NaN or infinite input and nearly coplanar 3D input; the oracle shows coplanar points returning Ok and a mass-0 hull instead.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2 source: transformation/convex_hull3/initial_mesh.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/transformation/convex_hull3/initial_mesh.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Counts the data's dimension with a 1.0e-7 eigenvalue threshold and, for coplanar points, returns a flat top-and-bottom triangulation as the hull.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2 source: shape/convex_polyhedron.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/convex_polyhedron.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "from_convex_hull is try_convex_hull(points).ok().and_then(from_convex_mesh); from_convex_mesh assumes a manifold, closed, convex input and does not verify convexity.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2: VHACDParameters",
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/transformation/vhacd/struct.VHACDParameters.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "3D defaults resolution 64, concavity 0.01, alpha 0.05, beta 0.05, plane and hull downsampling 4, approximation on, max 1024 hulls; memory scales as O(resolution^3) and turning approximation off costs 2-5x time.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: ColliderBuilder",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ColliderBuilder.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Documents trimesh, trimesh_with_flags, converted_trimesh, convex_hull (None if the points don't form a valid convex shape), convex_mesh, convex_decomposition(_with_params), heightfield(_with_flags), and calls the heightfield `scale` the 'Size of each grid cell in X and Z directions'.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: geometry/mesh_converter.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/mesh_converter.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "MeshConverter has TriMesh (default), TriMeshWithFlags, Obb, Aabb, ConvexHull, ConvexDecomposition and ConvexDecompositionWithParams; MeshConverterError is ConvexHullFailed or TriMeshBuilderError.",
+          "retrieved": true
+        },
+        {
+          "title": "Rapier user guide: Colliders (Rust 0.36)",
+          "url": "https://rapier.rs/docs/user_guides/rust/colliders",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Discourages triangle meshes and polylines on dynamic bodies because they have no interior and objects get stuck in them, recommends a convex decomposition in a compound instead, and separates convex_hull from convex_mesh.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Fill a parry HeightField column-major with scale as the whole extent, and sample it as two triangles per cell",
+      "what": "In HeightField::new(Array2::new(nrows, ncols, data), scale) row i advances z and column j advances x, data is column-major (i + j * nrows), scale is the whole field (cell width = scale.x / (ncols - 1)), the field is centred on its collider, and each cell is two triangles split along (x0, z1)-(x1, z0), not a bilinear patch.",
+      "how": "Build with Array2::from_fn(rows, cols, |row, col| h[row][col]), or transpose a row-major record with data[row + col * rows] = record[row * cols + col]; pass scale = ((cols - 1) * cell, 1.0, (rows - 1) * cell). Code that samples the surface outside the solver must use the same triangles: in cell (i, j) with fractions u (x) and v (z), h = h00 + u*(h01 - h00) + v*(h10 - h00) when u + v <= 1, else h = h11 + (1-u)*(h10 - h11) + (1-v)*(h01 - h11), where h10 is the +z neighbour and h01 the +x neighbour, or it can ask the law with a downward ray.",
+      "rust_version": "parry3d-f64 0.30.2, rapier3d-f64 0.35.3",
+      "gotchas": "Rapier's ColliderBuilder::heightfield doc at 0.35.3 calls scale the 'Size of each grid cell'; parry divides it by (ncols - 1), so a scale of (1, 1, 1) on 5 columns gives cells 0.25 wide (measured). HeightField::new asserts at least 2 rows and columns and Array2::new asserts data.len() == nrows * ncols; both are panics. Bilinear interpolation disagrees with the solver on any non-planar cell: 0.25 against 0 at the centre of a unit cell with one corner raised by 1 (measured). A cell flagged HeightFieldCellStatus::ZIGZAG_SUBDIVISION uses the other diagonal.",
+      "engine_note": "build_world in rapier_law.rs transposes the row-major HEIGHTS buffer with data[row + col * rows] and passes ((cols - 1) * cell, 1, (rows - 1) * cell) on a fixed body at the origin, which matches parry, and signature() refuses fewer than 2 rows or columns before HeightField's assert can fire; MAX_HEIGHTS 256 caps a field at 256 heights (16 x 16, say). packages/tick/world.js heightfieldSupport, which supportAt hands to the verb predicates, interpolates bilinearly, so on a non-planar cell it reports a height the solver's surface does not have.",
+      "checks": [
+        {
+          "label": "column-major data, whole-extent scale, centred field; a (1,1,1) scale gives 0.25-wide cells",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "cell_width=1 cell_height=1 x=[-2, 2] z=[-1, 1]\ncolumn-major: h(1,0)=Some(1.0) h(-1,0)=Some(0.0) h(2.5,0)=None\nrow-major buffer: h(1,0)=Some(0.0)\nArray2::from_fn: h(1,0)=Some(1.0)\nscale (1, 1, 1) with 5 columns: cell_width=0.25\n",
+          "exit_code": 0,
+          "source": "// HeightField layout at parry3d-f64 0.30.2: rows advance z, columns advance x, data is\n// column-major (data[row + col * rows]), scale is the whole field, centred on the collider.\nuse parry3d_f64::math::{Pose, Vector};\nuse parry3d_f64::query::{Ray, RayCast};\nuse parry3d_f64::shape::HeightField;\nuse parry3d_f64::utils::Array2;\n\nfn height(hf: &HeightField, x: f64, z: f64) -> Option<f64> {\n    let ray = Ray::new(Vector::new(x, 5.0, z), Vector::new(0.0, -1.0, 0.0));\n    hf.cast_ray(&Pose::IDENTITY, &ray, 100.0, true).map(|t| 5.0 - t)\n}\n\nfn main() {\n    let (rows, cols) = (3usize, 5usize);\n    let scale = Vector::new(4.0, 1.0, 2.0);\n    // One bump of 1.0 at row 1, col 3, written column-major.\n    let mut data = vec![0.0; rows * cols];\n    data[1 + 3 * rows] = 1.0;\n    let hf = HeightField::new(Array2::new(rows, cols, data), scale);\n    let a = hf.root_aabb();\n    println!(\"cell_width={} cell_height={} x=[{}, {}] z=[{}, {}]\", hf.cell_width(), hf.cell_height(), a.mins.x, a.maxs.x, a.mins.z, a.maxs.z);\n    println!(\"column-major: h(1,0)={:?} h(-1,0)={:?} h(2.5,0)={:?}\", height(&hf, 1.0, 0.0), height(&hf, -1.0, 0.0), height(&hf, 2.5, 0.0));\n    // The same bump written row-major (data[row * cols + col]) is not where it was meant to be.\n    let mut rm = vec![0.0; rows * cols];\n    rm[1 * cols + 3] = 1.0;\n    println!(\"row-major buffer: h(1,0)={:?}\", height(&HeightField::new(Array2::new(rows, cols, rm), scale), 1.0, 0.0));\n    // Array2::from_fn takes (row, col) and lays the data out itself.\n    let ff = HeightField::new(Array2::from_fn(rows, cols, |r, c| if (r, c) == (1, 3) { 1.0 } else { 0.0 }), scale);\n    println!(\"Array2::from_fn: h(1,0)={:?}\", height(&ff, 1.0, 0.0));\n    // A scale read as \"the size of one cell\" gives cells four times too small here.\n    let unit = HeightField::new(Array2::new(rows, cols, vec![0.0; rows * cols]), Vector::new(1.0, 1.0, 1.0));\n    println!(\"scale (1, 1, 1) with 5 columns: cell_width={}\", unit.cell_width());\n}\n"
+        },
+        {
+          "label": "two triangles per cell: 0 at a cell centre where bilinear says 0.25; the rule in 'how' matches",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "(0, 0): solver surface=0 bilinear=0.25\n(0.25, 0.25): solver surface=0.5 bilinear=0.5625\n(-0.25, -0.25): solver surface=0 bilinear=0.0625\n5 points: two-triangle rule within 1e-12 of the solver=true bilinear max error=0.0600\n",
+          "exit_code": 0,
+          "source": "// A heightfield cell is two triangles split along (x0, z1)-(x1, z0), not a bilinear patch.\nuse parry3d_f64::math::{Pose, Vector};\nuse parry3d_f64::query::{Ray, RayCast};\nuse parry3d_f64::shape::HeightField;\nuse parry3d_f64::utils::Array2;\n\nfn surface(hf: &HeightField, x: f64, z: f64) -> f64 {\n    let ray = Ray::new(Vector::new(x, 5.0, z), Vector::new(0.0, -1.0, 0.0));\n    5.0 - hf.cast_ray(&Pose::IDENTITY, &ray, 100.0, true).unwrap()\n}\n\n// h[row][col]: row advances z, col advances x. One 1 x 1 cell centred on the origin.\nfn bilinear(h: [[f64; 2]; 2], x: f64, z: f64) -> f64 {\n    let (u, v) = (x + 0.5, z + 0.5);\n    h[0][0] * (1.0 - u) * (1.0 - v) + h[0][1] * u * (1.0 - v) + h[1][0] * (1.0 - u) * v + h[1][1] * u * v\n}\n\n// The two-triangle rule: h10 is the +z neighbour (row 1, col 0), h01 the +x neighbour (row 0, col 1).\nfn triangles(h: [[f64; 2]; 2], x: f64, z: f64) -> f64 {\n    let (u, v) = (x + 0.5, z + 0.5);\n    let (h00, h01, h10, h11) = (h[0][0], h[0][1], h[1][0], h[1][1]);\n    if u + v <= 1.0 { h00 + u * (h01 - h00) + v * (h10 - h00) } else { h11 + (1.0 - u) * (h10 - h11) + (1.0 - v) * (h01 - h11) }\n}\n\nfn main() {\n    // One raised corner: row 1 (z = +0.5), col 1 (x = +0.5).\n    let h = [[0.0, 0.0], [0.0, 1.0]];\n    let hf = HeightField::new(Array2::from_fn(2, 2, |r, c| h[r][c]), Vector::new(1.0, 1.0, 1.0));\n    for (x, z) in [(0.0, 0.0), (0.25, 0.25), (-0.25, -0.25)] {\n        println!(\"({x}, {z}): solver surface={} bilinear={}\", surface(&hf, x, z), bilinear(h, x, z));\n    }\n    // The rule matches the solver on another non-planar cell; bilinear does not.\n    let g = [[0.2, -0.7], [1.3, 0.9]]; // h00 + h11 != h01 + h10: not planar\n    let gf = HeightField::new(Array2::from_fn(2, 2, |r, c| g[r][c]), Vector::new(1.0, 1.0, 1.0));\n    let pts = [(0.3, -0.1), (-0.4, 0.45), (0.1, 0.2), (-0.2, -0.3), (0.45, 0.35)];\n    let worst = pts.iter().map(|&(x, z)| (surface(&gf, x, z) - triangles(g, x, z)).abs()).fold(0.0, f64::max);\n    let worst_bilinear = pts.iter().map(|&(x, z)| (surface(&gf, x, z) - bilinear(g, x, z)).abs()).fold(0.0, f64::max);\n    println!(\"5 points: two-triangle rule within 1e-12 of the solver={} bilinear max error={:.4}\", worst < 1e-12, worst_bilinear);\n}\n"
+        },
+        {
+          "label": "a heightfield with one row of heights panics in HeightField::new (exit 101)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "building\n",
+          "exit_code": 101,
+          "source": "// HeightField::new asserts at least 2 rows and 2 columns: one row is a panic, not an error.\nuse parry3d_f64::math::Vector;\nuse parry3d_f64::shape::HeightField;\nuse parry3d_f64::utils::Array2;\n\nfn main() {\n    println!(\"building\");\n    let hf = HeightField::new(Array2::new(1, 3, vec![0.0; 3]), Vector::new(2.0, 1.0, 1.0));\n    println!(\"built {} cells\", hf.nrows() * hf.ncols());\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "parry3d-f64 0.30.2: HeightField",
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.HeightField.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Row index i advances z and column index j advances x; cell_width/cell_height include the scale; triangle_normal_constraints returns pseudo-normals only with FIX_INTERNAL_EDGES.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2 source: shape/heightfield3.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/heightfield3.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "with_flags asserts at least 2 rows and columns and centres the AABB on the origin (±scale/2); unit_cell_width = 1/(ncols-1); a cell is Triangle(p00, p10, p01) + Triangle(p10, p11, p01) unless ZIGZAG_SUBDIVISION; HeightFieldFlags::FIX_INTERNAL_EDGES; edge pseudo-normals 'given in no particular order'.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2 source: utils/array2.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/utils/array2.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Array2::new asserts data.len() == ncols * nrows, flat_index is i + j * nrows (column-major), and from_fn fills columns in the outer loop.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: ColliderBuilder",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ColliderBuilder.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Documents trimesh, trimesh_with_flags, converted_trimesh, convex_hull (None if the points don't form a valid convex shape), convex_mesh, convex_decomposition(_with_params), heightfield(_with_flags), and calls the heightfield `scale` the 'Size of each grid cell in X and Z directions'.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Set FIX_INTERNAL_EDGES on ground dynamic bodies slide over; test heightfield row 0 moving +x on its own",
+      "what": "Without the flag, a frictionless box sliding flat at 2 u/s stopped dead at the first internal edge of a trimesh or heightfield (0.25 of 2.00 travelled in 64 quanta) because the edge adds a sideways contact normal. TriMeshFlags::FIX_INTERNAL_EDGES removed the snag; on a 9 x 9 heightfield, HeightFieldFlags::FIX_INTERNAL_EDGES removed it for every row and column in both directions except moving +x in row 0, the lowest-z row of cells.",
+      "how": "ColliderBuilder::trimesh_with_flags(v, idx, TriMeshFlags::FIX_INTERNAL_EDGES) and ColliderBuilder::heightfield_with_flags(heights, scale, HeightFieldFlags::FIX_INTERNAL_EDGES) for any ground a dynamic body slides or rolls on; triangle_normal_constraints(id).is_some() confirms the pseudo-normals exist. Keep an outcome test per direction that crosses a seam in row 0 and in an interior row. Padding a field with one extra row on its low-z side, so nothing moves in row 0, is a workaround inferred from the measurement, not from any source.",
+      "rust_version": "rapier3d-f64 0.35.3, parry3d-f64 0.30.2",
+      "gotchas": "The snag is a solver-contact effect: with max_ccd_substeps = 0 it was unchanged, and the kinematic controller walked the same seams with or without the flag (1.985 on a 2-row field, 2.000 on 3 rows, never airborne). A 2-row heightfield is all row 0. TriMeshFlags::FIX_INTERNAL_EDGES also merges duplicate vertices (see the weld recipe). parry's heightfield triangle_normal_constraints says its edge pseudo-normals are 'given in no particular order'; whether that explains the row-0 case is a guess.",
+      "engine_note": "build_world calls ColliderBuilder::heightfield with no flags, so T4 pin 3's seam test (a box sliding down across a cell boundary with no upward hitch beyond the skin) is where heightfield_with_flags(.., HeightFieldFlags::FIX_INTERNAL_EDGES) gets measured; adopting it changes the binary digest and the goldens once. That test needs a crossing in row 0 moving +x: a 2-row field, which signature() allows and packages/tick/verbs.test.js uses for its sloped case, has no other row.",
+      "checks": [
+        {
+          "label": "an internal edge adds a sideways normal; FIX_INTERNAL_EDGES removes it (trimesh, heightfield)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "trimesh plain: [[0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]\ntrimesh FIX_INTERNAL_EDGES: [[0.0, 1.0, 0.0]]\nheightfield plain: [[0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]\nheightfield FIX_INTERNAL_EDGES: [[0.0, 1.0, 0.0]]\n",
+          "exit_code": 0,
+          "source": "// A box sunk 0.01 into a flat floor, its left face 0.004 past an internal edge: without\n// FIX_INTERNAL_EDGES the contact manifolds include a sideways normal from that edge.\nuse parry3d_f64::math::{Pose, Vector};\nuse parry3d_f64::query::{ContactManifold, DefaultQueryDispatcher, PersistentQueryDispatcher};\nuse parry3d_f64::shape::{Cuboid, HeightField, HeightFieldFlags, Shape, TriMesh, TriMeshFlags};\nuse parry3d_f64::utils::Array2;\n\nfn v(x: f64, y: f64, z: f64) -> Vector { Vector::new(x, y, z) }\n\nfn normals(floor: &dyn Shape, z: f64) -> Vec<[f64; 3]> {\n    let bx = Cuboid::new(v(0.25, 0.25, 0.25));\n    let mut m: Vec<ContactManifold<(), ()>> = Vec::new();\n    DefaultQueryDispatcher.contact_manifolds(&Pose::from_translation(v(0.246, 0.24, z)), floor, &bx, 0.0, &mut m, &mut None).unwrap();\n    let r = |c: f64| (c * 1e3).round() / 1e3 + 0.0;\n    let mut out: Vec<[f64; 3]> = m.iter().filter(|m| !m.points.is_empty())\n        .map(|m| { let n = m.local_n1; [r(n.x), r(n.y), r(n.z)] }).collect();\n    out.sort_by(|a, b| a.partial_cmp(b).unwrap());\n    out.dedup();\n    out\n}\n\nfn main() {\n    // Flat trimesh strip: two quads meeting at the internal edge x = 0, +Y outward.\n    let verts = vec![v(-1., 0., -1.), v(0., 0., -1.), v(1., 0., -1.), v(-1., 0., 1.), v(0., 0., 1.), v(1., 0., 1.)];\n    let idx = vec![[0, 3, 1], [1, 3, 4], [1, 4, 2], [2, 4, 5]];\n    println!(\"trimesh plain: {:?}\", normals(&TriMesh::new(verts.clone(), idx.clone()).unwrap(), 0.0));\n    println!(\"trimesh FIX_INTERNAL_EDGES: {:?}\", normals(&TriMesh::with_flags(verts, idx, TriMeshFlags::FIX_INTERNAL_EDGES).unwrap(), 0.0));\n    // Flat heightfield: 3 rows x 3 columns, scale (2, 1, 2): column seam at x = 0; the box sits mid-row (z = 0.5).\n    let hf = |f| HeightField::with_flags(Array2::new(3, 3, vec![0.0; 9]), v(2.0, 1.0, 2.0), f);\n    println!(\"heightfield plain: {:?}\", normals(&hf(HeightFieldFlags::empty()), 0.5));\n    println!(\"heightfield FIX_INTERNAL_EDGES: {:?}\", normals(&hf(HeightFieldFlags::FIX_INTERNAL_EDGES), 0.5));\n}\n"
+        },
+        {
+          "label": "seams stop a sliding box, CCD or not; the flag fixes every 9x9 row and column but row 0 moving +x",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "heightfield plain, row 1, +x: 0.25 (CCD off: 0.25); with FIX_INTERNAL_EDGES: 2.00\nheightfield FIX, along x (+x/-x) per row: r0:0.25/2.00 r1:2.00/2.00 r2:2.00/2.00 r3:2.00/2.00 r4:2.00/2.00 r5:2.00/2.00 r6:2.00/2.00 r7:2.00/2.00\nheightfield FIX, along z (+z/-z) per col: c0:2.00/2.00 c1:2.00/2.00 c2:2.00/2.00 c3:2.00/2.00 c4:2.00/2.00 c5:2.00/2.00 c6:2.00/2.00 c7:2.00/2.00\ntrimesh strip, +x: plain=0.25 FIX=2.00\n",
+          "exit_code": 0,
+          "source": "// Full rapier3d-f64 0.35.3 pipeline: a frictionless, rotation-locked box (half 0.25) sliding at\n// 2 u/s over flat ground made of cells 1.0 wide. Distance travelled in 64 quanta (ideal 2.00).\nuse rapier3d_f64::prelude::*;\n\nconst DT: f64 = 1.0 / 64.0;\n\nfn slide_with(ground: Collider, start: Vector, dir: Vector, ccd_substeps: Option<usize>) -> f64 {\n    let mut world = PhysicsWorld::new();\n    world.gravity = Vector::new(0.0, -8.0, 0.0);\n    world.integration_parameters.dt = DT;\n    world.integration_parameters.contact_clustering = false;\n    if let Some(n) = ccd_substeps { world.integration_parameters.max_ccd_substeps = n; }\n    world.insert(RigidBodyBuilder::fixed(), ground);\n    let (b, _) = world.insert(RigidBodyBuilder::dynamic().translation(start).linvel(dir * 2.0).lock_rotations(), ColliderBuilder::cuboid(0.25, 0.25, 0.25).friction(0.0));\n    for _ in 0..64 { world.step(); }\n    (world.bodies[b].translation() - start).dot(dir)\n}\n\nfn slide(ground: Collider, start: Vector, dir: Vector) -> f64 { slide_with(ground, start, dir, None) }\n\n// A flat 9 x 9 heightfield, scale 8 x 8: rows advance z (row 0 is the lowest z), columns advance x.\nfn field(flags: HeightFieldFlags, start: Vector, dir: Vector) -> f64 {\n    let hf = ColliderBuilder::heightfield_with_flags(Array2::new(9, 9, vec![0.0; 81]), Vector::new(8.0, 1.0, 8.0), flags).friction(0.0).build();\n    slide(hf, start, dir)\n}\n\nfn strip(flags: TriMeshFlags) -> f64 {\n    let mut v = Vec::new();\n    for i in 0..9 { v.push(Vector::new(-4.0 + i as f64, 0.0, -2.0)); v.push(Vector::new(-4.0 + i as f64, 0.0, 2.0)); }\n    let mut idx = Vec::new();\n    for i in 0..8u32 { let a = 2 * i; idx.push([a, a + 1, a + 2]); idx.push([a + 2, a + 1, a + 3]); }\n    let tm = ColliderBuilder::trimesh_with_flags(v, idx, flags).unwrap().friction(0.0).build();\n    slide(tm, Vector::new(-3.5, 0.25, 0.0), Vector::X)\n}\n\nfn main() {\n    let f = HeightFieldFlags::FIX_INTERNAL_EDGES;\n    let plain = |ccd| {\n        let hf = ColliderBuilder::heightfield(Array2::new(9, 9, vec![0.0; 81]), Vector::new(8.0, 1.0, 8.0)).friction(0.0).build();\n        slide_with(hf, Vector::new(-2.5, 0.25, -2.5), Vector::X, ccd)\n    };\n    println!(\"heightfield plain, row 1, +x: {:.2} (CCD off: {:.2}); with FIX_INTERNAL_EDGES: {:.2}\", plain(None), plain(Some(0)), field(f, Vector::new(-2.5, 0.25, -2.5), Vector::X));\n    let mut s = String::new();\n    for i in 0..8 {\n        let z = -3.5 + i as f64;\n        s += &format!(\" r{i}:{:.2}/{:.2}\", field(f, Vector::new(-2.5, 0.25, z), Vector::X), field(f, Vector::new(2.5, 0.25, z), -Vector::X));\n    }\n    println!(\"heightfield FIX, along x (+x/-x) per row:{s}\");\n    let mut s = String::new();\n    for j in 0..8 {\n        let x = -3.5 + j as f64;\n        s += &format!(\" c{j}:{:.2}/{:.2}\", field(f, Vector::new(x, 0.25, -2.5), Vector::Z), field(f, Vector::new(x, 0.25, 2.5), -Vector::Z));\n    }\n    println!(\"heightfield FIX, along z (+z/-z) per col:{s}\");\n    println!(\"trimesh strip, +x: plain={:.2} FIX={:.2}\", strip(TriMeshFlags::empty()), strip(TriMeshFlags::FIX_INTERNAL_EDGES));\n}\n"
+        },
+        {
+          "label": "the kinematic walker crosses the same seams with or without the flag",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "2 rows: plain travelled 1.985 (airborne 0), FIX travelled 1.985 (airborne 0)\n3 rows: plain travelled 2.000 (airborne 0), FIX travelled 2.000 (airborne 0)\n",
+          "exit_code": 0,
+          "source": "// The kinematic controller is not snagged by the seams that stop a sliding dynamic box.\nuse rapier3d_f64::control::{CharacterAutostep, CharacterLength, KinematicCharacterController};\nuse rapier3d_f64::prelude::*;\n\nconst DT: f64 = 1.0 / 64.0;\n\nfn controller() -> KinematicCharacterController {\n    KinematicCharacterController {\n        up: Vector::new(0.0, 1.0, 0.0),\n        offset: CharacterLength::Absolute(0.01),\n        slide: true,\n        autostep: Some(CharacterAutostep { max_height: CharacterLength::Absolute(0.3), min_width: CharacterLength::Absolute(0.2), include_dynamic_bodies: false }),\n        max_slope_climb_angle: core::f64::consts::FRAC_PI_4,\n        min_slope_slide_angle: 50.0 * core::f64::consts::PI / 180.0,\n        snap_to_ground: Some(CharacterLength::Absolute(0.2)),\n        normal_nudge_factor: 1.0e-4,\n    }\n}\n\n// A box walker (half 0.25, 0.5, 0.25) walks +x at 1 u/s for 128 quanta over a flat field of 9 columns.\nfn walk(rows: usize, flags: HeightFieldFlags) -> (f64, usize) {\n    let mut world = PhysicsWorld::new();\n    world.integration_parameters.dt = DT;\n    let scale = Vector::new(8.0, 1.0, rows as f64 - 1.0);\n    world.insert(RigidBodyBuilder::fixed(), ColliderBuilder::heightfield_with_flags(Array2::new(rows, 9, vec![0.0; rows * 9]), scale, flags));\n    let shape = SharedShape::cuboid(0.25, 0.5, 0.25);\n    let start = Vector::new(-3.5, 0.51, -scale.z * 0.5 + 0.5);\n    let (h, _) = world.insert(RigidBodyBuilder::kinematic_position_based().translation(start), ColliderBuilder::new(shape.clone()));\n    world.step();\n    let ctl = controller();\n    let mut airborne = 0;\n    for _ in 0..128 {\n        let pos = *world.bodies[h].position();\n        let mv = {\n            let q = world.query_pipeline_with_filter(QueryFilter::new().exclude_rigid_body(h));\n            ctl.move_shape(DT, &q, &*shape, &pos, Vector::new(1.0 * DT, -8.0 * DT * DT, 0.0), |_| {})\n        };\n        if !mv.grounded { airborne += 1; }\n        world.bodies[h].set_next_kinematic_translation(pos.translation + mv.translation);\n        world.step();\n    }\n    (world.bodies[h].translation().x - start.x, airborne)\n}\n\nfn main() {\n    for rows in [2usize, 3] {\n        let (a, na) = walk(rows, HeightFieldFlags::empty());\n        let (b, nb) = walk(rows, HeightFieldFlags::FIX_INTERNAL_EDGES);\n        println!(\"{rows} rows: plain travelled {:.3} (airborne {na}), FIX travelled {:.3} (airborne {nb})\", a, b);\n    }\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "parry3d-f64 0.30.2: TriMeshFlags",
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.TriMeshFlags.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Documents the eight flags: MERGE_DUPLICATE_VERTICES merges 'vertices with the exact same coordinates', DELETE_DEGENERATE_TRIANGLES removes triangles 'sharing two vertices with identical index values', and FIX_INTERNAL_EDGES fixes contact normals that 'could lead to incorrect bumps'.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2 source: shape/heightfield3.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/heightfield3.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "with_flags asserts at least 2 rows and columns and centres the AABB on the origin (±scale/2); unit_cell_width = 1/(ncols-1); a cell is Triangle(p00, p10, p01) + Triangle(p10, p11, p01) unless ZIGZAG_SUBDIVISION; HeightFieldFlags::FIX_INTERNAL_EDGES; edge pseudo-normals 'given in no particular order'.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2: HeightField",
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.HeightField.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Row index i advances z and column index j advances x; cell_width/cell_height include the scale; triangle_normal_constraints returns pseudo-normals only with FIX_INTERNAL_EDGES.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier CHANGELOG at v0.35.3",
+          "url": "https://raw.githubusercontent.com/dimforge/rapier/v0.35.3/CHANGELOG.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "0.35.0-beta.0 adds a NaN/infinity quarantine for bodies and colliders whose pose, velocity or geometry goes non-finite during a step, and says max_ccd_substeps = 0 disables CCD entirely.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Call KinematicCharacterController::move_shape with Absolute lengths and self-exclusion, then apply the result",
+      "what": "move_shape sweeps the shape (at most 20 casts, each stopping offset short of obstacles), tries a stair step on every wall hit and otherwise slides, snaps down only if the call started grounded, and returns EffectiveCharacterMovement { translation, grounded, is_sliding_down_slope }; it moves nothing, the caller applies translation.",
+      "how": "Set every CharacterLength as Absolute: offset, CharacterAutostep { max_height, min_width, include_dynamic_bodies }, snap_to_ground; write up, slide, max_slope_climb_angle, min_slope_slide_angle (radians) and normal_nudge_factor explicitly. Per quantum: let pos = *world.bodies[h].position(); let q = world.query_pipeline_with_filter(QueryFilter::new().exclude_rigid_body(h)); let mv = ctl.move_shape(dt, &q, &*shape, &pos, desired, |c| collisions.push(c)); world.bodies[h].set_next_kinematic_translation(pos.translation + mv.translation); then step. Pass the shape the body's collider uses, zero vertical velocity on mv.grounded, and read is_sliding_down_slope as advisory.",
+      "rust_version": "rapier3d-f64 0.35.3",
+      "gotchas": "Defaults are Relative (offset 0.01, snap 0.2, autostep 0.25 and 0.5) and evaluate against the shape's AABB, the height and for min_width the horizontal diagonal: the resting gap was 0.0201 for a 2.0-high box under the default and 0.0101 with Absolute(0.01). Without the self-exclusion filter the walker never moved (0.000 against 0.956). Depenetration runs only when the desired translation is (near) zero, so a walker with any intent is never pushed out that way. is_sliding_down_slope was true on flat ground whenever the move had a downward part. An airborne character stepped up a 0.2 rise (dy 0.2101); the 0.36 guide says autostep needs floor contact first, which the pinned code does not check. The stair probe adds offset to max_height and min_width; the comparisons at the limits are binary-and-limits' finding. parry 0.30.2's shape-cast fix (#429) moved the controller's progress bound in Rapier's own test from 940 to 930.",
+      "engine_note": "rapier_law.rs controller() already sets SKIN 0.01, STEP_HEIGHT 0.3, STEP_MIN_WIDTH 0.2 and SNAP 0.2 as CharacterLength::Absolute with CLIMB_ANGLE pi/4, SLIDE_ANGLE 50 degrees in radians and normal_nudge_factor 1e-4, so character_shape can switch between SharedShape::cuboid and capsule_y without moving those lengths; integrate() excludes the walker's own body, applies the move with set_next_kinematic_translation, zeroes vy on grounded and ignores is_sliding_down_slope. fixtures/shape-traversal.json kept the box (docs/PHASE-1.md: it climbs a step of the maximum height and holds a ledge where the same-size capsule misses the step and drops); below the limit both shapes climbed alike here, feet at step + 0.010. Lifted actions (DRIVEN 2.0) bypass move_shape.",
+      "checks": [
+        {
+          "label": "Relative lengths grow with the shape; without the self filter the walker cannot move",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "default offset Relative(0.01) snap Some(Relative(0.2))\nheight 1: gap Relative(0.01)=0.0101 Absolute(0.01)=0.0101\nheight 2: gap Relative(0.01)=0.0201 Absolute(0.01)=0.0101\nx travelled in 64 quanta at 1 u/s: own body excluded=0.956 not excluded=0.000\n",
+          "exit_code": 0,
+          "source": "use rapier3d_f64::control::{CharacterLength, KinematicCharacterController};\nuse rapier3d_f64::prelude::*;\n\nconst DT: f64 = 1.0 / 64.0;\n\n// Drop a box character of half-height `hy` onto a floor (top y = 0) and let it settle.\nfn rest_gap(ctl: KinematicCharacterController, hy: f64, exclude_self: bool) -> (f64, f64) {\n    let mut world = PhysicsWorld::new();\n    world.integration_parameters.dt = DT;\n    world.insert(RigidBodyBuilder::fixed().translation(Vector::new(0.0, -0.5, 0.0)), ColliderBuilder::cuboid(20.0, 0.5, 20.0));\n    let shape = SharedShape::cuboid(0.25, hy, 0.25);\n    let (h, _) = world.insert(RigidBodyBuilder::kinematic_position_based().translation(Vector::new(0.0, hy + 0.3, 0.0)), ColliderBuilder::new(shape.clone()));\n    world.step();\n    let mut vy = 0.0;\n    let mut moved_x = 0.0;\n    for _ in 0..64 {\n        vy += -8.0 * DT;\n        let pos = *world.bodies[h].position();\n        let filter = if exclude_self { QueryFilter::new().exclude_rigid_body(h) } else { QueryFilter::new() };\n        let mv = {\n            let q = world.query_pipeline_with_filter(filter);\n            ctl.move_shape(DT, &q, &*shape, &pos, Vector::new(1.0 * DT, vy * DT, 0.0), |_| {})\n        };\n        if mv.grounded { vy = 0.0; }\n        moved_x += mv.translation.x;\n        world.bodies[h].set_next_kinematic_translation(pos.translation + mv.translation);\n        world.step();\n    }\n    let p = world.bodies[h].translation();\n    (p.y - hy, moved_x)\n}\n\nfn main() {\n    let rel = KinematicCharacterController::default();\n    let abs = KinematicCharacterController { offset: CharacterLength::Absolute(0.01), ..KinematicCharacterController::default() };\n    println!(\"default offset {:?} snap {:?}\", rel.offset, rel.snap_to_ground);\n    for hy in [0.5, 1.0] {\n        let (g_rel, _) = rest_gap(rel, hy, true);\n        let (g_abs, _) = rest_gap(abs, hy, true);\n        println!(\"height {}: gap Relative(0.01)={:.4} Absolute(0.01)={:.4}\", 2.0 * hy, g_rel, g_abs);\n    }\n    let (_, with) = rest_gap(abs, 0.5, true);\n    let (_, without) = rest_gap(abs, 0.5, false);\n    println!(\"x travelled in 64 quanta at 1 u/s: own body excluded={:.3} not excluded={:.3}\", with, without);\n}\n"
+        },
+        {
+          "label": "with the engine's constants a box and a capsule climb steps below 0.3, feet one offset up",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "step 0.1: box feet=0.110 grounded=true | capsule feet=0.110 grounded=true\nstep 0.2: box feet=0.210 grounded=true | capsule feet=0.210 grounded=true\nstep 0.25: box feet=0.260 grounded=true | capsule feet=0.260 grounded=true\n",
+          "exit_code": 0,
+          "source": "// End to end with the engine's controller constants: a box and a capsule of the same height and\n// width walk into steps below the 0.3 limit; both climb, and the feet rest one offset (0.01) above.\nuse rapier3d_f64::control::{CharacterAutostep, CharacterLength, KinematicCharacterController};\nuse rapier3d_f64::prelude::*;\n\nconst DT: f64 = 1.0 / 64.0;\n\nfn controller() -> KinematicCharacterController {\n    KinematicCharacterController {\n        up: Vector::new(0.0, 1.0, 0.0),\n        offset: CharacterLength::Absolute(0.01),\n        slide: true,\n        autostep: Some(CharacterAutostep { max_height: CharacterLength::Absolute(0.3), min_width: CharacterLength::Absolute(0.2), include_dynamic_bodies: false }),\n        max_slope_climb_angle: core::f64::consts::FRAC_PI_4,\n        min_slope_slide_angle: 50.0 * core::f64::consts::PI / 180.0,\n        snap_to_ground: Some(CharacterLength::Absolute(0.2)),\n        normal_nudge_factor: 1.0e-4,\n    }\n}\n\n// Floor top at y = 0; a block from x = 1.0 on with its top at `step`. Walk +x at 2 u/s for 96 quanta.\nfn walk(shape: SharedShape, step: f64) -> (f64, bool) {\n    let mut world = PhysicsWorld::new();\n    world.integration_parameters.dt = DT;\n    world.insert(RigidBodyBuilder::fixed().translation(Vector::new(0.0, -0.5, 0.0)), ColliderBuilder::cuboid(20.0, 0.5, 20.0));\n    world.insert(RigidBodyBuilder::fixed().translation(Vector::new(6.0, step * 0.5, 0.0)), ColliderBuilder::cuboid(5.0, step * 0.5, 5.0));\n    let (h, _) = world.insert(RigidBodyBuilder::kinematic_position_based().translation(Vector::new(0.0, 0.51, 0.0)), ColliderBuilder::new(shape.clone()));\n    world.step();\n    let ctl = controller();\n    let (mut vy, mut grounded) = (0.0, false);\n    for _ in 0..96 {\n        vy += -8.0 * DT;\n        let pos = *world.bodies[h].position();\n        let mv = {\n            let q = world.query_pipeline_with_filter(QueryFilter::new().exclude_rigid_body(h));\n            ctl.move_shape(DT, &q, &*shape, &pos, Vector::new(2.0 * DT, vy * DT, 0.0), |_| {})\n        };\n        if mv.grounded { vy = 0.0; }\n        grounded = mv.grounded;\n        world.bodies[h].set_next_kinematic_translation(pos.translation + mv.translation);\n        world.step();\n    }\n    (world.bodies[h].translation().y - 0.5, grounded)\n}\n\nfn main() {\n    for step in [0.1, 0.2, 0.25] {\n        let (b, bg) = walk(SharedShape::cuboid(0.25, 0.5, 0.25), step);\n        let (c, cg) = walk(SharedShape::capsule_y(0.25, 0.25), step);\n        println!(\"step {step}: box feet={:.3} grounded={bg} | capsule feet={:.3} grounded={cg}\", b, c);\n    }\n}\n"
+        },
+        {
+          "label": "is_sliding_down_slope is true on flat ground under gravity; autostep fires in the air",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "flat floor, level walk plus gravity: grounded=true is_sliding_down_slope=true\nflat floor, level walk only:         grounded=true is_sliding_down_slope=false\nairborne, moving level into a 0.2 rise: dx=0.5000 dy=0.2101 grounded=true\n",
+          "exit_code": 0,
+          "source": "// What the outputs mean at 0.35.3: is_sliding_down_slope is set on flat ground when the motion\n// has a downward part, and autostep fires for a character with nothing under it.\nuse rapier3d_f64::control::{CharacterAutostep, CharacterLength, EffectiveCharacterMovement, KinematicCharacterController};\nuse rapier3d_f64::prelude::*;\n\nconst DT: f64 = 1.0 / 64.0;\n\nfn controller() -> KinematicCharacterController {\n    KinematicCharacterController {\n        up: Vector::new(0.0, 1.0, 0.0),\n        offset: CharacterLength::Absolute(0.01),\n        slide: true,\n        autostep: Some(CharacterAutostep { max_height: CharacterLength::Absolute(0.3), min_width: CharacterLength::Absolute(0.2), include_dynamic_bodies: false }),\n        max_slope_climb_angle: core::f64::consts::FRAC_PI_4,\n        min_slope_slide_angle: 50.0 * core::f64::consts::PI / 180.0,\n        snap_to_ground: Some(CharacterLength::Absolute(0.2)),\n        normal_nudge_factor: 1.0e-4,\n    }\n}\n\n// One move_shape call for a box character at `at` in a world of fixed cuboids (centre, half extents).\nfn one_move(blocks: &[(Vector, Vector)], at: Vector, desired: Vector) -> EffectiveCharacterMovement {\n    let mut world = PhysicsWorld::new();\n    world.integration_parameters.dt = DT;\n    for (c, h) in blocks { world.insert(RigidBodyBuilder::fixed().translation(*c), ColliderBuilder::cuboid(h.x, h.y, h.z)); }\n    let shape = SharedShape::cuboid(0.25, 0.5, 0.25);\n    let (h, _) = world.insert(RigidBodyBuilder::kinematic_position_based().translation(at), ColliderBuilder::new(shape.clone()));\n    world.step();\n    let pos = *world.bodies[h].position();\n    let q = world.query_pipeline_with_filter(QueryFilter::new().exclude_rigid_body(h));\n    controller().move_shape(DT, &q, &*shape, &pos, desired, |_| {})\n}\n\nfn main() {\n    let floor = [(Vector::new(0.0, -0.5, 0.0), Vector::new(20.0, 0.5, 20.0))];\n    let stand = Vector::new(0.0, 0.51, 0.0);\n    let m = one_move(&floor, stand, Vector::new(DT, -8.0 * DT * DT, 0.0));\n    println!(\"flat floor, level walk plus gravity: grounded={} is_sliding_down_slope={}\", m.grounded, m.is_sliding_down_slope);\n    let m = one_move(&floor, stand, Vector::new(DT, 0.0, 0.0));\n    println!(\"flat floor, level walk only:         grounded={} is_sliding_down_slope={}\", m.grounded, m.is_sliding_down_slope);\n    // Feet at y = 0.0, the floor 1.0 below, a block with its top at y = 0.2 from x = 0.5 on.\n    let pit = [(Vector::new(0.0, -1.5, 0.0), Vector::new(20.0, 0.5, 20.0)), (Vector::new(3.0, -0.4, 0.0), Vector::new(2.5, 0.6, 2.0))];\n    let m = one_move(&pit, Vector::new(0.0, 0.5, 0.0), Vector::new(0.5, 0.0, 0.0));\n    println!(\"airborne, moving level into a 0.2 rise: dx={:.4} dy={:.4} grounded={}\", m.translation.x, m.translation.y, m.grounded);\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "rapier3d-f64 0.35.3: KinematicCharacterController",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.KinematicCharacterController.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Fields up, offset, slide, autostep, max_slope_climb_angle, min_slope_slide_angle, snap_to_ground, normal_nudge_factor; move_shape(dt, &QueryPipeline, &dyn Shape, &Pose, Vector, FnMut(CharacterCollision)) -> EffectiveCharacterMovement; solve_character_collision_impulses is 'only approximate'.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: EffectiveCharacterMovement",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.EffectiveCharacterMovement.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The result fields are translation (the movement to apply), grounded and is_sliding_down_slope.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: CharacterAutostep",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.CharacterAutostep.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Fields max_height, min_width (free space needed on the stair) and include_dynamic_bodies.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: control/character_controller.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/control/character_controller.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Defaults are Relative (offset 0.01, snap 0.2, autostep 0.25/0.5); move_shape depenetrates only on a zero desired translation, casts at most 20 times, tries stairs before slopes, snaps only if grounded at the start; stairs add offset to max_height and min_width; impulses go to dynamic bodies with body_mass*character_mass/(body_mass+character_mass); a kinematic neighbour's normal velocity is added to the remaining translation; a test notes parry#429 lowered the controller's progress bound from 940 to 930.",
+          "retrieved": true
+        },
+        {
+          "title": "Rapier user guide: Character controller (Rust 0.36)",
+          "url": "https://rapier.rs/docs/user_guides/rust/character_controller",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Recommends a cuboid, ball or capsule; the filter must exclude the moved collider and body; dynamic bodies generally do not react because the offset prevents contacts, so solve_character_collision_impulses applies forces; says autostep activates only when touching the floor right before the obstacle.",
+          "retrieved": true
+        },
+        {
+          "title": "parry CHANGELOG at v0.30.2",
+          "url": "https://raw.githubusercontent.com/dimforge/parry/v0.30.2/CHANGELOG.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "0.30.2 fixes an out-of-bounds panic in the binned BVH builder on degenerate leaf AABBs (rapier#961), a composite-shape projection panic on non-finite points (#395), and a shape-cast time of impact that was short by an amount scaling with the shape's extent (#429).",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Push dynamic bodies with solve_character_collision_impulses and plan all walkers against the last step's poses",
+      "what": "move_shape stops a walker one offset short of a dynamic body and never moves it; solve_character_collision_impulses applies approximate impulses to dynamic bodies only. Walkers meet each other as kinematic obstacles at the last step's poses and inherit a touching kinematic body's velocity, so two walkers planned together stayed apart at 1 and 2 u/s but overlapped at 8 u/s.",
+      "how": "Collect CharacterCollision events in move_shape's callback, call set_next_kinematic_translation, then build a QueryPipelineMut with broad_phase.as_query_pipeline_mut(narrow_phase.query_dispatcher(), bodies, colliders, filter) excluding the walker and call solve_character_collision_impulses(dt, &mut q, shape, character_mass, &collisions) before world.step(). Run every walker's move_shape before applying any of them; planning order then cannot change the result (reversed order was bit-identical). State the speed in any walker-against-walker outcome test.",
+      "rust_version": "rapier3d-f64 0.35.3",
+      "gotchas": "Each contact point gets an impulse along the normal only, scaled by body_mass*character_mass/(body_mass + character_mass); the docs call it 'only approximate'. include_dynamic_bodies: false makes the stair probe skip dynamic bodies. Mirror-image walkers did not end mirror-image (-0.2741 and +0.2905 at 1 u/s), so assert separation and 'neither passes the other's start', not symmetry. A kinematic body walking into a standing walker pushed it through the platform path when the walker had any intent (x -0.797, clear) and through depenetration when its intent was zero (x -0.744, 0.006 inside at the end).",
+      "engine_note": "integrate() in rapier_law.rs plans every walker with move_shape before any set_next_kinematic_translation, then calls solve_character_collision_impulses with character_mass 1.0 (walkers get additional_mass(1.0)) and include_dynamic_bodies: false. For T4 pin 5's two walkers driven at each other: at the verb speed of 1 u/s (predicates/intents/*.json) they ended 0.0646 apart here; at 8 u/s, above world.js's MAX_SPEED 2, they ended 0.0318 overlapped.",
+      "checks": [
+        {
+          "label": "without impulses the crate stays at 0.600; with them it is pushed to 2.188",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "no impulses:   character x=0.090 crate x=0.600 collisions=250\nwith impulses: character x=1.657 crate x=2.188 collisions=169\n",
+          "exit_code": 0,
+          "source": "use rapier3d_f64::control::{CharacterAutostep, CharacterLength, KinematicCharacterController};\nuse rapier3d_f64::prelude::*;\n\nconst DT: f64 = 1.0 / 64.0;\n\nfn controller() -> KinematicCharacterController {\n    KinematicCharacterController {\n        up: Vector::new(0.0, 1.0, 0.0),\n        offset: CharacterLength::Absolute(0.01),\n        slide: true,\n        autostep: Some(CharacterAutostep { max_height: CharacterLength::Absolute(0.3), min_width: CharacterLength::Absolute(0.2), include_dynamic_bodies: false }),\n        max_slope_climb_angle: core::f64::consts::FRAC_PI_4,\n        min_slope_slide_angle: 50.0 * core::f64::consts::PI / 180.0,\n        snap_to_ground: Some(CharacterLength::Absolute(0.2)),\n        normal_nudge_factor: 1.0e-4,\n    }\n}\n\n// A box character walks +x at 1 u/s into a dynamic crate (half 0.25, density 1) resting on the floor.\nfn push(impulses: bool) -> (f64, f64, usize) {\n    let mut world = PhysicsWorld::new();\n    world.gravity = Vector::new(0.0, -8.0, 0.0);\n    world.integration_parameters.dt = DT;\n    world.insert(RigidBodyBuilder::fixed().translation(Vector::new(0.0, -0.5, 0.0)), ColliderBuilder::cuboid(20.0, 0.5, 20.0).friction(0.8));\n    let (crate_h, _) = world.insert(RigidBodyBuilder::dynamic().translation(Vector::new(0.6, 0.25, 0.0)), ColliderBuilder::cuboid(0.25, 0.25, 0.25).friction(0.8));\n    let shape = SharedShape::cuboid(0.25, 0.5, 0.25);\n    let (h, _) = world.insert(RigidBodyBuilder::kinematic_position_based().translation(Vector::new(0.0, 0.51, 0.0)).additional_mass(1.0), ColliderBuilder::new(shape.clone()));\n    world.step();\n    let ctl = controller();\n    let mut hits = 0usize;\n    for _ in 0..128 {\n        let pos = *world.bodies[h].position();\n        let mut collisions = Vec::new();\n        let mv = {\n            let q = world.query_pipeline_with_filter(QueryFilter::new().exclude_rigid_body(h));\n            ctl.move_shape(DT, &q, &*shape, &pos, Vector::new(1.0 * DT, -8.0 * DT * DT, 0.0), |c| collisions.push(c))\n        };\n        hits += collisions.len();\n        world.bodies[h].set_next_kinematic_translation(pos.translation + mv.translation);\n        if impulses {\n            let PhysicsWorld { broad_phase, narrow_phase, bodies, colliders, .. } = &mut world;\n            let mut q = broad_phase.as_query_pipeline_mut(narrow_phase.query_dispatcher(), bodies, colliders, QueryFilter::new().exclude_rigid_body(h));\n            ctl.solve_character_collision_impulses(DT, &mut q, &*shape, 1.0, &collisions);\n        }\n        world.step();\n    }\n    (world.bodies[h].translation().x, world.bodies[crate_h].translation().x, hits)\n}\n\nfn main() {\n    let (cx, bx, n) = push(false);\n    println!(\"no impulses:   character x={:.3} crate x={:.3} collisions={}\", cx, bx, n);\n    let (cx, bx, n) = push(true);\n    println!(\"with impulses: character x={:.3} crate x={:.3} collisions={}\", cx, bx, n);\n}\n"
+        },
+        {
+          "label": "two walkers planned together: apart at 1 and 2 u/s, overlapping at 8 u/s, order-independent",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "1 u/s each: A.x=-0.2741 B.x=0.2905 final gap=0.0646 min gap=0.0341 reversed planning order bit-identical=true\n2 u/s each: A.x=-0.2870 B.x=0.2373 final gap=0.0243 min gap=0.0137 reversed planning order bit-identical=true\n8 u/s each: A.x=-0.2522 B.x=0.2161 final gap=-0.0318 min gap=-0.1130 reversed planning order bit-identical=true\n",
+          "exit_code": 0,
+          "source": "// Two box walkers (half 0.25) driven at each other from x = -1 and x = +1, both planned against the\n// last step's poses and then applied together, as rapier_law.rs integrate() does.\nuse rapier3d_f64::control::{CharacterAutostep, CharacterLength, KinematicCharacterController};\nuse rapier3d_f64::prelude::*;\n\nconst DT: f64 = 1.0 / 64.0;\n\nfn controller() -> KinematicCharacterController {\n    KinematicCharacterController {\n        up: Vector::new(0.0, 1.0, 0.0),\n        offset: CharacterLength::Absolute(0.01),\n        slide: true,\n        autostep: Some(CharacterAutostep { max_height: CharacterLength::Absolute(0.3), min_width: CharacterLength::Absolute(0.2), include_dynamic_bodies: false }),\n        max_slope_climb_angle: core::f64::consts::FRAC_PI_4,\n        min_slope_slide_angle: 50.0 * core::f64::consts::PI / 180.0,\n        snap_to_ground: Some(CharacterLength::Absolute(0.2)),\n        normal_nudge_factor: 1.0e-4,\n    }\n}\n\n// Returns (final x of A, final x of B, smallest gap between their faces over the run).\nfn run(speed: f64, reverse: bool) -> (f64, f64, f64) {\n    let mut world = PhysicsWorld::new();\n    world.integration_parameters.dt = DT;\n    world.insert(RigidBodyBuilder::fixed().translation(Vector::new(0.0, -0.5, 0.0)), ColliderBuilder::cuboid(20.0, 0.5, 20.0));\n    let shape = SharedShape::cuboid(0.25, 0.5, 0.25);\n    let hs: Vec<RigidBodyHandle> = [-1.0, 1.0].iter().map(|x| world.insert(RigidBodyBuilder::kinematic_position_based().translation(Vector::new(*x, 0.51, 0.0)), ColliderBuilder::new(shape.clone())).0).collect();\n    let vel = [speed, -speed];\n    world.step();\n    let ctl = controller();\n    let mut min_gap = f64::MAX;\n    for _ in 0..64 {\n        let order: [usize; 2] = if reverse { [1, 0] } else { [0, 1] };\n        let mut plans = [Vector::ZERO; 2];\n        for i in order {\n            let pos = *world.bodies[hs[i]].position();\n            let q = world.query_pipeline_with_filter(QueryFilter::new().exclude_rigid_body(hs[i]));\n            let mv = ctl.move_shape(DT, &q, &*shape, &pos, Vector::new(vel[i] * DT, -8.0 * DT * DT, 0.0), |_| {});\n            plans[i] = pos.translation + mv.translation;\n        }\n        for i in 0..2 { world.bodies[hs[i]].set_next_kinematic_translation(plans[i]); }\n        world.step();\n        min_gap = min_gap.min(world.bodies[hs[1]].translation().x - world.bodies[hs[0]].translation().x - 0.5);\n    }\n    (world.bodies[hs[0]].translation().x, world.bodies[hs[1]].translation().x, min_gap)\n}\n\nfn main() {\n    for speed in [1.0, 2.0, 8.0] {\n        let (a, b, g) = run(speed, false);\n        let (ra, rb, _) = run(speed, true);\n        println!(\"{speed} u/s each: A.x={:.4} B.x={:.4} final gap={:.4} min gap={:.4} reversed planning order bit-identical={}\", a, b, b - a - 0.5, g, a.to_bits() == ra.to_bits() && b.to_bits() == rb.to_bits());\n    }\n}\n"
+        },
+        {
+          "label": "a kinematic body walking into a standing walker pushes it",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "A with a gravity-only intent: A.x=-0.797 wall.x=-0.400 overlap=false\nA with a zero intent:         A.x=-0.744 wall.x=-0.400 overlap=true\n",
+          "exit_code": 0,
+          "source": "use rapier3d_f64::control::{CharacterAutostep, CharacterLength, KinematicCharacterController};\nuse rapier3d_f64::prelude::*;\n\nconst DT: f64 = 1.0 / 64.0;\n\nfn controller() -> KinematicCharacterController {\n    KinematicCharacterController {\n        up: Vector::new(0.0, 1.0, 0.0),\n        offset: CharacterLength::Absolute(0.01),\n        slide: true,\n        autostep: Some(CharacterAutostep { max_height: CharacterLength::Absolute(0.3), min_width: CharacterLength::Absolute(0.2), include_dynamic_bodies: false }),\n        max_slope_climb_angle: core::f64::consts::FRAC_PI_4,\n        min_slope_slide_angle: 50.0 * core::f64::consts::PI / 180.0,\n        snap_to_ground: Some(CharacterLength::Absolute(0.2)),\n        normal_nudge_factor: 1.0e-4,\n    }\n}\n\n// A kinematic wall B moves -x at 1 u/s into character A standing at x = 0. `desired` is A's own intent.\nfn pushed(desired: Vector) -> (f64, f64) {\n    let mut world = PhysicsWorld::new();\n    world.integration_parameters.dt = DT;\n    world.insert(RigidBodyBuilder::fixed().translation(Vector::new(0.0, -0.5, 0.0)), ColliderBuilder::cuboid(20.0, 0.5, 20.0));\n    let shape = SharedShape::cuboid(0.25, 0.5, 0.25);\n    let (a, _) = world.insert(RigidBodyBuilder::kinematic_position_based().translation(Vector::new(0.0, 0.51, 0.0)), ColliderBuilder::new(shape.clone()));\n    let (b, _) = world.insert(RigidBodyBuilder::kinematic_position_based().translation(Vector::new(0.6, 0.51, 0.0)), ColliderBuilder::cuboid(0.1, 0.5, 1.0));\n    world.step();\n    let ctl = controller();\n    for _ in 0..64 {\n        let pos = *world.bodies[a].position();\n        let mv = {\n            let q = world.query_pipeline_with_filter(QueryFilter::new().exclude_rigid_body(a));\n            ctl.move_shape(DT, &q, &*shape, &pos, desired, |_| {})\n        };\n        world.bodies[a].set_next_kinematic_translation(pos.translation + mv.translation);\n        let bp = world.bodies[b].translation();\n        world.bodies[b].set_next_kinematic_translation(bp + Vector::new(-1.0 * DT, 0.0, 0.0));\n        world.step();\n    }\n    (world.bodies[a].translation().x, world.bodies[b].translation().x)\n}\n\nfn main() {\n    let (ax, bx) = pushed(Vector::new(0.0, -8.0 * DT * DT, 0.0));\n    println!(\"A with a gravity-only intent: A.x={:.3} wall.x={:.3} overlap={}\", ax, bx, (bx - 0.1) < (ax + 0.25));\n    let (ax, bx) = pushed(Vector::ZERO);\n    println!(\"A with a zero intent:         A.x={:.3} wall.x={:.3} overlap={}\", ax, bx, (bx - 0.1) < (ax + 0.25));\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "rapier3d-f64 0.35.3: KinematicCharacterController",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.KinematicCharacterController.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Fields up, offset, slide, autostep, max_slope_climb_angle, min_slope_slide_angle, snap_to_ground, normal_nudge_factor; move_shape(dt, &QueryPipeline, &dyn Shape, &Pose, Vector, FnMut(CharacterCollision)) -> EffectiveCharacterMovement; solve_character_collision_impulses is 'only approximate'.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source: control/character_controller.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/control/character_controller.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Defaults are Relative (offset 0.01, snap 0.2, autostep 0.25/0.5); move_shape depenetrates only on a zero desired translation, casts at most 20 times, tries stairs before slopes, snaps only if grounded at the start; stairs add offset to max_height and min_width; impulses go to dynamic bodies with body_mass*character_mass/(body_mass+character_mass); a kinematic neighbour's normal velocity is added to the remaining translation; a test notes parry#429 lowered the controller's progress bound from 940 to 930.",
+          "retrieved": true
+        },
+        {
+          "title": "Rapier user guide: Character controller (Rust 0.36)",
+          "url": "https://rapier.rs/docs/user_guides/rust/character_controller",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Recommends a cuboid, ball or capsule; the filter must exclude the moved collider and body; dynamic bodies generally do not react because the offset prevents contacts, so solve_character_collision_impulses applies forces; says autostep activates only when touching the floor right before the obstacle.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: CharacterAutostep",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.CharacterAutostep.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Fields max_height, min_width (free space needed on the stair) and include_dynamic_bodies.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Test line of sight with an eye-to-target ray at max_toi 1.0 on fixed colliders once the broad phase holds them",
+      "what": "QueryPipeline::cast_ray(&Ray, max_toi, solid) returns the first (ColliderHandle, toi) with hit point origin + dir * toi, so dir = target - eye with max_toi 1.0 is exactly the eye-to-target segment. Queries see only colliders already in the broad phase, intersect_ray yields hits in tree order, and solid = true answers toi 0 from inside a shape.",
+      "how": "let seg = Ray::new(eye, target - eye); let blocked = world.cast_ray(&seg, 1.0, true, QueryFilter::only_fixed()).is_some(); only_fixed() keeps fixed colliders (and parentless ones) and drops every body, the looker and the target included. With a wider filter, exclude the looker (exclude_rigid_body) and the target (a predicate). Use cast_ray_and_get_normal when the normal matters. When several hits are needed, collect intersect_ray or intersect_shape and sort by (toi, collider handle) before anything order-sensitive.",
+      "rust_version": "rapier3d-f64 0.35.3, parry3d-f64 0.30.2",
+      "gotchas": "A unit dir makes toi a distance (0.9 here) and target - eye makes it a fraction (0.225); one max_toi cannot serve both. With no filter the looker's own collider answered first at toi 0. Before the first step cast_ray returned None with the walls inserted; the scene-queries guide says stepping updates the broad phase the queries rely on. intersect_ray returned 0.725, 0.475, 0.225, insertion order rather than distance. From inside a wall, solid = false reported the exit at 0.1.",
+      "engine_note": "E5 sight runs in the JS tick (distance at most `sight` and a zero-extent swept segment crossing no static collider), and docs/dispatch-e5-minds.md keeps the binary unchanged for it. Once collision-from-meshes adds TriMesh statics, a box-only JS segment test cannot answer; the matching law query is cast_ray(Ray::new(eye, target - eye), 1.0, true) with QueryFilter::only_fixed(), exported like solver_step and run only after solver_load, whose warm_broadphase CollisionPipeline pass is what puts the colliders in the broad phase.",
+      "checks": [
+        {
+          "label": "eye-to-target ray: toi 0.225 vs 0.9 unit; None before a step; self-hit at 0; tree order",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "before any step: None\neye->target ray, max_toi 1: toi=Some(0.225)\nunit-direction ray: toi=Some(0.9)\nno filter: toi=Some(0.0)  excluding the looker: toi=Some(0.225)\nstart inside a wall: solid=true toi=Some(0.0) solid=false toi=Some(0.1)\nintersect_ray yields toi in order [0.725, 0.475, 0.225]\n",
+          "exit_code": 0,
+          "source": "use rapier3d_f64::prelude::*;\n\nfn main() {\n    let mut world = PhysicsWorld::new();\n    // Three static walls across the x axis, inserted far-to-near.\n    for x in [3.0, 2.0, 1.0] {\n        world.insert(RigidBodyBuilder::fixed().translation(Vector::new(x, 1.0, 0.0)), ColliderBuilder::cuboid(0.1, 1.0, 1.0));\n    }\n    // The looker and the target are dynamic bodies with their own colliders.\n    let (eye_b, _) = world.insert(RigidBodyBuilder::dynamic().translation(Vector::new(0.0, 1.0, 0.0)), ColliderBuilder::ball(0.3));\n    let (tgt_b, _) = world.insert(RigidBodyBuilder::dynamic().translation(Vector::new(4.0, 1.0, 0.0)), ColliderBuilder::ball(0.3));\n    let eye = Vector::new(0.0, 1.0, 0.0);\n    let target = Vector::new(4.0, 1.0, 0.0);\n    let seg = Ray::new(eye, target - eye);\n    let before = world.cast_ray(&seg, 1.0, true, QueryFilter::only_fixed());\n    println!(\"before any step: {:?}\", before.map(|h| h.1));\n    world.step();\n    let hit = world.cast_ray(&seg, 1.0, true, QueryFilter::only_fixed());\n    println!(\"eye->target ray, max_toi 1: toi={:?}\", hit.map(|h| h.1));\n    let unit = Ray::new(eye, (target - eye).normalize());\n    println!(\"unit-direction ray: toi={:?}\", world.cast_ray(&unit, 4.0, true, QueryFilter::only_fixed()).map(|h| h.1));\n    let everything = world.cast_ray(&seg, 1.0, true, QueryFilter::new());\n    let own = world.cast_ray(&seg, 1.0, true, QueryFilter::new().exclude_rigid_body(eye_b));\n    println!(\"no filter: toi={:?}  excluding the looker: toi={:?}\", everything.map(|h| h.1), own.map(|h| h.1));\n    let _ = tgt_b;\n    // solid flag: a ray starting inside the first wall.\n    let inside = Ray::new(Vector::new(1.0, 1.0, 0.0), Vector::new(1.0, 0.0, 0.0));\n    let s = world.cast_ray(&inside, 10.0, true, QueryFilter::only_fixed()).map(|h| h.1);\n    let h = world.cast_ray(&inside, 10.0, false, QueryFilter::only_fixed()).map(|h| h.1);\n    println!(\"start inside a wall: solid=true toi={:?} solid=false toi={:?}\", s, h);\n    let order: Vec<f64> = world.intersect_ray(seg, 1.0, true, QueryFilter::only_fixed()).map(|(_, _, i)| i.time_of_impact).collect();\n    println!(\"intersect_ray yields toi in order {:?}\", order);\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "rapier3d-f64 0.35.3: QueryPipeline",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/struct.QueryPipeline.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "cast_ray(&Ray, max_toi, solid) returns the first (ColliderHandle, toi) and is meant for line-of-sight checks; solid = true detects a hit when the ray starts inside a shape; intersect_ray returns all colliders on the ray.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: QueryFilter",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/struct.QueryFilter.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "only_fixed() excludes colliders attached to non-fixed bodies (not parentless ones); exclude_rigid_body excludes all colliders of one body; predicate applies a custom rule.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2: Ray",
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/query/struct.Ray.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "point_at(t) is origin + dir * t; dir need not be normalized, and a non-unit dir scales the time of impact by dir.length().",
+          "retrieved": true
+        },
+        {
+          "title": "Rapier user guide: Scene queries (Rust 0.36)",
+          "url": "https://rapier.rs/docs/user_guides/rust/scene_queries",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Stepping the simulation updates the broad phase the scene queries rely on; the hit point is ray.origin + ray.dir * toi; solid = true gives toi 0 from inside a shape.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: PhysicsWorld",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/struct.PhysicsWorld.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "cast_ray(&Ray, max_toi, solid, QueryFilter) is shorthand for query_pipeline_with_filter(filter).cast_ray; intersect_shape and step are on the same type.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Bake glTF collision meshes offline with the gltf crate and refuse what the deterministic law cannot reproduce",
+      "what": "The glTF 2.0 spec fixes meters, radians, +Y up, float32 POSITION with min/max, unit quaternions and in-range indices, but files can still break it; the gltf crate (1.4.1) exposes f32 transforms, Mode, positions, indices and skins. Converting belongs in a host tool that writes baked f64 triangles, not in the wasm law.",
+      "how": "Tool: gltf::import the file, walk the scene's nodes and compose each Transform in f64 (matrix() or decomposed()). Refuse a primitive unless mode() == Mode::Triangles, every position is finite, and every index (reader indices, ReadIndices::into_u32) is below the position count and not 255/65535/4294967295 for its width; refuse skins (node.skin()), animations and morph weights on collision nodes. Refuse a rotation with |q.q - 1| above a stated tolerance (1e-6 suits f32 input), refuse zero or non-finite scale, and when the scale's determinant is negative swap two indices per triangle. Write units ('m') and up axis ('+Y') into the record and refuse records without them, then canonicalise -0.0, weld, and store f64 vertex and u32 index buffers (and offline hulls).",
+      "rust_version": "gltf 1.4.1 (host tool); parry3d-f64 0.30.2 at load",
+      "gotchas": "gltf's Transform holds f32 arrays: widening to f64 is exact, but composing in f32 is not, so compose in f64 once and store the result so the law never multiplies transforms. f32 sqrt(1/2) quaternions miss unit length by 3.4e-8 (measured), so an exact == 1.0 test refuses valid files. A mirrored node, scale (-1, 1, 1), flips a floor triangle's normal from +Y to -Y and swapping two indices restores it (measured). The spec says a skinned mesh's node transform MUST be ignored, so skinned geometry has no single static shape, and degenerate triangles are only SHOULD NOT. The gltf crate is outside this KB's oracle set: its API was checked on docs.rs, not compiled.",
+      "engine_note": "The collision-from-meshes slice after Phase 2 (its input is the studio's glb survey) should keep the gltf crate in host tooling: the law is a wasm32-unknown-unknown cdylib with raw extern \"C\" exports over static f64 buffers and a pinned digest, and at load it already refuses NaN and renormalises quaternions with canon_quat. The world file carries the baked buffers; solver_load validates them like body rows and mixes them into Signature.geom.",
+      "checks": [
+        {
+          "label": "a mirrored node flips a triangle's normal; an f32 unit quaternion misses 1 by 3.4e-8",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "expect": "runs",
+          "stdout": "normal=[0.0, 1.0, 0.0]\nmirrored normal=[0.0, -1.0, 0.0] det=-1\nmirrored, indices swapped normal=[0.0, 1.0, -0.0]\nf32 quaternion |q|^2 in f64 = 9.999999657714582e-1, off by -3.422854177870249e-8\n",
+          "exit_code": 0,
+          "source": "fn normal(p: [[f64; 3]; 3]) -> [f64; 3] {\n    let u = [p[1][0] - p[0][0], p[1][1] - p[0][1], p[1][2] - p[0][2]];\n    let v = [p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2]];\n    [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]\n}\n\nfn main() {\n    // A floor triangle wound so its normal points up (+Y).\n    let tri = [[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]];\n    println!(\"normal={:?}\", normal(tri));\n    // A node scale of (-1, 1, 1) mirrors it: same floor, normal now points down.\n    let s = [-1.0, 1.0, 1.0];\n    let m = tri.map(|p| [p[0] * s[0], p[1] * s[1], p[2] * s[2]]);\n    println!(\"mirrored normal={:?} det={}\", normal(m), s[0] * s[1] * s[2]);\n    // Swapping two indices restores the outward winding.\n    println!(\"mirrored, indices swapped normal={:?}\", normal([m[0], m[2], m[1]]));\n    // A glTF rotation is float32: 90 degrees about Y is not exactly unit.\n    let q: [f32; 4] = [0.0, core::f32::consts::FRAC_1_SQRT_2, 0.0, core::f32::consts::FRAC_1_SQRT_2];\n    let n2: f64 = q.iter().map(|c| (*c as f64) * (*c as f64)).sum();\n    println!(\"f32 quaternion |q|^2 in f64 = {:e}, off by {:e}\", n2, n2 - 1.0);\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "Khronos glTF 2.0 Specification (AsciiDoc source)",
+          "url": "https://raw.githubusercontent.com/KhronosGroup/glTF/main/specification/2.0/Specification.adoc",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "glTF 2.0",
+          "claim": "Linear distances are meters and angles radians, +Y is up; index values MUST be below the attribute count and MUST NOT be 255/65535/4294967295; POSITION is float32 VEC3 with min and max; degenerate triangles SHOULD NOT appear; a skinned mesh's node transform MUST be ignored; a matrix MUST be decomposable to TRS.",
+          "retrieved": true
+        },
+        {
+          "title": "Khronos glTF 2.0 schema: node.schema.json",
+          "url": "https://raw.githubusercontent.com/KhronosGroup/glTF/main/specification/2.0/schema/node.schema.json",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "glTF 2.0",
+          "claim": "rotation is 'the node's unit quaternion rotation in the order (x, y, z, w)'; matrix is column-major and excludes translation/rotation/scale; skin requires mesh.",
+          "retrieved": true
+        },
+        {
+          "title": "Khronos glTF 2.0 schema: mesh.primitive.schema.json",
+          "url": "https://raw.githubusercontent.com/KhronosGroup/glTF/main/specification/2.0/schema/mesh.primitive.schema.json",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "glTF 2.0",
+          "claim": "mode defaults to 4 (TRIANGLES) among POINTS, LINES, LINE_LOOP, LINE_STRIP, TRIANGLES, TRIANGLE_STRIP and TRIANGLE_FAN; indices must be an unsigned-integer SCALAR accessor.",
+          "retrieved": true
+        },
+        {
+          "title": "gltf crate root on docs.rs (latest = 1.4.1)",
+          "url": "https://docs.rs/gltf/latest/gltf/",
+          "year": 2024,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "gltf::import reads a glTF document plus its buffers and images from the file system; the crate has scene, mesh, skin, animation and accessor modules.",
+          "retrieved": true
+        },
+        {
+          "title": "gltf 1.4.1: scene::Transform",
+          "url": "https://docs.rs/gltf/1.4.1/gltf/scene/enum.Transform.html",
+          "year": 2024,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A node transform is a column-major 4x4 f32 matrix or decomposed f32 translation, [x, y, z, w] rotation and scale; matrix() composes translation * rotation * scale and decomposed() extracts TRS from a matrix.",
+          "retrieved": true
+        },
+        {
+          "title": "gltf 1.4.1: mesh::Primitive",
+          "url": "https://docs.rs/gltf/1.4.1/gltf/mesh/struct.Primitive.html",
+          "year": 2024,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Primitive::mode() gives the topology, indices() the index accessor if any, reader() a reader over the buffers.",
+          "retrieved": true
+        },
+        {
+          "title": "gltf 1.4.1: mesh::Mode",
+          "url": "https://docs.rs/gltf/1.4.1/gltf/mesh/enum.Mode.html",
+          "year": 2024,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Mode has Points, Lines, LineLoop, LineStrip, Triangles, TriangleStrip and TriangleFan.",
+          "retrieved": true
+        },
+        {
+          "title": "gltf 1.4.1: mesh::Reader",
+          "url": "https://docs.rs/gltf/1.4.1/gltf/mesh/struct.Reader.html",
+          "year": 2024,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "read_positions() and read_indices() visit a primitive's positions and draw sequence; read_joints and read_weights visit skinning data.",
+          "retrieved": true
+        },
+        {
+          "title": "gltf 1.4.1: mesh::util::ReadIndices",
+          "url": "https://docs.rs/gltf/1.4.1/gltf/mesh/util/enum.ReadIndices.html",
+          "year": 2024,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Index data is U8, U16 or U32, and into_u32 reinterprets any of them as u32.",
+          "retrieved": true
+        },
+        {
+          "title": "gltf 1.4.1: scene::Node",
+          "url": "https://docs.rs/gltf/1.4.1/gltf/scene/struct.Node.html",
+          "year": 2024,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Node exposes transform(), mesh(), skin(), weights() (morph targets) and children().",
+          "retrieved": true
+        },
+        {
+          "title": "gltf 1.4.1: skin::Skin",
+          "url": "https://docs.rs/gltf/1.4.1/gltf/skin/struct.Skin.html",
+          "year": 2024,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A Skin is joints plus inverse-bind matrices; joints() visits the skeleton nodes that drive the mesh.",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2 source: shape/trimesh.rs",
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/trimesh.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "with_flags runs `let _ = result.set_flags(flags);` (the TopologyError is dropped); merge_duplicate_vertices keys HashablePartialEq and numbers vertices by first reference; FIX_INTERNAL_EDGES = (1 << 7) | MERGE_DUPLICATE_VERTICES.bits(); two TopologyError doc tests are commented out as failing.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

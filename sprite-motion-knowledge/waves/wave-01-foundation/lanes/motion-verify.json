@@ -1,0 +1,504 @@
+{
+  "laneSlug": "motion-verify",
+  "title": "Motion verification & QA",
+  "recipes": [
+    {
+      "slug": "weapon-length-tip-continuity-check",
+      "name": "Weapon length/tip continuity detector",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "Segmenting the weapon per frame/view and checking its pixel length and tip-vector variance is the primary automatable gate for the #1 motion defect: per-view weapon drift and detachment.",
+      "summary": "For each frame and each 8-direction view, isolate the weapon via color-range or instance segmentation, then measure grip-to-tip pixel distance and the tip vector angle (via contour moments). Compute variance of length and angle across the full animation and turnaround set. A variance spike beyond a tuned threshold is a hard fail. The rig's bone chain should guarantee rigidity by construction — a fail therefore indicates that the AI polish or composite step broke rigidity and must be re-run.",
+      "design_implication": "Hard-fail gate for any weapon-bearing character before sprite-sheet export. A fail blocks shipping and triggers re-inpainting or recompositing — not a warning, a stop.",
+      "evidence_strength": "community-claim",
+      "license": "n/a (method)",
+      "commercial_use": "yes",
+      "commercial_notes": "Method uses OpenCV contour/moment analysis only. No restrictive weights involved.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "metric",
+          "metric": "weapon-length-variance (px, % of mean length)",
+          "harness": "custom python (cv2 contour + moments)",
+          "result": "",
+          "threshold": "< 5% length variance across views/frames; tip-angle delta < 8°",
+          "accepted": null,
+          "note": "Threshold is to-be-tuned on the studio's captain/pirate test set. 5%/8° are starting values from community practice, not rig-measured."
+        }
+      ],
+      "hparams": [
+        {"name": "length_variance_pct", "default": 5.0, "unit": "%", "note": "Tune on reference set"},
+        {"name": "tip_angle_delta_deg", "default": 8.0, "unit": "degrees"}
+      ],
+      "failures": [
+        "AI inpainting that redraws the weapon free-hand across views",
+        "Composite that clips the weapon tip outside canvas on some views",
+        "Perspective foreshortening on 3/4 views producing legitimate apparent shortening — threshold should account for known-good foreshortening per-view-slot"
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "OpenCV contour and moments documentation",
+          "authors": "OpenCV contributors",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://docs.opencv.org/4.x/dd/d49/tutorial_py_contour_features.html",
+          "claim": "cv2.moments() on a segmented region yields pixel area, centroid, and orientation; combined with bounding-rect or min-enclosing-rect, gives grip-to-tip length and angle per frame."
+        }
+      ]
+    },
+    {
+      "slug": "root-anchor-stability-check",
+      "name": "Root / foot-anchor canvas stability check",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "Comparing the foot-anchor pixel coordinate (or bounding-box bottom-center) across every frame of an animation detects root/anchor jitter — frames where the character 'floats' relative to the canvas grid.",
+      "summary": "Parse each frame's alpha channel bounding box. The bottom-center Y of the bounding box (or an explicit anchor pixel marked in the sprite manifest) should be constant across all frames of an idle/walk cycle. Record the per-frame Y value; flag any frame where the anchor drifts beyond a 1–2 pixel tolerance. Extend to canvas-size consistency: all frames must share identical W×H pixel dimensions and the same foot-anchor definition from the export manifest.",
+      "design_implication": "A jitter-failing sprite will bob or teleport in-engine, breaking the ground plane illusion. This check runs before canvas assembly and catches AI-inpainting artifacts that shift the character up or down.",
+      "evidence_strength": "community-claim",
+      "license": "n/a (method)",
+      "commercial_use": "yes",
+      "commercial_notes": "Pure NumPy/OpenCV alpha-channel bounding box logic; no external weights.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "metric",
+          "metric": "anchor-Y-jitter (px max deviation from median)",
+          "harness": "custom python (numpy alpha bbox)",
+          "result": "",
+          "threshold": "≤ 1 px for idle; ≤ 2 px for walk/run",
+          "accepted": null,
+          "note": "Threshold to-be-tuned. 1–2 px is a commonly cited pixel-art grid tolerance."
+        }
+      ],
+      "failures": [
+        "AI polish step that crops or pads alpha unevenly",
+        "Per-frame canvas size mismatch from export pipeline"
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "NumPy nonzero / where for alpha-channel bounding box",
+          "authors": "NumPy contributors",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://numpy.org/doc/stable/reference/generated/numpy.nonzero.html",
+          "claim": "np.nonzero on the alpha channel returns row/col indices of non-transparent pixels; min/max give the bounding box and thus the foot-anchor row."
+        }
+      ]
+    },
+    {
+      "slug": "foot-contact-slide-detection",
+      "name": "Foot-contact / no-slide detector",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "Tracking the foot pixel cluster between the contact frame and the next frame detects foot-slide — the contact-pose foot should not translate horizontally while the ground contact is held.",
+      "summary": "Identify contact frames by heuristic (lowest non-transparent pixel cluster centroid touches the canvas bottom band) or from the animation manifest. Between consecutive contact-region frames, compute the horizontal displacement of the foot-pixel centroid using optical flow (RAFT) or direct pixel-cluster centroid delta. If the foot centroid translates more than a threshold while contact is held, flag as slide. For 8-direction sprites, apply per-direction horizontal-axis separately.",
+      "design_implication": "Foot-slide is immediately visible on the ground plane and breaks physical believability. This gate must pass before walk-cycle frames are composited into the sprite sheet.",
+      "evidence_strength": "community-claim",
+      "license": "Apache-2.0 (RAFT code); see commercial_notes for model weights",
+      "commercial_use": "conditional",
+      "commercial_notes": "RAFT code is BSD/MIT licensed on GitHub. The pre-trained RAFT weights (princeton-vl/RAFT) have no explicit commercial restriction in their repo (BSD-3-Clause), but always verify the current license before commercial deployment. Centroid-only approach avoids weights entirely.",
+      "vram_gb": 2,
+      "rig_fit": 5,
+      "studio_fit": 4,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "metric",
+          "metric": "foot-centroid-horizontal-delta (px) between held-contact frames",
+          "harness": "custom python; optional RAFT flow for sub-pixel precision",
+          "result": "",
+          "threshold": "< 2 px horizontal drift during contact hold",
+          "accepted": null,
+          "note": "Threshold to-be-tuned."
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "RAFT: Recurrent All-Pairs Field Transforms for Optical Flow",
+          "authors": "Zachary Teed, Jia Deng",
+          "year": "2020",
+          "identifier": "arXiv:2003.12039",
+          "url": "https://arxiv.org/abs/2003.12039",
+          "claim": "RAFT computes dense pixel-level optical flow with state-of-the-art accuracy; the flow field can track the displacement of the foot pixel cluster between frames to measure slide."
+        }
+      ]
+    },
+    {
+      "slug": "face-identity-drift-detector",
+      "name": "Frame-to-frame face identity / no-mutation detector",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "Computing ArcFace (or equivalent) embedding distance between a reference face crop and every animation frame detects frame-to-frame face mutation — AI polish steps that redraw or hallucinate facial features across frames.",
+      "summary": "Crop the face region from a designated reference frame and from each animation frame. Extract a 512-d identity embedding with an ArcFace-family model. Compute cosine distance between each frame's embedding and the reference. Flag any frame exceeding a tuned identity-drift threshold. For painterly 2.5D sprites the face is stylized, so perceptual similarity (LPIPS on the face crop) may complement or replace embedding distance if ArcFace struggles with the art style. IMPORTANT: InsightFace pre-trained model weights (buffalo_l, etc.) are non-commercial by default — use the perceptual fallback or obtain commercial licensing.",
+      "design_implication": "Face mutation is a canonical AI artifact — the model redraws eyebrows, eye shape, or skin tone between frames. This check blocks a frame set from shipping until mutation frames are re-fixed or masked.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "Code: MIT (InsightFace repo). Model weights: non-commercial research only (InsightFace pre-trained weights); commercial license available via insightface.ai.",
+      "commercial_use": "conditional",
+      "commercial_notes": "InsightFace MODEL WEIGHTS (buffalo_l, antelopev2, etc.) are explicitly non-commercial for research purposes only. Commercial use of weights requires separate licensing from InsightFace (contact recognition-oss-pack@insightface.ai). The LPIPS-face-crop fallback avoids this restriction entirely and is recommended for commercial production.",
+      "vram_gb": 2,
+      "rig_fit": 4,
+      "studio_fit": 4,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "metric",
+          "metric": "ArcFace cosine distance vs reference",
+          "harness": "InsightFace python-package or manual ArcFace",
+          "result": "",
+          "threshold": "cosine distance < 0.30 (lower = more similar; community heuristic for same-identity)",
+          "accepted": null,
+          "note": "Threshold community-claim; tune on studio art style. Stylized sprites may need higher tolerance."
+        },
+        {
+          "eval_kind": "metric",
+          "metric": "LPIPS face-crop distance (fallback for commercial; avoids weight license issue)",
+          "harness": "lpips python package (Zhang et al. 2018)",
+          "result": "",
+          "threshold": "LPIPS < 0.10 between consecutive face crops",
+          "accepted": null,
+          "note": "Perceptual fallback; less identity-specific but commercially clean."
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "ArcFace: Additive Angular Margin Loss for Deep Face Recognition",
+          "authors": "Jiankang Deng, Jia Guo, Jing Yang, Niannan Xue, Irene Kotsia, Stefanos Zafeiriou",
+          "year": "2019",
+          "identifier": "arXiv:1801.07698",
+          "url": "https://arxiv.org/abs/1801.07698",
+          "claim": "ArcFace produces 512-d angular-margin identity embeddings; cosine distance between embeddings of the same person is reliably low, making it a practical same-identity gate."
+        },
+        {
+          "kind": "github",
+          "title": "InsightFace — State-of-the-art 2D and 3D Face Analysis Project",
+          "authors": "deepinsight",
+          "year": "2025",
+          "identifier": "deepinsight/insightface",
+          "url": "https://github.com/deepinsight/insightface",
+          "claim": "InsightFace provides the buffalo_l ArcFace model for face embedding extraction; code is MIT-licensed but pre-trained weights are non-commercial research use only — commercial license required for product deployment."
+        },
+        {
+          "kind": "web",
+          "title": "InsightFace Enterprise Face Recognition Model Licensing",
+          "authors": "InsightFace",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://www.insightface.ai/services/models-commercial-licensing",
+          "claim": "Pre-trained InsightFace models (buffalo_l, antelopev2, etc.) require separate commercial licensing; available via recognition-oss-pack@insightface.ai."
+        }
+      ]
+    },
+    {
+      "slug": "frame-temporal-lpips-ssim",
+      "name": "Frame-to-frame temporal LPIPS / SSIM consistency",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "Computing per-consecutive-frame LPIPS and SSIM across an animation sequence catches sudden large perceptual changes (AI redraws, flicker, inpainting artifacts) that are invisible in single-frame review.",
+      "summary": "For each pair of consecutive frames in an animation clip, compute SSIM (Wang et al. 2004) and LPIPS (Zhang et al. 2018). Track the distribution over the clip. Frames with LPIPS spike above a threshold indicate an inpainting discontinuity or AI hallucination frame. SSIM drops below a threshold indicate global structure break. Plot the per-frame curves for visual debug. This is a temporal extension of the static-sprite LPIPS gate already used in sprites-knowledge for turnaround consistency.",
+      "design_implication": "Surfaces flicker frames and AI artifact frames that single-frame review misses. A failing frame halts the animation from entering the sprite-sheet assembler.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "BSD / MIT (lpips, torchmetrics, scikit-image)",
+      "commercial_use": "yes",
+      "commercial_notes": "LPIPS python package (BSD-3-Clause). scikit-image SSIM is BSD-3-Clause. No restrictive weights for the metric itself (uses pretrained AlexNet/VGG internally; commercially permissive).",
+      "vram_gb": 1,
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "metric",
+          "metric": "per-frame LPIPS (consecutive pairs)",
+          "harness": "lpips python (pip install lpips)",
+          "result": "",
+          "threshold": "mean LPIPS < 0.10; no single frame > 0.20",
+          "accepted": null,
+          "note": "Community-claim thresholds for smooth animation. Tune on studio data — action frames will naturally have higher LPIPS."
+        },
+        {
+          "eval_kind": "metric",
+          "metric": "per-frame SSIM (consecutive pairs)",
+          "harness": "scikit-image structural_similarity",
+          "result": "",
+          "threshold": "SSIM > 0.85 between consecutive frames",
+          "accepted": null,
+          "note": "Community-claim; to-be-tuned per animation type (idle vs attack vs death have different expected SSIM profiles)."
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "The Unreasonable Effectiveness of Deep Features as a Perceptual Metric",
+          "authors": "Richard Zhang, Phillip Isola, Alexei A. Efros, Eli Shechtman, Oliver Wang",
+          "year": "2018",
+          "identifier": "arXiv:1801.03924",
+          "url": "https://arxiv.org/abs/1801.03924",
+          "claim": "LPIPS measures perceptual distance between image patches using deep CNN features; applied frame-to-frame it detects perceptual discontinuities that PSNR/SSIM miss."
+        },
+        {
+          "kind": "paper",
+          "title": "Image quality assessment: From error visibility to structural similarity",
+          "authors": "Zhou Wang, Alan C. Bovik, Hamid R. Sheikh, Eero P. Simoncelli",
+          "year": "2004",
+          "identifier": "DOI:10.1109/TIP.2003.819861",
+          "url": "https://ece.uwaterloo.ca/~z70wang/research/ssim/",
+          "claim": "SSIM captures luminance, contrast, and structural similarity between images; a drop in consecutive-frame SSIM flags global structural breaks in animation sequences."
+        }
+      ]
+    },
+    {
+      "slug": "optical-flow-warping-error-temporal",
+      "name": "Optical-flow warping error for temporal coherence",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "Warping frame N to frame N+1 using estimated optical flow and measuring the pixel-level residual error detects temporal incoherence — AI flicker, ghosting, and motion discontinuities not caught by LPIPS alone.",
+      "summary": "Estimate optical flow between frame pairs using RAFT. Warp frame N to frame N+1 using backward warping with the flow field and an occlusion mask. Compute per-pixel L1 residual between the warped prediction and the actual frame N+1. Report mean warping error across the clip. Note: warping error has known limitations — ground-truth video naturally has non-zero warping error due to flow estimation noise and legitimate inter-frame change (Relational Warping Error/RWE subtracts a reference ground-truth baseline to compensate). Treat as a relative comparison metric, not an absolute pass/fail criterion.",
+      "design_implication": "Warping error exceeding baseline provides a motion-coherence signal that complements frame-to-frame LPIPS. Spikes on specific frames pinpoint AI artifact frames for targeted re-fix.",
+      "evidence_strength": "community-claim",
+      "license": "BSD-3-Clause (RAFT code, princeton-vl/RAFT); check current repo for weight license",
+      "commercial_use": "conditional",
+      "commercial_notes": "RAFT code is BSD-3-Clause. Pre-trained weights from princeton-vl/RAFT GitHub are BSD-3-Clause as of 2024; verify before commercial release. Alternative: use torchvision's built-in RAFT which inherits PyTorch BSD license.",
+      "vram_gb": 3,
+      "rig_fit": 5,
+      "studio_fit": 3,
+      "status": "situational",
+      "evals": [
+        {
+          "eval_kind": "metric",
+          "metric": "mean per-pixel warping error (L1, normalized 0–1)",
+          "harness": "custom python: RAFT flow + backward warp + L1 residual",
+          "result": "",
+          "threshold": "relative: flag frames with warping error > 2× clip median",
+          "accepted": null,
+          "note": "Absolute threshold not meaningful due to flow estimation noise; relative spike detection is more reliable."
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "RAFT: Recurrent All-Pairs Field Transforms for Optical Flow",
+          "authors": "Zachary Teed, Jia Deng",
+          "year": "2020",
+          "identifier": "arXiv:2003.12039",
+          "url": "https://arxiv.org/abs/2003.12039",
+          "claim": "RAFT produces accurate dense optical flow; used as the flow estimator for backward warping in temporal coherence measurement."
+        }
+      ]
+    },
+    {
+      "slug": "fvd-clip-quality-distribution",
+      "name": "FVD clip-level motion quality distribution check",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "Fréchet Video Distance measures the distributional distance between a set of generated animation clips and a reference set in I3D feature space, capturing both visual quality and temporal coherence as a population-level metric.",
+      "summary": "FVD (Unterthiner et al. 2018) uses a pre-trained I3D network to embed video clips, then computes Fréchet distance between the multivariate Gaussians of generated and reference clip sets. For studio use: build a small reference set of hand-approved 'gold' animation clips per character class (walk/attack/idle). FVD of new generation batches against the gold set flags distributional drift — systematic AI degradation across a batch run. FVD is a batch metric, not a per-clip gate; use per-frame LPIPS/SSIM for individual clip gating.",
+      "design_implication": "FVD catches systematic pipeline degradation (e.g., a ComfyUI sampler change that degrades temporal quality across all outputs) that per-clip checks might miss. Run at the end of a full batch generation to validate the generation run before review.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "Apache-2.0 (Google Research FVD implementation)",
+      "commercial_use": "yes",
+      "commercial_notes": "Google Research FVD implementation is Apache-2.0. I3D weights (Kinetics pre-trained) used in FVD are from DeepMind; the kinetics-i3d weights on GitHub are Apache-2.0. Verify current license at the repo before production use.",
+      "vram_gb": 4,
+      "rig_fit": 4,
+      "studio_fit": 3,
+      "status": "situational",
+      "evals": [
+        {
+          "eval_kind": "metric",
+          "metric": "FVD (lower = better; 0 = identical distributions)",
+          "harness": "google-research/frechet_video_distance",
+          "result": "",
+          "threshold": "FVD vs gold-set < 50 (to-be-calibrated on studio character set; community FVD thresholds are dataset-specific)",
+          "accepted": null,
+          "note": "FVD thresholds are not transferable across datasets; calibrate on studio gold set. Community video-gen papers report FVD in range 10–1000+; a meaningful threshold requires the studio reference set."
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "Towards Accurate Generative Models of Video: A New Metric & Challenges",
+          "authors": "Thomas Unterthiner, Sjoerd van Steenkiste, Karol Kurach, Raphael Marinier, Marcin Michalski, Sylvain Gelly",
+          "year": "2018",
+          "identifier": "arXiv:1812.01717",
+          "url": "https://arxiv.org/abs/1812.01717",
+          "claim": "FVD uses I3D features to measure distributional distance between sets of real and generated videos; achieved 74.9–81% agreement with human quality judgments across 3,000 models, outperforming PSNR/SSIM/FID."
+        },
+        {
+          "kind": "github",
+          "title": "frechet_video_distance — Google Research implementation",
+          "authors": "Google Research",
+          "year": "2024",
+          "identifier": "google-research/google-research/frechet_video_distance",
+          "url": "https://github.com/google-research/google-research/tree/master/frechet_video_distance",
+          "claim": "Reference Apache-2.0 implementation of FVD using I3D embeddings."
+        }
+      ]
+    },
+    {
+      "slug": "siglip2-clip-identity-to-reference",
+      "name": "SigLIP2 / CLIP identity-to-reference across animation frames",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "Computing SigLIP2 or CLIP image-embedding cosine similarity between each animation frame and a canonical reference image of the character detects gradual identity drift — AI repaint steps that slowly shift the character's visual identity across frames or views.",
+      "summary": "Embed the approved reference sprite (front-facing, rest pose) and each animation frame with SigLIP2 (arXiv:2502.14786) or CLIP. Compute cosine similarity between each frame embedding and the reference. Track the per-frame similarity curve — a drop signals identity drift in that frame. This is a temporal extension of the static-sprite turnaround consistency gate used in the sibling sprites-knowledge KB (which uses SigLIP2/CLIP for 8-direction turnaround consistency). The motion-verify lane applies the same pattern temporally across animation frames rather than across directions.",
+      "design_implication": "Identity drift is subtle and often missed in frame-by-frame review but shows as character 'aging' or 'shape-shifting' in playback. This gate surfaces drifting frames before they enter the sprite sheet.",
+      "evidence_strength": "community-claim",
+      "license": "Apache-2.0 (open_clip / transformers SigLIP2 implementation)",
+      "commercial_use": "yes",
+      "commercial_notes": "SigLIP2 weights released by Google with Apache-2.0 license via HuggingFace. CLIP (OpenAI) weights are MIT-licensed. Both are commercially permissive.",
+      "vram_gb": 2,
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "metric",
+          "metric": "SigLIP2 cosine similarity to reference (higher = more similar)",
+          "harness": "transformers SigLIP2 or open_clip",
+          "result": "",
+          "threshold": "cosine similarity > 0.85 for all frames vs reference",
+          "accepted": null,
+          "note": "Community-claim threshold. Stylized 2.5D sprites may have naturally lower similarity to a different-pose reference; tune per character class on approved animation set."
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "SigLIP 2: Multilingual Vision-Language Encoders with Improved Semantic Understanding, Localization, and Dense Features",
+          "authors": "Michael Tschannen, Alexey Gritsenko, Xiao Wang, Muhammad Ferjad Naeem, Ibrahim Alabdulmohsin, Nikhil Parthasarathy, Talfan Evans, Lucas Beyer, Ye Xia, Basil Mustafa, Olivier Hénaff, Jeremiah Harmsen, Andreas Steiner, Xiaohua Zhai",
+          "year": "2025",
+          "identifier": "arXiv:2502.14786",
+          "url": "https://arxiv.org/abs/2502.14786",
+          "claim": "SigLIP 2 improves on SigLIP with captioning-based pretraining and self-supervised losses; outperforms SigLIP on zero-shot classification, image-text retrieval, and visual representation at all model scales — making its image embeddings strong identity-similarity signals."
+        }
+      ]
+    },
+    {
+      "slug": "cross-family-vlm-qa-jury",
+      "name": "Cross-family vision-LLM QA jury (reasoning-stripped, refute-by-default)",
+      "kind": "eval",
+      "engine_family": "custom",
+      "applicable_to": "verify",
+      "claim": "A jury of 3 non-same-family cloud vision models — with reasoning hidden from other jurors, a strict refute-by-default posture, and 2-model consensus required to pass — catches defects that automated metrics miss, including contextual weapon drift, pose implausibility, and face mutation that survives embedding checks.",
+      "summary": "This is a codified version of the studio's existing _concept_vision_qa.py pattern: route each animation clip or suspicious-frame set to a jury of 3 non-Qwen cloud vision models (e.g., Gemini-2.5-Pro as hyper-strict canary, MiniMax-M3, Kimi Vision). Each model receives the frame set plus a defect checklist (weapon drift, foot slide, face mutation, silhouette break, anchor jitter) with instructions to refute by default — assume defective unless evidence is clear. Reasoning is not shown to other jurors. 2-of-3 PASS required for the frame set to proceed. Gemini's solo flag is treated as a soft warning requiring human review even if 2-of-3 pass. Reference: Hidden Clones (arXiv:2603.17111) demonstrates that same-family VLM ensembles produce correlated errors; cross-family is load-bearing for this pattern.",
+      "design_implication": "The QA jury is the final gate before sprite-sheet assembly. Automated metrics pass first; the jury catches semantic defects. This pattern is already proven in the studio's concept pipeline (_concept_vision_qa.py) — the motion-verify lane extends it to animation frame sets.",
+      "evidence_strength": "community-claim",
+      "license": "n/a (cloud API calls; no local weights)",
+      "commercial_use": "yes",
+      "commercial_notes": "All three cloud vision APIs (Gemini, MiniMax, Kimi) are commercially available. Check current API ToS for game-asset production use cases.",
+      "vram_gb": 0,
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "qualitative",
+          "metric": "jury-consensus (2-of-3 PASS)",
+          "harness": "_concept_vision_qa.py pattern extended to animation frame sets",
+          "result": "",
+          "threshold": "2-of-3 cloud vision models PASS the defect checklist",
+          "accepted": null,
+          "note": "Gemini solo-flag → human review required even on 2-of-3 pass. Gemini is the hyper-strict canary."
+        }
+      ],
+      "failures": [
+        "Same-family model ensemble produces correlated misses (all miss the same defect) — cross-family is load-bearing",
+        "Models hallucinate defects on stylized painterly art more than photorealistic; refute-by-default posture must be balanced with art-style context in the prompt"
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "Hidden Clones: Exposing and Fixing Family Bias in Vision-Language Model Ensembles",
+          "authors": "Anonymous (under review)",
+          "year": "2026",
+          "identifier": "arXiv:2603.17111",
+          "url": "https://arxiv.org/abs/2603.17111",
+          "claim": "VLM ensembles built from same-family models (sharing architecture, training data, pre-training) produce correlated errors; cross-family diversity is necessary for ensemble gains — directly motivates using non-same-family models in the QA jury."
+        },
+        {
+          "kind": "paper",
+          "title": "VideoGameQA-Bench: Evaluating Vision-Language Models for Video Game Quality Assurance",
+          "authors": "Mrigank Pawagi et al. (asgaardlab)",
+          "year": "2025",
+          "identifier": "arXiv:2505.15952",
+          "url": "https://arxiv.org/abs/2505.15952",
+          "claim": "VLMs can generate useful bug reports for >50% of glitches in video game QA tasks (GPT-4o: 54% image, 52% video); benchmarks game-asset visual defect detection, validating VLM-as-QA-judge applicability for game production."
+        },
+        {
+          "kind": "web",
+          "title": "LLM Juries for Evaluation — Comet blog",
+          "authors": "Comet ML",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://www.comet.com/site/blog/llm-juries-for-evaluation/",
+          "claim": "An LLM jury uses multiple models from distinct families; consensus reduces single-model bias and improves evaluation reliability over single-judge approaches."
+        }
+      ]
+    },
+    {
+      "slug": "silhouette-readability-alpha-check",
+      "name": "Silhouette readability check (thumbnail-scale alpha legibility)",
+      "kind": "eval",
+      "engine_family": "python",
+      "applicable_to": "verify",
+      "claim": "Downscaling the sprite to 64×64 and 32×32 and measuring the alpha-channel convex-hull compactness and silhouette continuity catches unreadable or fragmented silhouettes before the sprite reaches the engine.",
+      "summary": "Load each frame's RGBA. Extract the alpha mask. Compute the contour and convex hull of the alpha region. Measure: (1) solidity = contour-area / convex-hull-area — a low value indicates a fragmented or spiky silhouette; (2) bounding-box fill ratio; (3) at thumbnail scale (32px height), check that the alpha silhouette remains a single connected component with no isolated islands. Flag frames where silhouette breaks into disconnected components at thumbnail scale or where solidity drops below a tuned threshold. This catches AI inpainting that introduces hair/weapon fragments outside the main alpha region.",
+      "design_implication": "Unreadable silhouettes are a design axiom in the JRPG tradition — characters must be instantly readable in 8-direction combat. A failed frame at thumbnail scale will be indistinguishable from environment clutter in-game.",
+      "evidence_strength": "community-claim",
+      "license": "n/a (method using OpenCV)",
+      "commercial_use": "yes",
+      "commercial_notes": "Pure OpenCV alpha-channel contour analysis; no restrictive weights.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "evals": [
+        {
+          "eval_kind": "metric",
+          "metric": "alpha-silhouette solidity (contour area / convex hull area)",
+          "harness": "custom python (cv2 contourArea + convexHull)",
+          "result": "",
+          "threshold": "solidity > 0.75; single connected component at 32px-height thumbnail",
+          "accepted": null,
+          "note": "Threshold community-claim; capes and flowing weapons legitimately reduce solidity — tune per character archetype."
+        }
+      ],
+      "sources": [
+        {
+          "kind": "docs",
+          "title": "OpenCV structural analysis and shape descriptors — convexHull, contourArea",
+          "authors": "OpenCV contributors",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://docs.opencv.org/4.x/d3/dc0/group__imgproc__shape.html",
+          "claim": "cv2.convexHull + cv2.contourArea give solidity = filled-area / hull-area; a measure of silhouette compactness and fragmentation directly applicable to sprite alpha-channel readability."
+        },
+        {
+          "kind": "web",
+          "title": "The Power of Silhouette: Designing Readable Characters In Motion",
+          "authors": "BINUS DKV",
+          "year": "2025",
+          "identifier": "",
+          "url": "https://binus.ac.id/bandung/dkv/2025/11/04/the-power-of-silhouette-designing-readable-characters-in-motion/",
+          "claim": "Strong silhouettes that read clearly at a glance are a foundational design principle for game characters; used here to justify the thumbnail-scale silhouette gate."
+        }
+      ]
+    }
+  ]
+}

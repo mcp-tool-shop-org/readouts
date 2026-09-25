@@ -1,0 +1,108 @@
+{
+  "bucket": "midi-notation-ingest",
+  "verifier_note": "Checked all 7 recipes by reading the docs.rs source mirror at pinned versions from the local cargo registry (midly-0.5.3, musicxml-1.1.2, quick-xml-0.42.0, roxmltree-0.21.1, abc-parser-0.4.0), cross-checked against oracle-jam/Cargo.toml (the actual wiring checks[] compile against), plus two compile_oracle.py counter-examples. All 14 cited source claims held up individually. Three recipes needed correction: recipe 3's engine_note wrongly treats 'Err-as-fatal' as equivalent to enabling midly's strict feature (Malformed is never raised without it); recipe 4 falsely calls quick-xml 0.42 'a no_std pull parser' (no such feature exists in its Cargo.toml or source); recipe 7's engine_note prescribes arithmetic on abc-parser's Length type that does not compile (no Mul impl, private field — confirmed E0369 and E0616 by counter-example). Systemic weakness: oracle-jam/Cargo.toml pins midly alone to match its recipe's recommended feature set (default-features=false, alloc); musicxml/quick-xml/roxmltree/abc-parser are all built with plain defaults, so any recipe recommending a non-default configuration for those four crates (recipe 4's musicxml default-features=false) can never be exercised end-to-end by this lane's own compile oracle -- only the crate's default happy path is ever mechanically checked, and that is exactly where the false and uncompilable claims clustered.",
+  "verdicts": [
+    {
+      "slug": "configure-midly-for-wasm32-unknown-unknown",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "midly-0.5.3 Cargo.toml: default=[alloc,std,parallel]; parallel needs rayon. lib.rs: Smf unavailable w/o alloc. oracle-jam pins midly exactly as recipe recommends (default-features=false, features=[alloc]).",
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/lib.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/midly/0.5.3/source/Cargo.toml", "supported": true, "note": "default=[alloc,std,parallel]; parallel=[std,rayon] -- exact match."},
+        {"url": "https://docs.rs/crate/midly/0.5.3/source/src/lib.rs", "supported": true, "note": "'Smf... unavailable without the alloc feature' -- exact match."}
+      ]
+    },
+    {
+      "slug": "parse-smf-formats-and-timing",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "primitive.rs: Format{SingleTrack=0,Parallel=1,Sequential=2}, Timing{Metrical(u15),Timecode(Fps,u8)}; smf.rs Header{format,timing}. Hand-traced check bytes: header timing=0x0060 gives Metrical(96), matching stdout.",
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs", "supported": true, "note": "Timing enum Metrical(u15)/Timecode(Fps,u8) -- exact match."},
+        {"url": "https://docs.rs/crate/midly/0.5.3/source/src/smf.rs", "supported": true, "note": "Header{format,timing} fields -- exact match."}
+      ]
+    },
+    {
+      "slug": "handle-midly-parsing-errors-and-strict-mode",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "error.rs confirms Invalid/Malformed split, Malformed only emitted under strict. engine_note wrongly treats 'Err-as-fatal' as a substitute for strict -- without it, Malformed never raises Err at all.",
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/error.rs",
+      "corrections": {
+        "claim": "engine_note equates 'strict' with 'treating all Result::Err as fatal'; not equivalent. Without strict, ErrorKind::Malformed is never emitted (midly silently drops bad tracks/events per lib.rs), so Err-as-fatal alone only catches Invalid, missing what strict guards against."
+      },
+      "sources": [
+        {"url": "https://docs.rs/crate/midly/0.5.3/source/src/error.rs", "supported": true, "note": "Invalid=fatal, Malformed=non-fatal unless strict -- exact match."},
+        {"url": "https://docs.rs/crate/midly/0.5.3/source/src/lib.rs", "supported": true, "note": "'plows through non-standard files... strict feature makes it reject' -- exact match."}
+      ]
+    },
+    {
+      "slug": "select-a-musicxml-parsing-crate",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "musicxml lib.rs confirms no_std path + read_score_data_partwise (ungated). But 'what' falsely calls quick-xml 0.42 no_std (no such feature exists); oracle-jam pins musicxml w/ default std-on features, not default-features=false.",
+      "evidence_url": "https://docs.rs/crate/quick-xml/0.42.0/source/src/lib.rs",
+      "corrections": {
+        "claim": "'what' calls quick-xml 0.42 'a no_std pull parser' -- false: its Cargo.toml has no std/no_std/alloc feature (default=[]); lib.rs unconditionally does 'use std::borrow::Cow'. Also the check links musicxml with default (std-on) features, not the recipe's own recommended default-features=false."
+      },
+      "sources": [
+        {"url": "https://docs.rs/crate/musicxml/1.1.2/source/src/lib.rs", "supported": true, "note": "read_score_data_partwise(Vec<u8>) documented for no_std use -- exact match."},
+        {"url": "https://docs.rs/crate/quick-xml/0.42.0/source/src/lib.rs", "supported": true, "note": "'low level XML pull-reader, buffer alloc left to user' matches; crate itself is not no_std."}
+      ]
+    },
+    {
+      "slug": "map-musicxml-divisions-to-fixed-ppq",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "divisions.rs doc matches claim verbatim; backup.rs confirms duration must not cross mid-measure divisions changes. Hand-verified check: (3*96)%2=0, (3*96)/2=144, matching expected stdout.",
+      "evidence_url": "https://docs.rs/crate/musicxml/1.1.2/source/src/elements/divisions.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/musicxml/1.1.2/source/src/elements/divisions.rs", "supported": true, "note": "'divisions per quarter note... note's duration' -- verbatim match."},
+        {"url": "https://docs.rs/crate/musicxml/1.1.2/source/src/elements/backup.rs", "supported": true, "note": "'should not cross... mid-measure changes in Divisions' -- matches (partial quote)."}
+      ]
+    },
+    {
+      "slug": "process-musicxml-backup-and-forward-elements",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "backup.rs/forward.rs confirm the coordinate-multiple-voices purpose. Field chain backup.content.duration.content.0 verified valid: Backup.content:BackupContents.duration:Duration.content:PositiveDivisions(pub u32).",
+      "evidence_url": "https://docs.rs/crate/musicxml/1.1.2/source/src/elements/backup.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/musicxml/1.1.2/source/src/elements/backup.rs", "supported": true, "note": "'Backup and Forward... coordinate multiple voices' -- exact match."},
+        {"url": "https://docs.rs/crate/musicxml/1.1.2/source/src/elements/forward.rs", "supported": true, "note": "'Forward... generally used within voices and staves' -- exact match."}
+      ]
+    },
+    {
+      "slug": "parse-abc-notation-with-abc-parser",
+      "verdict": "refuted",
+      "currency": "wrong",
+      "verified": 0,
+      "status": "avoid",
+      "verify_note": "README/datatypes confirm parsing + Length(f32). engine_note's '(length*base_ticks).round()==...' is impossible: Length has no Mul impl (E0369) and a private field (E0616) -- confirmed via compile-oracle counter-example.",
+      "evidence_url": "https://docs.rs/crate/abc-parser/0.4.0/source/src/datatypes/mod.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/abc-parser/0.4.0/source/README.md", "supported": true, "note": "'lacks support for Chord Symbols and Macros' -- exact match with checklist."},
+        {"url": "https://docs.rs/crate/abc-parser/0.4.0/source/src/datatypes/mod.rs", "supported": true, "note": "'pub struct Length(f32)' newtype -- exact match, but inner field is private."}
+      ]
+    }
+  ]
+}

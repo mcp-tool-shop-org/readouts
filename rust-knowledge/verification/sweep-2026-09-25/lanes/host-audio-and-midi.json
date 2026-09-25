@@ -1,0 +1,154 @@
+{
+  "bucket": "host-audio-and-midi",
+  "verifier_note": "Checked every claim against the pinned crate source itself (cpal 0.18.2, midir 0.11.0, rtrb 0.4.0, ringbuf 0.5.2, assert_no_alloc 1.1.2), read from the local cargo registry cache at those exact versions (byte-identical to the cited docs.rs source pages), plus Microsoft Learn for WASAPI/WinMM platform semantics (IAudioClient::Initialize error table, MIM_DATA message, DRV_QUERYDEVICEINTERFACE). All 20 warrant sources retrieved and individually accurate; 0 unfindable, 0 outright refuted. 4 of 10 recipes needed a correction. The systemic weakness: every recipe correctly cites 'the code does X', but several then add an uncited platform-semantic gloss on top ('because the default device changed', 'the std feature', 'try_push/try_pop', 'midiInGetDevCapsW supplies the id') that turns out to be imprecise or wrong when checked against Microsoft's own docs or the crate's Cargo.toml feature gates. Checks are honest about being compile-only where behaviour can't be observed without hardware, but one check (assert_no_alloc) omits the #[global_allocator] registration its own recipe's 'how' requires, so it demonstrates less than the prose claims.",
+  "verdicts": [
+    {
+      "slug": "request-cpal-buffersize-fixed-on-wasapi-shared-mode-output",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "lib.rs BufferSize doc: host may round, no size guaranteed (verbatim). wasapi/device.rs: 'always create voices in shared mode'. No AUDCLNT_SHAREMODE_EXCLUSIVE anywhere in cpal src/. Check's SampleRate/FrameCount are u32 aliases; compiles.",
+      "evidence_url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/device.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/cpal/0.18.2/source/src/lib.rs", "supported": true, "note": "BufferSize doc: host may round; no callback-size guarantee. Exact match."},
+        {"url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/device.rs", "supported": true, "note": "'We always create voices in shared mode' comment, verbatim, line 750."}
+      ]
+    },
+    {
+      "slug": "use-outputcallbackinfo-playback-timestamp-for-latency-alignment",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "timestamp.rs host table lists WASAPI = QueryPerformanceCounter(). wasapi/stream.rs output_timestamp(): playback = callback + buffered + stream_latency; callback comes from clock_position() -> audio_clock.GetPosition.",
+      "evidence_url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/stream.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/cpal/0.18.2/source/src/timestamp.rs", "supported": true, "note": "OutputStreamTimestamp{callback,playback} struct + WASAPI/QueryPerformanceCounter table row confirmed."},
+        {"url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/stream.rs", "supported": true, "note": "output_timestamp() adds stream_latency+buffered to callback from IAudioClock::GetPosition. Exact."}
+      ]
+    },
+    {
+      "slug": "handle-cpal-wasapi-xruns-and-device-changes-in-error-callback",
+      "verdict": "corrected",
+      "currency": "wrong",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "cpal's error-code mapping is exact, and Xrun-input-only gotcha is confirmed (process_output has zero Xrun logic). But 'StreamInvalidated when the default device changes' is wrong per MS Learn; see corrections.",
+      "evidence_url": "https://learn.microsoft.com/en-us/windows/win32/api/audioclient/nf-audioclient-iaudioclient-initialize",
+      "corrections": {
+        "claim": "'StreamInvalidated when the default device changes' is wrong. MS Learn: AUDCLNT_E_RESOURCES_INVALIDATED fires when the stream is suspended, an exclusive/offload stream disconnects, a packaged app is quiesced, or a protected-output stream closes -- not on default-device change."
+      },
+      "sources": [
+        {"url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/stream.rs", "supported": true, "note": "process_input emits ErrorKind::Xrun only on AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY; process_output has none."},
+        {"url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/mod.rs", "supported": true, "note": "Error code -> ErrorKind mapping matches exactly (lines 65-69); mapping itself is accurate."}
+      ]
+    },
+    {
+      "slug": "send-events-to-audio-callback-via-lock-free-rtrb-or-ringbuf-queue",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Core 'what' fully sourced: rtrb lib.rs says lock-free/wait-free, alloc-once; ringbuf lib.rs literally says 'Lock-free SPSC'; SharedRb uses AtomicUsize+Acquire/Release. Two gotcha-level naming/feature claims need fixing; see corrections.",
+      "evidence_url": "https://docs.rs/crate/ringbuf/0.5.2/source/src/alias.rs",
+      "corrections": {
+        "claim": "'requires std feature for HeapRb' is imprecise: alias.rs/macros.rs gate HeapRb::new() on feature=\"alloc\" only; std enables alloc by default but alloc alone suffices. Also 'try_push and try_pop (or pop)' overstates rtrb: rtrb only has push()/pop(); try_push/try_pop is ringbuf-only naming."
+      },
+      "sources": [
+        {"url": "https://docs.rs/crate/rtrb/0.4.0/source/src/lib.rs", "supported": true, "note": "'lock-free and wait-free'; fixed-capacity alloc on construction, no more after. Verbatim match."},
+        {"url": "https://docs.rs/crate/ringbuf/0.5.2/source/src/rb/shared.rs", "supported": true, "note": "SharedRb.read_index/write_index are CachePadded<AtomicUsize>, load Acquire / store Release. Confirmed."}
+      ]
+    },
+    {
+      "slug": "wrap-oscillator-callback-in-assert-no-alloc-with-cpal-equilibrium-buffer",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Both sources exact: README 'abort or print a warning'; wasapi/stream.rs fill_equilibrium() runs before data_callback() (line 886 vs 894). But the check never registers AllocDisabler as #[global_allocator]; see corrections.",
+      "evidence_url": "https://docs.rs/crate/assert_no_alloc/1.1.2/source/README.md",
+      "corrections": {
+        "claim": "Check omits '#[global_allocator] static A: AllocDisabler', which the recipe's own 'how' and README step 2 require. Without it, assert_no_alloc(||...) compiles/runs but checks nothing -- it only proves the closure nests inside a cpal callback, not that allocation is caught."
+      },
+      "sources": [
+        {"url": "https://docs.rs/crate/assert_no_alloc/1.1.2/source/README.md", "supported": true, "note": "'the program will abort or print a warning' on forbidden (de)alloc. Verbatim match."},
+        {"url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/stream.rs", "supported": true, "note": "fill_equilibrium(buffer_slice,...) called at line 886, before data_callback at line 894. Confirmed."}
+      ]
+    },
+    {
+      "slug": "interpret-midir-winmm-input-timestamps-as-microseconds-since-start",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "handler.rs: 'timestamp = timestamp as u64 * 1000' verbatim. MS Learn MIM_DATA page independently confirms dwTimestamp is ms 'beginning at zero when the midiInStart function was called'; connect() calls midiInStart once (mod.rs:329).",
+      "evidence_url": "https://learn.microsoft.com/en-us/windows/win32/multimedia/mim-data",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/midir/0.11.0/source/README.md", "supported": true, "note": "WinMM backend on Windows is real (backend/winmm/mod.rs exists and is used on windows target)."},
+        {"url": "https://docs.rs/crate/midir/0.11.0/source/src/backend/winmm/handler.rs", "supported": true, "note": "'data.message.timestamp = timestamp as u64 * 1000' with '// milliseconds -> microseconds' comment. Exact."}
+      ]
+    },
+    {
+      "slug": "anchor-midir-microseconds-to-cpal-streaminstant-and-re-anchor-for-drift",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "handler.rs confirms the ms*1000 conversion; timestamp.rs table confirms WASAPI/QueryPerformanceCounter(). Check's delta_us/sample arithmetic matches 'how' exactly and type-checks (StreamInstant::ZERO exists).",
+      "evidence_url": "https://docs.rs/crate/cpal/0.18.2/source/src/timestamp.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/midir/0.11.0/source/src/backend/winmm/handler.rs", "supported": true, "note": "WinMM ms-since-midiInStart, x1000 to microseconds. Same code as prior recipe, confirmed."},
+        {"url": "https://docs.rs/crate/cpal/0.18.2/source/src/timestamp.rs", "supported": true, "note": "WASAPI row of the time-source table: QueryPerformanceCounter(). Confirmed."}
+      ]
+    },
+    {
+      "slug": "enumerate-midir-winmm-input-ports-by-interface-id",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "common.rs: MidiInputPorts = Vec<MidiInputPort> exact. mod.rs source's claim (midiInGetNumDevs+midiInGetDevCapsW) is true but incomplete for what the recipe actually relies on (id()); see corrections.",
+      "evidence_url": "https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/drv-querydeviceinterface",
+      "corrections": {
+        "claim": "Source 2 covers count+display-name enumeration but not id(): MidiInputPort::id() returns interface_id, populated via midiInMessage(DRV_QUERYDEVICEINTERFACESIZE/DRV_QUERYDEVICEINTERFACE) -- a 3rd WinMM call neither source names. midiInGetDevCapsW supplies only port_name()'s string."
+      },
+      "sources": [
+        {"url": "https://docs.rs/crate/midir/0.11.0/source/src/common.rs", "supported": true, "note": "pub type MidiInputPorts = Vec<MidiInputPort>; port_name -> Result<String,_>. Exact."},
+        {"url": "https://docs.rs/crate/midir/0.11.0/source/src/backend/winmm/mod.rs", "supported": true, "note": "ports_internal: count()->midiInGetNumDevs, name()->midiInGetDevCapsW; true but omits id()'s call path."}
+      ]
+    },
+    {
+      "slug": "render-oscillator-voices-from-spsc-queue-into-cpal-silence-buffer",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "wasapi/stream.rs: fill_equilibrium(buffer_slice,...) runs before data_callback(...) (line 886 vs 894), confirmed exact. rtrb lib.rs confirms non-blocking push/pop. Check's runs simulation reproduces pop-or-silence correctly.",
+      "evidence_url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/stream.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/stream.rs", "supported": true, "note": "process_output pre-fills buffer via fill_equilibrium before invoking data_callback. Confirmed."},
+        {"url": "https://docs.rs/crate/rtrb/0.4.0/source/src/lib.rs", "supported": true, "note": "'return immediately'; full/empty attempts return an error, i.e. non-blocking. Confirmed."}
+      ]
+    },
+    {
+      "slug": "build-cpal-output-stream-in-f32-for-highest-real-time-priority",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "lib.rs cmp_default_heuristics doc says 'F32 is ranked highest as the universal realtime audio format' verbatim; format_rank() gives F32=>14, the max. AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM in device.rs backs the converter gotcha.",
+      "evidence_url": "https://docs.rs/crate/cpal/0.18.2/source/src/lib.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/cpal/0.18.2/source/src/lib.rs", "supported": true, "note": "format_rank: SampleFormat::F32 => 14, the highest of all 15 formats; doc comment confirms wording verbatim."},
+        {"url": "https://docs.rs/crate/cpal/0.18.2/source/src/traits.rs", "supported": true, "note": "build_output_stream<T,D,E> generic with T: SizedSample; build_output_stream::<f32,_,_> is valid instantiation."}
+      ]
+    }
+  ]
+}

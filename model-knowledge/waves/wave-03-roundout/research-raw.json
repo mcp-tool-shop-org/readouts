@@ -1,0 +1,1735 @@
+{
+  "date": "2026-06-02",
+  "wave": 3,
+  "lanes": [
+    {
+      "slug": "audio",
+      "name": "Audio — stem separation (round out)",
+      "research": {
+        "domain": "audio",
+        "notes": "WAVE 3 audio narrow pass — stem-SEPARATION SOTA that supersedes Hybrid Demucs, plus best ComfyUI separation wrappers, plus one genuinely-new 2026 open audio model (Woosh, Sony AI). DECISIVE LICENSE FINDING for game-asset (commercial-safe) use: the RoFormer *architectures/code* are MIT (lucidrains, ZFTurbo MSST), AND the top vocal checkpoint (KimberleyJSN Mel-Band RoFormer, MIT) is commercial-OK — so the RoFormer separation route is the recommended commercial-safe stem path. CAVEAT: not all community RoFormer checkpoints share that license; viperx/other MSST checkpoints have unverified/varied terms — verify each checkpoint file individually before commercial ship. The new generative item Woosh (Sony AI, Apr 2026) is the SOTA SFX foundation model but its OPEN WEIGHTS are NON-COMMERCIAL (code MIT/Apache) — usable for prototyping/marketing-internal only, NOT shippable game-asset audio. ThinkSound (V2A/foley) is also research-only/non-commercial AND carries a Stability AI VAE dependency. Apollo (audio restoration / VO+stem super-resolution) is CC BY-SA 4.0 — commercial OK with attribution + ShareAlike (ShareAlike is a real constraint to weigh). All entries fit 32 GB easily; separation models are small (sub-1 GB checkpoints) and the bottleneck is segment length, not weights. Already-cataloged models (ACE-Step 1.5, Chatterbox, Kokoro, Stable Audio 3, DiffRhythm 2, VibeVoice, Hybrid Demucs) were NOT re-listed per lane instructions.",
+        "models": [
+          {
+            "name": "Mel-Band RoFormer (separation architecture + KimberleyJSN vocal checkpoint)",
+            "slug": "mel-band-roformer",
+            "developer": "ByteDance AI Labs (paper) / lucidrains + KimberleyJSN + ZFTurbo (open impl & weights)",
+            "params": "~50-130M (depending on config; vocal checkpoint ~hundreds of MB)",
+            "base_arch": "Mel-band split + RoPE hierarchical Transformer",
+            "release_date": "2023-10 (paper); checkpoints + impl actively updated through 2026-02",
+            "license": "MIT (lucidrains code + KimberleyJSN vocal weights); ZFTurbo MSST training repo MIT",
+            "commercial_use": "yes",
+            "commercial_notes": "Code is MIT and the top published vocal checkpoint (KimberleyJSN, SDR ~10.98) is MIT — commercial-OK, the recommended commercial-SAFE stem route for game audio. CAVEAT: other community checkpoints (viperx finetunes, MVSep models) carry varied/unverified terms — verify EACH checkpoint file before commercial ship. Training data provenance (often MUSDB18-HQ + scraped songs) is a separate question from weight license.",
+            "min_vram_gb": 4,
+            "recommended_vram_gb": 8,
+            "runs_on_32gb": true,
+            "disk_size_gb": 0.5,
+            "quality_tier": "frontier",
+            "status": "recommended",
+            "summary": "Current SOTA single-stem separation that outperforms BS-RoFormer on vocals/drums/other (mel-scale subbands + RoPE Transformer). Supersedes Hybrid Demucs for vocal isolation and stem extraction. The KimberleyJSN vocal model is the highest published-SDR vocal separator and is MIT-licensed — making it the commercial-safe pick for game VO extraction, remix stems, and dataset prep. Run via ZFTurbo MSST (CLI) or ComfyUI nodes below.",
+            "game_asset_fit": 9,
+            "marketing_fit": 8,
+            "speed_note": "Real-time-capable on a 5090; VRAM scales with segment/chunk length, not weight size. Sub-1 GB checkpoint fits trivially in 32 GB.",
+            "repo_url": "https://github.com/lucidrains/BS-RoFormer",
+            "best_for": [
+              {
+                "purpose": "game-audio stem extraction (isolate VO/music/SFX from mixed source)",
+                "fitness": 9,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "VO cleanup — pull clean dialogue stems off a mixed recording",
+                "fitness": 9,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "remix / adaptive scoring — split a track into stems for reactive layering",
+                "fitness": 8,
+                "use_tag": "both"
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://arxiv.org/abs/2310.01809",
+                "claim": "Mel-Band RoFormer paper; mel-scale subbands, outperforms BS-RoFormer on vocals/drums/other on MUSDB18-HQ.",
+                "kind": "paper",
+                "title": "Mel-Band RoFormer for Music Source Separation"
+              },
+              {
+                "url": "https://github.com/lucidrains/BS-RoFormer",
+                "claim": "MIT license; implements both BS-RoFormer and Mel-Band RoFormer; v1.1.0 (2026-02-01).",
+                "kind": "repo",
+                "title": "lucidrains/BS-RoFormer"
+              },
+              {
+                "url": "https://huggingface.co/KimberleyJSN/melbandroformer",
+                "claim": "KimberleyJSN Mel-Band RoFormer vocal checkpoint is MIT-licensed (commercial use permitted).",
+                "kind": "model-card",
+                "title": "KimberleyJSN/melbandroformer"
+              },
+              {
+                "url": "https://github.com/ZFTurbo/Music-Source-Separation-Training/blob/main/docs/pretrained_models.md",
+                "claim": "KimberleyJensen Mel-Band RoFormer vocals SDR ~10.98 — among top published vocal separators.",
+                "kind": "doc",
+                "title": "ZFTurbo MSST pretrained models"
+              }
+            ]
+          },
+          {
+            "name": "BS-RoFormer (Band-Split RoFormer)",
+            "slug": "bs-roformer",
+            "developer": "ByteDance AI Labs / SAMI (paper); lucidrains + viperx + ZFTurbo (open impl & weights)",
+            "params": "~93-200M (config-dependent)",
+            "base_arch": "Band-split + RoPE hierarchical Transformer",
+            "release_date": "2023-09 (paper, SDX23 winner); impl updated through 2026-02",
+            "license": "MIT (lucidrains code; ZFTurbo MSST repo MIT). Checkpoint licenses vary.",
+            "commercial_use": "conditional",
+            "commercial_notes": "Architecture/code is MIT. The widely-used viperx BS-RoFormer checkpoints do NOT publish a clear license on the weight files — treat checkpoints as license-unverified and confirm per-file before commercial ship. For a definitively-MIT separation route, prefer the Mel-Band RoFormer KimberleyJSN checkpoint above.",
+            "min_vram_gb": 6,
+            "recommended_vram_gb": 10,
+            "runs_on_32gb": true,
+            "disk_size_gb": 0.8,
+            "quality_tier": "frontier",
+            "status": "recommended",
+            "summary": "The SDX23 Sound Demixing Challenge winner and the model that established the RoFormer family as the post-Demucs SOTA. Band-split spectrogram projection + hierarchical RoPE Transformers for multi-band mask estimation. Slightly behind Mel-Band RoFormer on vocals but a strong general 4-stem/instrumental separator. Use through ZFTurbo MSST or the ComfyUI wrappers below.",
+            "game_asset_fit": 7,
+            "marketing_fit": 7,
+            "speed_note": "Comfortable on a 5090; bottleneck is chunk length and overlap, not the sub-1 GB weights.",
+            "repo_url": "https://github.com/lucidrains/BS-RoFormer",
+            "best_for": [
+              {
+                "purpose": "game-audio stem extraction (4-stem: vocals/bass/drums/other)",
+                "fitness": 8,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "remix / adaptive scoring stem prep",
+                "fitness": 8,
+                "use_tag": "both"
+              },
+              {
+                "purpose": "instrumental extraction for marketing tracks / trailers",
+                "fitness": 7,
+                "use_tag": "marketing"
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://arxiv.org/abs/2309.02612",
+                "claim": "Band-Split RoPE Transformer paper; ranked first in MSS track of SDX23.",
+                "kind": "paper",
+                "title": "Music Source Separation with Band-Split RoPE Transformer"
+              },
+              {
+                "url": "https://github.com/lucidrains/BS-RoFormer",
+                "claim": "MIT-licensed reference implementation; SOTA attention network for MSS out of ByteDance AI Labs.",
+                "kind": "repo",
+                "title": "lucidrains/BS-RoFormer"
+              },
+              {
+                "url": "https://github.com/ZFTurbo/Music-Source-Separation-Training",
+                "claim": "MIT training/inference repo supporting BS-RoFormer, Mel-Band RoFormer, SCNet, Apollo, etc.; latest release MVSep Mega 53-stem model (2026-04-20).",
+                "kind": "repo",
+                "title": "ZFTurbo/Music-Source-Separation-Training"
+              }
+            ]
+          },
+          {
+            "name": "Woosh (Sony AI Sound Effect Foundation Model)",
+            "slug": "woosh-sony-ai",
+            "developer": "Sony AI",
+            "params": "Multiple models: Woosh-AE (codec), Woosh-CLAP (alignment), Woosh-Flow/DFlow (T2A), Woosh-VFlow (V2A) + distilled fast variants",
+            "base_arch": "Flow-matching generative + CLAP-style text-audio alignment + neural audio codec",
+            "release_date": "2026-04",
+            "license": "Code MIT (V2A code Apache-2.0); OPEN WEIGHTS = non-commercial",
+            "commercial_use": "no",
+            "commercial_notes": "DECISIVE: the released open weights are explicitly NON-COMMERCIAL. Code is MIT/Apache but the weights cannot be used to produce shippable commercial game-asset SFX. Usable for internal prototyping, R&D, and (cautiously) marketing-internal exploration only. Not a commercial-safe asset pipeline. Genuinely new 2026 SOTA for SFX generation — flagged here for awareness, not for production shipping.",
+            "min_vram_gb": 8,
+            "recommended_vram_gb": 16,
+            "runs_on_32gb": true,
+            "disk_size_gb": 4,
+            "quality_tier": "frontier",
+            "status": "situational",
+            "summary": "Sony AI's purpose-built sound-effects foundation model (text-to-SFX and video-to-SFX), released April 2026 — the first SOTA-grade open foley/SFX foundation model designed around professional sound-designer workflows. Includes distilled fast-inference T2A/V2A variants. The biggest genuinely-new 2026 open audio item in this slice, but its non-commercial weights gate it out of shippable game-asset production. Excellent for ideation and reference SFX.",
+            "game_asset_fit": 3,
+            "marketing_fit": 4,
+            "speed_note": "Distilled T2A/V2A variants provided for fast inference; full models fit comfortably in 32 GB.",
+            "repo_url": "https://github.com/SonyResearch/Woosh",
+            "best_for": [
+              {
+                "purpose": "SFX / foley prototyping and reference generation (NON-commercial)",
+                "fitness": 7,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "video-to-audio foley exploration for trailers (internal only)",
+                "fitness": 5,
+                "use_tag": "marketing"
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://github.com/SonyResearch/Woosh",
+                "claim": "Public release of Sony AI sound-effect foundation model; code mostly MIT, V2A under Apache-2.0, open weights for non-commercial use.",
+                "kind": "repo",
+                "title": "SonyResearch/Woosh"
+              },
+              {
+                "url": "https://arxiv.org/abs/2604.01929",
+                "claim": "Woosh technical report (2026); SFX foundation model with audio codec, text-audio alignment, T2A and V2A generative models.",
+                "kind": "paper",
+                "title": "Woosh: A Sound Effects Foundation Model"
+              },
+              {
+                "url": "https://ai.sony/blog/introducing-woosh-sony-ais-sound-effect-foundation-model",
+                "claim": "Sony AI announcement; release includes Woosh-AE, Woosh-CLAP, Woosh-Flow/DFlow, Woosh-VFlow plus distilled models.",
+                "kind": "blog",
+                "title": "Introducing Woosh — Sony AI"
+              }
+            ]
+          },
+          {
+            "name": "Apollo (Band-Sequence Audio Restoration)",
+            "slug": "apollo-restoration",
+            "developer": "JusperLee (Kai Li et al.)",
+            "params": "Compact band-sequence model (sub-100M class)",
+            "base_arch": "Frequency band-split + band-sequence modeling + band reconstruction",
+            "release_date": "2024-09 (model); 2025-03 (training preprocessing); integrated into ZFTurbo MSST and MVSep through 2026",
+            "license": "CC BY-SA 4.0",
+            "commercial_use": "conditional",
+            "commercial_notes": "CC BY-SA 4.0 permits commercial use BUT requires attribution AND ShareAlike (derivative works/weights must carry the same license) — ShareAlike is a real, often-overlooked constraint for a closed-source commercial game pipeline. Acceptable for processing audio you ship (the OUTPUT audio is yours), but redistributing fine-tuned Apollo weights triggers ShareAlike. Verify before bundling weights.",
+            "min_vram_gb": 4,
+            "recommended_vram_gb": 8,
+            "runs_on_32gb": true,
+            "disk_size_gb": 0.3,
+            "quality_tier": "strong",
+            "status": "situational",
+            "summary": "Audio restoration / super-resolution model that repairs codec damage (e.g. MP3 artifacts) and restores mid/high frequencies — complements RoFormer separation as the cleanup stage. MVSep ships Apollo variants for Universal Super-Resolution and Vocals Super-Resolution. Best used after stem separation to repair lossy or low-bitrate VO and music stems before they go into a game build.",
+            "game_asset_fit": 7,
+            "marketing_fit": 6,
+            "speed_note": "Lightweight; benchmarked on 44.1 kHz audio, trivially fits 32 GB.",
+            "repo_url": "https://github.com/JusperLee/Apollo",
+            "best_for": [
+              {
+                "purpose": "VO cleanup — restore high frequencies / repair lossy dialogue stems",
+                "fitness": 8,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "stem restoration post-separation (de-codec music stems)",
+                "fitness": 7,
+                "use_tag": "both"
+              },
+              {
+                "purpose": "remaster marketing audio from low-bitrate sources",
+                "fitness": 6,
+                "use_tag": "marketing"
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://github.com/JusperLee/Apollo/",
+                "claim": "Apollo repo; CC BY-SA 4.0 license; converts lossy MP3-compressed music to higher-quality audio via band-sequence modeling. Model 2024-09, preprocessing 2025-03.",
+                "kind": "repo",
+                "title": "JusperLee/Apollo"
+              },
+              {
+                "url": "https://arxiv.org/abs/2409.08514",
+                "claim": "Apollo paper; outperforms SR-GAN models across bitrates/genres, especially mixed instruments+vocals.",
+                "kind": "paper",
+                "title": "Apollo: Band-sequence Modeling for High-Quality Audio Restoration"
+              }
+            ]
+          },
+          {
+            "name": "ThinkSound (multimodal V2A / foley, with PrismAudio successor)",
+            "slug": "thinksound",
+            "developer": "FunAudioLLM / Tongyi Lab (Alibaba)",
+            "params": "Lightweighted DiT-class (exact size undisclosed)",
+            "base_arch": "Multimodal DiT + Chain-of-Thought reasoning (MLLM-guided); Stable Audio VAE dependency",
+            "release_date": "2025-07 (NeurIPS 2025); PrismAudio successor 2026-03-24",
+            "license": "Apache-2.0 code BUT research/education only — commercial use NOT permitted; bundled Stability AI VAE needs separate permission",
+            "commercial_use": "no",
+            "commercial_notes": "DECISIVE: despite the Apache-2.0 code header, the models/dataset are explicitly research-and-education only — commercial use NOT permitted. Additional blocker: the bundled Stable Audio VAE requires prior permission from Stability AI for commercial use. Double non-commercial gate. Not shippable for game assets. Listed as the leading open V2A/foley alternative to Woosh for awareness.",
+            "min_vram_gb": 8,
+            "recommended_vram_gb": 16,
+            "runs_on_32gb": true,
+            "disk_size_gb": 6,
+            "quality_tier": "strong",
+            "status": "situational",
+            "summary": "SOTA-on-release video-to-audio / foley framework using Chain-of-Thought reasoning to align generated SFX semantically and temporally to video — beats MMAudio/V-AURA/MovieGenAudio on standard V2A benchmarks. The PrismAudio successor (2026-03) continues the line. Compelling for foley ideation but double-gated as non-commercial (project license + Stability VAE), so research/prototyping only.",
+            "game_asset_fit": 3,
+            "marketing_fit": 4,
+            "speed_note": "Memory-optimized update reduces GPU usage; fits 32 GB. Per-clip generation, not real-time.",
+            "repo_url": "https://github.com/FunAudioLLM/ThinkSound",
+            "best_for": [
+              {
+                "purpose": "video-to-audio foley prototyping for cutscenes (NON-commercial)",
+                "fitness": 6,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "trailer SFX ideation from video (internal/research only)",
+                "fitness": 5,
+                "use_tag": "marketing"
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://github.com/FunAudioLLM/ThinkSound",
+                "claim": "ThinkSound (NeurIPS 2025); Apache-2.0 code but research/education only, commercial use NOT permitted; Stable Audio VAE needs Stability AI permission; PrismAudio successor 2026-03-24.",
+                "kind": "repo",
+                "title": "FunAudioLLM/ThinkSound"
+              },
+              {
+                "url": "https://comfyui-wiki.com/en/news/2025-07-04-thinksound",
+                "claim": "Tongyi Lab ThinkSound — CoT reasoning for multimodal audio generation/editing; outperforms MMAudio and others.",
+                "kind": "news",
+                "title": "Tongyi Lab Releases ThinkSound — ComfyUI Wiki"
+              }
+            ]
+          }
+        ],
+        "extras": [
+          {
+            "name": "set-soft/AudioSeparation (ComfyUI + CLI)",
+            "kind": "comfyui-node",
+            "url": "https://github.com/set-soft/AudioSeparation",
+            "note": "Best general-purpose ComfyUI separation wrapper: 46 models (MDX-Net 21-65 MB + Demucs 84-870 MB, incl. karaoke models), runs as both ComfyUI node group AND CLI, VRAM controlled via segments param. License: code GPL-3.0, models MIT. v1.1.1 (2025-07-21). NOTE: as of that release it ships MDX/Demucs, NOT RoFormer — for RoFormer use the kijai or AIFSH nodes below. Commercial-OK for the MIT model weights; GPL-3.0 affects only the node code, not your separated audio output."
+          },
+          {
+            "name": "kijai/ComfyUI-MelBandRoFormer",
+            "kind": "comfyui-node",
+            "url": "https://github.com/kijai/ComfyUI-MelBandRoFormer",
+            "note": "ComfyUI wrapper for Mel-Band RoFormer vocal isolation (vocals + instrumental from a single mixed track). Loads the KimberleyJSN-derived vocal checkpoint (mirror: huggingface.co/Kijai/MelBandRoFormer_comfy). 13 commits, single-purpose (Mel-Band only, no BS-RoFormer). NO LICENSE FILE in repo — code license unverified; the underlying Mel-Band weights (KimberleyJSN) are MIT/commercial-OK, but treat the node code as license-unspecified."
+          },
+          {
+            "name": "AIFSH/VocalSeparation-ComfyUI",
+            "kind": "comfyui-node",
+            "url": "https://github.com/AIFSH/VocalSeparation-ComfyUI",
+            "note": "ComfyUI node that wraps ZFTurbo's Music-Source-Separation-Training directly — gives access to the full MSST model zoo (BS-RoFormer, Mel-Band RoFormer, SCNet, etc.) inside ComfyUI, so you can run the SOTA RoFormer checkpoints natively. Best ComfyUI route to RoFormer-quality stems. Verify the specific checkpoint license you load (MSST framework is MIT; individual checkpoints vary)."
+          },
+          {
+            "name": "christian-byrne/audio-separation-nodes-comfyui",
+            "kind": "comfyui-node",
+            "url": "https://github.com/christian-byrne/audio-separation-nodes-comfyui",
+            "note": "MIT-licensed ComfyUI nodes built on Hybrid Demucs (4-stem: bass/drums/other/vocals) PLUS utility nodes to recombine, tempo-match, and slice/crop audio — handy for adaptive-scoring stem prep even though Demucs is now behind RoFormer on quality. v2.0.0 (2026-04-13). Use for the recombine/slice tooling; pair with a RoFormer node for the actual separation quality."
+          },
+          {
+            "name": "ZFTurbo/Music-Source-Separation-Training (MSST) — the canonical separation toolkit",
+            "kind": "framework",
+            "url": "https://github.com/ZFTurbo/Music-Source-Separation-Training",
+            "note": "MIT-licensed CLI training+inference framework that is the de-facto home for all SOTA separation checkpoints (BS-RoFormer, Mel-Band RoFormer, SCNet XL, Apollo, BSMamba2, plus the 2026-04-20 MVSep Mega 53-stem model). Configs tuned for A6000 48 GB; reduce batch/segment to fit the 5090's 32 GB easily. This is the reference runner for the two RoFormer entries above — start here for the pretrained-model catalog and per-checkpoint SDR + license notes."
+          },
+          {
+            "name": "Pretrained-model SDR leaderboard (MSST docs)",
+            "kind": "reference",
+            "url": "https://github.com/ZFTurbo/Music-Source-Separation-Training/blob/main/docs/pretrained_models.md",
+            "note": "Authoritative current SDR ranking: top vocals = BS PolarFormer 11.00, KimberleyJSN Mel-Band RoFormer 10.98 (MIT), viperx BS-RoFormer 10.87; best published 4-stem = SCNet XL IHF 10.08 / HTDemucs4 9.16. Use this to pick the right checkpoint per stem — but note the doc does NOT list per-checkpoint licenses, so verify each weight file's license separately for commercial game-asset use."
+          }
+        ]
+      },
+      "verify": {
+        "domain": "Audio — stem separation (round out)",
+        "verdicts": [
+          {
+            "model": "Mel-Band RoFormer (separation architecture + KimberleyJSN vocal checkpoint)",
+            "exists": true,
+            "overall": "confirmed-with-fixes",
+            "currency": "current",
+            "license_status": "corrected",
+            "license_correction": "lucidrains BS-RoFormer code = MIT (CONFIRMED) and ZFTurbo MSST = MIT (CONFIRMED). BUT the KimberleyJSN/KimberleyJensen vocal weights are NOT MIT. GitHub API returns license:null and the /license endpoint 404s; the repo root (KimberleyJensen/Mel-Band-Roformer-Vocal-Model) contains NO LICENSE file (only README.md, configs, inference.py, models, requirements.txt, utils.py). An unlicensed repo is all-rights-reserved by default — the OPPOSITE of commercial-safe. The repo's last push was 2025-01-12, so the 'relicensed to MIT on 2026-04-22' story is impossible (zero 2026 commits). The entire 'MIT-licensed, commercial-safe pick for game VO / commercial use: yes' thesis is REFUTED for the checkpoint.",
+            "specs_plausible": true,
+            "specs_note": "min_vram_gb:4 is plausible for inference on short clips; chunked inference via MSST runs well under 32GB. Fine.",
+            "fixes": "(1) Change commercial_use from 'yes' to 'no'/'unverified' for the KimberleyJSN vocal checkpoint — its weights have NO license (all-rights-reserved), so it is NOT commercial-safe. Remove the 'MIT-licensed commercial-safe pick for game VO extraction' framing entirely; that is the central error. (2) Keep the architecture attribution: Mel-Band RoFormer paper = Wang, Lu, Won, ISMIR 2023, arXiv:2310.01809; the paper itself states it outperforms BS-RoFormer on vocals/drums/other (claim verified). (3) The 'highest published-SDR vocal' claim is supportable: MSST leaderboard shows MelBand RoFormer (KimberleyJensen) SDR vocals 10.98, above BS-RoFormer viperx 10.87. (4) repo_url points to lucidrains/BS-RoFormer (architecture only — confirmed it ships NO weights); the actual vocal checkpoint lives at github.com/KimberleyJensen/Mel-Band-Roformer-Vocal-Model and on HF — consider citing that for the weights.",
+            "note": "Architecture + SOTA + SDR claims are solid and well-grounded. The license/commercial-use claim on the checkpoint is the load-bearing error and is refuted by the GitHub API. Downgrade to non-commercial/unverified for the weights."
+          },
+          {
+            "model": "BS-RoFormer (Band-Split RoFormer)",
+            "exists": true,
+            "overall": "confirmed",
+            "currency": "current",
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "specs_note": "min_vram_gb:6 plausible; runs comfortably under 32GB via MSST.",
+            "note": "Confirmed. lucidrains/BS-RoFormer = MIT (architecture reimplementation of ByteDance's paper); ZFTurbo MSST = MIT (verified). SDX23 Sound Demixing Challenge lineage and 'post-Demucs SOTA' framing are accurate. 'Checkpoint licenses vary' / commercial_use:'conditional' is the correct, honest hedge — good. Band-split + RoPE hierarchical Transformer arch is correct. MSST leaderboard confirms BS-RoFormer (viperx) vocals SDR 10.87. No corrections needed. Minor nuance: the original BS-RoFormer is ByteDance AI Labs' paper; lucidrains is the open reimplementation — the item's 'lucidrains code' wording is fine."
+          },
+          {
+            "model": "Woosh (Sony AI Sound Effect Foundation Model)",
+            "exists": true,
+            "overall": "confirmed-with-fixes",
+            "currency": "current",
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "specs_note": "min_vram_gb:8 plausible for a flow-matching SFX model with distilled fast variants; fits 32GB easily.",
+            "fixes": "Release date is WRONG: the item says 'released April 2026'; the repo's v1.0.0 was released 2026-03-16 (March, not April). Correct to March 2026. (The arXiv tech report is arXiv:2604.01929.)",
+            "note": "Repo SonyResearch/Woosh confirmed real. License framing is ACCURATE: code MIT for most components, V2A (Woosh-VFlow) under Apache-2.0, and OPEN WEIGHTS = CC-BY-NC (non-commercial) — commercial_use:'no' is correct. Architecture (flow-matching generators Woosh-Flow/DFlow + CLAP-style Woosh-CLAP text-audio alignment + Woosh-AE neural codec, with distilled fast T2A/V2A variants) is confirmed. Authors: Hadjeres, Ferras, Koutini, Weck, Bittar, Hummel, Lahrichi, Missoum, Serrà, Mitsufuji (Sony). Only the month is wrong."
+          },
+          {
+            "model": "Apollo (Band-Sequence Audio Restoration)",
+            "exists": true,
+            "overall": "confirmed",
+            "currency": "current",
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "specs_note": "min_vram_gb:4 plausible for restoration/super-resolution inference; well under 32GB.",
+            "note": "JusperLee/Apollo confirmed. License CC BY-SA 4.0 verified (badge + text in repo). Authors Kai Li & Yi Luo (Tsinghua / Tencent AI Lab). Purpose (lossy/MP3 restoration, mid/high-freq reconstruction via frequency band-split + band-sequence modeling + band reconstruction) matches. commercial_use:'conditional' is the right call for CC BY-SA 4.0 (commercial allowed but copyleft ShareAlike attaches — a real constraint for proprietary game builds). Evaluated on MUSDB18-HQ / MoisesDB. MVSep Apollo super-resolution variants exist. Solid."
+          },
+          {
+            "model": "ThinkSound (multimodal V2A / foley, with PrismAudio successor)",
+            "exists": true,
+            "overall": "confirmed",
+            "currency": "current",
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "specs_note": "min_vram_gb:8 plausible for a ~1.3B DiT V2A model; fits 32GB.",
+            "note": "FunAudioLLM/ThinkSound confirmed. The 'Apache-2.0 code BUT research/education only — commercial use NOT permitted; bundled Stability AI VAE needs separate permission' framing is ACCURATE and well-caught (double-gated: project license restricts to research/education + Stable Audio Open VAE requires Stability AI permission). commercial_use:'no' correct. Multimodal DiT + CoT (MLLM-guided) arch + Stable Audio VAE dependency confirmed. PrismAudio successor CONFIRMED: released 2026-03-24 (item says 2026-03 — correct), lives on the 'prismaudio' branch of the same repo (arXiv:2511.18833), smaller (518M vs 1.3B) and faster, adds RL + decomposed CoT. Minor: ThinkSound venue is NeurIPS 2025 (one source said ICLR 2026 — not load-bearing). No fixes needed."
+          }
+        ],
+        "missing": [
+          {
+            "name": "Demucs / Hybrid Transformer Demucs (htdemucs) — Meta/Adefossez",
+            "url": "https://github.com/adefossez/demucs",
+            "why": "The whole slice is framed as 'post-Demucs' and 'supersedes Hybrid Demucs', yet the actual Demucs/HT-Demucs baseline is never listed. It remains the MIT-licensed, genuinely commercial-safe 4-stem workhorse (and the only commercial-safe option here once the KimberleyJSN MIT claim collapses). Its absence leaves the slice with NO confirmed commercial-safe stem separator."
+          },
+          {
+            "name": "MVSep / UVR5 (Ultimate Vocal Remover GUI)",
+            "url": "https://github.com/Anjok07/ultimatevocalremovergui",
+            "why": "UVR5 is the dominant end-user front-end for running RoFormer/MDX/Demucs checkpoints (and the source of most 'MDX/Demucs models' the ComfyUI nodes wrap). For practical stem-extraction workflows it is a must-have peer to the MSST CLI; the slice lists only ComfyUI nodes + MSST."
+          },
+          {
+            "name": "SCNet / SCNet-large (ZFTurbo MSST-supported, high-SDR multi-stem)",
+            "url": "https://github.com/starrytong/SCNet",
+            "why": "SCNet is a current top-of-leaderboard multi-stem separator on the same MSST toolkit and is a natural 'round out' item for 4-stem separation alongside the RoFormer family; omitting it leaves the multi-stem (bass/drums) story thin since both listed RoFormers are framed mainly around vocals."
+          }
+        ],
+        "summary": "Verified all 5 models + 6 extras via WebFetch + GitHub API + paper sources. Three CONFIRMED clean (BS-RoFormer, Apollo, ThinkSound — license framings all accurate, PrismAudio successor verified at 2026-03-24). Two CONFIRMED-WITH-FIXES. (1) Mel-Band RoFormer item: architecture/SOTA/SDR claims are solid (Wang-Lu-Won ISMIR 2023 arXiv:2310.01809; MSST leaderboard shows KimberleyJensen vocals SDR 10.98 = highest listed), BUT the load-bearing license claim is REFUTED — GitHub API reports license:null, /license 404s, repo root has NO LICENSE file, and last push was 2025-01-12, making the 'relicensed to MIT 2026-04-22' story impossible. The KimberleyJSN weights are unlicensed = all-rights-reserved = NOT commercial-safe; commercial_use must drop from 'yes' to 'no'/'unverified' and the 'MIT commercial-safe pick for game VO' thesis must be deleted. (2) Woosh: real and license-accurate (code MIT, V2A Apache-2.0, weights CC-BY-NC non-commercial), but release date is March 2026 (v1.0.0 = 2026-03-16), not April. All 6 extras exist EXCEPT note: set-soft/AudioSeparation is GPL-3.0 and supports MDX/Demucs (NOT RoFormer, despite the slice grouping it under RoFormer wrappers); christian-byrne nodes are Hybrid-Demucs-based, not RoFormer. Top missing must-have: Demucs/HT-Demucs itself — the only genuinely MIT commercial-safe separator, and absent, which is glaring once the KimberleyJSN MIT claim falls."
+      }
+    },
+    {
+      "slug": "caption",
+      "name": "Captioning & tagging (round out)",
+      "research": {
+        "domain": "captioning/tagging",
+        "notes": "WAVE 3 narrow rounding pass for the captioning/tagging lane. Did NOT re-list the already-cataloged JoyCaption Beta One, WD EVA02-Large v3, MiniCPM-V 4.5, InternVL3.5-8B, or Florence-2. Added the two requested WD v3 family members (SwinV2 + ConvNeXt — both confirmed distinct architectures, both Apache-2.0, both Danbooru cutoff 2024-02-28), CapRL-InternVL3.5-8B (confirmed real downloadable weights at internlm/CapRL-InternVL3.5-8B, weights license Apache-2.0; verified the 8B base uses Qwen3 which is ALSO Apache-2.0, so no Qwen-license inheritance — fully commercial-safe; note the training DATASET CapRL-2M/QA-75K is CC-BY-NC-4.0 but a data license does not bind users of the released weights or the captions they generate), and one genuinely-new strong 2025 entrant: Camie-Tagger v2 (143M ViT, 70,527 tags vs ~10k for WD — much broader vocab including artist/copyright/character; license is GPL-3.0, which is the one license caveat in this lane). LICENSE AXIS (decisive for both uses):\n- WD SwinV2 v3 + WD ConvNeXt v3 + CapRL-InternVL3.5-8B = Apache-2.0 → unambiguously commercial-safe for game-asset tagging AND marketing. These are tools that LABEL your images; their output (tags/captions) is not a derivative work of the model, so even setting aside the permissive license, using them to caption a training set for a commercial LoRA carries no licensing encumbrance.\n- Camie-Tagger v2 = GPL-3.0 (copyleft). Important nuance: GPL obligations attach to redistributing/modifying the MODEL, not to the tag output. Running it as an inference tool to caption your own dataset does not make the dataset or resulting LoRA a GPL derivative (mere output is not a derivative work under GPL). So it remains practically commercial-safe AS A TAGGING TOOL — flagged 'conditional' only to be honest about the copyleft on the weights themselves should the user bundle/redistribute the model. This is why commercial_use is set to 'conditional' for it and 'yes' for the Apache trio. THROUGHPUT on RTX 5090 / 32 GB (all fit easily):\n- WD v3 taggers (SwinV2 98M / ConvNeXt 98.7M, ONNX or timm): classifier-style, <2 GB VRAM, batched throughput in the hundreds of images/sec. Booru-tag output (rating + character + general) — the canonical SDXL/Illustrious/NoobAI/Pony prompt-style tagging.\n- Camie-Tagger v2 (143M ViT): <2 GB VRAM, fast batched inference; its 70k-tag vocabulary is the reason to reach for it over WD when you need fine-grained artist/copyright/meta tags for an Illustrious or NoobAI LoRA.\n- CapRL-InternVL3.5-8B: full 8B VLM, ~9 GB weights at BF16 (model card states ~9 GB) + KV cache; runs comfortably on 32 GB via vLLM (--gpu_memory_utilization=0.95). This is the PROSE/dense-caption specialist (fine-grained objects, attributes, OCR, relations, events) — the right tool for Flux/Qwen-Image LoRAs that train on natural-language captions rather than booru tags. ICLR 2026 paper; captioning quality reported to beat Qwen2.5-VL-72B at 8B. best_for split per the lane brief: WD SwinV2/ConvNeXt v3 + Camie v2 → booru tagging for SDXL/Illustrious LoRAs (use-tag game-asset). CapRL → prose captioning for Flux/Qwen LoRAs (use-tag both — also strong for marketing alt-text / product descriptions). WD ConvNeXt is the slightly lower-F1 sibling of SwinV2 (0.4419 vs 0.4541 macro-F1) — kept as a distinct row per the brief; in practice WD-EVA02-Large v3 (already cataloged) > SwinV2 ≈ ViT-Large > ConvNeXt within the family, so ConvNeXt is 'situational' (ensemble / second-opinion tagging) while SwinV2 is the recommended mid-tier WD default.",
+        "models": [
+          {
+            "name": "WD SwinV2 Tagger v3",
+            "slug": "wd-swinv2-tagger-v3",
+            "developer": "SmilingWolf",
+            "base_arch": "SwinV2 (Shifted-Window Transformer V2), timm-compatible",
+            "params": "98M",
+            "summary": "The SwinV2 member of SmilingWolf's WD v3 booru-tagger family. A pure multi-label classifier (rating + character + general tags) trained on Danbooru through 2024-02-28, macro-F1 0.4541. This is the canonical 'WD tagger' workhorse for generating booru-style prompt strings to auto-caption SDXL / Illustrious / NoobAI / Pony LoRA datasets. Tiny, batched ONNX inference runs at hundreds of images/sec and well under 2 GB VRAM on a 5090. Apache-2.0 = unambiguously commercial-safe; tag output is not a derivative work.",
+            "license": "Apache-2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "Apache-2.0 weights; permissive commercial use. As a labeling tool, its tag output carries no licensing encumbrance on your dataset or resulting LoRA. Note tags reflect Danbooru content up to 2024-02-28 (no newer characters/concepts).",
+            "repo_url": "https://huggingface.co/SmilingWolf/wd-swinv2-tagger-v3",
+            "release_date": "2024",
+            "quality_tier": "strong",
+            "status": "recommended",
+            "min_vram_gb": 1,
+            "recommended_vram_gb": 2,
+            "disk_size_gb": 0.4,
+            "runs_on_32gb": true,
+            "game_asset_fit": 5,
+            "marketing_fit": 2,
+            "speed_note": "Classifier-style ONNX/timm model; batched throughput in the hundreds of images/sec, <2 GB VRAM. Effectively free to run at scale on a 5090.",
+            "best_for": [
+              {
+                "purpose": "Booru-tag auto-captioning of SDXL / Illustrious / NoobAI / Pony LoRA training sets (rating + character + general tags)",
+                "fitness": 5,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "Bulk tag indexing / dedup-by-tag of a large reference-image library",
+                "fitness": 4,
+                "use_tag": "both"
+              },
+              {
+                "purpose": "Prose / natural-language captioning",
+                "fitness": 1,
+                "use_tag": "marketing"
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://huggingface.co/SmilingWolf/wd-swinv2-tagger-v3",
+                "claim": "License Apache-2.0; SwinV2 arch, 98M params, F32 safetensors+ONNX; macro-F1 0.4541 at threshold 0.2653; trained on Danbooru with tags up-to-date as of 2024-02-28; supports rating/character/general tags; ONNX batch dimension unfixed for batch inference.",
+                "kind": "model_card",
+                "title": "SmilingWolf/wd-swinv2-tagger-v3"
+              }
+            ]
+          },
+          {
+            "name": "WD ConvNeXt Tagger v3",
+            "slug": "wd-convnext-tagger-v3",
+            "developer": "SmilingWolf",
+            "base_arch": "ConvNeXt (CNN), timm-compatible",
+            "params": "98.7M",
+            "summary": "The ConvNeXt-architecture sibling in the WD v3 family — a distinct model from the SwinV2 and ViT v3 variants, same Danbooru-2024-02-28 training data and same rating/character/general tag schema, but a CNN backbone. Slightly lower macro-F1 than SwinV2 (0.4419 vs 0.4541). Its value is as a second-opinion / ensemble tagger: blending ConvNeXt + SwinV2 + ViT-Large logits is a known trick for higher-recall booru tagging. Apache-2.0, <2 GB VRAM, commercial-safe. On its own it's the weakest of the v3 family, so it's situational rather than a primary pick.",
+            "license": "Apache-2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "Apache-2.0 weights; commercial use permitted. Distinct ConvNeXt arch (not the SwinV2 or ViT row). Same 2024-02-28 tag cutoff.",
+            "repo_url": "https://huggingface.co/SmilingWolf/wd-convnext-tagger-v3",
+            "release_date": "2024",
+            "quality_tier": "solid",
+            "status": "situational",
+            "min_vram_gb": 1,
+            "recommended_vram_gb": 2,
+            "disk_size_gb": 0.4,
+            "runs_on_32gb": true,
+            "game_asset_fit": 4,
+            "marketing_fit": 2,
+            "speed_note": "Same class as the other WD v3 taggers: hundreds of images/sec batched, <2 GB VRAM. ConvNeXt CNN can be marginally faster on some hardware than the Swin attention path.",
+            "best_for": [
+              {
+                "purpose": "Ensemble / second-opinion booru tagging (blend logits with SwinV2 + ViT-Large for higher recall on SDXL/Illustrious sets)",
+                "fitness": 4,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "Primary standalone booru tagger (prefer SwinV2 or WD-EVA02-Large v3 instead — higher F1)",
+                "fitness": 3,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "Prose captioning",
+                "fitness": 1,
+                "use_tag": "marketing"
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://huggingface.co/SmilingWolf/wd-convnext-tagger-v3",
+                "claim": "License Apache-2.0; ConvNeXt architecture (distinct from SwinV2 v3 and ViT v3), 98.7M params, F32; macro-F1 0.4419 at threshold 0.2682 (v1.0 was 0.4282); Danbooru training cutoff 2024-02-28; safetensors + ONNX + timm.",
+                "kind": "model_card",
+                "title": "SmilingWolf/wd-convnext-tagger-v3"
+              }
+            ]
+          },
+          {
+            "name": "Camie-Tagger v2",
+            "slug": "camie-tagger-v2",
+            "developer": "Camais03",
+            "base_arch": "Vision Transformer backbone (86.4M) + cross-attention refined-prediction head",
+            "params": "143M",
+            "summary": "A genuinely-new (2025) booru tagger that meaningfully out-scopes the WD family: 70,527 supported tags (vs ~10k for WD), spanning general (30.8k), character (27k), copyright (5.4k), artist (7k), meta, rating and year. Trained on a filtered Danbooru-2024 subset, micro-F1 67.3% / macro-F1 50.6% — both above the WD v3 numbers, partly because many counted 'false positives' are actually correct tags missing from Danbooru ground truth. v2 switched to a ViT backbone and cut params 66% (424M->143M) while improving accuracy. The reach-for-it case is fine-grained artist/copyright/character tagging on Illustrious / NoobAI LoRA sets where WD's vocabulary runs out. The one caveat in this lane: weights are GPL-3.0 (copyleft), so it's 'conditional' rather than cleanly permissive.",
+            "license": "GPL-3.0",
+            "commercial_use": "conditional",
+            "commercial_notes": "Weights are GPL-3.0 (copyleft). The copyleft obligation attaches to redistributing or modifying the MODEL, not to its tag output — running it as an inference tool to caption your own images does not make the dataset or the trained LoRA a GPL derivative (mere program output is not a derivative work). So it is practically safe for commercial game-asset tagging; the 'conditional' flag exists only because bundling/shipping/modifying the weights themselves would trigger GPL obligations.",
+            "repo_url": "https://huggingface.co/Camais03/camie-tagger-v2",
+            "release_date": "2025",
+            "quality_tier": "strong",
+            "status": "recommended",
+            "min_vram_gb": 1,
+            "recommended_vram_gb": 2,
+            "disk_size_gb": 0.6,
+            "runs_on_32gb": true,
+            "game_asset_fit": 4,
+            "marketing_fit": 2,
+            "speed_note": "143M ViT with gradient-checkpointing support; <2 GB VRAM, fast batched inference. safetensors + ONNX. Heavier tag head than WD but still classifier-speed (well under a second/image batched).",
+            "best_for": [
+              {
+                "purpose": "Fine-grained booru tagging for Illustrious/NoobAI LoRAs where WD's ~10k vocab is too coarse (needs artist/copyright/character breadth — 70k tags)",
+                "fitness": 5,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "High-recall tag indexing of a large anime/illustration reference library",
+                "fitness": 4,
+                "use_tag": "both"
+              },
+              {
+                "purpose": "Commercial pipeline where you must redistribute the tagger weights (GPL-3.0 copyleft applies)",
+                "fitness": 2,
+                "use_tag": "game-asset"
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://huggingface.co/Camais03/camie-tagger-v2",
+                "claim": "License GPL-3.0; 143M params (ViT backbone 86.4M + cross-attention head, 66% smaller than v1's 424M); 70,527 tags (general 30,841 / character 26,968 / copyright 5,364 / artist 7,007 / meta 323 / rating 4 / year 20); micro-F1 67.3% (thr 0.614), macro-F1 50.6% (thr 0.492); trained on filtered Danbooru-2024; safetensors + ONNX.",
+                "kind": "model_card",
+                "title": "Camais03/camie-tagger-v2"
+              },
+              {
+                "url": "https://www.aimodels.fyi/models/huggingFace/camie-tagger-v2-camais03",
+                "claim": "Camie-tagger-v2 reaches 67.3% micro-F1 and 50.6% macro-F1 over 70,527 tags on a 20,116-sample test set, a large jump from the original camie-tagger's 58.1% micro-F1; many 'false positives' are correct tags missing from the Danbooru ground truth.",
+                "kind": "third_party",
+                "title": "camie-tagger-v2 | AI Model Details"
+              }
+            ]
+          },
+          {
+            "name": "CapRL-InternVL3.5-8B",
+            "slug": "caprl-internvl3-5-8b",
+            "developer": "InternLM (Shanghai AI Lab / OpenGVLab)",
+            "base_arch": "InternVL3.5-8B (ViT vision encoder + Qwen3 LLM), RLVR-tuned",
+            "params": "8B",
+            "summary": "An RL-tuned dense-caption specialist and a strong genuinely-new (Oct 2025) addition to this lane. CapRL is the first application of Reinforcement Learning with Verifiable Rewards to open-ended captioning: captions are rewarded by how well a text-only model can answer visual questions using ONLY the generated caption, which pushes the model toward comprehensive, low-hallucination, structured prose (fine-grained objects, attributes, OCR, relations, events). Built on InternVL3.5-8B as policy; reported to beat Qwen2.5-VL-72B on captioning quality at 8B. This is the PROSE/natural-language captioner for Flux / Qwen-Image LoRA datasets (and excellent for marketing alt-text and product descriptions) — the complement to the WD/Camie booru taggers. ICLR 2026 paper. Confirmed downloadable safetensors at internlm/CapRL-InternVL3.5-8B.",
+            "license": "Apache-2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "Model WEIGHTS are Apache-2.0 (verified: the InternVL3.5-8B base uses Qwen3, also Apache-2.0, so there is NO Qwen-license inheritance problem on this variant — unlike Qwen2.5-based models). Fully commercial-safe for both game-asset captioning and marketing. Caveat to note: the CapRL training datasets (CapRL-2M, CapRL-QA-75K) are CC-BY-NC-4.0, but a dataset license does not bind users of the released weights or the captions you generate — only someone re-training on those specific datasets is affected.",
+            "repo_url": "https://huggingface.co/internlm/CapRL-InternVL3.5-8B",
+            "release_date": "2025-10-15",
+            "quality_tier": "strong",
+            "status": "recommended",
+            "min_vram_gb": 18,
+            "recommended_vram_gb": 24,
+            "disk_size_gb": 9,
+            "runs_on_32gb": true,
+            "game_asset_fit": 4,
+            "marketing_fit": 5,
+            "speed_note": "Full 8B VLM, ~9 GB weights at BF16 + KV cache; runs comfortably on the 5090's 32 GB via vLLM (--gpu_memory_utilization=0.95). Prose-caption throughput is on the order of ~1-3 s/image (VLM generation, not classifier-speed) — slower than the taggers but vLLM batching helps for dataset-scale jobs.",
+            "best_for": [
+              {
+                "purpose": "Dense prose captioning for Flux / Qwen-Image / SD3-style LoRAs that train on natural-language captions (not booru tags)",
+                "fitness": 5,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "Marketing alt-text, product descriptions, detailed image descriptions with OCR + structured detail",
+                "fitness": 5,
+                "use_tag": "marketing"
+              },
+              {
+                "purpose": "Booru-tag string output for SDXL/Illustrious (wrong tool — use WD or Camie for tags)",
+                "fitness": 1,
+                "use_tag": "game-asset"
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://huggingface.co/internlm/CapRL-InternVL3.5-8B",
+                "claim": "Released 2025-10-15; weights license apache-2.0; ~8B params, ~9 GB BF16 safetensors; built on OpenGVLab/InternVL3.5-8B as policy model via CapRL (RLVR) training; image-captioning capability outperforms Qwen2.5-VL-72B; vLLM recommended for inference; produces structured dense captions (objects, attributes, OCR, relations, events).",
+                "kind": "model_card",
+                "title": "internlm/CapRL-InternVL3.5-8B"
+              },
+              {
+                "url": "https://github.com/InternLM/CapRL",
+                "claim": "CapRL = Reinforcement Learning with Verifiable Rewards for image/video captioning (reward = whether a text-only model can answer VQA from the caption alone); accepted at ICLR 2026; code Apache-2.0 while the training DATASET is CC-BY-NC-4.0; designed for dense/structured captioning.",
+                "kind": "repo",
+                "title": "InternLM/CapRL (ICLR 2026)"
+              },
+              {
+                "url": "https://huggingface.co/OpenGVLab/InternVL3_5-8B",
+                "claim": "InternVL3.5-8B is released under apache-2.0 and uses pre-trained Qwen3 (also apache-2.0) as its LLM component, so there is no conflicting/non-permissive base-LLM license to inherit.",
+                "kind": "model_card",
+                "title": "OpenGVLab/InternVL3_5-8B (base license verification)"
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "domain": "Captioning & tagging (round out)",
+        "verdicts": [
+          {
+            "model": "WD SwinV2 Tagger v3",
+            "overall": "confirmed",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "note": "Page resolves. License apache-2.0 confirmed. SwinV2/timm-compatible confirmed. Danbooru tags up to 2024-02-28 confirmed. Macro-F1 0.4541 (v2.0, threshold 0.2653) is an EXACT match to the model card. Safetensors (98M params) + ONNX + JAX downloadable; requires onnxruntime>=1.17.0. ~423k downloads/month — the canonical, actively-used WD v3 tagger. min_vram_gb=1 is plausible for a 98M classifier (summary's '<2 GB' also fine)."
+          },
+          {
+            "model": "WD ConvNeXt Tagger v3",
+            "overall": "confirmed",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "note": "Page resolves. License apache-2.0 confirmed. ConvNeXt/timm-compatible confirmed. Same Danbooru-2024-02-28 data confirmed. Macro-F1 0.4419 (v2.0) vs SwinV2 0.4541 — both EXACT matches; the 'weakest of the family / ensemble second-opinion' framing is fair. 98.7M params, safetensors+ONNX+JAX. The ViT-Large v3 sibling cited in the summary is also real (verified: macro-F1 0.4674, apache-2.0, 0.3B params)."
+          },
+          {
+            "model": "Camie-Tagger v2",
+            "overall": "confirmed",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "note": "Page resolves. License GPL-3.0 confirmed — summary correctly flags copyleft as 'conditional', which is the right call for a commercial-use field. ViT backbone 86.4M / 143M total confirmed. 70,527 tags confirmed with exact category breakdown (general 30,841; character 26,968; copyright 5,364; artist 7,007; meta 323; rating 4; year 20). Micro-F1 67.3% / macro-F1 50.6% are EXACT matches (test set 20,116 samples). Trained on p1atdev/danbooru-2024 (2M-image subset). VERIFIED the '424M->143M, 66% cut, switched to ViT' claim against the v1 page: v1 used EfficientNetV2-L (CNN), refined model 424M — so 'switched to a ViT backbone' is accurate. Caveat the summary already self-discloses: its F1>WD comparison spans different test sets and a ~7x larger vocabulary, so the numbers are not directly comparable; the summary's own hedge ('partly because many counted false positives are actually correct tags missing from ground truth') is honest."
+          },
+          {
+            "model": "CapRL-InternVL3.5-8B",
+            "overall": "confirmed",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "note": "Page resolves. License apache-2.0 confirmed. Built on InternVL3.5-8B (ViT vision encoder + Qwen3 LLM) as policy — confirmed. First RLVR application to open-ended captioning (decoupled two-stage: caption -> vision-free LLM answers MCQs -> accuracy = reward) — confirmed. Released 10/15/2025; safetensors downloadable. ICLR 2026 CONFIRMED via two independent official sources: the GitHub repo InternLM/CapRL title literally reads '[ICLR 2026] An official implementation...' and an ICLR 2026 poster page exists (iclr.cc/virtual/2026/poster/10010207). IMPORTANT nuance: the arXiv 2509.22647 abstract alone does NOT state ICLR acceptance and frames results as 'comparable to Qwen2.5-VL-72B (+8.4% over baseline)' rather than 'outperforms' — the 'beats Qwen2.5-VL-72B' claim is the vendor's model-card/repo wording, faithfully relayed as 'reported'. 18 GB VRAM for an 8B VLM is plausible on 32 GB (bf16 ~16GB weights + activations). Authors: Long Xing, Xiaoyi Dong, Yuhang Zang, Yuhang Cao, Jianze Liang, Qidong Huang, Jiaqi Wang, Feng Wu, Dahua Lin."
+          }
+        ],
+        "missing": [
+          {
+            "name": "WD EVA02-Large Tagger v3",
+            "url": "https://huggingface.co/SmilingWolf/wd-eva02-large-tagger-v3",
+            "why": "The highest-accuracy member of the WD v3 family (macro-F1 ~0.4772, the top of the family above ViT-Large's 0.4674). The summary names SwinV2, ConvNeXt and 'ViT-Large' for ensembling but omits the actual best single WD v3 model, which is the stronger primary pick for quality-first booru tagging."
+          },
+          {
+            "name": "JoyCaption (Beta One / Alpha Two)",
+            "url": "https://huggingface.co/fancyfeast/llama-joycaption-beta-one-hf-llava",
+            "why": "The de-facto community standard free, uncensored natural-language captioner for SDXL/Flux LoRA datasets — arguably more widely used in the exact dataset-captioning lane than CapRL. A round-out of the prose-captioner side of this domain is incomplete without it."
+          },
+          {
+            "name": "Florence-2 (large / large-ft)",
+            "url": "https://huggingface.co/microsoft/Florence-2-large",
+            "why": "MIT-licensed, ~0.77B, the lightweight prose/region-caption workhorse (<2 GB) baked into comfy/kohya captioning toolchains. Sits between the booru taggers and the heavy 8B CapRL as the cheap, fully-permissive dense-caption option this domain should cover."
+          }
+        ],
+        "summary": "All four models verified as real with correct licenses and plausible specs for a 32 GB rig; all four return overall=confirmed. The two WD v3 taggers (SwinV2 macro-F1 0.4541, ConvNeXt 0.4419) match their cards exactly, license apache-2.0 confirmed, both small/current (SwinV2 ~423k downloads/month). Camie-Tagger v2 confirmed: GPL-3.0 (correctly flagged 'conditional'), 70,527 tags with exact category breakdown, micro-F1 67.3%/macro-F1 50.6% exact, and the 'v1 EfficientNetV2 424M -> v2 ViT 143M' lineage claim verified against the v1 page. CapRL-InternVL3.5-8B confirmed including its ICLR 2026 acceptance (verified via the official GitHub repo title AND an iclr.cc poster page — notably the arXiv abstract alone does NOT state this, so the researcher reached past arXiv correctly). Two soft cautions, neither rising to a fix: (1) Camie's 'F1 above WD' is an apples-to-oranges comparison across different test sets and a ~7x larger vocabulary — but the summary already self-discloses this honestly; (2) CapRL's 'beats Qwen2.5-VL-72B' is the vendor's model-card wording (the paper abstract says 'comparable, +8.4% over baseline'), relayed faithfully as 'reported'. Top omission across the domain: the WD EVA02-Large v3 tagger, which is the actual highest-accuracy WD v3 model (macro-F1 ~0.477) yet is absent from the family roundup, plus JoyCaption and Florence-2 on the prose-captioner side."
+      }
+    },
+    {
+      "slug": "video",
+      "name": "Video — remaining Wan family (round out)",
+      "research": {
+        "domain": "video",
+        "models": [
+          {
+            "name": "Wan2.2-S2V-14B",
+            "slug": "wan2-2-s2v-14b",
+            "developer": "Alibaba (Wan-AI / Tongyi Lab)",
+            "base_arch": "Wan2.2 MoE diffusion (audio-driven / speech-to-video)",
+            "params": "14B active (~27B total MoE)",
+            "release_date": "2025-08-26",
+            "license": "Apache-2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "Official Wan-AI card states License: apache-2.0 — fully permissive, no field-of-use or output restrictions. Safe for commercial game cutscenes and marketing.",
+            "min_vram_gb": 12,
+            "recommended_vram_gb": 24,
+            "disk_size_gb": 19.6,
+            "runs_on_32gb": true,
+            "quality_tier": "strong",
+            "status": "recommended",
+            "game_asset_fit": 4,
+            "marketing_fit": 4,
+            "speed_note": "Full-precision single-GPU inference officially needs ~80GB VRAM, but the QuantStack GGUF quants run comfortably on a 5090: Q8_0 = 19.6GB, Q6_K = 16.2GB, Q4_K_M = 13.9GB, down to Q2_K = 9.51GB. Needs umt5-xxl text encoder, wav2vec2-large audio encoder, and Wan2.1 VAE alongside.",
+            "summary": "Official audio/speech-to-video member of the Wan 2.2 family — generates lip-synced, expressive cinematic video from an audio clip + reference image (+ optional pose driving). The missing piece for character cutscenes and talking-head dialogue: feed recorded VO and a character portrait, get a performing shot. License is Apache-2.0 (commercial-safe). Full FP16 wants ~80GB on one GPU, but city96/QuantStack GGUF quants drop it to ~10-20GB, putting Q8 (19.6GB) and below well within 32GB on the RTX 5090. ComfyUI runs it today via the ComfyUI-GGUF node (native non-GGUF integration was still on the official todo list as of the card); requires umt5-xxl encoder + wav2vec2 audio encoder + Wan2.1 VAE.",
+            "best_for": [
+              {
+                "purpose": "Character dialogue / cutscene shots from recorded voice-over + portrait (lip-sync)",
+                "fitness": 5,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "Talking-head and narrated marketing / explainer clips",
+                "fitness": 4,
+                "use_tag": "marketing"
+              },
+              {
+                "purpose": "Pose-driven performance capture into video",
+                "fitness": 3,
+                "use_tag": "both"
+              }
+            ],
+            "repo_url": "https://huggingface.co/Wan-AI/Wan2.2-S2V-14B",
+            "sources": [
+              {
+                "url": "https://huggingface.co/Wan-AI/Wan2.2-S2V-14B",
+                "title": "Wan-AI/Wan2.2-S2V-14B model card",
+                "claim": "License: apache-2.0; audio-driven cinematic video generation (Wan-S2V), 14B active params MoE (~27B total), released Aug 26 2025; full single-GPU inference needs >=80GB VRAM; Diffusers integration done, ComfyUI integration listed as todo.",
+                "kind": "model-card"
+              },
+              {
+                "url": "https://huggingface.co/QuantStack/Wan2.2-S2V-14B-GGUF",
+                "title": "QuantStack/Wan2.2-S2V-14B-GGUF",
+                "claim": "Apache-2.0 GGUF quants for ComfyUI-GGUF (city96): Q8_0 19.6GB, Q6_K 16.2GB, Q4_K_M 13.9GB, Q2_K 9.51GB; requires umt5-xxl text encoder, wav2vec2-large audio encoder, Wan2.1 VAE.",
+                "kind": "model-card"
+              }
+            ]
+          },
+          {
+            "name": "Wan2.2-VACE-Fun-A14B",
+            "slug": "wan2-2-vace-fun-a14b",
+            "developer": "Alibaba PAI (VideoX-Fun team)",
+            "base_arch": "Wan2.2 MoE (A14B), finetuned from Wan2.2-I2V-A14B + VACE editing scheme",
+            "params": "14B (A14B)",
+            "release_date": "2025-09",
+            "license": "Apache-2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "alibaba-pai README_en states the project is licensed under Apache License 2.0. Commercial-safe; same permissive terms as the rest of the Wan 2.2 family.",
+            "min_vram_gb": 12,
+            "recommended_vram_gb": 24,
+            "disk_size_gb": 15.4,
+            "runs_on_32gb": true,
+            "quality_tier": "strong",
+            "status": "recommended",
+            "game_asset_fit": 5,
+            "marketing_fit": 3,
+            "speed_note": "Full FP16 repo is ~64GB on disk, but QuantStack GGUF (Wan2.2-Fun-A14B-Control-GGUF) runs in ComfyUI-GGUF: Q8_0 = 15.4GB, Q6_K = 12GB, Q4_K_S = 8.76GB, Q2_K = 5.31GB. CPU-offload modes (model_cpu_offload, qfloat8, sequential) let even FP16 run on 12-24GB cards. Tested on RTX 3060 12G / 3090 24G.",
+            "summary": "Official VACE-on-Wan2.2 video editing + control model from Alibaba PAI's VideoX-Fun line. Adds the VACE 'all-in-one' editing scheme (reference-image-driven generation, subject preservation) plus multi-condition ControlNet-style guidance — Canny, Depth, Pose, MLSD, and trajectory control — on top of the Wan 2.2 A14B backbone. This is the control/editing complement to Wan 2.2: take a control signal (pose skeleton, depth, edge map, motion trajectory, or reference subject) and drive 81-frame 16fps clips at 512/768/1024. Apache-2.0 (commercial-safe). Full weights are ~64GB but QuantStack GGUF quants land at 5-15GB (Q8 = 15.4GB) for ComfyUI-GGUF, and CPU-offload modes run the native model on 12-24GB cards — trivially fine on a 5090. First-class ComfyUI integration via VideoX-Fun (weights to ComfyUI/models/Fun_Models/).",
+            "best_for": [
+              {
+                "purpose": "Pose/depth/canny-controlled video for consistent character motion and reshoots",
+                "fitness": 5,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "Reference-subject-driven editing (keep a character/prop consistent across a shot)",
+                "fitness": 5,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "Trajectory / camera-motion controlled marketing b-roll",
+                "fitness": 3,
+                "use_tag": "marketing"
+              }
+            ],
+            "repo_url": "https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B",
+            "sources": [
+              {
+                "url": "https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B/blob/main/README_en.md",
+                "title": "alibaba-pai/Wan2.2-VACE-Fun-A14B README_en",
+                "claim": "Licensed under Apache License 2.0; VACE video control/generation supporting Canny/Depth/Pose/MLSD/trajectory + reference images; 81-frame 16fps at 512/768/1024; ~64GB weights; CPU-offload modes; tested RTX 3060 12G / 3090 24G; ComfyUI integration via VideoX-Fun (ComfyUI/models/Fun_Models/).",
+                "kind": "model-card"
+              },
+              {
+                "url": "https://huggingface.co/QuantStack/Wan2.2-Fun-A14B-Control-GGUF",
+                "title": "QuantStack/Wan2.2-Fun-A14B-Control-GGUF",
+                "claim": "Apache-2.0 GGUF of alibaba-pai Wan2.2 Fun control model for ComfyUI-GGUF: Q8_0 15.4GB, Q6_K 12GB, Q4_K_S 8.76GB, Q2_K 5.31GB; finetuned from Wan-AI/Wan2.2-I2V-A14B; needs umt5-xxl + Wan2.1 VAE.",
+                "kind": "model-card"
+              }
+            ]
+          },
+          {
+            "name": "Phr00t/WAN2.2-14B-Rapid-AllInOne",
+            "slug": "phr00t-wan2-2-14b-rapid-allinone",
+            "developer": "Phr00t (community merge)",
+            "base_arch": "Merged Wan2.2 A14B (low-noise expert) + VAE + text encoder + acceleration LoRAs (Lightx2v / Lightning / rCM / VACE), single-file checkpoint",
+            "params": "14B (single-file all-in-one)",
+            "release_date": "2025",
+            "license": "Apache-2.0",
+            "commercial_use": "conditional",
+            "commercial_notes": "Repo is tagged apache-2.0 and the Wan2.2 base + most listed accelerators (Lightx2v, Lightning, rCM, VACE) are themselves Apache-2.0, so the merge is plausibly commercial-clean for the SFW variants. BUT this is a multi-component merge whose card does NOT enumerate every merged component's license, and the NSFW/'Mega' variants fold in third-party LoRAs (eddy1111111/WAN22.XX_Palingenesis, SkyReels, FunReward, community LoRAs) of unverified license. The Apache-2.0 tag covers the repo, not necessarily every merged weight. For commercial game/marketing work, prefer the official Apache-2.0 Wan 2.2 models; treat this as conditional and avoid the NSFW/Mega merges unless you audit each merged LoRA.",
+            "min_vram_gb": 8,
+            "recommended_vram_gb": 16,
+            "disk_size_gb": 16,
+            "runs_on_32gb": true,
+            "quality_tier": "solid",
+            "status": "situational",
+            "game_asset_fit": 2,
+            "marketing_fit": 3,
+            "speed_note": "Designed for 1 CFG + 4 steps — very fast (the whole point of the merge). Runs on as little as 8GB VRAM per the author. Single safetensors loads via ComfyUI's standard Load Checkpoint node (VAE + CLIP baked in). Author lists FP8 base and bf16 Mega v12+ variants.",
+            "summary": "Popular community convenience merge that bakes Wan 2.2 (A14B low-noise expert) + VAE + text encoder + speed LoRAs (Lightx2v, Wan2.2 Lightning, rCM, VACE) into one safetensors that loads via ComfyUI's plain Load Checkpoint node and generates at 1 CFG / 4 steps on as little as 8GB VRAM. Genuinely handy for fast local I2V/T2V iteration. Provenance honesty: the author (Phr00t) has marked it DEPRECATED ('I do not maintain this anymore'), it is built on Wan-AI/Wan2.2-I2V-A14B, and the 'Mega' versions pull in eddy1111111/WAN22.XX_Palingenesis plus assorted community/NSFW LoRAs. License is tagged Apache-2.0, which is consistent with the Wan base and the named accelerators, but the card does not enumerate every merged component's license — so for COMMERCIAL game-asset or marketing use treat it as conditional and use the official Wan 2.2 + GGUF route instead; reserve this merge for fast non-shipping prototyping, and avoid the NSFW/Mega builds for any commercial pipeline.",
+            "best_for": [
+              {
+                "purpose": "Fast local I2V/T2V prototyping and iteration (4-step) before committing to official models",
+                "fitness": 4,
+                "use_tag": "both"
+              },
+              {
+                "purpose": "Throwaway marketing concept clips where licensing of every weight is not load-bearing",
+                "fitness": 3,
+                "use_tag": "marketing"
+              },
+              {
+                "purpose": "Shippable commercial game cutscenes (use official Apache Wan 2.2 instead)",
+                "fitness": 2,
+                "use_tag": "game-asset"
+              }
+            ],
+            "repo_url": "https://huggingface.co/Phr00t/WAN2.2-14B-Rapid-AllInOne",
+            "sources": [
+              {
+                "url": "https://huggingface.co/Phr00t/WAN2.2-14B-Rapid-AllInOne",
+                "title": "Phr00t/WAN2.2-14B-Rapid-AllInOne model card",
+                "claim": "Tagged apache-2.0; all-in-one merge of Wan2.2 (low-noise) + VAE + text encoder + accelerators (Lightx2v, Wan2.2 Lightning, rCM, VACE) in single safetensors loaded via ComfyUI Load Checkpoint; runs at 1 CFG + 4 steps on ~8GB VRAM; author marks it DEPRECATED/unmaintained; Mega variants merge eddy1111111/WAN22.XX_Palingenesis and community/NSFW LoRAs; card does not document every merged component's license.",
+                "kind": "model-card"
+              }
+            ]
+          }
+        ],
+        "notes": "NARROW video pass — all three required targets cataloged and verified against live HF cards (2026-06-02). License confirmed Apache-2.0 on all three primary repos; VRAM/size confirmed via QuantStack GGUF cards (the official full-precision footprints are huge, but GGUF quants put every model comfortably inside 32GB on the RTX 5090). Key verification notes:\n- Wan2.2-S2V-14B: official 80GB single-GPU figure is full FP16; Q8 GGUF is 19.6GB — 32GB-viable. Needs umt5-xxl + wav2vec2 audio encoder + Wan2.1 VAE. ComfyUI runs it via ComfyUI-GGUF today (native integration was on the todo list on the official card).\n- Wan2.2-VACE-Fun-A14B: this is alibaba-pai's VideoX-Fun VACE control/editing model (Canny/Depth/Pose/MLSD/trajectory + reference-subject). Full repo ~64GB; Q8 GGUF 15.4GB. First-class ComfyUI support via VideoX-Fun.\n- Phr00t merge: flagged HONESTLY. apache-2.0 TAG, base + named accelerators are Apache, but it's a multi-weight merge whose card does NOT enumerate every component license, author has DEPRECATED it, and Mega/NSFW variants fold in unverified third-party LoRAs. Marked commercial_use=conditional, status=situational, low game_asset_fit — recommend official Wan 2.2 + GGUF for anything shippable. Genuinely-new 2026 open video models assessed and DELIBERATELY EXCLUDED (none clears the official-open + 32GB + in-scope bar):\n- Seedance 2.0 (ByteDance, Feb 2026): closed/API, rollout PAUSED over Hollywood copyright disputes — not open weights.\n- HappyHorse-1.0 (Alibaba ATH, Apr 2026): topped Artificial Analysis blind tests but is API/'still under development', no released weights.\n- Happy Oyster (Alibaba, Apr 2026): interactive world model, not released as local weights.\n- HY-World 2.0 (Tencent Hunyuan, Apr 16 2026): open-source but it's a 3D WORLD model (meshes/Gaussian-splats/point-clouds from text/image/video), out of scope for the video lane and impractical at 32GB — belongs in a 3D lane if added at all.\n- Wan 2.5: EXCLUDED on provenance grounds — official Wan 2.5 shipped as an API-only 'Preview', not truly open Wan-AI weights; the wangkanai/wan25-* HF repos are community reuploads of unclear provenance and do not meet the official+verified bar for this pass. Recommend re-checking if/when Wan-AI publishes official open weights."
+      },
+      "verify": {
+        "domain": "Video — remaining Wan family (round out)",
+        "verdicts": [
+          {
+            "model": "Wan2.2-S2V-14B",
+            "exists": true,
+            "overall": "confirmed",
+            "currency": "current",
+            "license_status": "confirmed",
+            "license_correction": "",
+            "specs_plausible": true,
+            "note": "Repo https://huggingface.co/Wan-AI/Wan2.2-S2V-14B is live. Card confirms: 'designed for audio-driven cinematic video generation' (S2V / speech-to-video), Apache-2.0 ('The models in this repository are licensed under the Apache 2.0 License'), and Wan2.2 MoE diffusion architecture (27B total / 14B active, high-noise + low-noise experts). FP16/BF16 single-GPU explicitly '~80GB VRAM' on the card — matches the ~80GB claim. GGUF quants confirmed at QuantStack/Wan2.2-S2V-14B-GGUF with Q8_0 = 19.6 GB (matches researcher's '19.6GB' figure exactly), Q2-Q8 range; runs via city96 ComfyUI-GGUF node. Required encoders confirmed: umt5-xxl text encoder + wav2vec2 audio encoder + Wan VAE. ComfyUI native integration correctly noted as still on the official TODO list (card Todo: 'ComfyUI integration' unchecked for S2V), while GGUF route works today. Q8 at 19.6GB fits comfortably in 32GB. All claims verified; commercial_use 'yes' is sound under Apache-2.0.",
+            "fixes": ""
+          },
+          {
+            "model": "Wan2.2-VACE-Fun-A14B",
+            "exists": true,
+            "overall": "confirmed-with-fixes",
+            "currency": "current",
+            "license_status": "confirmed",
+            "license_correction": "",
+            "specs_plausible": true,
+            "note": "Repo https://huggingface.co/alibaba-pai/Wan2.2-VACE-Fun-A14B is live and Apache-2.0 (card: 'Apache License (Version 2.0)'). VACE all-in-one editing + multi-condition control confirmed (Canny, Depth, Pose, MLSD, trajectory, subject preservation, reference-image-driven). Specs confirmed: 81 frames, 16 fps, 512/768/1024 resolutions. Full weights ~64GB confirmed (card lists 64.0 GB). ComfyUI via VideoX-Fun confirmed (weights to ComfyUI/models/Fun_Models/, repo github.com/aigc-apps/VideoX-Fun). CPU-offload modes (model_cpu_offload, qfloat8, sequential) verified to run on 12-24GB cards. Fits 32GB easily. TWO FIELD ERRORS: (1) base_arch — researcher says 'finetuned from Wan2.2-I2V-A14B' but BOTH the official card AND the QuantStack GGUF metadata state the base model is Wan2.2-T2V-A14B, not I2V. (2) GGUF Q8 size — researcher claims 'Q8 = 15.4GB'; that 15.4GB figure actually belongs to a DIFFERENT model (Wan2.2-Fun-A14B-Control-GGUF). The dedicated QuantStack/Wan2.2-VACE-Fun-A14B-GGUF lists Q8_0 = 18.7 GB (Q6_K = 14.5 GB), and ships split high-noise/low-noise experts. Both errors corrected below; model is real and 32GB-safe.",
+            "fixes": "base_arch should read 'finetuned from Wan2.2-T2V-A14B (not I2V-A14B) with the VACE editing scheme' — per both the official model card and the QuantStack GGUF metadata. GGUF sizes: the dedicated QuantStack/Wan2.2-VACE-Fun-A14B-GGUF has Q8_0 = 18.7GB (not 15.4GB; that figure is for the separate Wan2.2-Fun-A14B-Control model) and Q6_K = 14.5GB, shipped as separate HighNoise/LowNoise experts; honest GGUF range is roughly 8-19GB. All quants still fit 32GB."
+          },
+          {
+            "model": "Phr00t/WAN2.2-14B-Rapid-AllInOne",
+            "exists": true,
+            "overall": "confirmed",
+            "currency": "deprecated",
+            "license_status": "confirmed",
+            "license_correction": "",
+            "specs_plausible": true,
+            "note": "Repo https://huggingface.co/Phr00t/WAN2.2-14B-Rapid-AllInOne is live, tagged apache-2.0. Confirmed: merged single-file checkpoint of WAN 2.2 + WAN-like models/accelerators with CLIP and VAE baked in ('take the VAE, CLIP and Model all from one AIO safetensors'); loads via plain ComfyUI 'Load Checkpoint' node; '1 CFG and 4 steps'; '8GB VRAM' confirmed by card screenshot caption ('Seems to work even on 8GB VRAM') — so min_vram_gb 8 is plausible and trivially fits 32GB. Built on Wan-AI/Wan2.2-I2V-A14B confirmed (note: this IS the I2V base, unlike the VACE-Fun item above). Mega versions confirmed to pull in eddy1111111/WAN22.XX_Palingenesis (MEGA v4+) plus NSFW LoRA merges. DEPRECATION confirmed verbatim — card opens: 'I do not maintain this anymore and these models are deprecated.' Card does NOT enumerate every merged component's license (confirmed), which validates the researcher's 'conditional' commercial_use flag and the advice to reserve it for non-shipping prototyping and use the official Wan 2.2 + GGUF route for commercial work. currency = deprecated reflects the author's own statement; the researcher accurately and honestly flagged this. All material claims verified.",
+            "fixes": ""
+          }
+        ],
+        "missing": [
+          {
+            "name": "QuantStack/Wan2.2-VACE-Fun-A14B-GGUF",
+            "url": "https://huggingface.co/QuantStack/Wan2.2-VACE-Fun-A14B-GGUF",
+            "why": "The researcher cited GGUF quants for VACE-Fun but pointed at the wrong sizes (15.4GB belongs to Wan2.2-Fun-A14B-Control). This is the actual dedicated VACE-Fun GGUF repo (Q3 ~7.8GB through Q8_0 18.7GB, split high/low-noise experts) — the correct download target for the 32GB ComfyUI-GGUF route and should be named explicitly."
+          },
+          {
+            "name": "Wan2.2-Animate-14B (+ QuantStack GGUF)",
+            "url": "https://huggingface.co/Wan-AI/Wan2.2-Animate-14B",
+            "why": "To 'round out' the Wan family for character/cutscene work, the Animate-14B member (character animation + replacement from a reference video, the holistic motion-transfer complement to S2V's audio-driven lip-sync) is a notable omission. GGUF exists at QuantStack/Wan2.2-Animate-14B-GGUF, so it is 32GB-runnable and directly relevant to the same 'character performance' use case the S2V summary targets."
+          },
+          {
+            "name": "Wan2.2-Fun-A14B-Control / Control-Camera",
+            "url": "https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control",
+            "why": "The VideoX-Fun line also ships dedicated Control and Control-Camera A14B members (the 15.4GB Q8 figure the researcher mis-attributed actually comes from Control-GGUF). For a 'round out the Wan family' video set these are the canonical camera/control siblings to VACE-Fun and worth distinguishing so the two are not conflated."
+          }
+        ],
+        "summary": "All three repos exist and are genuinely Apache-2.0; all three fit 32GB (RTX 5090) via GGUF or CPU-offload. Two CONFIRMED clean: Wan2.2-S2V-14B (S2V/audio-driven MoE, ~80GB FP16, Q8 GGUF 19.6GB exactly as claimed, encoders + ComfyUI-TODO status all accurate) and Phr00t Rapid-AllInOne (merged AIO checkpoint, 8GB/1CFG/4-step confirmed, deprecation honestly flagged, conditional commercial flag justified by un-enumerated component licenses). ONE confirmed-with-fixes: Wan2.2-VACE-Fun-A14B has two field errors — base is Wan2.2-T2V-A14B not I2V-A14B (per official card AND QuantStack metadata), and the GGUF 'Q8=15.4GB' is mis-attributed (that's the separate Fun-A14B-Control model; real VACE-Fun GGUF Q8_0 = 18.7GB). Notable omissions to round out the family: the dedicated QuantStack VACE-Fun GGUF repo, Wan2.2-Animate-14B (character motion-transfer, GGUF available), and the Fun-A14B-Control/Control-Camera siblings."
+      }
+    },
+    {
+      "slug": "image-edit",
+      "name": "Image editing — open competitors (round out)",
+      "research": {
+        "domain": "instruction image editing",
+        "notes": "WAVE 3 narrow rounding pass — instruction image editing lane. Did NOT re-list already-cataloged models (Qwen-Image-Edit-2511, FLUX.1-Kontext-dev, Step1X-Edit-v1p2, OmniGen2, ICEdit). Added the two explicit targets (HiDream-E1-Full, HiDream-E1.1), the documented predecessor/fallback (Qwen-Image-Edit-2509), and two genuinely-new 2026/late-2025 open editors in this narrow slice (FireRed-Image-Edit-1.1, LongCat-Image-Edit). LICENSE / COMMERCIAL-SAFETY IS THE DECISIVE AXIS — key finding for this lane: (1) HiDream-E1 / E1.1 carry a license NUANCE that materially affects commercial-safety for game-asset work. The HiDream transformer weights are MIT (clean, permissive). BUT the model ships a meta-llama/Llama-3.1-8B-Instruct text encoder governed by the Llama 3.1 Community License — NOT Apache/MIT. Llama 3.1 Community License permits commercial use but has conditions: (a) attribution (\"Built with Llama\"), (b) the >700M-monthly-active-users clause requiring a separate license from Meta, and (c) acceptable-use policy. For a solo/indie game studio this is commercially usable, but it is NOT unconditionally permissive the way Apache-2.0 is. I set commercial_use = \"conditional\" for both HiDream editors and flagged this explicitly. The official HF cards say \"You own all content you create with this model... use freely\" — output ownership is clean; the constraint is on the model components, not the generated images. Game-asset fit is therefore good (you own the sprites/concepts you generate) but the license is a notch below the fully-clean Apache editors. (2) Qwen-Image-Edit-2509, FireRed-Image-Edit-1.1, and LongCat-Image-Edit are ALL Apache-2.0 (FireRed explicitly states \"code AND weights\" Apache-2.0; Qwen-2509 inherits Qwen-Image Apache-2.0; LongCat HF card license tag = apache-2.0). These are the commercially-cleanest choices in the lane — unconditional commercial use, ideal for game-asset pipelines. I set commercial_use = \"yes\" for all three. GENUINELY-NEW 2026 ITEMS in this narrow slice: FireRed-Image-Edit (1.0 Feb 14 2026, 1.1 Mar 3 2026, ComfyUI workflow Feb 27 2026) is the standout new-2026 open editor — Apache-2.0 weights, built on Qwen-Image, SOTA open-source instruction-following claim, native ComfyUI + GGUF. LongCat-Image-Edit (Meituan, Dec 2025, ~6B params, Apache-2.0) is the other genuinely-new entry just outside the cutoff with active 2026 ComfyUI tooling (custom node updated Dec 21 2025, GGUF packs). 32GB FEASIBILITY (RTX 5090 / ComfyUI): all five fit. HiDream E1.1 full diffusion file is 34.2GB (too big raw for 24GB and tight even at 32GB unquantized), but the fp8_e4m3fn variant runs at 98% on a 24GB 4090D per ComfyUI docs, so it is comfortable on 32GB. Qwen-2509 Q8_0 GGUF targets 32GB+. FireRed-1.1 optimized inference cited at 30GB (fits 32GB; GGUF available for headroom). LongCat ~6B is small — fp8 runs 12-16GB, BF16 24GB+, trivial on 32GB. ComfyUI: HiDream E1/E1.1 = NATIVE (official ComfyUI templates). Qwen-Image-Edit family = native Qwen-Image nodes + QuantStack GGUF + city96 ComfyUI-GGUF loader. FireRed = native ComfyUI node (vendor-provided workflow). LongCat = community custom node (sooxt98/comfyui_longcat_image) + GGUF, not core-native. NOT independently re-verified beyond the cited HF/GitHub/ComfyUI-docs pages: exact parameter counts for Qwen-2509 and FireRed (cards omit them; HiDream base I1 is the widely-reported 17B sparse-DiT MoE figure, applied as base_arch context only). FireRed arXiv date returned inconsistently by the fetcher (one pass said Feb 2025 which is clearly a parse error given the 2026 GitHub timeline) — I used the GitHub release-timeline dates (Feb 14 / Mar 3 2026) as authoritative over the arXiv-date parse.",
+        "models": [
+          {
+            "name": "HiDream-E1.1",
+            "slug": "hidream-e1-1",
+            "developer": "HiDream.ai",
+            "summary": "Open instruction-based image editor and the recommended HiDream editing release. Built on the HiDream-I1 sparse Diffusion Transformer (MoE) base; takes natural-language edit instructions directly (no prompt-refinement step) and supports dynamic input up to ~1 megapixel, a major upgrade over the original E1's fixed 768x768. Better edit accuracy and image quality than E1-Full. Native ComfyUI support via official templates. Commercial-safety nuance: the transformer weights are MIT, but it ships a Llama-3.1-8B text encoder under the Llama 3.1 Community License (commercial-conditional, not Apache-clean) — you own all generated content, but the model components are not unconditionally permissive. Strong game-asset and marketing editor on 32GB via the fp8 variant.",
+            "params": "base: HiDream-I1 17B sparse-DiT (MoE)",
+            "base_arch": "HiDream-I1-Full (sparse Diffusion Transformer, MoE); T5-XXL + Llama-3.1-8B text encoders; FLUX.1-schnell VAE",
+            "release_date": "2025-07-16",
+            "license": "MIT (transformer weights); Llama 3.1 Community License (Llama-3.1-8B text encoder); Apache-2.0 (T5-XXL encoder, VAE)",
+            "commercial_use": "conditional",
+            "commercial_notes": "Transformer weights are MIT (fully permissive) and you own all content you generate ('use your generated content freely'). The commercial-conditionality comes from the bundled meta-llama/Llama-3.1-8B-Instruct text encoder, governed by the Llama 3.1 Community License: requires 'Built with Llama' attribution, compliance with Meta's Acceptable Use Policy, and a separate Meta license only if your product exceeds 700M monthly active users. For a solo/indie game studio this is commercially usable but a notch below Apache-clean editors like Qwen-2509 or FireRed. Output ownership itself is unencumbered.",
+            "quality_tier": "strong",
+            "status": "recommended",
+            "min_vram_gb": 24,
+            "recommended_vram_gb": 32,
+            "disk_size_gb": 34.2,
+            "runs_on_32gb": true,
+            "game_asset_fit": 7,
+            "marketing_fit": 8,
+            "speed_note": "On a 24GB 4090D the full diffusion model OOMs; the fp8_e4m3fn_fast variant runs at ~98% VRAM, first gen ~120s, second ~91s. Comfortable on a 32GB RTX 5090 with fp8. Full diffusion file is 34.2GB (use fp8 weights, not raw, to leave headroom).",
+            "repo_url": "https://huggingface.co/HiDream-ai/HiDream-E1-1",
+            "best_for": [
+              {
+                "purpose": "Instruction edits at higher / dynamic resolution (up to ~1MP) for marketing creative and hero images",
+                "use_tag": "marketing",
+                "fitness": 8
+              },
+              {
+                "purpose": "Style transfer and localized edits on existing game concept art where you own the output",
+                "use_tag": "game-asset",
+                "fitness": 7
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://huggingface.co/HiDream-ai/HiDream-E1-1",
+                "claim": "Official HF card: 'The Transformer models in this repository are licensed under the MIT License'; text encoders T5-XXL (Apache-2.0) and Llama-3.1-8B-Instruct (Llama 3.1 Community License); VAE from FLUX.1-schnell (Apache-2.0); base model HiDream-I1-Full; E1.1 update released 2025-07-16; 'You own all content you create with this model'.",
+                "kind": "model_card",
+                "title": "HiDream-E1-1 — Hugging Face"
+              },
+              {
+                "url": "https://docs.comfy.org/tutorials/image/hidream/hidream-e1",
+                "claim": "Official ComfyUI docs confirm native HiDream-E1 / E1.1 workflow support; E1.1 supports 'dynamic 1-megapixel resolution'; diffusion file 34.2GB; full model OOMs on 24GB 4090D while fp8_e4m3fn_fast reaches ~98% VRAM (first gen 120s, second 91s).",
+                "kind": "official_docs",
+                "title": "ComfyUI Native HiDream-E1 / E1.1 Workflow Example"
+              },
+              {
+                "url": "https://github.com/HiDream-ai/HiDream-E1",
+                "claim": "Official repo: HiDream-E1.1 open-sourced 2025-07-16, supports dynamic input of 1 million total pixels vs original E1's 768x768; instruction-based editing; MIT-licensed models.",
+                "kind": "github",
+                "title": "HiDream-ai/HiDream-E1 (GitHub)"
+              }
+            ]
+          },
+          {
+            "name": "Qwen-Image-Edit-2509",
+            "slug": "qwen-image-edit-2509",
+            "developer": "Alibaba Qwen team",
+            "summary": "The documented September-2025 predecessor to Qwen-Image-Edit-2511 and the natural fallback in the Qwen editing line. Apache-2.0 (fully clean for commercial use), so it is one of the safest instruction editors for commercial game-asset pipelines. Adds multi-image editing (1-3 input images: person+person, person+product, person+scene), improved facial-identity preservation and pose transforms, font/color/material text editing, and native ControlNet (depth/edge/keypoint). Heavily supported in ComfyUI via the Qwen-Image nodes plus QuantStack GGUF quants and the city96 ComfyUI-GGUF loader; Q8_0 targets 32GB+. Recommend only if you specifically need the 2509 behavior or quant lineage — otherwise 2511 (already cataloged) supersedes it.",
+            "params": "~20B (Qwen-Image MMDiT family; 2509 param count not stated on card)",
+            "base_arch": "Qwen-Image MMDiT (multimodal diffusion transformer)",
+            "release_date": "2025-09",
+            "license": "Apache-2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "Inherits Qwen-Image's Apache-2.0 license ('Qwen-Image is licensed under Apache 2.0'). Fully permissive — unconditional commercial use, modification, and redistribution with attribution. No Llama-encoder caveat. Among the cleanest commercial options for game-asset work in this lane.",
+            "quality_tier": "strong",
+            "status": "runner-up",
+            "min_vram_gb": 8,
+            "recommended_vram_gb": 24,
+            "disk_size_gb": 20,
+            "runs_on_32gb": true,
+            "game_asset_fit": 9,
+            "marketing_fit": 8,
+            "speed_note": "Full model recommends 16GB+ VRAM. GGUF quants scale by VRAM: 8GB Q4_K_M, 12GB Q5_K_M, 16GB Q6_K, 32GB+ Q8_0 (near-full quality). On a 32GB RTX 5090, Q8_0 runs comfortably; bf16/fp8 full also fits.",
+            "repo_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
+            "best_for": [
+              {
+                "purpose": "Apache-clean multi-image instruction editing (combine character + prop + scene) for commercial game assets you own outright",
+                "use_tag": "game-asset",
+                "fitness": 9
+              },
+              {
+                "purpose": "Documented fallback / quant lineage when the newer 2511 behaves differently or a specific GGUF quant is only built for 2509",
+                "use_tag": "both",
+                "fitness": 8
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
+                "claim": "Official HF card: 'Qwen-Image is licensed under Apache 2.0'; September-2025 release (2509); supports 1-3 input images (person+person, person+product, person+scene); native ControlNet (depth/edge/keypoint); improved facial-identity preservation and text font/color/material editing.",
+                "kind": "model_card",
+                "title": "Qwen-Image-Edit-2509 — Hugging Face"
+              },
+              {
+                "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-2509-GGUF",
+                "claim": "GGUF quantizations of Qwen-Image-Edit-2509 for ComfyUI; quant tiers scale 8GB (Q4_K_M) through 32GB+ (Q8_0) via the city96 ComfyUI-GGUF loader.",
+                "kind": "model_card",
+                "title": "QuantStack/Qwen-Image-Edit-2509-GGUF — Hugging Face"
+              },
+              {
+                "url": "https://github.com/QwenLM/Qwen-Image",
+                "claim": "Official Qwen-Image repo: 20B-parameter MMDiT foundation model under Apache-2.0 with precise image-editing capability; Qwen-Image-Edit is the editing variant.",
+                "kind": "github",
+                "title": "QwenLM/Qwen-Image (GitHub)"
+              }
+            ]
+          },
+          {
+            "name": "FireRed-Image-Edit-1.1",
+            "slug": "firered-image-edit-1-1",
+            "developer": "FireRed Team (Xiaohongshu / RED)",
+            "summary": "Genuinely-new 2026 open instruction editor and the strongest fresh entry in this lane. Built on the Qwen-Image text-to-image foundation; claims open-source SOTA instruction-following with high-fidelity generation, strong identity consistency, and multi-element fusion. Crucially Apache-2.0 on BOTH code and weights (explicitly stated) — unconditionally commercial-safe, no Llama-encoder caveat, making it ideal for commercial game-asset production. Ships native ComfyUI node support plus GGUF lightweight format; vendor ComfyUI workflow released 2026-02-27. Versions: 1.0 (2026-02-14), 1.0-Lightning/Distilled, and 1.1 (2026-03-03). Optimized inference cited at ~30GB VRAM / ~4.5s per sample — fits a 32GB RTX 5090, with GGUF for additional headroom.",
+            "params": "not stated on card (Qwen-Image base, ~20B-class)",
+            "base_arch": "Qwen-Image foundation (QwenImageEditPlusPipeline)",
+            "release_date": "2026-03-03",
+            "license": "Apache-2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "Official statement: 'The code and the weights of FireRed-Image-Edit are licensed under Apache 2.0.' Both code and weights covered — fully permissive commercial use with attribution. No restrictive component license flagged. One of the two cleanest brand-new commercial editors in this lane (alongside LongCat).",
+            "quality_tier": "strong",
+            "status": "recommended",
+            "min_vram_gb": 24,
+            "recommended_vram_gb": 32,
+            "disk_size_gb": 40,
+            "runs_on_32gb": true,
+            "game_asset_fit": 9,
+            "marketing_fit": 8,
+            "speed_note": "Optimized inference cited at 30GB VRAM, ~4.5s per sample (with distillation/quantization/static compilation). Fits 32GB RTX 5090; GGUF lightweight format and a 1.0-Lightning distilled variant available for lower VRAM / faster turnaround.",
+            "repo_url": "https://huggingface.co/FireRedTeam/FireRed-Image-Edit-1.1",
+            "best_for": [
+              {
+                "purpose": "New-2026 Apache-clean instruction editing with strong identity consistency and multi-element fusion for commercial game assets",
+                "use_tag": "game-asset",
+                "fitness": 9
+              },
+              {
+                "purpose": "High-fidelity marketing edits where open-source SOTA instruction-following matters; Lightning variant for fast iteration",
+                "use_tag": "marketing",
+                "fitness": 8
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://huggingface.co/FireRedTeam/FireRed-Image-Edit-1.1",
+                "claim": "Official HF card: 'License: apache-2.0'; uses QwenImageEditPlusPipeline; 'Native ComfyUI node support and GGUF lightweight format compatibility'; diffusers quick-start with dtype=bfloat16.",
+                "kind": "model_card",
+                "title": "FireRed-Image-Edit-1.1 — Hugging Face"
+              },
+              {
+                "url": "https://github.com/FireRedTeam/FireRed-Image-Edit",
+                "claim": "Official repo: 'The code and the weights of FireRed-Image-Edit are licensed under Apache 2.0'; image-editing foundation model with open-source SOTA instruction following; built on Qwen-Image; 1.0 released 2026-02-14, 1.1 released 2026-03-03, ComfyUI workflow 2026-02-27; optimized inference 30GB VRAM ~4.5s/sample.",
+                "kind": "github",
+                "title": "FireRedTeam/FireRed-Image-Edit (GitHub)"
+              }
+            ]
+          },
+          {
+            "name": "HiDream-E1-Full",
+            "slug": "hidream-e1-full",
+            "developer": "HiDream.ai",
+            "summary": "The original (April 2025) HiDream instruction editor — the predecessor to E1.1 within the HiDream line. Built on the HiDream-I1 sparse-DiT (MoE) base; edits via natural-language instructions. Limited to a fixed 768x768 resolution (E1.1 lifts this to dynamic ~1MP), so it is now a fallback rather than the primary HiDream choice. Same license profile as E1.1: MIT transformer weights but a Llama-3.1-8B text encoder under the Llama 3.1 Community License (commercial-conditional). Native ComfyUI support. List it only if you need the original E1 weights/behavior specifically; otherwise prefer E1.1.",
+            "params": "base: HiDream-I1 17B sparse-DiT (MoE)",
+            "base_arch": "HiDream-I1-Full (sparse Diffusion Transformer, MoE); T5-XXL + Llama-3.1-8B text encoders; FLUX.1-schnell VAE",
+            "release_date": "2025-04-28",
+            "license": "MIT (transformer weights); Llama 3.1 Community License (Llama-3.1-8B text encoder); Apache-2.0 (T5-XXL encoder, VAE)",
+            "commercial_use": "conditional",
+            "commercial_notes": "Identical profile to E1.1: MIT transformer weights, clean output ownership ('You own all content you create with this model'), but bundled Llama-3.1-8B text encoder carries the Llama 3.1 Community License (attribution 'Built with Llama', Meta AUP, 700M-MAU separate-license clause). Commercially usable for indie studios but not Apache-unconditional.",
+            "quality_tier": "solid",
+            "status": "situational",
+            "min_vram_gb": 24,
+            "recommended_vram_gb": 32,
+            "disk_size_gb": 34.2,
+            "runs_on_32gb": true,
+            "game_asset_fit": 6,
+            "marketing_fit": 6,
+            "speed_note": "Same HiDream-I1 backbone as E1.1; full diffusion model OOMs on 24GB and needs the fp8 variant to fit. Comfortable on 32GB via fp8. Capped at 768x768 output, which limits hero/marketing use versus E1.1's dynamic 1MP.",
+            "repo_url": "https://huggingface.co/HiDream-ai/HiDream-E1-Full",
+            "best_for": [
+              {
+                "purpose": "Fallback to original E1 behavior/weights when E1.1's dynamic-resolution changes are undesirable",
+                "use_tag": "both",
+                "fitness": 6
+              },
+              {
+                "purpose": "768x768 instruction edits on owned game concept art where the fixed resolution is acceptable",
+                "use_tag": "game-asset",
+                "fitness": 6
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://huggingface.co/HiDream-ai/HiDream-E1-Full",
+                "claim": "Official HF card: 'The Transformer models in this repository are licensed under the MIT License'; base model HiDream-I1-Full (sparse Diffusion Transformer); text encoders T5-XXL (Apache-2.0) + Llama-3.1-8B (Llama 3.1 Community License); VAE from FLUX.1-schnell; instruction-based editing open-sourced; quick-start resizes to 768x768; 'You own all content you create with this model'.",
+                "kind": "model_card",
+                "title": "HiDream-E1-Full — Hugging Face"
+              },
+              {
+                "url": "https://github.com/HiDream-ai/HiDream-E1",
+                "claim": "Official repo: HiDream-E1 (instruction-based image editing) open-sourced 2025-04-28; original model supports 768x768 resolution; built on HiDream-I1.",
+                "kind": "github",
+                "title": "HiDream-ai/HiDream-E1 (GitHub)"
+              }
+            ]
+          },
+          {
+            "name": "LongCat-Image-Edit",
+            "slug": "longcat-image-edit",
+            "developer": "Meituan (LongCat)",
+            "summary": "Genuinely-new open instruction editor (Dec 2025) from Meituan, the editing counterpart to LongCat-Image. Apache-2.0 and fully commercial-safe — strong fit for commercial game-asset pipelines. Compact at ~6B parameters (much smaller than the 17-20B-class editors), so it is fast and light on VRAM: ~18GB with CPU offload, trivially fits a 32GB RTX 5090 unquantized, and has fp8 (12-16GB) and GGUF builds for low-VRAM rigs. Bilingual (Chinese-English) instructions; supports global editing, local editing, text modification, and reference-guided editing; claims SOTA among open-source editors. ComfyUI via an actively-maintained community node (sooxt98/comfyui_longcat_image, updated late Dec 2025) plus GGUF packs — not core-native, but well-supported. A Turbo (8-step) variant exists for fast iteration.",
+            "params": "~6B",
+            "base_arch": "LongCat-Image diffusion editing model (LongCatImageEditPipeline, Diffusers)",
+            "release_date": "2025-12-08",
+            "license": "Apache-2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "HF card license tag = apache-2.0. Permissive, unconditional commercial use, modification, and redistribution with attribution. No restrictive component license flagged — commercially clean for game-asset production.",
+            "quality_tier": "solid",
+            "status": "situational",
+            "min_vram_gb": 12,
+            "recommended_vram_gb": 18,
+            "disk_size_gb": 13,
+            "runs_on_32gb": true,
+            "game_asset_fit": 8,
+            "marketing_fit": 7,
+            "speed_note": "~6B params makes it the lightest editor in the lane. ~18GB VRAM with enable_model_cpu_offload(); fp8 runs in 12-16GB, BF16 in 24GB+, both trivial on a 32GB RTX 5090. Turbo (8-step) variant for fast photo editing; GGUF packs for very low VRAM.",
+            "repo_url": "https://huggingface.co/meituan-longcat/LongCat-Image-Edit",
+            "best_for": [
+              {
+                "purpose": "Lightweight, fast Apache-clean instruction editing (global/local/text/reference-guided) for commercial game assets on a single GPU",
+                "use_tag": "game-asset",
+                "fitness": 8
+              },
+              {
+                "purpose": "Quick marketing edits and bilingual (CN/EN) instruction workflows; Turbo variant for high-throughput iteration",
+                "use_tag": "marketing",
+                "fitness": 7
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://huggingface.co/meituan-longcat/LongCat-Image-Edit",
+                "claim": "Official HF card: 'License: apache-2.0'; LongCatImageEditPipeline (Diffusers); ~6B parameters; bilingual Chinese-English; supports global/local editing, text modification, reference-guided editing; ~18GB with enable_model_cpu_offload(); SOTA among open-source editors; released Dec 2025 (arXiv 2512.07584).",
+                "kind": "model_card",
+                "title": "LongCat-Image-Edit — Hugging Face"
+              },
+              {
+                "url": "https://github.com/sooxt98/comfyui_longcat_image",
+                "claim": "Community ComfyUI integration for LongCat-Image / LongCat-Image-Edit (LongCatImageEdit node, updated 2025-12-21); supports standard and GGUF (UnetLoaderGGUF) variants; fp8 for 12-16GB and BF16 for 24GB+ VRAM.",
+                "kind": "github",
+                "title": "sooxt98/comfyui_longcat_image (GitHub)"
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "domain": "Image editing — open competitors (round out)",
+        "verdicts": [
+          {
+            "model": "HiDream-E1.1",
+            "overall": "confirmed",
+            "exists": true,
+            "license_status": "confirmed",
+            "license_correction": "",
+            "specs_plausible": true,
+            "currency": "current",
+            "note": "Repo resolves (HiDream-ai/HiDream-E1-1). License triad exact per model card: MIT (transformer), Llama 3.1 Community License (meta-llama/Meta-Llama-3.1-8B-Instruct encoder), Apache-2.0 (google/t5-v1_1-xxl + FLUX.1[schnell] VAE) — commercial_use 'conditional' is correct (Llama encoder is the constraint). Built on HiDream-I1-Full sparse-DiT base; instruction-based, no prompt-refinement step. Dynamic resolution up to ~1MP confirmed (vs original E1 768x768) — released 2025-07-16. fp8 variant (hidream_e1_1_bf16-fp8, 17.1GB) confirmed; min_vram_gb=24 is the unquantized figure and is plausible. Comfortably fits 32GB via fp8. Native ComfyUI templates confirmed. Recommended HiDream editing release — accurate."
+          },
+          {
+            "model": "Qwen-Image-Edit-2509",
+            "overall": "confirmed",
+            "exists": true,
+            "license_status": "confirmed",
+            "license_correction": "",
+            "specs_plausible": true,
+            "currency": "superseded",
+            "note": "Repo resolves (Qwen/Qwen-Image-Edit-2509). License exact: apache-2.0 (fully commercial-clean, no encoder caveat — correct). base_arch 'Qwen-Image MMDiT' verified: Qwen-Image is a 20B MMDiT (Multimodal Diffusion Transformer, Alibaba Tongyi). September 2025 monthly iteration confirmed. Multi-image (1-3: person+person/product/scene), improved identity/pose, font/color/material text edit, native ControlNet (depth/edge/keypoint) all confirmed on card. ComfyUI + QuantStack GGUF + city96 ComfyUI-GGUF loader well-established; Q8_0 fits 32GB. min_vram_gb=8 plausible via low-bit GGUF. Currency=superseded: researcher correctly flags 2511 already cataloged supersedes it; recommend only for 2509-specific behavior/quant lineage — framing accurate."
+          },
+          {
+            "model": "FireRed-Image-Edit-1.1",
+            "overall": "confirmed",
+            "exists": true,
+            "license_status": "confirmed",
+            "license_correction": "",
+            "specs_plausible": true,
+            "currency": "current",
+            "note": "Repo resolves (FireRedTeam/FireRed-Image-Edit-1.1). Apache-2.0 confirmed on BOTH code and weights (model card states it explicitly) — unconditionally commercial-safe, no Llama caveat: correct and a genuine differentiator. Base: Qwen-Image foundation via QwenImageEditPlusPipeline — confirmed. ~30GB VRAM / 4.5s per sample cited verbatim on card; fits 32GB RTX 5090, GGUF for headroom — confirmed. Native ComfyUI node + GGUF lightweight confirmed. Version/date chain verified independently: 1.0 weights 2026-02-14, ComfyUI workflow 2026-02-27, 1.1 2026-03-03 (all exact); Lightning/Distilled variant exists. Genuinely-new 2026 entry and strongest fresh Apache-clean editor in this lane — accurate. Tech report arXiv 2602.13344."
+          },
+          {
+            "model": "HiDream-E1-Full",
+            "overall": "confirmed",
+            "exists": true,
+            "license_status": "confirmed",
+            "license_correction": "",
+            "specs_plausible": true,
+            "currency": "superseded",
+            "note": "Repo resolves (HiDream-ai/HiDream-E1-Full). License triad exact and identical to E1.1: MIT (transformer), Llama 3.1 Community License (Llama-3.1-8B encoder), Apache-2.0 (T5-XXL + FLUX.1[schnell] VAE) — commercial_use 'conditional' correct. Built on HiDream-I1-Full sparse-DiT (MoE) base. Fixed 768x768 confirmed directly from card quick-start (test_image.resize((768,768))) — E1.1 lifts this to dynamic ~1MP. Released 2025-04-28 (original E1). Native ComfyUI support confirmed. Currency=superseded: it is explicitly the predecessor/fallback to E1.1 — researcher's 'list only if you need original E1 behavior' framing is accurate. min_vram_gb=24 plausible (fp8 builds exist)."
+          },
+          {
+            "model": "LongCat-Image-Edit",
+            "overall": "confirmed-with-fixes",
+            "exists": true,
+            "license_status": "confirmed",
+            "license_correction": "",
+            "specs_plausible": true,
+            "currency": "current",
+            "fixes": "base_arch is correct but thin. Verified architecture (independent sources, the-decoder + ComfyUI/WaveSpeed): LongCat-Image is a hybrid MM-DiT + Single-DiT, ~6B params, using Qwen2.5-VL-7B as text encoder and FLUX.1-dev VAE — worth stating rather than just 'LongCatImageEditPipeline, Diffusers'. Also: the Turbo variant is a SEPARATE official repo (meituan-longcat/LongCat-Image-Edit-Turbo, the distilled 8-NFE version, Apache-2.0) — researcher's '8-step Turbo variant exists' is correct; cite the dedicated repo.",
+            "note": "Repo resolves (meituan-longcat/LongCat-Image-Edit). License apache-2.0 confirmed (commercial-safe). ~6B params confirmed by multiple independent sources (much smaller than 17-20B-class editors — accurate). Genuinely-new Meituan editor, published 2025-12-08 (arXiv 2512.07584), editing counterpart to LongCat-Image. Bilingual CN-EN; global/local/text/reference-guided editing confirmed on card. Card cites ~18GB with CPU offload; min_vram_gb=12 is plausible via fp8/GGUF (researcher cites fp8 12-16GB + GGUF builds). Fits 32GB unquantized trivially. ComfyUI via community node (sooxt98/comfyui_longcat_image) + GGUF — not core-native, framing accurate. SOTA-among-open claim is the vendor's own."
+          }
+        ],
+        "missing": [
+          {
+            "name": "FLUX.1 Kontext [dev]",
+            "url": "https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev",
+            "why": "The most prominent open instruction-based image editor of the wave (Black Forest Labs, 2025) and the de-facto competitor every entry here is benchmarked against. Notable license contrast: it ships under the non-commercial FLUX.1 [dev] Non-Commercial License, which sharpens why the Apache-clean entries (Qwen/FireRed/LongCat) matter for commercial game-asset use. Omitting it leaves the 'round out competitors' set incomplete."
+          },
+          {
+            "name": "Step1X-Edit",
+            "url": "https://huggingface.co/stepfun-ai/Step1X-Edit",
+            "why": "Apache-2.0 open instruction editor (StepFun) explicitly positioned to rival GPT-4o/Gemini-class editing; a direct open competitor in exactly this lane and a strong commercial-safe option that fits 32GB. A natural member of the open-editor round-out."
+          },
+          {
+            "name": "OmniGen2",
+            "url": "https://huggingface.co/OmniGen2/OmniGen2",
+            "why": "Unified open instruction-editing + generation model (2025) with strong editing benchmarks and permissive licensing; frequently cross-compared with Qwen-Image-Edit and FLUX.1 Kontext, so its absence is a gap in an open-competitor survey."
+          }
+        ],
+        "summary": "All 5 repos exist and resolve; no refutations. 4 of 5 fully confirmed, 1 confirmed-with-fixes (LongCat — arch description is thin and the Turbo variant lives in a separate official repo). Licenses are accurate across the board, including the load-bearing distinctions: the two HiDream entries correctly carry the Llama-3.1 Community License caveat (commercial-conditional), while Qwen-2509, FireRed-1.1, and LongCat are correctly flagged Apache-2.0 commercial-clean. FireRed-1.1's 'Apache on weights too' and its precise version dates (1.0 2026-02-14, 1.1 2026-03-03) verified independently. HiDream-E1.1's ~1MP-vs-768x768 upgrade and fp8 17.1GB build verified. All VRAM figures plausible for a 32GB RTX 5090 (most via fp8/GGUF). Currency: HiDream-E1-Full and Qwen-2509 correctly marked as superseded predecessors; the other three are current. Three notable open competitors omitted: FLUX.1 Kontext [dev] (the field's reference editor, non-commercial license), Step1X-Edit, and OmniGen2."
+      }
+    },
+    {
+      "slug": "image-base",
+      "name": "Image base — formal rows (round out)",
+      "research": {
+        "domain": "image base (narrow formalization — FLUX.2 family + original Qwen-Image)",
+        "notes": "Wave 3 narrow pass. Four formal rows added for bases referenced everywhere but lacking clean entries. LICENSE is the decisive axis and it splits these sharply: FLUX.2 [dev] (32B) and FLUX.2 [klein] 9B are NON-COMMERCIAL (FLUX Non-Commercial License) — usable for research/personal art and any OUTPUT is commercially usable, but the WEIGHTS cannot be used in a commercial pipeline without a paid BFL license, which torpedoes game_asset_fit for studio production. By contrast FLUX.2 [klein] 4B is Apache 2.0 (fully commercial-safe) and original Qwen-Image (20B) is Apache 2.0. The single most important trap in this slice: the FLUX.2 [klein] release shipped TWO sizes under TWO licenses — 4B = Apache 2.0, 9B = non-commercial. Many third-party blogs say \"klein is open source\" without the 9B caveat. All sizes/VRAM confirmed against city96/FLUX.2-dev-gguf (BF16 64.4 GB; Q5_K_M 24.1 GB recommended for 32 GB) and city96/Qwen-Image-gguf (BF16 40.9 GB; Q8 21.8 GB). Did NOT re-catalog Qwen-Image-2512, Z-Image-Turbo, Chroma1-HD, etc. (already covered). FLUX.2 [dev] is gated on HF (license acceptance + AUP).",
+        "models": [
+          {
+            "name": "FLUX.2 [dev]",
+            "slug": "flux2-dev",
+            "developer": "Black Forest Labs",
+            "base_arch": "FLUX.2 (rectified-flow transformer)",
+            "params": "32B",
+            "release_date": "2025-11-25",
+            "license": "FLUX.2 [dev] Non-Commercial License",
+            "commercial_use": "no",
+            "commercial_notes": "NON-COMMERCIAL weights. The FLUX.2 [dev] Non-Commercial License permits access/use/derivatives only for non-commercial purposes; a paid commercial license must be requested from BFL for any commercial/production activity. IMPORTANT asymmetry: Output (generated images) MAY be used commercially, but the model itself may not run inside a commercial pipeline or be shipped/served commercially without the paid license. This is why game_asset_fit is capped low for a commercial studio — the production-pipeline use of the weights is the prohibited part. Model is gated on Hugging Face (license acceptance + Acceptable Use Policy required).",
+            "min_vram_gb": 24,
+            "recommended_vram_gb": 32,
+            "disk_size_gb": 64.4,
+            "runs_on_32gb": true,
+            "quality_tier": "frontier",
+            "game_asset_fit": 4,
+            "marketing_fit": 8,
+            "speed_note": "Heavy: 32B params, BF16 checkpoint is 64.4 GB. On a 32 GB 5090 it does NOT fit in native BF16/fp8 — run via GGUF. city96 Q5_K_M (24.1 GB) is the recommended 32 GB quant; Q4_K_M (20.1 GB) for 24 GB cards. A diffusers bnb-4bit build also exists. Slower per-image than SDXL-class models; budget accordingly.",
+            "status": "situational",
+            "summary": "Black Forest Labs' open-weight frontier base (Nov 2025): a 32B rectified-flow transformer that generates, edits, and combines images from text, with strong prompt adherence and multi-reference editing. Quality is top-tier, but the FLUX.2 Non-Commercial License makes the WEIGHTS off-limits for any commercial production pipeline without a paid BFL license — generated output may be used commercially, the model deployment may not. For a commercial game-asset studio this is the decisive blocker (use it only for R&D/personal/marketing where output-only commercial use is sufficient, or buy the commercial license). On a 32 GB 5090 it runs only via GGUF (Q5_K_M ~24 GB).",
+            "best_for": [
+              {
+                "purpose": "Frontier-quality marketing renders and hero images where only the OUTPUT is used commercially (output use is permitted under the license)",
+                "fitness": 8,
+                "use_tag": "marketing"
+              },
+              {
+                "purpose": "R&D / look-dev / personal experimentation on the strongest open base",
+                "fitness": 9,
+                "use_tag": "both"
+              },
+              {
+                "purpose": "Commercial game-asset PRODUCTION pipeline (BLOCKED without paid BFL commercial license — the weights cannot run in a commercial pipeline)",
+                "fitness": 2,
+                "use_tag": "game-asset"
+              }
+            ],
+            "repo_url": "https://huggingface.co/black-forest-labs/FLUX.2-dev",
+            "sources": [
+              {
+                "url": "https://huggingface.co/black-forest-labs/FLUX.2-dev",
+                "claim": "32B rectified-flow transformer; gated 'FLUX.2 [dev] Non-Commercial License' (license acceptance + AUP required); Diffusers Flux2Pipeline + ComfyUI support; 4-bit bnb build referenced.",
+                "kind": "hf_card",
+                "title": "black-forest-labs/FLUX.2-dev"
+              },
+              {
+                "url": "https://huggingface.co/black-forest-labs/FLUX.2-dev/blob/main/LICENSE.txt",
+                "claim": "Non-commercial license text: weights/derivatives limited to non-commercial purposes; output may be used for any purpose including commercial; commercial use of the model requires a separate license from BFL.",
+                "kind": "license",
+                "title": "FLUX.2-dev LICENSE.txt"
+              },
+              {
+                "url": "https://huggingface.co/city96/FLUX.2-dev-gguf",
+                "claim": "GGUF sizes: Q4_K_S 19.3 GB, Q4_K_M 20.1 GB, Q5_K_M 24.1 GB, Q6_K 27.4 GB, Q8_0 35 GB, BF16 64.4 GB; Q4_K_M for 24 GB, Q5_K_M for 32 GB.",
+                "kind": "hf_card",
+                "title": "city96/FLUX.2-dev-gguf"
+              },
+              {
+                "url": "https://github.com/black-forest-labs/flux2",
+                "claim": "Official FLUX.2 inference repo; reference implementation for dev/klein.",
+                "kind": "github",
+                "title": "black-forest-labs/flux2"
+              }
+            ]
+          },
+          {
+            "name": "FLUX.2 [klein] 4B",
+            "slug": "flux2-klein-4b",
+            "developer": "Black Forest Labs",
+            "base_arch": "FLUX.2 (rectified-flow transformer, distilled)",
+            "params": "4B",
+            "release_date": "2026-01-16",
+            "license": "Apache 2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "FULLY COMMERCIAL-SAFE. The FLUX.2 [klein] 4B open weights are released under Apache 2.0 — commercial use, modification, derivatives, and redistribution all permitted with no royalties. This is the one fully-permissive member of the FLUX.2 family and the only FLUX.2 base safe for a commercial game-asset pipeline. CRITICAL TRAP: the sibling FLUX.2 [klein] 9B is NON-COMMERCIAL (separate entry) — 'klein is open source' is only true of the 4B. LoRA-trainable on a 5090.",
+            "min_vram_gb": 13,
+            "recommended_vram_gb": 16,
+            "disk_size_gb": 9,
+            "runs_on_32gb": true,
+            "quality_tier": "solid",
+            "game_asset_fit": 8,
+            "marketing_fit": 7,
+            "speed_note": "Fast/small: 4B, fits in ~13 GB VRAM (BFL: 'as little as 13GB', RTX 3090/4070 and above). Sub-second generation is the headline. Trivial headroom on a 32 GB 5090, leaving room for LoRA training and high batch sizes. Disk ~9 GB BF16 class.",
+            "status": "recommended",
+            "summary": "The small, fast, Apache-2.0 member of the FLUX.2 family (Jan 2026): a 4B distilled rectified-flow transformer that generates images in under a second on consumer GPUs (~13 GB VRAM). It trades peak fidelity for speed and a clean commercial license — and that license is what makes it the FLUX.2 base of choice for a commercial game-asset pipeline (the only FLUX.2 weight you can ship commercially without a paid BFL license). LoRA-trainable and lightweight enough to leave huge headroom on a 5090. Watch the trap: the 9B klein is non-commercial, the 4B is not.",
+            "best_for": [
+              {
+                "purpose": "Commercial-safe FLUX.2-family base for game-asset production and LoRA training (Apache 2.0, no licensing blocker)",
+                "fitness": 9,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "Fast iteration / high-volume marketing drafts on consumer VRAM",
+                "fitness": 8,
+                "use_tag": "marketing"
+              },
+              {
+                "purpose": "Style LoRA training with large batch sizes on a 32 GB card (4B leaves abundant headroom)",
+                "fitness": 8,
+                "use_tag": "game-asset"
+              }
+            ],
+            "repo_url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4B",
+            "sources": [
+              {
+                "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4B",
+                "claim": "4B params; 'Open weights available for commercial use under the Apache 2.0 license'; runs on as little as 13GB VRAM (RTX 3090/4070+); 9B klein released under a separate non-commercial license.",
+                "kind": "hf_card",
+                "title": "black-forest-labs/FLUX.2-klein-4B"
+              },
+              {
+                "url": "https://venturebeat.com/technology/black-forest-labs-launches-open-source-flux-2-klein-to-generate-ai-images-in",
+                "claim": "BFL launched FLUX.2 [klein] (Jan 2026); 4B is open-source Apache 2.0 for commercial use, generates images in under a second; a paired non-commercial model also released.",
+                "kind": "news",
+                "title": "VentureBeat — BFL launches FLUX.2 [klein]"
+              },
+              {
+                "url": "https://github.com/black-forest-labs/flux2/issues/32",
+                "claim": "Maintainer clarification: FLUX.2 [klein] 4B is Apache 2.0; 9B is non-commercial.",
+                "kind": "github",
+                "title": "flux2 issue #32 — klein Apache 2.0 clarification"
+              }
+            ]
+          },
+          {
+            "name": "FLUX.2 [klein] 9B",
+            "slug": "flux2-klein-9b",
+            "developer": "Black Forest Labs",
+            "base_arch": "FLUX.2 (rectified-flow transformer, distilled)",
+            "params": "9B",
+            "release_date": "2026-01-16",
+            "license": "FLUX.2 [dev] Non-Commercial License",
+            "commercial_use": "no",
+            "commercial_notes": "NON-COMMERCIAL — released under the FLUX.2 [dev] Non-Commercial License, NOT Apache 2.0. This is the licensing trap of the klein release: the 4B sibling is Apache 2.0 and freely commercial, but the 9B is non-commercial and cannot run in a commercial game-asset pipeline without a paid BFL license (output may still be used commercially, same asymmetry as FLUX.2 [dev]). Catalogued specifically to disambiguate — third-party 'klein is open source' claims refer only to the 4B.",
+            "min_vram_gb": 16,
+            "recommended_vram_gb": 20,
+            "disk_size_gb": 18,
+            "runs_on_32gb": true,
+            "quality_tier": "strong",
+            "game_asset_fit": 4,
+            "marketing_fit": 7,
+            "speed_note": "Mid-size: 9B sits between the 4B klein and 32B dev. Fits comfortably on a 32 GB 5090 (fp8/GGUF); disk ~18 GB BF16 class. Faster than FLUX.2 [dev], higher fidelity than the 4B. Exact VRAM/size not published on the card — figures are class-estimates pending the GGUF release.",
+            "status": "situational",
+            "summary": "The larger of the two FLUX.2 [klein] models (Jan 2026): a 9B distilled transformer that lands between the 4B klein and the 32B dev on the quality/speed curve. The catch is the license — unlike the 4B (Apache 2.0), the 9B ships under the FLUX.2 Non-Commercial License, so for a commercial game-asset pipeline it carries the same blocker as FLUX.2 [dev]. Worth cataloguing purely to kill the common 'klein is open source' confusion: that sentence is true only of the 4B. Use the 9B for R&D or output-only marketing; pick the 4B (or a paid license) for commercial production.",
+            "best_for": [
+              {
+                "purpose": "Higher-fidelity klein-tier R&D / personal work where non-commercial weights are acceptable",
+                "fitness": 8,
+                "use_tag": "both"
+              },
+              {
+                "purpose": "Marketing renders where only output is used commercially (output use permitted)",
+                "fitness": 7,
+                "use_tag": "marketing"
+              },
+              {
+                "purpose": "Commercial game-asset production (BLOCKED — non-commercial weights; use the 4B or buy a license)",
+                "fitness": 2,
+                "use_tag": "game-asset"
+              }
+            ],
+            "repo_url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4B",
+            "sources": [
+              {
+                "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4B",
+                "claim": "Card states BFL 'approved the release of the open-weight FLUX.2 [klein] 4B models under an Apache 2.0 license and the release of the FLUX.2 [klein] 9B models under a non-commercial license'.",
+                "kind": "hf_card",
+                "title": "black-forest-labs/FLUX.2-klein-4B (notes 9B is non-commercial)"
+              },
+              {
+                "url": "https://github.com/black-forest-labs/flux2/issues/32",
+                "claim": "Maintainer: FLUX.2 [klein] 9B uses the FLUX.2-dev non-commercial license; only the 4B is Apache 2.0.",
+                "kind": "github",
+                "title": "flux2 issue #32"
+              }
+            ]
+          },
+          {
+            "name": "Qwen-Image (original)",
+            "slug": "qwen-image",
+            "developer": "Alibaba / Qwen Team",
+            "base_arch": "Qwen-Image (20B MMDiT)",
+            "params": "20B",
+            "release_date": "2025-08-04",
+            "license": "Apache 2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "FULLY COMMERCIAL-SAFE under Apache 2.0 — commercial use, modification, derivatives, and redistribution permitted with no royalties. This is the original August 2025 release; the December 2025 Qwen-Image-2512 refresh (separate, already-catalogued entry) shares the same Apache 2.0 license and is a drop-in successor with better realism/text. Catalogued here as the foundational base because the broad Qwen-Image LoRA/ecosystem (and Qwen-Image-Edit) was built on this original.",
+            "min_vram_gb": 24,
+            "recommended_vram_gb": 24,
+            "disk_size_gb": 40.9,
+            "runs_on_32gb": true,
+            "quality_tier": "strong",
+            "game_asset_fit": 9,
+            "marketing_fit": 9,
+            "speed_note": "20B MMDiT. Native BF16 checkpoint ~40.9 GB (does not fit 32 GB native) — on a 5090 run fp8 (~24 GB, RTX 4090-class) or GGUF (city96/Qwen-Image-gguf): Q8 ~21.8 GB, Q6 ~16.8 GB, Q4 ~12-13 GB. Full native path wants 24 GB VRAM + 64 GB+ system RAM. Comfortable on a 32 GB 5090 via fp8/Q8.",
+            "status": "recommended",
+            "summary": "Alibaba's original Qwen-Image (Aug 2025): a 20B MMDiT foundation model that set the open-source bar for complex text rendering (English and Chinese) alongside strong general generation and editing. Apache 2.0 makes it fully commercial-safe and LoRA-friendly — an excellent game-asset and marketing base, especially anywhere in-image text or typography matters. This is the base the whole Qwen-Image ecosystem (Qwen-Image-Edit, the 2512 refresh, community LoRAs) is built on. On a 5090 run it via fp8 or GGUF Q8 (~22 GB); for the current best results, prefer the already-catalogued Qwen-Image-2512 successor (same license).",
+            "best_for": [
+              {
+                "purpose": "Commercial-safe base for assets/marketing requiring accurate in-image text and typography (Apache 2.0)",
+                "fitness": 9,
+                "use_tag": "both"
+              },
+              {
+                "purpose": "LoRA training for style-consistent game assets on a permissive 20B base",
+                "fitness": 9,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "Foundation/compatibility base for the Qwen-Image LoRA ecosystem and Qwen-Image-Edit",
+                "fitness": 8,
+                "use_tag": "both"
+              }
+            ],
+            "repo_url": "https://huggingface.co/Qwen/Qwen-Image",
+            "sources": [
+              {
+                "url": "https://huggingface.co/Qwen/Qwen-Image",
+                "claim": "Apache 2.0; released 2025-08-04; foundation model for complex text rendering (EN+ZH) and precise image editing; tech report arXiv:2508.02324.",
+                "kind": "hf_card",
+                "title": "Qwen/Qwen-Image"
+              },
+              {
+                "url": "https://github.com/QwenLM/Qwen-Image",
+                "claim": "20B MMDiT foundation model; powerful complex text rendering and precise image editing; Apache 2.0.",
+                "kind": "github",
+                "title": "QwenLM/Qwen-Image"
+              },
+              {
+                "url": "https://huggingface.co/city96/Qwen-Image-gguf",
+                "claim": "GGUF quants: BF16 40.9 GB, Q8 21.8 GB, Q6 16.8 GB, Q4 ~12-13 GB; full native path needs 24 GB VRAM + 64 GB+ RAM.",
+                "kind": "hf_card",
+                "title": "city96/Qwen-Image-gguf"
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "domain": "Image base — formal rows (round out)",
+        "verdicts": [
+          {
+            "model": "FLUX.2 [dev]",
+            "overall": "confirmed-with-fixes",
+            "exists": true,
+            "license_status": "corrected",
+            "license_correction": "Canonical license name is \"FLUX Non-Commercial License\" (HF LICENSE.md), formerly \"FLUX [dev] Non-Commercial License\". The item's \"FLUX.2 [dev] Non-Commercial License\" is not the verbatim name. Substance is correct: weights are non-commercial, separate paid commercial license at bfl.ai/licensing, generated output usable commercially.",
+            "specs_plausible": true,
+            "currency": "current",
+            "fixes": "Change license field to \"FLUX Non-Commercial License\". Everything else verified: 32B rectified-flow transformer, released 2025-11-25, multi-reference editing, commercial_use=no for weights. min_vram_gb=24 plausible via GGUF Q5_K_M (~24GB) or diffusers bnb-4bit on a 5090.",
+            "note": "Confirmed via HF repo (license verbatim \"FLUX Non-Commercial License\", 32B params, rectified flow transformer) and MarkTechPost/BFL (Nov 25 2025 release). Only the license display name is imprecise."
+          },
+          {
+            "model": "FLUX.2 [klein] 4B",
+            "overall": "confirmed",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "note": "Fully verified on HF repo: Apache 2.0 (verbatim), 4B distilled rectified-flow transformer (built on 9B flow + 8B Qwen3 text embedder, step-distilled to 4 steps), sub-second inference, ~13GB VRAM, commercial_use=yes. Release Jan 15 2026 per BFL blog (item says \"Jan 2026\" — correct). The 'klein 4B is the only commercially-shippable FLUX.2 weight' claim holds: 4B=Apache 2.0, 9B=non-commercial, dev=non-commercial."
+          },
+          {
+            "model": "FLUX.2 [klein] 9B",
+            "overall": "confirmed-with-fixes",
+            "exists": true,
+            "license_status": "corrected",
+            "license_correction": "License is real (commercial_use=no is correct) but the canonical name is \"FLUX Non-Commercial License\", not \"FLUX.2 [dev] Non-Commercial License\". BFL explicitly renamed \"FLUX [dev] Non-Commercial License\" to \"FLUX Non-Commercial License\" and applies it to the 9B klein.",
+            "specs_plausible": true,
+            "currency": "current",
+            "fixes": "CRITICAL: repo_url is wrong — it points to https://huggingface.co/black-forest-labs/FLUX.2-klein-4B (the 4B repo). The correct, existing repo is https://huggingface.co/black-forest-labs/FLUX.2-klein-9B. Fix the URL. Also update license name to \"FLUX Non-Commercial License\". min_vram_gb=16 is optimistic: the full 9B HF page cites ~29GB (RTX 4090+); 16GB is reachable only via the fp8/nvfp4 quants (FLUX.2-klein-9b-fp8 / -nvfp4 exist) — fine on a 32GB 5090 regardless, but the 16GB floor implies a quant, not full precision.",
+            "note": "9B param count, distilled architecture, and non-commercial status all confirmed against the correct FLUX.2-klein-9B HF repo and BFL blog (Jan 15 2026). Verdict is confirmed-with-fixes only because the supplied repo_url is the 4B URL and the license display name is imprecise."
+          },
+          {
+            "model": "Qwen-Image (original)",
+            "overall": "confirmed",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "note": "Verified on HF repo (license verbatim: \"Qwen-Image is licensed under Apache 2.0\"), released 2025-08-04. 20B MMDiT corroborated by multiple independent sources (generative-engine.org, RunPod, ComfyUI docs). Strong EN/CN native text rendering confirmed. commercial_use=yes. fp8/GGUF Q8 ~22GB plausible on 32GB. Minor: the summary's pointer to a 'Qwen-Image-2512' successor was not independently confirmed in this pass (the documented successor line is the Qwen-Image-Edit-2509 / -2511 family); not load-bearing to this row, which is about the original base — still Apache 2.0 and a valid commercial game-asset base."
+          }
+        ],
+        "missing": [
+          {
+            "name": "FLUX.2 [klein] 9B fp8 / nvfp4 quant repos",
+            "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-fp8",
+            "why": "BFL ships official fp8 and nvfp4 quantized klein variants (with NVIDIA) for RTX GPUs. These are what actually let the 9B fit the ~16GB figure the item claims, and are directly relevant to a 32GB 5090 deployment story."
+          },
+          {
+            "name": "FLUX.2 [klein] base (non-distilled) 9B",
+            "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-base-9b-fp8",
+            "why": "There is a separate non-distilled 'base' klein line distinct from the step-distilled klein. The catalog conflates 'klein' as purely distilled; the base variant exists and affects the LoRA-training / fidelity tradeoff narrative."
+          },
+          {
+            "name": "FLUX.2 dev official quantizations (diffusers bnb-4bit)",
+            "url": "https://huggingface.co/diffusers/FLUX.2-dev-bnb-4bit",
+            "why": "The dev row asserts 'runs only via GGUF (Q5_K_M ~24GB)', but BFL/diffusers ship an official 4-bit bnb checkpoint specifically targeted at RTX 4090/5090. That is the more authoritative 32GB-deployment path than community GGUF and should be cited."
+          }
+        ],
+        "summary": "All four repos exist and all four base claims are substantively true; two are clean confirms (FLUX.2 [klein] 4B, Qwen-Image), two are confirmed-with-fixes. Headline defect: FLUX.2 [klein] 9B carries the WRONG repo_url (it points to the 4B repo); the correct FLUX.2-klein-9B repo exists and validates every other field. Secondary, systemic nit: both non-commercial FLUX.2 rows label the license \\\"FLUX.2 [dev] Non-Commercial License\\\" — BFL's canonical, verbatim name is \\\"FLUX Non-Commercial License\\\" (it was explicitly renamed from \\\"FLUX [dev] Non-Commercial License\\\"). The commercial/non-commercial logic the catalog hangs on (4B=Apache 2.0 shippable; 9B+dev=non-commercial, weights blocked, output usable, paid license at bfl.ai) is correct and well-supported. VRAM figures are plausible for a 32GB 5090, with the caveat that the 9B's 16GB floor implies an fp8/nvfp4 quant rather than full precision. Specs cross-checked: FLUX.2 dev=32B (HF), klein 9B=9B + klein 4B=4B distilled w/ 8B Qwen3 text embedder (HF + BFL blog, released Jan 15 2026), Qwen-Image=20B MMDiT Apache 2.0 (HF + multiple sources, Aug 4 2025)."
+      }
+    },
+    {
+      "slug": "comfy",
+      "name": "ComfyUI — dataset/tagger nodes (round out)",
+      "research": {
+        "domain": "ComfyUI nodes — Wave 3 narrow rounding pass (LoRA-dataset + tagging nodes, remaining essentials, and 3 vetted workflow links). models[] intentionally empty per lane spec.",
+        "models": [],
+        "extras": [
+          {
+            "kind": "custom-node",
+            "name": "ComfyUI-WD14-Tagger (pythongosssss)",
+            "url": "https://github.com/pythongosssss/ComfyUI-WD14-Tagger",
+            "note": "PRIMARY TARGET. The de-facto booru-tag captioner node for ComfyUI. Interrogates images and emits comma-separated Danbooru/booru tags via SmilingWolf's WD v1.4 ONNX tagger models (ConvNextV2 is the most popular, MOAT/ViT/SwinV2 also selectable; models auto-download to models/wd14_tagger at runtime, onnxruntime dependency). Node added via image -> 'WD14 Tagger|pysssss'; also right-click 'WD14 Tagger' on any LoadImage/Preview/SaveImage node for one-off interrogation. Supports batched inputs and threshold/character-threshold/exclude-tag controls — exactly what you want for bulk LoRA dataset captioning. License: MIT (confirmed via repo). pyproject version 1.0.1; repo last pushed 2025-07-11, ~1.2k stars — current and stable. COMMERCIAL-SAFE node (the tagger weights are SmilingWolf's, released for open use). This is the canonical tagging half of a game-asset LoRA dataset pipeline on a 5090/32GB — tagging is CPU/ONNX-light, no VRAM concern. Verified 2026-06-02."
+          },
+          {
+            "kind": "custom-node",
+            "name": "audio-separation-nodes-comfyui (christian-byrne)",
+            "url": "https://github.com/christian-byrne/audio-separation-nodes-comfyui",
+            "note": "Stem-separation node: splits an audio track into 4 stems (vocals / drums / bass / other) using torchaudio's Hybrid Demucs (HDEMUCS_HIGH_MUSDB). Also does tempo-match, crop/slice, and a recombine node to further isolate (e.g. guitar lives in 'other'). Pairs naturally with Wan2.2-S2V (feed an isolated vocal stem as the audio driver for lip-sync). License: MIT (confirmed via GitHub API). v2.0.0 released ~2026-04-13, repo last pushed 2026-04-14, ~570 stars — actively maintained and current. COMMERCIAL-SAFE (MIT node; Demucs weights are MIT/research-permissive via torchaudio). Trivial VRAM on a 5090. Doubles as the stem-separation workflow source below. Verified 2026-06-02."
+          },
+          {
+            "kind": "custom-node",
+            "name": "was-node-suite-comfyui (ltdrdata-maintained fork)",
+            "url": "https://github.com/ltdrdata/was-node-suite-comfyui",
+            "note": "Essential general-purpose suite (210+ nodes): image batch/dataset prep (Load Image Batch, Image Batch, Image Save with filename templating), text/caption parsing (CLIPTextEncode NSP, wildcards/noodle-soup), latent/noise utilities, logic/switch nodes, and the Bus node for tidying graphs. MAINTENANCE NOTE (load-bearing): the original WASasquatch/was-node-suite-comfyui repo was ARCHIVED read-only on 2025-06-02 (author retired); the live fork is now maintained by ltdrdata (ComfyUI-Manager author) at github.com/ltdrdata/was-node-suite-comfyui — point your install there. License: MIT. COMMERCIAL-SAFE. The Load-Image-Batch + Image-Save pairing is a workhorse for building/exporting game-asset datasets. Verified 2026-06-02."
+          },
+          {
+            "kind": "custom-node",
+            "name": "Image-Captioning-in-ComfyUI (LarryJane491) — LoRA Caption Load/Save",
+            "url": "https://github.com/LarryJane491/Image-Captioning-in-ComfyUI",
+            "note": "The dataset-side complement to WD14-Tagger: provides 'LoRA Caption Load' (pulls every image from a folder) and 'LoRA Caption Save' (writes a matching.txt caption file next to each image — the exact layout Kohya_ss / OneTrainer expect for LoRA training). Note: it does NOT caption on its own — the WD14 Tagger node is mandatory in-graph to actually produce the tags; this pack only handles batch load + per-file.txt save. License: NOT STATED in repo (no LICENSE file detected) — flag for commercial use; safe to run locally, but treat distribution/licensing as unclear. Small repo (~5 commits) but the load/save pattern is the standard booru-tag dataset export. Verified 2026-06-02."
+          },
+          {
+            "kind": "custom-node",
+            "name": "ComfyUI_Comfyroll_CustomNodes (Suzie1) — LICENSE UNCLEAR",
+            "url": "https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes",
+            "note": "Useful 175-node QoL/utility suite (CR Aspect Ratio, LoRA Stack/Loader, Multi-ControlNet stack, text-overlay/graphics, model-merge, animation scheduling). COMMERCIAL FLAG (decisive axis): repo has NO LICENSE file at root — GitHub's license API returns none, and there is no LICENSE/LICENSE.txt — so its terms are genuinely UNSTATED. Also stale: last pushed 2024-07-24 (~2 yrs), v1.76, unmaintained. Fine for local convenience, but do NOT rely on it for commercial-distribution certainty and prefer rgthree / KJNodes / WAS (already cataloged or above) for the same QoL where licensing matters. Listed for completeness with the flag, not as a clean recommendation. Verified 2026-06-02."
+          },
+          {
+            "kind": "custom-node",
+            "name": "efficiency-nodes-comfyui (jags111 fork)",
+            "url": "https://github.com/jags111/efficiency-nodes-comfyui",
+            "note": "Workflow-condensing pack: Efficient KSampler (combines loader+sampler+VAE-decode into one node), XY Plot (grid sweeps over seeds/CFG/steps/samplers/checkpoints/LoRAs — handy for dialing in a consistent game-asset look), and LoRA/ControlNet stackers. MAINTENANCE NOTE: original LucianoCirino repo is explicitly no-longer-maintained; the live fork is jags111/efficiency-nodes-comfyui (slow but active). License: GPL-3.0 (per repo). COMMERCIAL note: GPL-3.0 covers the node CODE, not the images you generate — generated outputs are unaffected, so it is commercial-safe for asset production; only matters if you redistribute the node code itself. Verified 2026-06-02."
+          },
+          {
+            "kind": "workflow-source",
+            "name": "Audio Separation (stem split) — official ComfyUI example workflow",
+            "url": "https://www.comfy.org/workflows/utility-audioseparation-1446c7f47aee/",
+            "note": "STEM-SEPARATION workflow. Official comfy.org example built on christian-byrne's audio-separation-nodes (above): LoadAudio -> AudioSeparation (Hybrid Demucs) -> per-stem PreviewAudio/SaveAudio for vocals/drums/bass/other. Importable JSON, no extra weights beyond the auto-downloaded Demucs checkpoint. Vetted/first-party. The repo's own README example workflows (isolate-vocals, replace-BGM, instrumental-extract) are the secondary source. Verified 2026-06-02."
+          },
+          {
+            "kind": "workflow-source",
+            "name": "LoRA Caption (booru-tag dataset captioning) workflow — Weird Wonderful AI Art",
+            "url": "https://weirdwonderfulai.art/resources/lora-caption-workflow-for-comfyui/",
+            "note": "BOORU-TAG DATASET CAPTIONING workflow. End-to-end ComfyUI graph: LoRA Caption Load -> WD14 Tagger -> LoRA Caption Save, writing per-image.txt booru-tag files ready for Kohya_ss/OneTrainer LoRA training. Uses the two nodes above (LarryJane491 + pythongosssss WD14). Well-known community walkthrough with the downloadable workflow and step-by-step. For higher caption quality, pair with the Florence2+WD14 hybrid pattern (Florence2 for natural-language scene description, WD14 for concrete attributes — clothing/hair/eye color) since Florence2 is already cataloged. Verified 2026-06-02."
+          },
+          {
+            "kind": "workflow",
+            "name": "Wan2.2-S2V Audio-Driven Video — official ComfyUI native workflow",
+            "url": "https://docs.comfy.org/tutorials/video/wan/wan2-2-s2v",
+            "note": "WAN-S2V workflow. First-party ComfyUI tutorial + downloadable JSON for Wan2.2-S2V (sound/speech-to-video): one reference image + an audio clip -> lip-synced/expressive video. Pipeline: UNETLoader + CLIPLoader + VAELoader + AudioEncoderLoader(wav2vec2) -> WanSoundImageToVideo -> KSampler -> VAEDecode -> VHS_VideoCombine (muxes original audio). Models: wan2.2_s2v_14B_fp8_scaled (LOWER-VRAM, fits 32GB comfortably) or _bf16 (quality); umt5_xxl_fp8 text encoder; wan_2.1_vae; wav2vec2_large_english_fp16 audio encoder. Optional Lightning LoRA for speed (warns of dynamics/quality loss). Requires VideoHelperSuite (already cataloged) for VHS_VideoCombine. Feed it an isolated vocal stem from the audio-separation node above for cleaner lip-sync. A GGUF/lower-VRAM community variant exists on Civitai (SarcasticTOFU WAN2.2_S2V_Img2Vid) if you need to go below fp8. Verified 2026-06-02."
+          }
+        ],
+        "notes": "Wave-3 narrow ComfyUI lane complete. models[] is intentionally EMPTY (this lane only adds custom-node + workflow extras). Did NOT re-list any already-cataloged node (Manager, Impact, rgthree, KJNodes, ControlNet-aux, Crystools, IPAdapter_plus, VideoHelperSuite, Frame-Interpolation, Ultimate SD Upscale, rembg/InSPyReNet, SAM2, Florence2, seamless-tiling, 3D-Pack). DELIVERED — 6 custom-node extras + 3 workflow links (lane permits returning extras):\nPRIMARY TARGET hit: ComfyUI-WD14-Tagger (pythongosssss), MIT, current (pushed 2025-07, v1.0.1, ~1.2k stars) — de-facto booru-tag captioner.\nLoRA-dataset/tagging cluster: WD14-Tagger + Image-Captioning-in-ComfyUI (LoRA Caption Load/Save ->.txt) + WAS Node Suite (batch load/save dataset prep).\nOther genuine essentials: audio-separation-nodes (stem split, MIT, v2.0.0 pushed 2026-04), efficiency-nodes (XY-plot/Efficient-KSampler), Comfyroll (QoL).\n3 vetted+sourced workflows: stem separation (official comfy.org), booru-tag dataset captioning (Weird Wonderful AI Art, the WD14 LoRA-caption graph), Wan2.2-S2V (official docs.comfy.org native workflow JSON). LICENSE FLAGS (decisive axis, explicitly called out):\n- Comfyroll: NO LICENSE FILE at root (GitHub license API returns none; no LICENSE/LICENSE.txt) AND stale (last push 2024-07-24, ~2yr). Listed WITH flag, not as a clean commercial recommendation — prefer rgthree/KJNodes/WAS for licensed QoL.\n- Image-Captioning-in-ComfyUI (LarryJane491): no LICENSE stated — flagged; safe to run locally, distribution unclear.\n- efficiency-nodes: GPL-3.0 on CODE only; generated outputs unaffected -> commercial-safe for asset production, matters only if redistributing node code.\n- WD14-Tagger, audio-separation, WAS (ltdrdata fork): all MIT -> clean. MAINTAINER-HANDOFF NOTES (load-bearing, would silently break installs):\n- WAS Node Suite: original WASasquatch repo ARCHIVED read-only 2025-06-02 (author retired); use ltdrdata fork.\n- efficiency-nodes: original LucianoCirino unmaintained; use jags111 fork. VRAM: WD14, audio-sep, WAS, efficiency, Comfyroll, captioning = all trivial VRAM (CPU/ONNX/torchaudio) — no 32GB concern. Wan2.2-S2V fp8_scaled fits 32GB comfortably; bf16 for quality; GGUF community variant noted for sub-fp8. All entries verified 2026-06-02 via official HF/GitHub cards + GitHub API for license/currency."
+      },
+      "verify": {
+        "domain": "ComfyUI — dataset/tagger nodes (round out)",
+        "summary": "Verified 6 custom-node repos + 3 workflow sources. 7 of 9 confirmed outright. Two flagged: Image-Captioning-in-ComfyUI has NO license (researcher omitted the field) and Comfyroll's \"LICENSE UNCLEAR\" flag is correct (no LICENSE file, no README mention). WD14-Tagger's stale 2023 changelog is misleading but the repo is in fact current (commits July 2025). All three workflow URLs resolve and are legitimate (two official comfy.org/docs.comfy.org, one reputable third-party tutorial). specs_plausible is set true where applicable; most items are nodes/web pages where VRAM is not directly relevant — the only weight-bearing item (Wan2.2-S2V) ships fp8_scaled for low VRAM and fits 32 GB.",
+        "verdicts": [
+          {
+            "model": "ComfyUI-WD14-Tagger (pythongosssss)",
+            "exists": true,
+            "license_status": "confirmed",
+            "license_correction": "",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "Repo exists, MIT License confirmed. WD v1.4 booru-tag interrogator using SmilingWolf models (ConvNextV2/MOAT etc.), batch + threshold support. The README changelog top entry reads 2023-05-14 (repo split-out date) which falsely suggests abandonment, but the commit history shows active maintenance through July 11 2025 (pyproject.toml update + async fix). 1.2k stars. VRAM-light tagger; trivially fits 32 GB.",
+            "fixes": ""
+          },
+          {
+            "model": "audio-separation-nodes-comfyui (christian-byrne)",
+            "exists": true,
+            "license_status": "confirmed",
+            "license_correction": "",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "Repo exists, MIT License confirmed. Hybrid Demucs stem separation (vocals/bass/drums/other) plus combine/crop/tempo-match/speed-shift/tempo-detect and video audio replacement. v2.0.0 released ~April 13 2026 — very current. 571 stars, 82 commits. Demucs runs comfortably in 32 GB.",
+            "fixes": ""
+          },
+          {
+            "model": "was-node-suite-comfyui (ltdrdata-maintained fork)",
+            "exists": true,
+            "license_status": "confirmed",
+            "license_correction": "",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "Fork confirmed: ltdrdata re-registered the pack after original author WASasquatch retired (note dated June 3 2025). LICENSE file present = MIT, copyright Jordan Thompson (WASasquatch) 2023, carried over to the fork. 210+ utility/image/text nodes. CPU/GPU utility suite; no heavy VRAM demand.",
+            "fixes": ""
+          },
+          {
+            "model": "Image-Captioning-in-ComfyUI (LarryJane491) — LoRA Caption Load/Save",
+            "exists": true,
+            "license_status": "corrected",
+            "license_correction": "No license — repository has NO LICENSE file and no license statement (researcher omitted the license field entirely; this is 'all rights reserved' by default, not open-source)",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed-with-fixes",
+            "note": "Repo exists and provides the two claimed nodes — LoRA Caption Load and LoRA Caption Save (prepares filename+caption.txt pairs for LoRA training; pairs with WD1.4 Tagger which it lists as mandatory). However NO license is present anywhere on the page; absent a license this is legally all-rights-reserved, not freely reusable. Lightweight file-IO nodes; VRAM is not a factor.",
+            "fixes": "Record license_status as 'none / unlicensed (all rights reserved)' rather than leaving it blank. Treat as not-open-source for any redistribution; downstream users should be warned."
+          },
+          {
+            "model": "ComfyUI_Comfyroll_CustomNodes (Suzie1) — LICENSE UNCLEAR",
+            "exists": true,
+            "license_status": "confirmed",
+            "license_correction": "License genuinely UNCLEAR/absent — confirmed no LICENSE file (404 at /main/LICENSE) and NO license mention anywhere in README. 'LICENSE UNCLEAR' label is accurate.",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "Repo exists (v1.76, 607 commits, 1.3k stars; SDXL/SD1.5 nodes — Multi-ControlNet, LoRA, Aspect Ratio, Process Switches). The researcher's 'LICENSE UNCLEAR' flag is CORRECT and verified: GET on /blob/main/LICENSE returns HTTP 404, and the raw README contains no license/copyright text. Should NOT be assumed MIT or otherwise open. Utility nodes; no VRAM concern. Marked confirmed because the claim itself (existence + unclear-license) is exactly what was asserted and it holds.",
+            "fixes": ""
+          },
+          {
+            "model": "efficiency-nodes-comfyui (jags111 fork)",
+            "exists": true,
+            "license_status": "confirmed",
+            "license_correction": "",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "Fork confirmed (forked from LucianoCirino/efficiency-nodes-comfyui), maintained by jags111 who states intent to keep the branch alive. License GPL-3.0. Efficiency loaders/samplers + XY Plot, HighRes-Fix, Noise Control script nodes. 1.5k stars, 511 commits, active. Workflow-orchestration nodes; VRAM driven by the underlying model, not the pack.",
+            "fixes": ""
+          },
+          {
+            "model": "Audio Separation (stem split) — official ComfyUI example workflow",
+            "exists": true,
+            "license_status": "unverified",
+            "license_correction": "",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "URL resolves on comfy.org's official workflow hub with genuine ComfyUI branding; page is the Audio Separation example workflow (isolating vocals/instruments — aligns with the christian-byrne Demucs nodes). Legitimate first-party source. License field N/A for a workflow page (example workflows hub). Demucs-class separation fits 32 GB.",
+            "fixes": ""
+          },
+          {
+            "model": "LoRA Caption (booru-tag dataset captioning) workflow — Weird Wonderful AI Art",
+            "exists": true,
+            "license_status": "unverified",
+            "license_correction": "",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "Page exists (weirdwonderfulai.art, published Aug 25 2024), legitimate tutorial with downloadable workflow. Note: it captions via Florence-2 + CLIP Interrogator + WD14 Tagger (booru tags) — booru-tag captioning is one component, not the whole workflow, so the descriptor is slightly narrow but fair. Third-party (not official ComfyUI). Florence-2/CLIP/WD14 all fit 32 GB easily.",
+            "fixes": ""
+          },
+          {
+            "model": "Wan2.2-S2V Audio-Driven Video — official ComfyUI native workflow",
+            "exists": true,
+            "license_status": "unverified",
+            "license_correction": "",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "Official docs.comfy.org tutorial confirmed. Native ComfyUI workflow for Wan2.2-S2V-14B audio-driven video (image+audio -> synced video; dialogue/singing/performance). Uses wav2vec2 audio encoder + text encoder + VAE, optional Lightning LoRA 4-step. Offers fp8_scaled for lower VRAM and bf16 for quality — fp8_scaled 14B variant is the right choice for 32 GB and is plausible. License field N/A for a docs/workflow page (Wan model weights carry their own license, not asserted here).",
+            "fixes": ""
+          }
+        ],
+        "missing": [
+          {
+            "name": "comfyui_controlnet_aux (Fannovel16)",
+            "url": "https://github.com/Fannovel16/comfyui_controlnet_aux",
+            "why": "The de-facto auxiliary preprocessor pack; frequently used alongside taggers/Comfyroll in dataset and ControlNet workflows. Notably absent from a 'round out' of dataset/tagger utility nodes."
+          },
+          {
+            "name": "ComfyUI-Florence2 (kijai)",
+            "url": "https://github.com/kijai/ComfyUI-Florence2",
+            "why": "Florence-2 is the leading natural-language captioner for LoRA dataset prep (and is literally used by the WeirdWonderfulAIArt workflow in this very list). The dedicated kijai node belongs in a dataset/captioning round-up."
+          },
+          {
+            "name": "ComfyUI-Inspire-Pack / Impact-Pack (ltdrdata)",
+            "url": "https://github.com/ltdrdata/ComfyUI-Inspire-Pack",
+            "why": "By the same maintainer as the WAS fork listed here; core utility/batch-processing nodes commonly paired with tagging and caption pipelines. A natural complement the researcher omitted."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,323 @@
+{
+  "bucket": "midi-notation-ingest",
+  "title": "Score ingest inside a wasm law: SMF, MusicXML, ABC",
+  "tier": "si-jam-sessions",
+  "count": 7,
+  "recipes": [
+    {
+      "slug": "configure-midly-for-wasm32-unknown-unknown",
+      "name": "Configure midly for wasm32-unknown-unknown",
+      "what": "Using midly with `default-features = false, features = [\"alloc\"]` enables `Smf::parse` while avoiding `std` and `rayon` (parallel) dependencies.",
+      "how": "In `Cargo.toml`, specify `midly = { version = \"0.5.3\", default-features = false, features = [\"alloc\"] }`. This provides the `Smf` type and allocation-backed parsing without requiring OS threads or the standard library.",
+      "rust_version": "1.98.1",
+      "gotchas": "If `alloc` is omitted, `Smf::parse` is unavailable, and you must use the lower-level `parse` function which returns iterators.",
+      "engine_note": "Crucial for the wasm law, which has no threads (rayon would fail to compile or run) and operates in a `no_std` or restricted `std` environment.",
+      "checks": [
+        {
+          "label": "midly compiles with alloc and no default features",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [
+            "midly"
+          ],
+          "expect": "compiles",
+          "oracle_set": "jam",
+          "source": "use midly::Smf;\n#[unsafe(no_mangle)]\npub extern \"C\" fn check_midly() {\n    let _ = Smf::parse(b\"MThd\\0\\0\\0\\x06\\0\\0\\0\\x01\\0\\x60MTrk\\0\\0\\0\\x04\\0\\xff\\x2f\\0\");\n}"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 Cargo.toml",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/Cargo.toml",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": null,
+          "claim": "The default features include `alloc`, `std`, and `parallel` (which depends on `rayon`)."
+        },
+        {
+          "title": "midly 0.5.3 src/lib.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/lib.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": null,
+          "claim": "Disabling `std` and `alloc` makes the crate fully `no_std`, but `Smf` is unavailable without the `alloc` feature."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "parse-smf-formats-and-timing",
+      "name": "Parse SMF formats and timing",
+      "what": "midly parses SMF formats 0, 1, and 2, exposing timing as either `Metrical` (ticks per beat) or `Timecode` (SMPTE frames).",
+      "how": "Match on `smf.header.format` (`SingleTrack`, `Parallel`, `Sequential`) and `smf.header.timing`. For the law's fixed PPQ, reject `Timing::Timecode` and extract the `u15` ticks per beat from `Timing::Metrical`.",
+      "rust_version": "1.98.1",
+      "gotchas": "Format 2 (Sequential) contains multiple independent songs; the law should likely reject it or only process the first track.",
+      "engine_note": "The law requires integer ticks at one fixed PPQ. If the SMF's metrical timing does not divide evenly into the law's PPQ, the file must be rejected to maintain deterministic integer math.",
+      "checks": [
+        {
+          "label": "Extract metrical timing from SMF header",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [
+            "midly"
+          ],
+          "expect": "runs",
+          "stdout": "96",
+          "wasm_call": {
+            "export": "get_ppq",
+            "args": []
+          },
+          "oracle_set": "jam",
+          "source": "use midly::{Smf, Timing};\n#[unsafe(no_mangle)]\npub extern \"C\" fn get_ppq() -> i32 {\n    let smf = Smf::parse(b\"MThd\\0\\0\\0\\x06\\0\\0\\0\\x01\\0\\x60MTrk\\0\\0\\0\\x04\\0\\xff\\x2f\\0\").unwrap();\n    match smf.header.timing {\n        Timing::Metrical(ticks) => ticks.as_int() as i32,\n        _ => -1,\n    }\n}"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 src/primitive.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": null,
+          "claim": "Timing is an enum with `Metrical(u15)` and `Timecode(Fps, u8)` variants."
+        },
+        {
+          "title": "midly 0.5.3 src/smf.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/smf.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": null,
+          "claim": "The `Header` struct contains `format` and `timing` fields."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "handle-midly-parsing-errors-and-strict-mode",
+      "name": "Handle midly parsing errors and strict mode",
+      "what": "midly categorizes errors into `ErrorKind::Invalid` (fatal) and `ErrorKind::Malformed` (non-fatal unless the `strict` feature is enabled).",
+      "how": "Check the `Error::kind()` returned by `Smf::parse`. Without the `strict` feature, midly silently drops malformed tracks or events. For a deterministic law, you must either enable `strict` or manually validate track counts.",
+      "rust_version": "1.98.1",
+      "gotchas": "If `strict` is disabled, a corrupted file might parse successfully but yield missing data, which could lead to non-deterministic behavior if the corruption is interpreted differently by other tools.",
+      "engine_note": "The law must reject ambiguous or corrupted inputs to ensure deterministic replay. Enabling the `strict` feature (or treating all `Result::Err` as fatal) is required.",
+      "checks": [
+        {
+          "label": "midly returns Invalid for bad headers",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [
+            "midly"
+          ],
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_call": {
+            "export": "is_invalid",
+            "args": []
+          },
+          "oracle_set": "jam",
+          "source": "use midly::{Smf, ErrorKind};\n#[unsafe(no_mangle)]\npub extern \"C\" fn is_invalid() -> i32 {\n    let res = Smf::parse(b\"BADHEADER\");\n    match res {\n        Err(e) => match e.kind() {\n            ErrorKind::Invalid(_) => 1,\n            _ => 0,\n        },\n        Ok(_) => 0,\n    }\n}"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 src/error.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/error.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": null,
+          "claim": "ErrorKind has Invalid (fatal) and Malformed (non-fatal unless strict is enabled) variants."
+        },
+        {
+          "title": "midly 0.5.3 src/lib.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/lib.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": null,
+          "claim": "By default midly plows through non-standard files, but the strict feature makes it reject uncompliant data."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "select-a-musicxml-parsing-crate",
+      "name": "Select a MusicXML parsing crate",
+      "what": "quick-xml 0.42 provides a `no_std` pull parser, roxmltree 0.21 provides a read-only DOM (requires alloc/std), and musicxml 1.1.2 provides a typed SDK (supports `no_std`).",
+      "how": "For a wasm32 law, `musicxml` with `default-features = false` provides a typed `ScorePartwise` struct directly from bytes via `read_score_data_partwise`. `quick-xml` is smaller but requires manual event handling.",
+      "rust_version": "1.98.1",
+      "gotchas": "The `musicxml` crate's `read_score_partwise` function requires `std` (for file I/O), but `read_score_data_partwise` works on `Vec<u8>` in `no_std`.",
+      "engine_note": "The law has no files, so it must ingest MusicXML from a byte slice in linear memory. `musicxml::read_score_data_partwise` fits this perfectly.",
+      "checks": [
+        {
+          "label": "musicxml parses data partwise",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [
+            "musicxml"
+          ],
+          "expect": "compiles",
+          "oracle_set": "jam",
+          "source": "use musicxml::read_score_data_partwise;\n#[unsafe(no_mangle)]\npub extern \"C\" fn parse_mxml(ptr: *const u8, len: usize) -> i32 {\n    let data = unsafe { std::slice::from_raw_parts(ptr, len) }.to_vec();\n    match read_score_data_partwise(data) {\n        Ok(_) => 1,\n        Err(_) => 0,\n    }\n}"
+        }
+      ],
+      "sources": [
+        {
+          "title": "musicxml 1.1.2 src/lib.rs",
+          "url": "https://docs.rs/crate/musicxml/1.1.2/source/src/lib.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": null,
+          "claim": "In a no_std environment, you can parse MusicXML data directly by calling read_score_data_partwise with a Vec<u8>."
+        },
+        {
+          "title": "quick-xml 0.42.0 src/lib.rs",
+          "url": "https://docs.rs/crate/quick-xml/0.42.0/source/src/lib.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": null,
+          "claim": "quick-xml is a low level XML pull-reader where buffer allocation/clearing is left to user."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "map-musicxml-divisions-to-fixed-ppq",
+      "name": "Map MusicXML divisions to fixed PPQ",
+      "what": "MusicXML's `<divisions>` element specifies ticks per quarter note. This must be mapped to the law's fixed PPQ using integer arithmetic.",
+      "how": "Calculate `(note_duration * fixed_ppq) / divisions`. If `(note_duration * fixed_ppq) % divisions != 0`, the note's exact timing cannot be represented in the law's fixed PPQ and must be refused.",
+      "rust_version": "1.98.1",
+      "gotchas": "Divisions can change mid-score in MusicXML. The mapping must use the currently active `<divisions>` value.",
+      "engine_note": "The law strictly uses one fixed PPQ. Any MusicXML file with tuplets or durations that do not align with this PPQ must be rejected to maintain deterministic integer state.",
+      "checks": [
+        {
+          "label": "Integer math for PPQ conversion",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "144",
+          "wasm_call": {
+            "export": "convert_duration",
+            "args": [
+              3,
+              2,
+              96
+            ]
+          },
+          "oracle_set": "jam",
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn convert_duration(duration: u32, divisions: u32, fixed_ppq: u32) -> i32 {\n    if (duration * fixed_ppq) % divisions != 0 {\n        -1\n    } else {\n        ((duration * fixed_ppq) / divisions) as i32\n    }\n}"
+        }
+      ],
+      "sources": [
+        {
+          "title": "musicxml 1.1.2 src/elements/divisions.rs",
+          "url": "https://docs.rs/crate/musicxml/1.1.2/source/src/elements/divisions.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": null,
+          "claim": "The Divisions element indicates how many divisions per quarter note are used to indicate a note's duration."
+        },
+        {
+          "title": "musicxml 1.1.2 src/elements/backup.rs",
+          "url": "https://docs.rs/crate/musicxml/1.1.2/source/src/elements/backup.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": null,
+          "claim": "Duration values should not cross mid-measure changes in the Divisions value."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "process-musicxml-backup-and-forward-elements",
+      "name": "Process MusicXML backup and forward elements",
+      "what": "MusicXML uses `<backup>` and `<forward>` elements to move the time cursor backward and forward, coordinating multiple voices.",
+      "how": "Maintain a running integer time cursor for the current measure. When encountering a `Forward` element, add its `duration.content.0` to the cursor. For a `Backup` element, subtract its duration.",
+      "rust_version": "1.98.1",
+      "gotchas": "Backup and forward durations are in the current `<divisions>` units, so they must be converted to the law's fixed PPQ before adjusting the global integer timeline.",
+      "engine_note": "The law flattens all voices into a single integer timeline of onsets. Backup/forward are essential for resolving polyphony into this flat timeline.",
+      "checks": [
+        {
+          "label": "Extract backup duration",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [
+            "musicxml"
+          ],
+          "expect": "compiles",
+          "oracle_set": "jam",
+          "source": "use musicxml::elements::Backup;\n#[unsafe(no_mangle)]\npub extern \"C\" fn get_backup_dur(backup: &Backup) -> u32 {\n    backup.content.duration.content.0\n}"
+        }
+      ],
+      "sources": [
+        {
+          "title": "musicxml 1.1.2 src/elements/backup.rs",
+          "url": "https://docs.rs/crate/musicxml/1.1.2/source/src/elements/backup.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": null,
+          "claim": "The Backup element specifies the number of divisions to move back, coordinating multiple voices."
+        },
+        {
+          "title": "musicxml 1.1.2 src/elements/forward.rs",
+          "url": "https://docs.rs/crate/musicxml/1.1.2/source/src/elements/forward.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": null,
+          "claim": "The Forward element specifies the duration to move forward, generally used within voices and staves."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "parse-abc-notation-with-abc-parser",
+      "name": "Parse ABC notation with abc-parser",
+      "what": "The `abc-parser` 0.4.0 crate parses ABC text into a `TuneBook` AST using PEG, supporting notes, tuplets, and repeats, but lacks chord symbols and macros.",
+      "how": "Call `abc_parser::abc::tune_book(text)` to get a `TuneBook`. Iterate over `tunes`, then `body.lines`, matching on `TuneLine::Music` to extract `MusicSymbol::Note`.",
+      "rust_version": "1.98.1",
+      "gotchas": "ABC lengths are expressed as `f32` (e.g., `Length(0.5)`). These floats must be converted to exact integer ticks at the fixed PPQ, rejecting any that lose precision.",
+      "engine_note": "Because ABC lengths are floats in this crate, the law must strictly verify that `(length * base_ticks).round() == (length * base_ticks)` to prevent floating-point non-determinism from leaking into the state.",
+      "checks": [
+        {
+          "label": "Parse ABC tune book",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [
+            "abc_parser"
+          ],
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_call": {
+            "export": "parse_abc",
+            "args": []
+          },
+          "oracle_set": "jam",
+          "source": "use abc_parser::abc;\n#[unsafe(no_mangle)]\npub extern \"C\" fn parse_abc() -> i32 {\n    let parsed = abc::tune_book(\"X:1\\nT:Example\\nK:D\\n\");\n    if parsed.is_ok() { 1 } else { 0 }\n}"
+        }
+      ],
+      "sources": [
+        {
+          "title": "abc-parser 0.4.0 README.md",
+          "url": "https://docs.rs/crate/abc-parser/0.4.0/source/README.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": null,
+          "claim": "abc-parser parses ABC text into Rust data structures using PEG, but lacks support for Chord Symbols and Macros."
+        },
+        {
+          "title": "abc-parser 0.4.0 src/datatypes/mod.rs",
+          "url": "https://docs.rs/crate/abc-parser/0.4.0/source/src/datatypes/mod.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": null,
+          "claim": "Lengths are expressed as a newtype wrapper for f32 `Length(f32)`."
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

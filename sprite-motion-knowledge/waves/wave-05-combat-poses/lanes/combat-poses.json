@@ -1,0 +1,49 @@
+{
+  "laneSlug": "combat-craft",
+  "title": "Combat key-pose authoring (instantiated poses)",
+  "recipes": [
+    {
+      "slug": "combat-keypose-authoring-grounded",
+      "name": "Author the 6 battle key-poses to biomechanical targets (hand-author, don't retarget, don't guess)",
+      "kind": "technique",
+      "engine_family": "blender",
+      "applicable_to": "all-motion",
+      "claim": "For static combat key-poses (idle-ready, guard, anticipation, strike, recovery, hurt) on an auto-rigged custom character, hand-author to biomechanical/silhouette targets solved numerically — it is faster than retarget-and-scrub for one frame, it is what shipped 2.5D/2D-from-3D games do, and it keeps restrictive mocap licenses out of the project.",
+      "summary": "The combat-craft principles (key-pose-first, exaggerate 30-50%, silhouette-reads-8-ways) say WHAT makes a pose read but not the joint angles. This recipe instantiates the 6 canonical poses with construction targets: idle-ready = lowered COM, flexed hips/knees, weight on balls of feet, ASYMMETRIC (no twinning). guard = bladed/staggered feet, bent knees, hands raised to chest/face, ELBOWS TUCKED IN (boxing guard; longsword Pflug/Ochs). anticipation = move OPPOSITE the strike first (weapon drawn back, rear foot loaded, torso counter-rotated). strike = held extreme at the far end of the wind-up arc, clean profile silhouette. recovery = overshoot then settle, loose parts (cape) drag after the main mass. hurt = COM thrown outside the base of support (a discrete labelable class). Author by SOLVING joint angles to a target hand/foot position (numeric forward-kinematics), not eyeballing — the sprite-motion poser uses world-axis delta rotations solved to chest-height hand targets; a single-axis guess threw the arms up (a touchdown). Mocap libraries amortize MOTION, not a single frame, and the clean-licensed humanoid libraries (CMU, 100STYLE, Mixamo) rarely beat hand-posing for one key-frame; the non-commercial traps (AMASS/SMPL, Ubisoft LaFAN1) are blocked for a shipped game and retargeting does NOT relicense them.",
+      "design_implication": "Build a numeric pose-solver into the rig-proxy lane: name each key-pose's end-effector targets (hand at chest for guard, weapon-back for anticipation) and solve the bone rotations, then verify the silhouette in 8 directions. Cap authored joint flexion (see the rigging-lane deform recipe). The pose representation is role-keyed world-axis deltas (port across skeletons) resolved via the per-character roleMap. Never retarget AMASS/LaFAN1/Unreal-Lyra into a shippable asset.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "n/a",
+      "commercial_use": "yes",
+      "commercial_notes": "Animation principles + biomechanics; hand-authored poses are studio IP. AMASS/SMPL and Ubisoft LaFAN1 are NON-COMMERCIAL and must not be retargeted into shipped assets; CMU Mocap / 100STYLE (CC BY) / Mixamo (in-product) are the clean fallbacks if a clip is ever used.",
+      "vram_gb": "n/a",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "failures": [
+        {
+          "symptom": "Hand-authored pose looks wrong / arms thrown up (a 'touchdown' instead of a guard)",
+          "cause": "Guessing joint angles, or a single world-axis rotation that cannot express a real stance (a guard needs >1 axis per joint)",
+          "remediation": "Solve the bone rotations numerically to a named end-effector target (hand at chest height, elbows tucked); use a multi-axis-per-role pose format",
+          "severity": "quality",
+          "recipe_field": "summary"
+        },
+        {
+          "symptom": "All propless/posed characters default to the same splayed pose",
+          "cause": "No per-pose target authored; the rig falls back to a neutral spread",
+          "remediation": "Author distinct body-attached targets per pose AND per character; validate the pose is deliberate and distinct, not just defect-free",
+          "severity": "quality",
+          "recipe_field": "summary"
+        }
+      ],
+      "purposes": ["combat-keypose", "rig-proxy-lane", "pose-authoring"],
+      "sources": [
+        {"kind": "book", "title": "The Illusion of Life: Disney Animation", "authors": "Frank Thomas, Ollie Johnston", "year": "1981", "identifier": "ISBN 978-0-7868-6070-8", "url": "https://en.wikipedia.org/wiki/Twelve_basic_principles_of_animation", "claim": "Staging, anticipation (move opposite first), and solid drawing without twinning are the structural grammar of a readable pose; the pose must read in silhouette before any detail."},
+        {"kind": "book", "title": "The Animator's Survival Kit", "authors": "Richard Williams", "year": "2001", "identifier": "ISBN 978-0-571-23834-7", "url": "https://archive.org/details/TheAnimatorsSurvivalKitRichardWilliams", "claim": "Test every key-pose in profile silhouette; the strike is the held extreme at the far end of the wind-up arc that then recoils."},
+        {"kind": "video", "title": "GDC Animation Bootcamp: Fluid and Powerful Animation within Frame Restrictions", "authors": "Mariel Cartwright (Lab Zero Games)", "year": "2014", "identifier": "GDC Vault 1020017", "url": "https://www.gdcvault.com/play/1020017", "claim": "With a ~6-frame punch budget, spend it on a distinct wind-up key + a held strike key (Skullgirls) — strong exaggerated extremes carry the read, not frame count."},
+        {"kind": "paper", "title": "NTU RGB+D: A Large Scale Dataset for 3D Human Activity Analysis", "authors": "Amir Shahroudy, Jun Liu, Tian-Tsong Ng, Gang Wang", "year": "2016", "identifier": "arXiv:1604.02808", "url": "https://arxiv.org/abs/1604.02808", "claim": "Strike and stagger are enumerated reproducible action classes (punch/kick/push and staggering/falling), confirming the key-pose set maps to real labeled poses."},
+        {"kind": "web", "title": "Art Design Deep Dive: Using a 3D pipeline for 2D animation in Dead Cells", "authors": "Thomas Vasseur (Motion Twin)", "year": "2018", "identifier": "", "url": "https://www.gamedeveloper.com/production/art-design-deep-dive-using-a-3d-pipeline-for-2d-animation-in-i-dead-cells-i-", "claim": "Dead Cells renders hand-keyframed 3D rigs down to pixel sprites ('animations are designed, like 2D animations, on key frames'); the 3D-to-2D win is asset reuse, not motion capture."},
+        {"kind": "docs", "title": "AMASS dataset license", "authors": "Max Planck Institute (Mahmood et al.)", "year": "2019", "identifier": "", "url": "https://amass.is.tue.mpg.de/license.html", "claim": "AMASS prohibits 'any use for commercial purposes... incorporation in a commercial product' and bars training methods for commercial use; retargeting does not relicense it."}
+      ]
+    }
+  ]
+}

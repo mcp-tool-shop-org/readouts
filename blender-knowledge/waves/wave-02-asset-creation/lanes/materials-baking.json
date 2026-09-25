@@ -1,0 +1,288 @@
+{
+  "laneSlug": "materials-baking",
+  "title": "Materials & texture baking",
+  "blender_version_scope": "4.0–4.3 (Cycles baker; EEVEE Next does not bake)",
+  "recipes": [
+    {
+      "slug": "principled-bsdf-v2-inputs",
+      "name": "Principled BSDF v2 — Blender 4.0 input reference",
+      "what": "Blender 4.0 completely reorganized the Principled BSDF inputs. Pre-4.0 tutorials, add-on scripts, and Python automation that reference old socket names by string will silently break or wire to wrong slots.",
+      "how": "Current 4.0+ input order and names (collapsed sockets hidden by default — click the chevron to expose each group): BASE LAYER: • Base Color (was: same) • Metallic (was: same) • Roughness (was: same) • IOR (Index of Refraction, used by both dielectric specular AND transmission) • Alpha • Normal SPECULAR: • Specular IOR Level [NEW NAME — was 'Specular' in ≤3.6; same 0–1 range but now scales IOR-derived reflectance; neutral/default = 0.5] • Specular Tint (now accepts a color, not just a float) • Anisotropic • Anisotropic Rotation • Tangent SUBSURFACE: • Subsurface Weight [NEW NAME — was 'Subsurface' (float) in ≤3.6] • Subsurface Radius (RGB mm — unchanged) • Subsurface Scale [NEW — global radius multiplier, replaces old 'Subsurface' amount idiom] • Subsurface Anisotropy ✗ Subsurface Color — REMOVED; subsurface now uses Base Color ✗ Subsurface IOR — REMOVED TRANSMISSION: • Transmission Weight [NEW NAME — was 'Transmission'] COAT: • Coat Weight [NEW NAME — was 'Clearcoat'] • Coat Roughness [was 'Clearcoat Roughness'] • Coat IOR [NEW] • Coat Tint [NEW — tinted coat; default white = clear] • Coat Normal [was 'Clearcoat Normal'] SHEEN: • Sheen Weight [NEW NAME — was 'Sheen'] • Sheen Roughness [NEW] • Sheen Tint EMISSION: • Emission Color [NEW NAME — was single 'Emission' color socket in ≤3.6] • Emission Strength [always existed as a value; now a distinct labeled socket] MISC: • Thin Film Thickness [NEW] • Thin Film IOR [NEW]",
+      "blender_version": "4.0+",
+      "gotchas": [
+        "Any script using node.inputs['Specular'] by name will fail silently (no error, socket not found) — use 'Specular IOR Level' instead.",
+        "node.inputs['Transmission'] → renamed to 'Transmission Weight'. Same for 'Subsurface' → 'Subsurface Weight', 'Sheen' → 'Sheen Weight', 'Clearcoat' → 'Coat Weight', 'Clearcoat Roughness' → 'Coat Roughness'.",
+        "Old .blend files with Principled BSDF auto-upgrade socket names on open, but Python scripts that pass socket names as strings do NOT auto-upgrade.",
+        "Subsurface Color texture connections are silently dropped on upgrade — re-route into Base Color if you need a separate SSS color.",
+        "Transmission Roughness was removed; IOR + Roughness now unifies it.",
+        "Sockets are collapsed by default in the 4.0 node UI — use the group chevrons to expand Coat, Sheen, Subsurface, etc."
+      ],
+      "studio_use": "When scripting headless Blender to apply materials to TRELLIS GLB meshes, all socket lookups must use the 4.0 names. A one-time name-migration pass on any existing material-builder scripts is required before 4.x batch renders.",
+      "currency": "solid",
+      "verify_note": "Cross-checked against Blender 4.0 release notes (developer.blender.org/docs/release_notes/4.0/shading/), developer forum thread on collapsed sockets, and BlenderArtists 4.0 Principled BSDF thread confirming all renames.",
+      "sources": [
+        {
+          "title": "Blender 4.0: Shading & Texturing — developer.blender.org release notes",
+          "url": "https://developer.blender.org/docs/release_notes/4.0/shading/",
+          "claim": "Documents Specular→Specular IOR Level rename, Subsurface Color removal, Subsurface Scale addition, Coat IOR/Tint additions, new Sheen microfiber model, Emission layer reordering"
+        },
+        {
+          "title": "Principled BSDF — Blender Manual 4.0",
+          "url": "https://docs.blender.org/manual/en/4.0/render/shader_nodes/shader/principled.html",
+          "claim": "Authoritative socket names and order for Blender 4.0 Principled BSDF"
+        },
+        {
+          "title": "#112552 — Change Specular input to affect IOR — Blender Projects",
+          "url": "https://projects.blender.org/blender/blender/pulls/112552",
+          "claim": "Developer PR confirming the Specular rename rationale: old name implied 0=off/1=full but neutral is 0.5; new name matches OpenPBR convention"
+        }
+      ]
+    },
+    {
+      "slug": "pbr-material-setup",
+      "name": "PBR material setup with Principled BSDF 4.x",
+      "what": "Standard physically-based material wiring for a TRELLIS-generated GLB mesh in Blender 4.x — Base Color, Metallic, Roughness, Normal, and optional AO mix.",
+      "how": "1. Select the mesh → Properties → Material → New.\n2. In Shader Editor: Principled BSDF is auto-added → Material Output.\n3. TEXTURE NODES — Add → Texture → Image Texture for each map: • Base Color map: Image Texture (Color Space = sRGB) → 'Base Color' socket. • Metallic map: Image Texture (Color Space = Non-Color) → 'Metallic' socket. • Roughness map: Image Texture (Color Space = Non-Color) → 'Roughness' socket. • Normal map: Image Texture (Color Space = Non-Color) → Normal Map node → 'Normal' socket. The Normal Map node is under Add → Vector → Normal Map; set Space = Tangent.\n4. For TRELLIS GLBs that export with a single ORM (Occlusion-Roughness-Metallic) packed texture: • Image Texture (Non-Color) → Separate RGB node: R → [AO mix, see below], G → Roughness, B → Metallic.\n5. AO optional mix: Math (Multiply) node, factor controlled by AO strength, multiply into Base Color before routing to Principled.\n6. IOR: default 1.45 is correct for most opaque non-metals; adjust only for glass/transparent surfaces.\n7. Specular IOR Level: leave at 0.5 (default) unless matching a specific dielectric; setting to 0 kills all specular.",
+      "blender_version": "4.0+",
+      "gotchas": [
+        "Normal map textures MUST be Non-Color space — leaving sRGB on a normal map produces incorrect lighting and messed normals.",
+        "Roughness and Metallic maps: also Non-Color. Only Base Color / Albedo is sRGB.",
+        "TRELLIS GLBs typically use glTF PBR convention (ORM packed, normal in tangent space) which matches this workflow directly.",
+        "In 4.0 the old 'Specular' slider default of 0.5 is now 'Specular IOR Level' at 0.5 — same visual result, different name.",
+        "EEVEE and Cycles both render Principled BSDF, but EEVEE approximates subsurface and coat — use Cycles for final bake passes."
+      ],
+      "studio_use": "Primary material setup for every TRELLIS mesh before turnaround bake — wire the GLB's embedded textures (Base Color, Normal, Roughness, Metallic) into Principled BSDF so Cycles bakes a clean flat sprite sheet with correct surface response.",
+      "currency": "solid",
+      "verify_note": "Standard Cycles/EEVEE PBR wiring that has not changed mechanically in 4.x; confirmed color-space requirements from graphics-programming.org baking guide and katsbits Principled BSDF reference.",
+      "sources": [
+        {
+          "title": "The one true guide to baking materials in Blender — Graphics Programming Discord",
+          "url": "https://graphics-programming.org/blog/blender-baking",
+          "claim": "Confirms albedo=sRGB, Normal/Roughness=Non-Color, and the Diffuse bake type Direct+Indirect=off for pure color capture"
+        },
+        {
+          "title": "Principled BSDF — Blender 4.0 Manual",
+          "url": "https://docs.blender.org/manual/en/4.0/render/shader_nodes/shader/principled.html",
+          "claim": "Authoritative input socket names and defaults for 4.0"
+        }
+      ]
+    },
+    {
+      "slug": "bake-panel-workflow",
+      "name": "Cycles Bake panel — complete workflow",
+      "what": "The Bake panel lives in Render Properties (camera icon) and is only available when Cycles is the active render engine. EEVEE has no bake panel — switching engine is step 0.",
+      "how": "STEP-BY-STEP: 0. Render Properties → Render Engine = Cycles (GPU Compute if RTX 5090 is the device). 1. SET UP BAKE TARGET (do this BEFORE hitting Bake): • In Shader Editor, add an Image Texture node to every material that will be baked. • Create a new image (Image Editor → New, set resolution, e.g. 2048×2048). • Assign that image to the Image Texture node. • The node must NOT be connected to any other shader socket — it just needs to exist. • Click the Image Texture node to make it the ACTIVE node (blue highlight). This is the bake target. • If multiple materials share the same mesh, each material needs its own Image Texture node pointing at the same target image, and each must be the active node in its material. 2. SELECT THE OBJECT (single-object bake): • Object mode → select the mesh. 3. BAKE PANEL (Render Properties → Bake section): • Bake Type: choose from the list (see recipe 'bake-types'). • Margin Type: 'Adjacent Faces' (default since 3.1, better seam blending) or 'Extend' (legacy pixel push-out). • Margin: 16 px is default; reduce if UV islands are close together. • Selected to Active: OFF for single-object bakes. • Save Mode: Internal (saves to the Blender image datablock — must manually save to disk after). 4. CLICK BAKE — wait for progress bar. 5. SAVE IMAGE IMMEDIATELY: • UV Editor → Image → Save As (or Alt+S). • The baked image lives only in RAM until saved — closing Blender without saving loses it. • Use PNG (lossless, 8-bit) for Base Color / AO; use PNG 16-bit or EXR for Normal maps to preserve precision.",
+      "blender_version": "4.0–4.3",
+      "gotchas": [
+        "EEVEE does not have a Bake panel — must switch to Cycles. EEVEE Next (4.2 LTS onwards) still has no baking.",
+        "Image Texture node must be the ACTIVE (selected, highlighted blue) node — just existing in the tree is not enough.",
+        "If the node is connected to the material output, you get circular dependency errors or black results.",
+        "Adjacent Faces margin type can fail with highly rotated UV islands — fall back to Extend in that case.",
+        "Blender uses Cycles render samples for baking, so sample count affects quality and speed. Lower samples for iteration, raise for final.",
+        "Save Mode 'Internal' = saves into .blend only; 'External' = saves directly to a file path without a separate save step."
+      ],
+      "studio_use": "The core bake driver for flattening TRELLIS mesh shading to a 2D sprite-ready texture. Run per-mesh before rendering the turnaround sprite sheet — output is a flat Base Color or Combined map the sprite renderer reads directly.",
+      "currency": "solid",
+      "verify_note": "Confirmed against official Blender 4.0 Render Baking manual page (URL confirmed in search results), katsbits Texture Bake Basics, and blenderbasics.com baking guide.",
+      "sources": [
+        {
+          "title": "Render Baking — Blender 4.0 Manual",
+          "url": "https://docs.blender.org/manual/en/4.0/render/cycles/baking.html",
+          "claim": "Official Blender 4.0 documentation for the Bake panel, bake types, margin, and Selected-to-Active"
+        },
+        {
+          "title": "Baking Texture Maps (Texture Bake Basics) — Katsbits",
+          "url": "https://www.katsbits.com/codex/texture-bake/",
+          "claim": "Confirms Image Texture node must be active but unconnected; save workflow and margin settings"
+        },
+        {
+          "title": "Baking Texture Maps from Your Mesh — blenderbasics.com",
+          "url": "https://www.blenderbasics.com/blog/baking_textures/",
+          "claim": "Confirms 12 bake types, 16px margin default, and that baked images exist only in RAM until explicitly saved"
+        }
+      ]
+    },
+    {
+      "slug": "bake-types",
+      "name": "Cycles bake types — complete list and when to use each",
+      "what": "Cycles exposes 12 bake types. Picking the wrong type (e.g. Combined when you want flat color) bakes lighting into the texture permanently.",
+      "how": "Available bake types in Render Properties → Bake → Bake Type: DIFFUSE — Surface albedo. Sub-options: Direct (bakes direct light), Indirect (bakes indirect/GI), Color (bakes flat material color, no lighting). For a clean base-color texture, select ONLY Color (uncheck Direct + Indirect). GLOSSY — Glossy/reflection pass. Same Direct/Indirect/Color sub-options. TRANSMISSION — Light passing through transparent materials. COMBINED — Everything: diffuse + glossy + transmission + AO + shadows. Use only when you want a fully-lit pre-baked scene texture. Dangerous: lighting is baked in permanently. AMBIENT OCCLUSION (AO) — Approximated occlusion. Good for adding cheap depth to a sprite or mixing into Base Color. SHADOW — Grayscale shadow map. NORMAL — Tangent-space normal map (default and correct for most game/sprite use). Result is a RGB image encoding surface normals. Use Non-Color image color space. UV — Renders UV coordinate data as RGB color — used for UV debugging. ROUGHNESS — Bakes the Roughness socket value to a grayscale texture. Non-Color image. EMIT — Bakes the Emission Color. Useful for baking ANY shader output: connect any shader node to an Emission shader → Material Output, then bake Emit to capture it. Standard trick for baking Metallic maps (which have no dedicated bake type). ENVIRONMENT — Environment/reflection map, for non-raytraced engines. SUBSURFACE — Subsurface scattering color/influence pass.",
+      "blender_version": "4.0–4.3",
+      "gotchas": [
+        "There is NO dedicated 'Metallic' bake type. Standard workaround: create a temporary material, route the Metallic texture through an Emission Color node, bake as 'Emit'. This captures the metallic grayscale correctly.",
+        "Combined bakes lighting — if your scene lights change later, the baked texture is stale. Prefer Diffuse (Color only) + AO + Normal as separate maps.",
+        "AO bake uses Cycles render samples and scene geometry, not the AO post-process approximation from EEVEE.",
+        "Normal bake output: must save to Non-Color PNG or EXR. Saving as sRGB will corrupt the normals when re-imported.",
+        "Roughness bake output: Non-Color. Saving as sRGB applies gamma that will make surfaces look more rough than they are."
+      ],
+      "studio_use": "For the sprite turnaround pipeline: bake Diffuse (Color only) to get a clean albedo, Normal for normal-map-based lighting in-engine, AO to layer into albedo for depth, and Emit trick for Metallic if the engine needs it. Combined is generally avoided — the 2D sprite renderer controls lighting independently.",
+      "currency": "solid",
+      "verify_note": "Bake type list confirmed against blenderbasics.com (12 types enumerated), graphics-programming.org guide (Emit trick for Metallic explicitly documented), and official 4.0 Render Baking manual.",
+      "sources": [
+        {
+          "title": "Baking Texture Maps from Your Mesh — blenderbasics.com",
+          "url": "https://www.blenderbasics.com/blog/baking_textures/",
+          "claim": "Lists all 12 bake types including Combined, AO, Shadow, UV, Roughness, Emit, Environment, Subsurface"
+        },
+        {
+          "title": "The one true guide to baking materials in Blender — Graphics Programming Discord",
+          "url": "https://graphics-programming.org/blog/blender-baking",
+          "claim": "Documents Emit bake type as the workaround for Metallic and custom shader output capture; confirms Diffuse Direct+Indirect=off for clean color bake"
+        }
+      ]
+    },
+    {
+      "slug": "selected-to-active-high-low",
+      "name": "Selected-to-Active: high-poly → low-poly bake transfer",
+      "what": "Bakes detail from a high-poly mesh (e.g. sculpted TRELLIS output) onto the UVs of a low-poly game-ready mesh. Normal maps, AO, and Diffuse detail are the most common targets.",
+      "how": "SETUP:\n1. Have both meshes in scene. Low-poly must be UV-unwrapped (high-poly need not be).\n2. Add Image Texture node to low-poly's material (this is the bake target — make it active, unconnected).\n3. Object Mode: select HIGH-POLY first (Shift+click), then ACTIVE-select LOW-POLY last. • In Blender 4.x, the ACTIVE object (last selected, brighter orange outline) receives the bake. • Selection order is critical — wrong order = 'No valid active object found' error. BAKE PANEL:\n4. Render Properties → Bake → enable 'Selected to Active' checkbox.\n5. Extrusion: sets how far rays cast from the low-poly surface INWARD toward the high-poly. • Start small (e.g. 0.01 m) and increase until green normal-map artifacts disappear.\n6. Max Ray Distance: how far the ray travels before giving up. Set ≈ 1.5–2× Extrusion.\n7. (Optional) Cage: if 'Use Cage' is enabled, point 'Cage Object' to a slightly inflated copy of the low-poly — gives more precise projection control for complex shapes, prevents back-face hits on concave areas.\n8. Choose Bake Type (Normal, Diffuse, AO, etc.) → Bake. WORKFLOW NOTE:\n• Apply scale on both meshes before baking (Ctrl+A → Scale) — mismatched scales cause ray distance confusion.\n• The high-poly must be visible (not hidden) during the bake.",
+      "blender_version": "4.0–4.3",
+      "gotchas": [
+        "Selection order is the #1 error cause: high-poly selected (white outline), low-poly ACTIVE (bright orange) — if reversed, Blender bakes the high-poly onto itself.",
+        "Extrusion too high = cage leaks through thin surfaces and bakes incorrect back faces. Too low = rays miss the high-poly and you get flat/black spots in the normal map.",
+        "Cage object must be a manifold (no open edges) version of the low-poly slightly scaled outward — the Mirror modifier cage workflow requires applying the mirror first.",
+        "When using Cage, Max Ray Distance has no effect — the cage geometry defines the projection volume entirely.",
+        "katsbits (4.3) note: only the low-poly needs material/image data — the high-poly has no bake target requirement."
+      ],
+      "studio_use": "Core workflow for TRELLIS mesh cleanup: TRELLIS produces a mid-high poly GLB; for game-ready sprite assets, bake its normal detail and albedo onto a hand-retopologized low-poly (or decimated version) that has clean non-overlapping UVs.",
+      "currency": "solid",
+      "verify_note": "Confirmed from katsbits Blender 4.3 bake guide, graphics-programming.org baking guide (Extrusion vs Max Ray Distance), and blenderbasecamp.com normal baking tutorial.",
+      "sources": [
+        {
+          "title": "Texture Bake and Blender 4.3 — Katsbits",
+          "url": "https://www.katsbits.com/codex/texture-bake-blender-4-3/",
+          "claim": "Confirms selection order (high-poly first, low-poly active last), and that only the low-poly needs material/image data for Selected-to-Active bakes"
+        },
+        {
+          "title": "The one true guide to baking materials in Blender — Graphics Programming Discord",
+          "url": "https://graphics-programming.org/blog/blender-baking",
+          "claim": "Documents Extrusion vs Max Ray Distance calibration, cage workflow, and apply-scale requirement"
+        },
+        {
+          "title": "Texture Baking in Blender: Normals & Beyond — Blender Base Camp",
+          "url": "https://www.blenderbasecamp.com/texture-baking-in-blender-normals-beyond/",
+          "claim": "Selected-to-Active workflow with ray distance and cage notes"
+        }
+      ]
+    },
+    {
+      "slug": "uv-unwrap-for-baking",
+      "name": "UV unwrap essentials for baking",
+      "what": "Baking requires a non-overlapping UV map. The Image Texture bake target only works when UVs exist; the pixel-to-surface correspondence is the whole mechanism.",
+      "how": "METHODS (Tab into Edit Mode → select all with A → U to open UV Mapping menu): SMART UV PROJECT — Best for imported GLB meshes with no hand-marked seams. Cut based on angle threshold (default 66°). Fast and automatic. Settings: Angle Limit (66° default), Island Margin (0.02 for padding between islands to avoid bleed). UNWRAP (Mark Seams) — Best for organic / character meshes. Mark seams (Edge Select mode → Ctrl+E → Mark Seam), then U → Unwrap. LIGHTMAP PACK — UV islands packed into a square, best for baking AO/lightmaps. KEY REQUIREMENTS:\n• No overlapping UV islands — overlaps cause one surface to bake into another's pixel space.\n• All islands within the [0,1] UV square — parts outside won't receive baked pixels.\n• UV islands should use as much UV space as possible — small islands = fewer pixels = blurry bake.\n• If using a Mirror modifier: apply before unwrapping, then offset one side's UVs to U+1 to avoid mirror overlap (or use the 'Correct Face Attributes' toggle during apply). MULTIPLE UV CHANNELS:\n• Blender supports multiple UV maps per mesh. Use a dedicated 'BakeUV' channel that is non-overlapping even if the rendering UV (channel 0) has mirrored/overlapping islands for texture economy.\n• In the Bake panel, Blender bakes to the ACTIVE UV map. Set the BakeUV channel active before baking.\n• In the Image Texture node used as bake target, add a UV Map node pointing to 'BakeUV' to be explicit.",
+      "blender_version": "4.0–4.3",
+      "gotchas": [
+        "Smart UV Project default Island Margin of 0 causes islands to touch — set to 0.02–0.03 to guarantee margin between islands.",
+        "Mirror modifier UVs overlap by default — either apply the modifier before unwrapping, or use offset UV coordinates and a second UV channel.",
+        "Scale must be applied (Ctrl+A → Scale) before unwrapping — unapplied scale produces distorted UV islands that don't match real surface proportions.",
+        "Active UV map in mesh properties and active UV Map node in shader must agree — mismatch causes wrong UV used for bake.",
+        "TRELLIS GLBs often come with UV0 (render UVs, potentially mirrored). Add a UV1 'BakeUV' channel with non-overlapping Smart UV Project before baking."
+      ],
+      "studio_use": "TRELLIS generates GLBs with embedded UV0. Before baking sprites, add a second UV channel (BakeUV) via Smart UV Project with Island Margin = 0.02 and use it as the explicit bake target — preserves the original render UV while providing a clean bake UV.",
+      "currency": "solid",
+      "verify_note": "UV requirements confirmed from artisticrender.com baking guide, graphics-programming.org baking guide (non-overlapping requirement, multiple UV channels), and blenderartists Smart UV Project thread.",
+      "sources": [
+        {
+          "title": "The one true guide to baking materials in Blender — Graphics Programming Discord",
+          "url": "https://graphics-programming.org/blog/blender-baking",
+          "claim": "Non-overlapping UVs required; apply scale before unwrap; UV Map node for multiple UV channel explicitness"
+        },
+        {
+          "title": "How to bake textures in Blender — Artisticrender.com",
+          "url": "https://artisticrender.com/how-to-bake-textures-in-blender/",
+          "claim": "UV map must be non-overlapping; dedicated 'baker' UV map naming convention; power-of-two image resolution"
+        }
+      ]
+    },
+    {
+      "slug": "normal-map-baking",
+      "name": "Normal map baking — color space, format, and DirectX vs OpenGL",
+      "what": "Normal maps must be baked with specific color space and format settings or the normals will be corrupt. This is the most commonly broken step in beginner bake setups.",
+      "how": "1. Create bake target image: Image Editor → New → uncheck 'Alpha', set color to (0.5, 0.5, 1.0, 1.0) (flat normal blue), resolution 2048–4096. CRITICAL: set Color Space to 'Non-Color'. Do NOT use sRGB for normal maps. 2. Add Image Texture node, load the new image, confirm color space = Non-Color in the node. 3. Bake panel → Bake Type = Normal → Space = Tangent (default and correct for game use). Object space normals are available but only useful for static engine imports where object rotation never changes. 4. Bake → Image Editor → Save As → PNG 16-bit or EXR for maximum precision. PNG 8-bit is acceptable for low-frequency normal detail (rocks, armor); insufficient for fine detail (skin pores, fabric weave). 5. DirectX vs OpenGL convention: • Blender outputs OpenGL-convention normals (G channel = +Y = up). • If the target engine uses DirectX normals (Unreal Engine, many older DCC tools), invert the Green channel: — In Blender: Image Editor → Image → Invert → uncheck R and B, invert only G → Save As. — Or in bake: Properties panel shows a '-Y' option for the G channel for normal bakes. 6. Re-import verification: create a new material, add Image Texture (Non-Color) → Normal Map node → Principled 'Normal' socket. The mesh should look identical to the high-poly shading under the same light.",
+      "blender_version": "4.0–4.3",
+      "gotchas": [
+        "If the bake target image was created as sRGB and you switch to Non-Color after the fact, Blender respects the new setting — but the display appearance changes. Always create the image as Non-Color from the start.",
+        "Baking with the Normal Map node already in the material (connecting a normal map to 'Normal' socket) bakes a flat result — this is intentional and correct (baking converts applied normals back to geometry). If you want to bake the applied normal map as a new texture, use the Image Texture node as target without the Normal Map node in the chain during bake.",
+        "Tangent space normals require the UV map used for baking to match the UV map the engine will use for rendering — use the same UV channel for both.",
+        "Green channel inversion (OpenGL → DirectX) is a one-time destructive operation on the image — keep the OpenGL original and maintain the DX version separately."
+      ],
+      "studio_use": "Bake the TRELLIS high-poly surface detail onto the decimated low-poly's normal map. Use Tangent space + PNG 16-bit. If exporting to Godot 4 (OpenGL): use as-is. If exporting to UE5: invert G channel for DirectX compatibility.",
+      "currency": "solid",
+      "verify_note": "Non-Color requirement and G-channel inversion confirmed from graphics-programming.org baking guide and blenderbasecamp.com. DirectX vs OpenGL convention is well-established cross-engine knowledge.",
+      "sources": [
+        {
+          "title": "The one true guide to baking materials in Blender — Graphics Programming Discord",
+          "url": "https://graphics-programming.org/blog/blender-baking",
+          "claim": "Non-Color color space requirement, DirectX G-channel inversion, Normal bake type = Tangent, 16-bit PNG recommendation"
+        },
+        {
+          "title": "Texture Baking in Blender: Normals & Beyond — Blender Base Camp",
+          "url": "https://www.blenderbasecamp.com/texture-baking-in-blender-normals-beyond/",
+          "claim": "Normal map bake workflow, Extrusion and ray distance settings for Selected-to-Active normals"
+        }
+      ]
+    },
+    {
+      "slug": "vertex-colors-to-texture",
+      "name": "Vertex colors → texture bake",
+      "what": "TRELLIS or hand-painted vertex colors can be baked to a UV-space texture for engine use, since many engines prefer texture maps over vertex color attributes at runtime.",
+      "how": "1. Ensure the mesh has a vertex color layer (Color Attribute). In Blender 4.x these are accessed via: Mesh Properties → Attributes panel (or → Vertex Colors in older UI). The datablock is named 'Attribute' by default in 4.x (was 'Col' in 2.9x). 2. In Shader Editor for the mesh's material: • Add → Input → Color Attribute • Set the Color Attribute node to reference your vertex color layer by name. • Connect: Color Attribute → Principled BSDF 'Base Color'. (This makes the vertex color the material color for the bake.) 3. Add bake target Image Texture node (Non-connected, active/selected, sRGB image for color data). 4. UV-unwrap the mesh (Smart UV Project works fine — vertex color baking only needs UVs for the OUTPUT texture, not for the painting itself). 5. Bake panel: • Bake Type = Diffuse • Contributions: uncheck Direct, uncheck Indirect, check Color ONLY. This bakes only the flat vertex color, no lighting. 6. Bake → Save As PNG. 7. In the final material: swap Color Attribute node for the baked Image Texture node. Now the mesh uses a conventional UV texture.",
+      "blender_version": "4.0–4.3",
+      "gotchas": [
+        "Blender 4.x names the default vertex color attribute 'Attribute', not 'Col' (which was the 2.9x default). Scripts or Color Attribute nodes referencing 'Col' will fall back to no data.",
+        "Direct and Indirect must BOTH be unchecked under Diffuse contributions — leaving either on bakes scene lighting into the vertex color, which is almost never wanted.",
+        "The Color Attribute node must be connected to the material during the bake (providing the color source); but the Image Texture bake TARGET must NOT be connected to the material.",
+        "For meshes with multiple materials, each material must have the Color Attribute node → Principled Base Color setup, and each needs its own Image Texture bake target node."
+      ],
+      "studio_use": "TRELLIS meshes sometimes carry vertex color data from the 3D reconstruction. Bake these to UV textures so the resulting sprite assets use standard texture maps compatible with any game engine material system without vertex color support overhead.",
+      "currency": "solid",
+      "verify_note": "Confirmed from katsbits Bake Vertex Color guide (Color Attribute node setup, Diffuse bake type, Direct+Indirect off) and Render Baking manual stating Color Attribute is a valid bake target.",
+      "sources": [
+        {
+          "title": "Bake Vertex Color — Katsbits Blender Knowledgebase",
+          "url": "https://www.katsbits.com/codex/bake-vertex-color/",
+          "claim": "Complete workflow: Color Attribute → Principled Base Color, Diffuse bake with Color-only contributions, UV requirement for bake output"
+        },
+        {
+          "title": "Render Baking — Blender 5.1 Manual",
+          "url": "https://docs.blender.org/manual/en/latest/render/cycles/baking.html",
+          "claim": "Confirms Color Attribute is a valid bake target alongside Image Texture nodes in Blender 4.x"
+        }
+      ]
+    },
+    {
+      "slug": "export-baked-maps",
+      "name": "Export baked maps — save, format, and engine handoff",
+      "what": "Baked images in Blender exist only in memory (the.blend image datablock) until explicitly saved to disk. Closing Blender before saving loses the bake. This recipe covers the save/export path and format decisions for sprite pipeline handoff.",
+      "how": "SAVING FROM WITHIN BLENDER:\n• UV Editor or Image Editor → Image menu → 'Save As' (Shift+S in image editor, or Image → Save As in the header menu).\n• For images created with 'New' (not loaded from disk), 'Save' has no target — always use 'Save As' to pick a file path.\n• Alt+S is the shortcut in the UV Editor. FORMAT SELECTION:\n• Base Color / Albedo: PNG 8-bit sRGB — smallest lossless format, broad engine support.\n• Normal Map: PNG 16-bit Non-Color (or EXR half float) — 8-bit loses precision in flat/gradient regions causing banding in-engine.\n• Roughness / Metallic / AO: PNG 8-bit Non-Color — grayscale data, 8-bit is sufficient for most game uses.\n• Combined HDR bake: EXR 16-bit — preserves full dynamic range. BATCH SAVE (scripted pipeline): import bpy for img in bpy.data.images: if img.is_dirty: # modified since last save img.filepath_raw = \"//textures/\" + img.name + \".png\" img.file_format = 'PNG' img.save() PACK INTO.BLEND vs EXTERNAL:\n• Image Editor → Image → Pack: embeds in the.blend file. Useful for transport but inflates file size.\n• External paths (//textures/…) are preferred for iterative pipelines — re-bakes overwrite the file on disk. GLB/FBX HANDOFF:\n• When exporting a GLB with baked textures: File → Export → glTF 2.0 → 'Include → Textures' must be enabled.\n• Assign baked Image Texture nodes into the correct Principled BSDF slots BEFORE export so the GLB exporter picks them up and embeds them in the glTF material.\n• glTF expects: Base Color (sRGB), Normal Map (OpenGL tangent, Non-Color), ORM or separate Roughness/Metallic (Non-Color).",
+      "blender_version": "4.0–4.3",
+      "gotchas": [
+        "Saving .blend does NOT save baked images if they are 'dirty' (unsaved image datablocks) — always explicitly Image → Save As after baking.",
+        "PNG 8-bit for normal maps causes visible banding on subtle normals — use 16-bit PNG or EXR.",
+        "External file paths starting with // are relative to the .blend file location. If you move the .blend without the textures folder, paths break.",
+        "GLB export with 'Textures' enabled only picks up images that are connected to the material output chain — unconnected bake target nodes won't be embedded. Connect the baked maps into Principled BSDF sockets before export.",
+        "Blender's glTF exporter (4.x) automatically splits a combined Principled material into the glTF PBR structure — it does NOT auto-detect a Cycles Bake Combined pass. Set up the materials correctly with baked maps in the right sockets."
+      ],
+      "studio_use": "Final step in the TRELLIS → sprite pipeline: save Normal (16-bit PNG), Base Color (8-bit PNG), and Roughness (8-bit PNG) to //textures/, re-connect into Principled BSDF sockets, then export the low-poly as GLB for the sprite renderer or game engine import.",
+      "currency": "solid",
+      "verify_note": "Save workflow confirmed from multiple sources; format recommendations (16-bit normal, 8-bit diffuse/roughness) from graphics-programming.org guide; GLB material connection requirement from Blender glTF export documentation behavior.",
+      "sources": [
+        {
+          "title": "How to Export Textures From Blender — ShiftyChevre",
+          "url": "https://shiftychevre.com/how-to-export-textures-from-blender/",
+          "claim": "Save As workflow, format options (PNG, EXR), pack vs external path trade-offs"
+        },
+        {
+          "title": "The one true guide to baking materials in Blender — Graphics Programming Discord",
+          "url": "https://graphics-programming.org/blog/blender-baking",
+          "claim": "16-bit PNG for normal maps, format by map type, and the bake-save-reconnect workflow"
+        },
+        {
+          "title": "Baking Texture Maps from Your Mesh — blenderbasics.com",
+          "url": "https://www.blenderbasics.com/blog/baking_textures/",
+          "claim": "Explicitly warns that saving.blend is not enough — must save baked images separately"
+        }
+      ]
+    }
+  ]
+}

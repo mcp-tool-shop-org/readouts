@@ -1,0 +1,155 @@
+{
+  "date": "2026-06-02",
+  "wave": 4,
+  "lanes": [
+    {
+      "slug": "profiling-bench",
+      "name": "Profiling, benchmarking & observability",
+      "research": {
+        "domain": "RTX 5090 measured baseline (wave 4) — Ollama 0.24.0 / llama.cpp backend, driver 610.47, CUDA UMD 13.3, WDDM, Windows 11. Includes a 10-min sustained thermal soak, bytefit loadout planning, and the OMEN 45L cooling story.",
+        "notes": "First MEASURED baseline on the actual rig (not researched claims). Method: nvidia-smi dmon @1s during sustained Ollama generation. HEADLINE: the 5090 is far from thermally/power constrained for single-stream local LLM — short runs peaked <=67C; a 9.5-min worst-case soak (gemma4:31b) PLATEAUED at ~71C (peak 74C) / 506W avg / full ~2861 MHz boost / ZERO throttle (14C under the ~88C limit). MoE qwen3.6:35b-a3b is the efficiency star (138.8 tok/s @ 256W/48C). bytefit (the in-org loadout planner) confirmed 1792 GB/s GDDR7 bandwidth and that the qwen3.6 family holds full 128K context in VRAM (gemma4/granite/aya degrade — KV spills to RAM). Power limit is already maxed (575W); GPU fan is VBIOS-auto; safe fan increases go through OMEN Gaming Hub. Real limiters = VRAM (>30B dense) and single-stream decode speed, NOT heat or power. Caveats: Ollama default ~Q4_K_M + default context; single-stream batch=1; WDDM not TCC.",
+        "engines": [
+          {
+            "name": "bytefit",
+            "slug": "bytefit",
+            "developer": "MCP Tool Shop (mcp-tool-shop-org)",
+            "engine_type": "tool / loadout-planner",
+            "language": "TypeScript (Node >=20)",
+            "latest_version": "1.0.0",
+            "release_date": "2026-05",
+            "license": "MIT",
+            "commercial_use": "yes",
+            "commercial_notes": "MIT — permissive, in-org tool.",
+            "maturity_tier": "production",
+            "platforms": "windows, linux, macos",
+            "accelerators": "cuda, rocm, metal (probe)",
+            "model_formats": "gguf",
+            "blackwell_ready": true,
+            "optimization_for": "flexibility",
+            "multi_gpu": "none",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "speed_note": "Instant — probe + arithmetic, no model load.",
+            "summary": "Hardware-aware local-LLM loadout planner (same org). Probes VRAM/RAM/bandwidth, ranks installed Ollama models, and emits model-class + quant + KV-cache + context + offload + ready-to-run llama.cpp/Ollama args — and REFUSES configs that would silently page to disk (which collapses decode ~78x). On this rig it confirmed 1792 GB/s GDDR7 bandwidth and that the qwen3.6 family holds full 128K context in VRAM while gemma4/granite/aya degrade. Its tok/s predictions matched wave-4 measurements on the MoE + gemma4 and over-predicted dense models ~25-29% (theoretical bandwidth bound vs real attention/KV/WDDM overhead). Use bytefit to PLAN; use the measured baseline to EXPECT. `bytefit probe | recommend | plan <model> [--ctx N] [--use-case reasoning]`.",
+            "best_for": [
+              {
+                "purpose": "Pick the optimal model + quant + KV + context + offload loadout for this rig",
+                "use_tag": "local",
+                "fitness": 5
+              },
+              {
+                "purpose": "Refuse / avoid configs that silently page to disk",
+                "use_tag": "local",
+                "fitness": 5
+              },
+              {
+                "purpose": "Size context to VRAM headroom (e.g. qwen3.6 @128K in VRAM)",
+                "use_tag": "local",
+                "fitness": 5
+              }
+            ],
+            "repo_url": "https://github.com/mcp-tool-shop-org/bytefit",
+            "sources": [
+              {
+                "url": "https://github.com/mcp-tool-shop-org/bytefit",
+                "title": "mcp-tool-shop-org/bytefit",
+                "kind": "repo",
+                "claim": "Hardware-aware local-LLM loadout planner (probe/recommend/plan); MIT; v1.0.0; tested live on an RTX 5090; refuses paging configs."
+              }
+            ]
+          }
+        ],
+        "extras": [
+          {
+            "kind": "baseline",
+            "name": "BASELINE: RTX 5090 idle",
+            "url": "",
+            "note": "Idle (desktop only): 16W / 575W cap, 28C, 2% SM, 405 MHz mem / 476 MHz core, P8, ~2287 MiB VRAM desktop floor. Driver 610.47, CUDA UMD 13.3, WDDM."
+          },
+          {
+            "kind": "baseline",
+            "name": "BASELINE: qwen3.6:35b-a3b (MoE A3B) — 138.8 tok/s",
+            "url": "",
+            "note": "Decode 138.8 tok/s, prompt 999 tok/s. VRAM 28381 MiB. Load: 256W/271W pk, 45/48C, 2881 MHz, no throttle. THE efficiency winner (3B active experts). Best for sustained local-crew work."
+          },
+          {
+            "kind": "baseline",
+            "name": "BASELINE: translategemma:12b (dense 12B) — 126.7 tok/s",
+            "url": "",
+            "note": "Decode 126.7 tok/s, prompt 3086 tok/s. VRAM 13408 MiB => room for a co-resident model or huge context. Load: 435W/463W pk, 64/67C, 2872 MHz, no throttle."
+          },
+          {
+            "kind": "baseline",
+            "name": "BASELINE: gemma4:31b (dense 31B) — 60.4 tok/s",
+            "url": "",
+            "note": "Decode 60.4 tok/s, prompt 2364 tok/s. VRAM 28230 MiB. Short-run load: 480W/503W pk, 58/66C, 2883 MHz, no throttle. Highest-power model tested (=> chosen for the soak)."
+          },
+          {
+            "kind": "baseline",
+            "name": "BASELINE: qwen3.6:27b (dense 27B) — 57.5 tok/s",
+            "url": "",
+            "note": "Decode 57.5 tok/s, prompt 746 tok/s. VRAM 26760 MiB (~5GB headroom). Load: 419W/442W pk, 49/56C, 2895 MHz, no throttle. The dense workhorse."
+          },
+          {
+            "kind": "baseline",
+            "name": "SOAK: gemma4:31b 9.5-min sustained — plateau ~71C, no throttle",
+            "url": "",
+            "note": "Worst-case (highest-power model) sustained 9.5 min (15 gens / 30000 tokens, 61.3 tok/s). Thermal CURVE: idle->~55C(1min)->~69C(2min)->PLATEAU ~71C by 3min, holds 71C (peak 74C) for the remaining 6+min — does NOT keep climbing. Power 506W avg / 547W peak (cap 575W). Core clock held ~2861 MHz avg full boost; ZERO thermal throttle (5/571 sub-2600MHz samples are brief inter-generation idle gaps, not throttle; steady 71C is 14C under the ~88C limit). => the rig sustains heavy LLM inference indefinitely at ~71C with full performance."
+          },
+          {
+            "kind": "baseline",
+            "name": "CALIBRATION: bytefit predicted vs wave-4 measured tok/s",
+            "url": "",
+            "note": "MoE 35b-a3b 132 pred / 138.8 measured (match); gemma4:31b 60 / 60.4 (match); dense qwen3.6:27b 74 / 57.5 (pred +29%); translategemma:12b 161 / 126.7 (pred +27%). bytefit nails MoE + gemma, over-predicts dense (its memory-bandwidth roofline omits attention/KV-growth/Ollama/WDDM overhead). RULE: on dense models discount bytefit's estimate ~20-25%."
+          },
+          {
+            "kind": "recipe",
+            "name": "LOADOUT: qwen3.6:27b full 128K context in VRAM (bytefit)",
+            "url": "https://github.com/mcp-tool-shop-org/bytefit",
+            "note": "llama-server -m <qwen3.6:27b.gguf> -c 131072 -ngl 64 -ctk q8_0 -ctv q8_0 -fa on => ~60 tok/s, KV only 4.0 GiB (heavy GQA), fits fully in 32GB VRAM. Ollama equiv: set num_ctx=131072. The big-context dense workhorse."
+          },
+          {
+            "kind": "recipe",
+            "name": "LOADOUT: qwen3.6:35b-a3b (MoE) 128K context (bytefit)",
+            "url": "https://github.com/mcp-tool-shop-org/bytefit",
+            "note": "llama-server -m <qwen3.6:35b-a3b.gguf> -c 131072 -ngl 40 -ctk q8_0 -ctv q8_0 -fa on => ~117 tok/s at 128K, KV 1.3 GiB. The fast big-context + efficiency pick for the crew."
+          },
+          {
+            "kind": "recipe",
+            "name": "CONTEXT capability: qwen3.6 holds 128K in VRAM; gemma4/granite/aya do NOT",
+            "url": "",
+            "note": "bytefit @128K: qwen3.6 family FITS in-VRAM (27b ~60 t/s, 35b-a3b ~117 t/s); aya-expanse:32b DEGRADED ~29 t/s, granite4.1:30b ~9 t/s, gemma4:31b ~5 t/s (KV spills to RAM => paging, bytefit refuses). DECISION: long-context crew work => Qwen3.6; gemma4 is a short-context (~8K) model on this rig."
+          },
+          {
+            "kind": "resource",
+            "name": "COOLING: OMEN 45L Cryo Chamber (cools the CPU, not the GPU)",
+            "url": "https://www.tomshardware.com/reviews/hp-omen-45l",
+            "note": "Patented top chamber houses the 240mm CPU liquid-cooler (AIO) radiator, isolated from the main case, pulling fresh ambient air => HP claims up to ~6C lower CPU temps under load. It cools the CPU, NOT the RTX 5090 (the GPU is air-cooled in the main chamber by its own VBIOS-curve fans + case airflow). Not sub-ambient/cryo — smart ambient-air isolation. Doubles as the carry handle; end-user upgradable."
+          },
+          {
+            "kind": "recipe",
+            "name": "FANS: safe increase path = OMEN Gaming Hub (installed)",
+            "url": "https://support.hp.com/us-en/document/ish_4052969-4031879-16",
+            "note": "GPU power limit already MAXED (575W default = max; min 400W => can only lower for efficiency, not raise). GPU fan is VBIOS-auto (nvidia-smi cannot set it on consumer/WDDM; a custom GPU fan curve needs MSI Afterburner, not installed). Safe system/Cryo-Chamber fan control = OMEN Gaming Hub: Performance Mode (auto-raise under load) / Max Fan Mode (full) / Thermal Control->Manual (fan slider); System Vitals monitors temps. UNNECESSARY for LLM loads (soak plateaued at 71C, 14C headroom) — reserve for heavier/sustained future workloads."
+          },
+          {
+            "kind": "baseline",
+            "name": "SERVING BASELINE: vLLM (WSL2) Qwen2.5-7B-AWQ concurrency sweep",
+            "url": "",
+            "note": "vLLM 0.22.1-nightly in WSL2 (Ubuntu 26.04), Qwen2.5-7B-Instruct-AWQ (awq_marlin INT4), FA2, CUDA graphs. Output tok/s by concurrency: C=1 -> 65 (single-stream); C=16 -> 1912; C=64 -> 4138 AGGREGATE (peak 7552), 16.2 req/s. TPOT 4.5ms (C1) -> 13.4ms (C64); median TTFT 47ms -> 574ms. GPU under batched load: 97-100% SM util, 483W avg / 579W PEAK (hits the 575W cap - batched serving is more compute-bound than single-stream LLM), 53/67C, full ~2900MHz boost. TAKEAWAY: vLLM continuous batching delivers ~64x the AGGREGATE throughput of single-stream and SATURATES the GPU (97% util), where Ollama single-stream (57 tok/s) leaves it mostly idle. Use vLLM-in-WSL2 for concurrent crew/fleet serving; Ollama-native for single-user simplicity."
+          },
+          {
+            "kind": "recipe",
+            "name": "RECIPE: vLLM nightly on RTX 5090 in WSL2 (working config + the 4 gotchas)",
+            "url": "https://wheels.vllm.ai/nightly",
+            "note": "Ubuntu 26.04 on WSL2 2.7.3 (2.7.0+ fixes the Blackwell CUDA-graph hang). Python: uv venv --python 3.12 (Ubuntu py3.14 has no vllm wheels). Install NIGHTLY: uv pip install -U vllm --torch-backend=auto --extra-index-url https://wheels.vllm.ai/nightly (gives vllm 0.22.1-dev + torch 2.11 cu130, sm_120). FOUR gotchas that all had to be fixed: (1) apt install build-essential as root - Triton/Inductor JIT needs gcc, absent on the minimal WSL image; (2) VLLM_USE_FLASHINFER_SAMPLER=0 - the FlashInfer sampler JIT needs nvcc and WSL has no CUDA toolkit; (3) VLLM_FLASH_ATTN_VERSION=2 - FA3 cannot run on Blackwell sm_120; (4) awq_marlin INT4 - WSL2 hides FP8/FP4 tensor cores so INT4 beats FP8 there. Serve: vllm serve <awq-model> --quantization awq_marlin --max-model-len 8192 --gpu-memory-utilization 0.9. Helper scripts on disk: E:\\AI-Models\\vllm_serve.sh / poll_vllm.sh / bench_vllm.sh."
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": []
+      }
+    }
+  ]
+}

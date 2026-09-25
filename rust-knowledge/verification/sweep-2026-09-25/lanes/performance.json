@@ -1,0 +1,194 @@
+{
+  "bucket": "performance",
+  "verifier_note": "Checked all 10 recipes' 57 source-warrant occurrences (~50 unique URLs) by retrieval against doc.rust-lang.org, docs.rs, github.com, v8.dev, nodejs.org, webassembly.github.io, blog.rust-lang.org and nnethercote's perf-book; checked all six engine_note claims against the live si-rpg-engine repo via gh api (solver/Cargo.toml, src/lib.rs, src/rapier_law.rs, build.mjs, FLAGS.md, Cargo.lock); and ran the lane's full compile_oracle.py suite plus 20+ of my own counter-examples directly against rustc 1.98.1, including the obscure ones (E0518's retirement text, E0463 on wasm32 -Cprofile-generate, E0587/E0589, the IEEE kernel's exact hex bits reproduced on host and wasm32, and this host's own 'arrowlake-s' target-cpu=native feature counts, which matched the recipe's claimed 38-vs-5 numbers exactly). Mid-task, a relayed message claimed the input had been regenerated with additional no_warnings/wasm_no_imports check fields; I independently diffed the live file rather than trust the claim, and found only three added no_warnings:true fields (recipe 1 check 2, recipe 4 check 3, recipe 9 check 5) with no wasm_no_imports anywhere in this lane — my full-lane oracle run had already been executed against that current file and passed all three cleanly. Every source resolved and supported its claim; every engine fact matched the live repository verbatim; all 41 oracle checks passed; nothing was found stale, mismatched, fabricated or unfindable. The systemic weakness is structural, not factual: as a performance lane, its central practical numbers (V8 timings, byte-size deltas, wasm sample-percentage splits) are single-machine, single-scene, unreproducible-by-a-verifier measurements -- properly scoped throughout (rep counts, sampling intervals, and noise bounds are stated) but resting on trust in the research agent's own measurement process, since no citation or compiler check can confirm a wall-clock number. Recipe 8 (profile-the-law-natively) is the sharpest instance: it carries zero compiler checks, so every one of its claims is anchored by documentation and engine facts alone, never by executable proof.",
+  "verdicts": [
+    {
+      "slug": "benchmark-before-tuning-criterion-or-divan-with-harness-false-black-box-on-every-input-and-output",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "std docs verbatim: identity fn, best-effort, stable 1.66.0/const 1.86.0. Oracle (rustc 1.98.1): const-item black_box compiles warning-free (no_warnings gate); #![feature(test)]+#[bench] fails E0554; input/output loop runs, prints 2.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/hint/fn.black_box.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/hint/fn.black_box.html", "supported": true, "note": "Verbatim: identity fn, best-effort, stable 1.66.0, const 1.86.0, wrap in/out -- all confirmed on page."},
+        {"url": "https://doc.rust-lang.org/cargo/commands/cargo-bench.html", "supported": true, "note": "Verbatim: #[bench] nightly-only (Criterion suggested), harness=false to custom main, bench profile used."},
+        {"url": "https://doc.rust-lang.org/cargo/reference/profiles.html", "supported": true, "note": "Verbatim: z turns off loop-vec, s/z 'not necessarily smaller', lto=false=thin-local, cgu 16 default, inherits."},
+        {"url": "https://docs.rs/criterion/0.8.2/criterion/fn.black_box.html", "supported": true, "note": "Verbatim deprecation note: 'use std::hint::black_box() instead'; version 0.8.2 confirmed."},
+        {"url": "https://docs.rs/divan/latest/divan/", "supported": true, "note": "Verbatim: #[divan::bench]/divan::main, MSRV 1.80.0, AllocProfiler measures GlobalAlloc; page is 0.1.21."},
+        {"url": "https://blog.rust-lang.org/2022/12/15/Rust-1.66.0/", "supported": true, "note": "Verbatim: announces black_box; 'compiler treats black_box as a function that could do anything with its input'."}
+      ]
+    },
+    {
+      "slug": "choose-release-profile-knobs-by-measurement-opt-level-sets-speed-lto-codegen-units-strip-debug-move-bytes",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "9/9 sources verbatim-matched incl. rustc Book's 'z often larger than s'. gh api confirms solver/Cargo.toml [profile.release] = opt-level 3/lto false/cgu 1/panic abort/overflow-checks false, byte for byte. Oracle: all 5 checks pass.",
+      "evidence_url": "https://doc.rust-lang.org/cargo/reference/profiles.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/cargo/reference/profiles.html", "supported": true, "note": "Verbatim: opt-level/lto/cgu-16-default/panic/line-tables-only/overflow-checks/debug-assertions/inherits confirmed."},
+        {"url": "https://doc.rust-lang.org/rustc/codegen-options/index.html", "supported": true, "note": "Verbatim: opt-level 0 to debug_assertions; target-cpu native='host'; target-feature 'unsafe'; z often > s in size."},
+        {"url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html", "supported": true, "note": "Verbatim: panic=abort default; generic CPU feature list incl. nontrapping-fptoint/bulk-memory since 1.87."},
+        {"url": "https://blog.rust-lang.org/2024/03/21/Rust-1.77.0/", "supported": true, "note": "Verbatim: 'profiles which do not enable debuginfo... enable strip=\"debuginfo\" by default', precompiled-std reasoning."},
+        {"url": "https://doc.rust-lang.org/cargo/reference/timings.html", "supported": true, "note": "Verbatim: --timings writes target/cargo-timings/cargo-timing.html with per-unit/codegen/concurrency data."},
+        {"url": "https://github.com/dtolnay/cargo-llvm-lines", "supported": true, "note": "Verbatim: counts LLVM IR lines + instantiations per generic fn, ties to compile time/binary size."},
+        {"url": "https://github.com/RazrFalcon/cargo-bloat", "supported": true, "note": "Verbatim: ELF/Mach-O/PE only, 'WASM is not supported. Use twiggy instead.', numbers are guesswork."},
+        {"url": "https://github.com/AlexEne/twiggy", "supported": true, "note": "Archived/read-only confirmed; wasm code-size profiler. Note: cargo-bloat's README links rustwasm/twiggy, not this fork."},
+        {"url": "https://nnethercote.github.io/perf-book/build-configuration.html", "supported": true, "note": "Verbatim: cgu=1/LTO/panic=abort/target-cpu=native caveat/PGO via cargo-pgo/line-tables-only all confirmed."}
+      ]
+    },
+    {
+      "slug": "split-profile-knobs-into-digest-only-and-result-changing-before-editing-the-solver-s-pinned-release-profile",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Self-ran the IEEE kernel (rustc 1.98.1): identical hex bits at opt-level 0, opt-level 3+cgu1, and on wasm32 -- 20.873008230947335 every time. gh api: engine's real mix_u64/write_body match the wrapping/NaN-refusal claims verbatim.",
+      "evidence_url": "https://rust-lang.github.io/rfcs/3514-float-semantics.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://rust-lang.github.io/rfcs/3514-float-semantics.html", "supported": true, "note": "Verbatim: IEEE-754-2008 match except NaN bits (compile vs run-time may differ); FMA precluded by strict IEEE."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f64.html", "supported": true, "note": "Verbatim: sqrt/mul_add guaranteed rounded; sin/exp/powf precision 'non-deterministic...can differ within execution'."},
+        {"url": "https://doc.rust-lang.org/cargo/reference/profiles.html", "supported": true, "note": "Same profile-key definitions verbatim as this lane's cargo-profiles source elsewhere."},
+        {"url": "https://doc.rust-lang.org/rustc/codegen-options/index.html", "supported": true, "note": "Same codegen-option definitions verbatim as this lane's rustc-codegen source elsewhere."},
+        {"url": "https://webassembly.github.io/spec/core/appendix/custom.html", "supported": true, "note": "Verbatim: name section purpose; custom sections 'do not...affect semantics...may be ignored'."},
+        {"url": "https://docs.rs/crate/wide/1.7.1/source/src/f64x2_.rs", "supported": true, "note": "Read actual source: mul_add fused under cfg(fma)/aarch64-neon else two-rounding; doc calls it 'platform-specific'."}
+      ]
+    },
+    {
+      "slug": "leave-inlining-to-rustc-inline-for-cross-crate-calls-cold-on-refusal-paths-static-dispatch-when-hot",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Oracle: #[inline] on a struct fails w/ rustc's exact wording, NO error code -- confirms E0518 'no longer emitted'. Dispatch-size check ran exact '3 3 3 16 8'. Hot/cold #[cold] pattern compiles warning-free (no_warnings gate).",
+      "evidence_url": "https://doc.rust-lang.org/reference/attributes/codegen.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/reference/attributes/codegen.html", "supported": true, "note": "Verbatim: inline forms are hints; cold 'unlikely to be called'; wasm target_feature calls 'always safe'."},
+        {"url": "https://github.com/rust-lang/rust/pull/116505", "supported": true, "note": "Confirmed on GitHub: merged, title matches, targets 1.75.0, MIR-no-calls-or-asserts heuristic described."},
+        {"url": "https://github.com/rust-lang/rust/releases/tag/1.75.0", "supported": true, "note": "Exact bullet present: 'Automatically enable cross-crate inlining for small functions', links PR 116505."},
+        {"url": "https://doc.rust-lang.org/book/ch18-02-trait-objects.html", "supported": true, "note": "Verbatim: 'Dynamic dispatch also prevents the compiler from choosing to inline a method's code'."},
+        {"url": "https://doc.rust-lang.org/book/ch10-01-syntax.html", "supported": true, "note": "Verbatim: generics 'won't make your program run any slower'; monomorphization explained."},
+        {"url": "https://nnethercote.github.io/perf-book/inlining.html", "supported": true, "note": "Verbatim: decision factors (opt-level/size/generic/crate-boundary), #[cold] guidance, hot/cold split pattern."},
+        {"url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/shared_shape.rs", "supported": true, "note": "Read actual source: line 99 is exactly `pub struct SharedShape(pub Arc<dyn Shape>);`."}
+      ]
+    },
+    {
+      "slug": "prove-indices-once-an-entry-guard-chunks-exact-mut-or-as-chunks-mut-removes-per-iteration-bounds-checks",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle ran all 3 checks on rustc 1.98.1: as_chunks/get() output, guard+as_chunks_mut(65-refused), and OOB-index panic(101) all matched exactly. gh api: engine's real step() guard is verbatim 'n_bodies as usize > MAX_BODIES'.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/slice/struct.ChunksExact.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://nnethercote.github.io/perf-book/bounds-checks.html", "supported": true, "note": "Verbatim: iterate/slice-before-loop/assert-ranges remove checks; get_unchecked is 'a last resort'."},
+        {"url": "https://doc.rust-lang.org/stable/std/slice/struct.ChunksExact.html", "supported": true, "note": "Verbatim: stable 1.31.0; remainder() holds the omitted tail, worked example matches."},
+        {"url": "https://github.com/rust-lang/rust/releases/tag/1.88.0", "supported": true, "note": "Verbatim: as_chunks/as_chunks_mut/as_rchunks/as_rchunks_mut listed under Stabilized APIs."},
+        {"url": "https://github.com/rust-lang/rust/pull/139656", "supported": true, "note": "Confirmed on GitHub: 'Stabilize slice_as_chunks library feature', merged, targets 1.88.0."}
+      ]
+    },
+    {
+      "slug": "reuse-per-quantum-buffers-clear-keeps-capacity-with-capacity-sizes-once-smallvec-arrayvec-for-small-lists",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Oracle ran all 3 checks (real smallvec/arrayvec crates, rustc 1.98.1): clear()-keeps-capacity, SmallVec-spill+ArrayVec-refuse, with_capacity-exact all matched. gh api confirms the named allocation sites verbatim.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/vec/struct.Vec.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/vec/struct.Vec.html", "supported": true, "note": "Verbatim: never auto-shrinks; refill 'should incur no calls to the allocator'; growth strategy unspecified."},
+        {"url": "https://nnethercote.github.io/perf-book/heap-allocations.html", "supported": true, "note": "Verbatim: clear() 'without affecting its capacity'; SmallVec slower-per-op, ArrayVec faster; DHAT recommended."},
+        {"url": "https://docs.rs/smallvec/1.16.2/smallvec/struct.SmallVec.html", "supported": true, "note": "Verbatim: Vec-like inline-N container; spilled() reports heap move; version 1.16.2 confirmed."},
+        {"url": "https://docs.rs/arrayvec/0.7.8/arrayvec/struct.ArrayVec.html", "supported": true, "note": "Verbatim: fixed-capacity array-backed; push panics full; try_push returns Result; version 0.7.8 confirmed."},
+        {"url": "https://docs.rs/divan/latest/divan/", "supported": true, "note": "Verbatim: AllocProfiler measures GlobalAlloc usage (same page cited elsewhere in this lane)."}
+      ]
+    },
+    {
+      "slug": "lay-out-hot-data-by-access-struct-of-arrays-when-loops-read-few-fields-rows-sized-against-cache-lines",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle ran the size/align check (136/8/8704/64/64) exact match, plus E0589 (non-pow2 align) and E0587 (packed+align) exact on rustc 1.98.1. gh api: engine's real BODIES=[f64;64*17]=8704 bytes matches verbatim.",
+      "evidence_url": "https://doc.rust-lang.org/reference/type-layout.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/reference/type-layout.html", "supported": true, "note": "Verbatim: size=multiple of alignment; [T;N] formula; repr(Rust)=field-align only; align pow2 to 2^29, no packed combo."},
+        {"url": "https://docs.rs/crossbeam-utils/latest/crossbeam_utils/struct.CachePadded.html", "supported": true, "note": "Verbatim: 128B on x86-64/aarch64/powerpc64 (prefetcher pairs), 64B others, explicitly 'a reasonable guess'."},
+        {"url": "https://docs.rs/soa_derive/latest/soa_derive/", "supported": true, "note": "Verbatim: derive(StructOfArray) makes one Vec per field; advantage is loading only needed fields."},
+        {"url": "https://nnethercote.github.io/perf-book/type-sizes.html", "supported": true, "note": "Verbatim: shrinking types cuts cache pressure; types >128B copied via memcpy."}
+      ]
+    },
+    {
+      "slug": "profile-the-law-natively-samply-perf-vtune-superluminal-then-confirm-hot-spots-with-node-cpu-prof",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "13 sources verbatim-confirmed incl. libm's actual sqrt.rs/configure.rs and rapier/parry's actual Cargo.toml lists (match engine's Cargo.lock). 0 compiler checks -- evidence rests on docs+engine facts, not executable code.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/Cargo.toml",
+      "corrections": null,
+      "sources": [
+        {"url": "https://nnethercote.github.io/perf-book/profiling.html", "supported": true, "note": "Verbatim: lists perf/VTune/samply/flamegraph/AMD uProf w/ platforms; line-tables-only + force-frame-pointers=yes."},
+        {"url": "https://github.com/mstange/samply", "supported": true, "note": "Verbatim: macOS/Linux/Windows sampling profiler; Firefox Profiler UI; cargo install --locked samply."},
+        {"url": "https://github.com/flamegraph-rs/flamegraph", "supported": true, "note": "Verbatim: perf(Linux)/xctrace(macOS)/blondie-or-dtrace(Windows); wants release debug info."},
+        {"url": "https://docs.rs/tracy-client/latest/tracy_client/", "supported": true, "note": "Verbatim: span!/frame_mark(); enable feature=TRACY_ENABLE; LAN discovery-packet warning present."},
+        {"url": "https://superluminal.eu/applications/rust/", "supported": true, "note": "Verbatim: MSVC/Clang symbol demangling; Windows/Xbox/PlayStation/Linux; suggests release debug=true."},
+        {"url": "https://docs.rs/superluminal-perf/latest/superluminal_perf/", "supported": true, "note": "Verbatim: begin/end_event 'compiled out' on non-Windows platforms."},
+        {"url": "https://v8.dev/docs/wasm-compilation-pipeline", "supported": true, "note": "Verbatim: Liftoff one-pass first; TurboFan background recompile once hot."},
+        {"url": "https://nodejs.org/api/cli.html", "supported": true, "note": "Verbatim: --cpu-prof writes .cpuprofile at exit; --cpu-prof-interval default 1000us."},
+        {"url": "https://v8.dev/docs/linux-perf", "supported": true, "note": "Verbatim: --perf-prof + --interpreted-frames-native-stack attribute JIT/interpreted samples to perf."},
+        {"url": "https://docs.rs/crate/libm/0.2.16/source/src/math/sqrt.rs", "supported": true, "note": "Read actual source: select_implementation! uses aarch64+neon/wasm32+intrinsics_enabled/sse2, else generic."},
+        {"url": "https://docs.rs/crate/libm/0.2.16/source/configure.rs", "supported": true, "note": "Read actual source: intrinsics_enabled cfg gated by unstable-intrinsics feature, off by default."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/Cargo.toml", "supported": true, "note": "Read actual file: enhanced-determinism=[simba/libm_force,parry3d-f64/enhanced-determinism]; matches Cargo.lock."},
+        {"url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/Cargo.toml", "supported": true, "note": "Read actual file: enhanced-determinism=[simba/libm_force,indexmap,glamx/libm,glamx/scalar-math]; matches Cargo.lock."}
+      ]
+    },
+    {
+      "slug": "get-simd-on-stable-from-auto-vectorization-std-arch-and-target-feature-std-simd-is-still-nightly-only",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Oracle ran all 8 checks on rustc 1.98.1: portable_simd->E0554, target_feature-caller->E0133, SSE2 outside/inside target_feature->E0133/compiles-warning-free (no_warnings gate), plus 3 wasm simd128 checks -- all matched exactly.",
+      "evidence_url": "https://doc.rust-lang.org/stable/core/arch/wasm32/index.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/arch/index.html", "supported": true, "note": "Verbatim: static vs dynamic (is_x86_feature_detected!) detection; binary must run only where features are satisfied."},
+        {"url": "https://doc.rust-lang.org/stable/std/simd/index.html", "supported": true, "note": "Verbatim: 'nightly-only experimental API' behind portable_simd, tracking issue #86656."},
+        {"url": "https://doc.rust-lang.org/reference/attributes/codegen.html", "supported": true, "note": "Same target_feature-safety text verbatim as cited elsewhere in this lane."},
+        {"url": "https://blog.rust-lang.org/2025/04/03/Rust-1.86.0/", "supported": true, "note": "Verbatim: 'stabilizes target_feature_11, allowing safe functions to be marked with #[target_feature]'."},
+        {"url": "https://doc.rust-lang.org/stable/core/arch/wasm32/index.html", "supported": true, "note": "Verbatim: enable simd128 per-fn or via -C target-feature; std unchanged unless rebuilt; no wasm runtime detection."},
+        {"url": "https://doc.rust-lang.org/rustc/codegen-options/index.html", "supported": true, "note": "Same codegen-option definitions verbatim as cited elsewhere in this lane."}
+      ]
+    },
+    {
+      "slug": "keep-target-cpu-native-pgo-and-bolt-out-of-the-pinned-artifact-they-tie-codegen-to-a-machine-or-a-profile",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "Reproduced on this rig: target-cpu=native gives 'arrowlake-s not recognized...ignoring' + 38 ignored features vs 5 default (exact counts). -Cprofile-generate on wasm32 fails E0463 'profiler_builtins' exactly as claimed.",
+      "evidence_url": "https://doc.rust-lang.org/rustc/codegen-options/index.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/rustc/codegen-options/index.html", "supported": true, "note": "Same codegen-option definitions verbatim; target-cpu=native reproduced exactly on this host (arrowlake-s, 38 features)."},
+        {"url": "https://doc.rust-lang.org/stable/std/arch/index.html", "supported": true, "note": "Same verbatim text as cited elsewhere in this lane."},
+        {"url": "https://docs.rs/crate/wide/1.7.1/source/src/f64x2_.rs", "supported": true, "note": "Same actual-source read as cited elsewhere in this lane."},
+        {"url": "https://doc.rust-lang.org/rustc/profile-guided-optimization.html", "supported": true, "note": "Verbatim 4-step workflow (profile-generate/run/llvm-profdata/profile-use); reproduced E0463 on wasm32 directly."},
+        {"url": "https://github.com/Kobzol/cargo-pgo", "supported": true, "note": "Verbatim: wraps PGO+BOLT; 'optimized...profiled workloads...might even make your binary slower'."},
+        {"url": "https://github.com/llvm/llvm-project/blob/main/bolt/README.md", "supported": true, "note": "Verbatim: 'post-link optimizer'; 'operates on X86-64 and AArch64 ELF binaries'; perf-branch-driven."},
+        {"url": "https://rust-lang.github.io/rfcs/3514-float-semantics.html", "supported": true, "note": "Same verbatim text as cited elsewhere in this lane."},
+        {"url": "https://nnethercote.github.io/perf-book/build-configuration.html", "supported": true, "note": "Same verbatim text as cited elsewhere in this lane."}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,190 @@
+{
+  "bucket": "unsafe-ffi",
+  "verifier_note": "Checked against ~30 pages of doc.rust-lang.org (Book ch20-01, Reference unsafety/behavior-considered-undefined/operator-expr/tokens/functions, Edition Guide x5, rustc lint listings, std::ptr/hint/mem/ffi docs, Cargo book x2, Nomicon FFI, unstable-book, check-cfg), 6 official Rust release posts (1.77/1.78/1.81/1.82/1.84/1.85), the Miri README (rendered + raw), 3 clippy lint source files plus the clippy README, bindgen/cbindgen plus cbindgen's raw CHANGES, docs.rs for rapier3d-f64 0.35.3 at the pinned version, the Tree Borrows PLDI-2025 abstract page, and the live si-rpg-engine main branch via read-only gh api (solver/src/lib.rs, solver/src/rapier_law.rs, Cargo.toml, rust-toolchain.toml, docs/rust-kb-requests.md). I also compiled 71 of the lane's 72 checks myself against the pinned rustc 1.98.1 (plus rapier3d-f64 0.35.3 for the two dependent checks, and wasm32-unknown-unknown+node for the wasm ones) in my own scratch harness, then re-ran all 27 checks a mid-task file regeneration added no_warnings/wasm_no_imports gates to (verified the regeneration was real and narrowly-scoped via hash/line-count/structural diff before trusting it) -- every one passed exactly as the recipe claims. Nothing failed: every API, lint name, error code, attribute, target name and stabilization-version claim matched current docs; every engine_note matched the live repo down to exact function names, constant values (BODY_STRIDE 17, COLLIDER_STRIDE 10, panic=abort in Cargo.toml, edition 2021) and even an approximate line count (the 'step' unsafe block is ~124 lines against a claimed '~120'); and recipe 10's central claim -- that invalid_reference_casting catches a single-expression &T-to-&mut T cast but not the same UB split across a field-write or a Vec-of-pointers hop -- reproduced exactly and matches solver_clear_warmstart's real code byte-for-byte, including the docs.rs proof that rapier3d-f64 0.35.3 has no contact_pairs_mut (E0599) and a private contact_graph (E0616). Systemic weakness: the lane's two formal-aliasing-model PDF sources (Tree Borrows full text, Stacked Borrows POPL'20) could not be text-extracted by any tool available to me here (no local PDF renderer for the Read tool, and WebFetch cannot decode either paper's compressed PDF streams), so recipe 10's deepest theoretical grounding rests on secondary corroboration (the PLDI conference abstract page and a co-author's own blog post) rather than a directly-quoted primary sentence -- everything else in the lane, including that recipe's own practical/code claims, cleared full direct retrieval or direct compilation.",
+  "verdicts": [
+    {
+      "slug": "read-unsafe-as-a-short-list-of-unlocked-operations-never-as-a-switch-that-turns-the-borrow-checker-off",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Book ch20-01 (5 superpowers + borrow-checker-stays-on) and Reference/unsafety.html (8-item list, union-assign exempt) quoted verbatim; all 10 checks reran clean on rustc 1.98.1 (E0133x4, E0200, E0499+unused_unsafe, E0080, both UTF-8 cases).",
+      "evidence_url": "https://doc.rust-lang.org/book/ch20-01-unsafe-rust.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/book/ch20-01-unsafe-rust.html", "supported": true, "note": "5 superpowers + 'doesn't turn off the borrow checker' quoted verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/reference/unsafety.html", "supported": true, "note": "Full 8-item list incl. union-assign exception + 2024 extern footnote confirmed."},
+        {"url": "https://doc.rust-lang.org/stable/reference/behavior-considered-undefined.html", "supported": true, "note": "bool/ref/int/float/str validity + 'not exhaustive' confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.str.html", "supported": true, "note": "'not immediate undefined behavior... down the road' quoted exactly."},
+        {"url": "https://rust-lang.github.io/unsafe-code-guidelines/glossary.html", "supported": true, "note": "Validity/safety invariant + sound-library defs match verbatim."},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html", "supported": true, "note": "invalid_from_utf8_unchecked exists, description matches; check R1c10 reproduced it."}
+      ]
+    },
+    {
+      "slug": "probe-ub-with-const-evaluation-which-rejects-invalid-values-and-bad-accesses-with-e0080-runtime-is-unchecked",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Reference UB page confirms 'not exhaustive' + 'no formal model' verbatim; rustc's own E0080 note literally says 'might be overzealous' (reproduced myself). All 9 checks reran clean on 1.98.1, incl. the no-diagnostic-at-runtime contrast.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/behavior-considered-undefined.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/reference/behavior-considered-undefined.html", "supported": true, "note": "UB list, 'not exhaustive', 'no formal model of Rust's semantics' all confirmed."},
+        {"url": "https://doc.rust-lang.org/stable/std/hint/fn.unreachable_unchecked.html", "supported": true, "note": "UB + 'nonsensical...including in seemingly unrelated code' + unreachable!() alt confirmed."},
+        {"url": "https://doc.rust-lang.org/stable/std/mem/union.MaybeUninit.html", "supported": true, "note": "Zeroed-ref/uninit-bool immediate UB and uninit-integer UB confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html", "supported": true, "note": "invalid_value description matches (zeroed/uninitialized/transmute/assume_init)."},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html", "supported": true, "note": "deref_nullptr and invalid_reference_casting both exist, descriptions match."}
+      ]
+    },
+    {
+      "slug": "make-raw-pointers-with-raw-const-raw-mut-move-bytes-with-std-ptr-and-change-addresses-with-map-addr",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "1.82/1.78/1.84 posts confirm &raw/debug-precondition/strict-provenance verbatim. All 7 checks reran clean on 1.98.1 incl. E0793 and the measured Windows abort 3221226505. push_f64/to_le_bytes confirmed in rapier_law.rs.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/", "supported": true, "note": "&raw syntax + packed-struct UB example confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html", "supported": true, "note": "Exact rule + packed/MaybeUninit examples confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/ptr/fn.copy_nonoverlapping.html", "supported": true, "note": "Safety reqs + 'memcpy...arguments swapped' confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/ptr/fn.read.html", "supported": true, "note": "Safety reqs + double-drop note + read_unaligned pointer confirmed."},
+        {"url": "https://blog.rust-lang.org/2024/05/02/Rust-1.78.0/", "supported": true, "note": "Debug-assertion-gated precondition checks + 'not stable' wording confirmed."},
+        {"url": "https://blog.rust-lang.org/2025/01/09/Rust-1.84.0/", "supported": true, "note": "All named strict-provenance APIs listed as stabilized."},
+        {"url": "https://doc.rust-lang.org/stable/std/ptr/index.html", "supported": true, "note": "Provenance/without_provenance/map_addr/exposed-provenance-vs-Miri all confirmed."},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html", "supported": true, "note": "dangerous_implicit_autorefs exists, description matches; reproduced by my compile run."}
+      ]
+    },
+    {
+      "slug": "replace-every-reference-to-a-static-mut-with-raw-mut-before-edition-2024-turns-static-mut-refs-into-deny",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Edition Guide static-mut-references.html confirmed verbatim (deny-2024, instant UB, 5 alternatives, no auto-migration). All 11 checks reran clean on 1.98.1/wasm32 incl. E0277/E0658; fn list matches lib.rs/rapier_law.rs exactly.",
+      "evidence_url": "https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html", "supported": true, "note": "Deny-2024/instantaneous-UB/5 alternatives/no-auto-migration all confirmed verbatim."},
+        {"url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/", "supported": true, "note": "&raw mut on static mut needs no unsafe, confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/book/ch20-01-unsafe-rust.html", "supported": true, "note": "Deny-by-default + #[allow(static_mut_refs)] + raw-borrow escape confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html", "supported": true, "note": "static_mut_refs listed, cross-cited by the edition guide; my own compiler runs confirm its diagnostic wording."},
+        {"url": "https://blog.rust-lang.org/2025/02/20/Rust-1.85.0/", "supported": true, "note": "2024 edition stabilized; static-mut deny-by-default named explicitly."}
+      ]
+    },
+    {
+      "slug": "put-each-unsafe-operation-in-its-own-unsafe-block-under-a-safety-line-even-inside-an-unsafe-fn",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Edition Guide unsafe-op-in-unsafe-fn.html + all 3 clippy lint source files (exact category and since-version) confirmed verbatim. All 6 checks reran clean on 1.98.1, incl. the 'warning[E0133]' text a bare 'error[E0133]' grep would miss.",
+      "evidence_url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-op-in-unsafe-fn.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-op-in-unsafe-fn.html", "supported": true, "note": "Warn-by-default in 2024 + fires without inner unsafe block, confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/book/ch20-01-unsafe-rust.html", "supported": true, "note": "Unsafe-fn-still-needs-inner-block + SAFETY-comment idiom both confirmed verbatim."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust-clippy/master/clippy_lints/src/undocumented_unsafe_blocks.rs", "supported": true, "note": "restriction, since 1.58.0, description matches exactly."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust-clippy/master/clippy_lints/src/multiple_unsafe_ops_per_block.rs", "supported": true, "note": "restriction, since 1.69.0, description matches exactly."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust-clippy/master/clippy_lints/src/doc/mod.rs", "supported": true, "note": "style, since 1.39.0, MISSING_SAFETY_DOC description matches exactly."},
+        {"url": "https://github.com/rust-lang/rust-clippy", "supported": true, "note": "restriction=allow+'should not be enabled as a whole'; style=warn, both verbatim."},
+        {"url": "https://doc.rust-lang.org/cargo/reference/manifest.html", "supported": true, "note": "[lints.rust]/[lints.clippy], current-package-only scope, MSRV 1.74 all confirmed."}
+      ]
+    },
+    {
+      "slug": "write-unsafe-no-mangle-unsafe-export-name-unsafe-link-section-and-unsafe-extern-blocks-now",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Both Edition Guide pages + Book ch20-01's extern-fn section + 1.82 blog confirmed verbatim. All 9 checks reran clean incl. wasm32; I compiled the bare #[no_mangle]/extern cases myself and confirmed zero E-code, as claimed.",
+      "evidence_url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-attributes.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-attributes.html", "supported": true, "note": "no_mangle/export_name/link_section must be unsafe(2024); 1.82 all-editions syntax; lint name; cargo fix, confirmed."},
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-extern.html", "supported": true, "note": "unsafe extern required 2024; safe/unsafe per-item, unmarked=unsafe; lint name, confirmed."},
+        {"url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/", "supported": true, "note": "unsafe extern + #[unsafe(...)] attrs + author-vouches-signatures wording confirmed."},
+        {"url": "https://doc.rust-lang.org/stable/reference/unsafety.html", "supported": true, "note": "extern-block-2024 + unsafe-attribute-application both listed, confirmed."},
+        {"url": "https://doc.rust-lang.org/book/ch20-01-unsafe-rust.html", "supported": true, "note": "unsafe extern import + safe fn + #[unsafe(no_mangle)] export + symbol-collision rationale all confirmed verbatim."}
+      ]
+    },
+    {
+      "slug": "choose-extern-c-a-panic-aborts-1-81-or-extern-c-unwind-a-panic-unwinds-for-every-boundary-fn",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "1.81 blog + Reference/functions.html panic-ABI table + Nomicon FFI confirmed verbatim. All 4 checks reran clean; I reproduced the exact Windows abort code (3221226505/0xC0000409) for extern \"C\" and panic=abort+C-unwind.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/items/functions.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://blog.rust-lang.org/2024/09/05/Rust-1.81.0/", "supported": true, "note": "Abort-on-uncaught-unwind + 1.71-transition + -unwind-variant guidance confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/reference/items/functions.html", "supported": true, "note": "Exact 4-row panic/ABI table (unwind/abort x unwinding/non-unwinding) confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/nomicon/ffi.html", "supported": true, "note": "Panic-aborts-at-boundary + foreign-exception-is-UB + C-unwind-permits-unwinding all confirmed."},
+        {"url": "https://doc.rust-lang.org/stable/reference/behavior-considered-undefined.html", "supported": true, "note": "Wrong-call-ABI and disallowed-unwind both listed as UB, confirmed."}
+      ]
+    },
+    {
+      "slug": "cross-the-c-abi-only-with-repr-c-types-scalars-and-raw-pointers-pass-strings-as-cstr-c-or-cstring",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Nomicon FFI + tokens.html + CString docs + bindgen/cbindgen + cbindgen's raw CHANGES (0.28.0 PR #1020, 0.29.0 unsafe(no_mangle) test) all confirmed verbatim. All 5 checks reran clean incl. the 5-substring improper_ctypes_definitions match.",
+      "evidence_url": "https://doc.rust-lang.org/nomicon/ffi.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/nomicon/ffi.html", "supported": true, "note": "repr(C)-only-C-layout + nullable-pointer-optimization both confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html", "supported": true, "note": "improper_ctypes_definitions, improper_ctypes, dangling_pointers_from_temporaries all confirmed."},
+        {"url": "https://blog.rust-lang.org/2024/03/21/Rust-1.77.0/", "supported": true, "note": "c\"abc\" -> &'static CStr + compile-time interior-nul check confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/reference/tokens.html", "supported": true, "note": "Implicit NUL terminator + interior-NUL ban + 2021-edition-or-later verbatim; &CStr type confirmed by my compile run."},
+        {"url": "https://doc.rust-lang.org/stable/std/ffi/struct.CString.html", "supported": true, "note": "Owned/no-interior-nul + NulError + into_raw/from_raw pairing all confirmed verbatim."},
+        {"url": "https://rust-lang.github.io/rust-bindgen/", "supported": true, "note": "'bindgen automatically generates Rust FFI bindings to C and C++ libraries' confirmed verbatim."},
+        {"url": "https://github.com/mozilla/cbindgen", "supported": true, "note": "'creates C/C++11 headers for Rust libraries...public C API' confirmed verbatim."},
+        {"url": "https://raw.githubusercontent.com/mozilla/cbindgen/master/CHANGES", "supported": true, "note": "0.28.0 'Parse unsafe attributes' PR #1020 and 0.29.0 unsafe(no_mangle) test both confirmed verbatim."}
+      ]
+    },
+    {
+      "slug": "run-miri-on-the-law-natively-stacked-borrows-is-its-default-aliasing-model-tree-borrows-is-opt-in",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Miri README x2 + Tree Borrows PLDI page (30,000 crates/54% exact) + cargo-careful + Unstable-Book sanitizer (msvc absent) + check-cfg all confirmed verbatim. All 3 checks reran clean; recipe never claims Miri output.",
+      "evidence_url": "https://github.com/rust-lang/miri",
+      "corrections": null,
+      "sources": [
+        {"url": "https://github.com/rust-lang/miri", "supported": true, "note": "UB list, Stacked-Borrows-default, tier-1 targets, near-no-FFI, cfg(miri) all confirmed verbatim."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/miri/master/README.md", "supported": true, "note": "-Zmiri-disable-stacked-borrows='unsound', -Zmiri-many-seeds, 'does not catch every violation' all confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/book/ch20-01-unsafe-rust.html", "supported": true, "note": "Nightly-only + install/run commands + dynamic-tool framing confirmed verbatim."},
+        {"url": "https://pldi25.sigplan.org/details/pldi-2025-papers/42/Tree-Borrows", "supported": true, "note": "Title/authors/DOI + '30,000 most widely used crates...54% fewer' confirmed verbatim."},
+        {"url": "https://github.com/RalfJung/cargo-careful", "supported": true, "note": "Debug-assertion std rebuild, faster-than-Miri+works-with-FFI, -Zcareful-sanitizer all confirmed."},
+        {"url": "https://doc.rust-lang.org/unstable-book/compiler-flags/sanitizer.html", "supported": true, "note": "-Zsanitizer unstable + -Zbuild-std + x86_64-pc-windows-msvc absent from AddressSanitizer list, confirmed."},
+        {"url": "https://doc.rust-lang.org/rustc/check-cfg.html", "supported": true, "note": "miri present in the well-known cfg-names list alongside the four named siblings, confirmed."}
+      ]
+    },
+    {
+      "slug": "never-write-through-a-pointer-cast-from-t-the-solver-s-warm-start-clear-does-and-rustc-s-lint-misses-it",
+      "verdict": "confirmed",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "std::ptr/invalid_reference_casting/from_ref/cargo-patch docs + docs.rs rapier3d-f64 0.35.3 NarrowPhase/ContactPair pages confirmed exact. All 7 checks reran clean (incl. rapier3d_f64 dep), matching solver_clear_warmstart byte-for-byte.",
+      "evidence_url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.NarrowPhase.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/ptr/index.html", "supported": true, "note": "Provenance mutability component + shared-ref-read-only-except-UnsafeCell confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html", "supported": true, "note": "invalid_reference_casting text confirmed; my own compiler run reproduced the exact diagnostic."},
+        {"url": "https://doc.rust-lang.org/stable/std/ptr/fn.from_ref.html", "supported": true, "note": "'must not be used...to write' except UnsafeCell, use from_mut, confirmed verbatim."},
+        {"url": "https://iris-project.org/pdfs/2025-pldi-treeborrows.pdf", "supported": true, "note": "PDF unextractable here (no renderer); Frozen/Reserved corroborated via the PLDI abstract + a co-author's blog."},
+        {"url": "https://doc.rust-lang.org/stable/reference/behavior-considered-undefined.html", "supported": true, "note": "&T-not-mutated-while-live except UnsafeCell + 'not determined yet' confirmed verbatim."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.NarrowPhase.html", "supported": true, "note": "Confirmed at 0.35.3: every contact-pair accessor takes &self; no contact_pairs_mut exists at all."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ContactPair.html", "supported": true, "note": "Fields collider1/collider2/manifolds/solver_clusters (Vec<ContactManifold>) confirmed exactly, no interior mutability."},
+        {"url": "https://doc.rust-lang.org/cargo/reference/overriding-dependencies.html", "supported": true, "note": "[patch.crates-io] overrides a source and must still satisfy semver, confirmed verbatim."},
+        {"url": "https://plv.mpi-sws.org/rustbelt/stacked-borrows/paper.pdf", "supported": true, "note": "Background source; PDF unextractable here. Title/authors/venue/DOI confirmed via search; matches std::ptr's page."}
+      ]
+    }
+  ]
+}

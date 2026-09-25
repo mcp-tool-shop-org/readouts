@@ -1,0 +1,515 @@
+{
+  "wave": 16,
+  "date": "2026-09-13",
+  "title": "Wave 16 — RLVR/GRPO on a deterministic-verifier substrate (measured on rig + retrieval-verified literature)",
+  "domain_scope": "GRPO/RLVR mechanics in TRL 1.13.0, run-variance and eval-power methodology, and the sharpening-vs-capability literature. Sourced from the ai-jam-sessions rollout arc, 2026-09-13.",
+  "agent_count": 5,
+  "dispatch_path": "mcp-tool-shop-org/ai-jam-sessions experiments/rollout-arc/p4",
+  "verifier_note": "TWO-STAGE GATE. Stage 1 retrieval oracle (arXiv API + Semantic Scholar batch/search + Crossref + arXiv abs pages, deterministic, no LLM): 47/47 arXiv + 6/6 DOI resolved, zero fabricated. Stage 2 groundedness: two lenses from families outside the synthesiser's (qwen3:14b, mistral-small:24b), reasoning stripped, abstract-only. Every citation carried below was SUPPORTED by BOTH lenses. FOUR citations were DROPPED by the gate as real-author-plus-invented-title or real-title-plus-wrong-claim, including one the synthesising advisor itself had over-attributed. Lens limitation recorded: abstract-only cannot confirm body-level detail, so NOT_SUPPORTED there means 'the abstract does not establish this', and such claims were demoted rather than denied. Measured-on-rig rows are receipts from the repo, not literature.",
+  "lanes": [
+    {
+      "slug": "trl-grpo-mechanics",
+      "name": "TRL 1.13.0 GRPO mechanics — verified in installed source, not docs",
+      "research": {
+        "techniques": [
+          {
+            "slug": "grpo-group-constant-reward-zero-gradient",
+            "name": "A group-constant reward term has exactly zero gradient under GRPO",
+            "kind": "mechanism",
+            "method_family": "grpo",
+            "applicable_to": "text",
+            "base_model_family": "general",
+            "claim": "Under group-mean-centred advantage, any reward component identical across all G rollouts of a group cancels exactly, so a group-level diversity/quality term trains identically to no term at all.",
+            "summary": "grpo_trainer.py:2811-2813 computes advantages = rewards - mean_grouped_rewards, mean taken per group and repeat_interleaved, with scale_rewards defaulting to 'group'. A term that is constant within the group is removed by the subtraction. There is no error and no warning; every logged metric looks normal.",
+            "design_implication": "A diversity reward MUST be per-completion novelty against its siblings, never a per-group count. Verified independently in installed source and corroborated by Nie et al. 2026, whose title names the same centring failure. This was caught before a planned arm was built on it.",
+            "evidence_strength": "measured-in-source",
+            "commercial_use": "yes",
+            "commercial_notes": "Apache-2.0 (TRL).",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [],
+            "failures": [],
+            "evals": [],
+            "datasets": [],
+            "best_for": [],
+            "sources": [
+              {
+                "kind": "source",
+                "title": "TRL 1.13.0 grpo_trainer.py:2811-2813 and grpo_config.py:226,784",
+                "url": "https://github.com/huggingface/trl",
+                "claim": "advantages = rewards - mean_grouped_rewards; scale_rewards defaults to 'group'."
+              },
+              {
+                "kind": "paper",
+                "title": "Gradient Starvation in Binary-Reward GRPO: Why Group-Mean Centering Fails and Why the Simplest Fix Works",
+                "url": "https://arxiv.org/abs/2605.07689",
+                "claim": "Group-mean centring gives exactly zero advantage on homogeneous groups; a fixed-reference Sign advantage A=2r-1 outperforms it at small group size."
+              }
+            ]
+          },
+          {
+            "slug": "grpo-clip-inert-at-num-iterations-1",
+            "name": "clip_ratio is identically zero at the default num_iterations=1",
+            "kind": "gotcha",
+            "method_family": "grpo",
+            "applicable_to": "text",
+            "base_model_family": "general",
+            "claim": "With one optimizer pass per generation batch, the sampling policy IS the policy being updated, the importance ratio is ~1 by construction, and neither epsilon bound is reachable. Every epsilon/clip-higher lever is decoration.",
+            "summary": "num_iterations defaults to 1 (grpo_config.py:684). Measured: all five clip_ratio/* series are exactly 0 across all 800 logged steps of a four-arm 200-step run, and again on an independent fresh run. A configuration running DAPO-style eps_low 0.2 / eps_high 0.28 was therefore running with both bounds inert.",
+            "design_implication": "Before tuning epsilon or adopting clip-higher, assert num_iterations > 1 or the change does nothing. Check clip_ratio/high_mean in the logs: identically zero means the trust region never engaged.",
+            "evidence_strength": "measured-on-rig",
+            "commercial_use": "yes",
+            "commercial_notes": "Apache-2.0 (TRL).",
+            "rig_fit": 5,
+            "studio_fit": 4,
+            "status": "recommended",
+            "hparams": [],
+            "failures": [],
+            "evals": [],
+            "datasets": [],
+            "best_for": [],
+            "sources": [
+              {
+                "kind": "source",
+                "title": "TRL 1.13.0 grpo_config.py:684 + measured run logs (800 steps)",
+                "url": "https://github.com/huggingface/trl",
+                "claim": "num_iterations defaults to 1; clip_ratio series identically zero."
+              },
+              {
+                "kind": "paper",
+                "title": "DAPO: An Open-Source LLM Reinforcement Learning System at Scale",
+                "url": "https://arxiv.org/abs/2503.14476",
+                "claim": "Introduces clip-higher (eps_low 0.2 / eps_high 0.28) motivated by near-identical sampled responses within groups."
+              }
+            ]
+          },
+          {
+            "slug": "trl-seed-does-not-control-lora-init",
+            "name": "GRPOConfig.seed does not control LoRA initialisation",
+            "kind": "gotcha",
+            "method_family": "peft",
+            "applicable_to": "both",
+            "base_model_family": "general",
+            "claim": "The seed is applied well after get_peft_model, so two runs at the same seed have different initial adapter weights. They are independent runs sharing a data order, not replicates.",
+            "summary": "Documented in the trainer's own module docstring as TRL issue #6688(b). Pin initialisation by artifact instead: --save-init-adapter once, then --init-adapter on every arm.",
+            "design_implication": "Never treat same-seed runs as replicates, and never attribute a same-seed difference to the remaining variable (platform, hardware) without pinning init first. This exact reasoning error produced a published mechanism claim that three replications then refuted.",
+            "evidence_strength": "measured-in-source",
+            "commercial_use": "yes",
+            "commercial_notes": "Apache-2.0 (TRL).",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [],
+            "failures": [],
+            "evals": [],
+            "datasets": [],
+            "best_for": [],
+            "sources": [
+              {
+                "kind": "source",
+                "title": "TRL issue #6688(b), asserted in p2/trainer/train.py docstring and handled at grpo_trainer init",
+                "url": "https://github.com/huggingface/trl/issues/6688",
+                "claim": "GRPOConfig.seed is applied after get_peft_model, so LoRA init is not seed-controlled."
+              }
+            ]
+          },
+          {
+            "slug": "grpo-no-advantage-hook",
+            "name": "TRL exposes no advantage hook — a fixed-reference advantage is a build",
+            "kind": "gotcha",
+            "method_family": "grpo",
+            "applicable_to": "text",
+            "base_model_family": "general",
+            "claim": "Both multi_objective_aggregation paths hard-code mean subtraction inside a ~500-line _generate_and_score_completions. No config value yields A = 2r - 1.",
+            "summary": "Implementing a Sign or other fixed-reference advantage requires subclassing and overriding that method, and the override needs a probe proving it fired — an override that silently does not fire is invisible in metrics.",
+            "design_implication": "Price a fixed-reference-advantage experiment as a build with its own verification probe, not as a flag.",
+            "evidence_strength": "measured-in-source",
+            "commercial_use": "yes",
+            "commercial_notes": "Apache-2.0 (TRL).",
+            "rig_fit": 4,
+            "studio_fit": 3,
+            "status": "situational",
+            "hparams": [],
+            "failures": [],
+            "evals": [],
+            "datasets": [],
+            "best_for": [],
+            "sources": [
+              {
+                "kind": "source",
+                "title": "TRL 1.13.0 grpo_trainer.py:2347-2830",
+                "url": "https://github.com/huggingface/trl",
+                "claim": "Advantage computation is inline in _generate_and_score_completions; both aggregation paths subtract a mean."
+              }
+            ]
+          }
+        ],
+        "datasets": [],
+        "failures": []
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "slug": "grpo-group-constant-reward-zero-gradient",
+            "overall": "confirmed",
+            "currency": "2026-09-13",
+            "note": "Read in installed source at p2/trainer/.venv/.../trl 1.13.0 with file:line, not from docs or recall; each claim re-derived by a second reader the same day."
+          },
+          {
+            "slug": "grpo-clip-inert-at-num-iterations-1",
+            "overall": "confirmed",
+            "currency": "2026-09-13",
+            "note": "Read in installed source at p2/trainer/.venv/.../trl 1.13.0 with file:line, not from docs or recall; each claim re-derived by a second reader the same day. Corroborated on 800 logged steps plus an independent fresh run."
+          },
+          {
+            "slug": "trl-seed-does-not-control-lora-init",
+            "overall": "confirmed",
+            "currency": "2026-09-13",
+            "note": "Read in installed source at p2/trainer/.venv/.../trl 1.13.0 with file:line, not from docs or recall; each claim re-derived by a second reader the same day."
+          },
+          {
+            "slug": "grpo-no-advantage-hook",
+            "overall": "confirmed",
+            "currency": "2026-09-13",
+            "note": "Read in installed source at p2/trainer/.venv/.../trl 1.13.0 with file:line, not from docs or recall; each claim re-derived by a second reader the same day."
+          }
+        ]
+      }
+    },
+    {
+      "slug": "rl-measurement-methodology",
+      "name": "Measurement methodology — run variance, eval power, and pooled-statistic traps",
+      "research": {
+        "techniques": [
+          {
+            "slug": "rl-run-variance-exceeds-effect-size",
+            "name": "Run-to-run variance can exceed the effect being measured",
+            "kind": "methodology",
+            "method_family": "rl",
+            "applicable_to": "text",
+            "base_model_family": "general",
+            "claim": "On one deterministic-verifier substrate, three runs of an IDENTICAL configuration differing only in seed produced held-out lifts of +0.60pp, +10.08pp and +3.44pp, and opening-concentration changes spanning 12.3pp.",
+            "summary": "Same cell, same 200 steps, same data, differing only in a seed that does not even control adapter initialisation. Effective gradient updates ranged 48-77 of 200 because 62-76% of groups had zero within-group reward variance. Training accuracy did NOT reliably predict held-out lift: the run with the MOST effective updates landed mid-pack.",
+            "design_implication": "Never publish a single-run RL result. Use n>=3 runs and an across-run estimator; a two-point trend is not a trend (a clean-looking correlation over two runs was broken by the third).",
+            "evidence_strength": "measured-on-rig",
+            "commercial_use": "yes",
+            "commercial_notes": "Methodology.",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [],
+            "failures": [],
+            "evals": [],
+            "datasets": [],
+            "best_for": [],
+            "sources": [
+              {
+                "kind": "source",
+                "title": "ai-jam-sessions experiments/rollout-arc/p4/GATE-RESULTS.md",
+                "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions",
+                "claim": "Three seeds, identical config: +0.60 / +10.08 / +3.44pp held-out lift."
+              },
+              {
+                "kind": "paper",
+                "title": "A Sober Look at Progress in Language Model Reasoning: Pitfalls and Paths to Reproducibility",
+                "url": "https://arxiv.org/abs/2504.07086",
+                "claim": "Pass@1 standard deviation across seeds is large enough that many reported RL gains sit inside the base model's seed-variance band."
+              }
+            ]
+          },
+          {
+            "slug": "across-run-interval-not-per-run-significance",
+            "name": "Aggregate an interval over runs; do not require each run to clear significance",
+            "kind": "methodology",
+            "method_family": "rl",
+            "applicable_to": "both",
+            "base_model_family": "general",
+            "claim": "A decision rule of the form 'every seed's interval must exclude zero' is the Gelman & Stern error — it compares significance across conditions instead of estimating the quantity. It is also badly underpowered.",
+            "summary": "A live preregistration used that conjunction rule; computed against its own point estimate it had 42% power, i.e. it would vote DOES-NOT-REPLICATE on a real effect more often than confirm it. Replaced by an across-run mean with a bootstrap resampling BOTH runs and items. At K=2 the two bootstraps disagreed in verdict (items-only excluded zero, runs-and-items did not); the wider one was preregistered and is the honest reading.",
+            "design_implication": "Report a stratified-bootstrap interval aggregated over the run dimension. Always print the items-only and runs-and-items intervals side by side — when they disagree, the narrow one is the trap.",
+            "evidence_strength": "paper+measured",
+            "commercial_use": "yes",
+            "commercial_notes": "Methodology.",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [],
+            "failures": [],
+            "evals": [],
+            "datasets": [],
+            "best_for": [],
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "The Difference Between 'Significant' and 'Not Significant' is not Itself Statistically Significant",
+                "url": "https://doi.org/10.1198/000313006X152649",
+                "claim": "Comparing significance across conditions is not the same as estimating the difference."
+              },
+              {
+                "kind": "paper",
+                "title": "Deep Reinforcement Learning at the Edge of the Statistical Precipice",
+                "url": "https://arxiv.org/abs/2108.13264",
+                "claim": "In the few-run regime report stratified-bootstrap interval estimates aggregated over runs and robust aggregates, not per-run point estimates or thresholds."
+              }
+            ]
+          },
+          {
+            "slug": "itemwise-not-pooled-eval-statistics",
+            "name": "Pooled eval statistics measure the item mix as well as the behaviour",
+            "kind": "methodology",
+            "method_family": "eval",
+            "applicable_to": "both",
+            "base_model_family": "general",
+            "claim": "A metric averaged over every completion in a pool moves when an intervention changes WHICH items contribute, without any per-item behaviour changing. Simpson's paradox in an eval metric.",
+            "summary": "It pointed the wrong way three times in one day on one arc: a pooled concentration figure of 0.735 was 0.933 item-wise; a headline 9pp effect halved item-wise and its passing-only variant vanished (survivorship confound on top); and a prompting intervention's apparent 43pp diversity gain decomposed into an UNCHANGED first choice plus enumeration in list positions 2-5.",
+            "design_implication": "Compute the item-wise form (per item, then mean over items, equal weight each) and report both. Compare at MATCHED n — modal-share statistics are biased upward at small sample size (measured: 0.17pp at concentration ~0.93, 0.7pp at ~0.5), and the bias always flatters the new thing. Before any comparison, name the two sets and check membership mechanically.",
+            "evidence_strength": "measured-on-rig",
+            "commercial_use": "yes",
+            "commercial_notes": "Methodology.",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [],
+            "failures": [],
+            "evals": [],
+            "datasets": [],
+            "best_for": [],
+            "sources": [
+              {
+                "kind": "source",
+                "title": "ai-jam-sessions p4/scripts/opening-per-item.mts, opening-2x2.mts, vs-fileorder-check.mts",
+                "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions",
+                "claim": "Pooled vs item-wise decomposition reversed three readings; scripts reproduce the published pooled figures as a method check."
+              },
+              {
+                "kind": "paper",
+                "title": "Adding Error Bars to Evals: A Statistical Approach to Language Model Evaluations",
+                "url": "https://arxiv.org/abs/2411.00640",
+                "claim": "Eval variance decomposes into immutable between-item variance and within-item sampling variance; conduct inference on question-level paired differences."
+              }
+            ]
+          },
+          {
+            "slug": "eval-generations-dominate-power",
+            "name": "Generations per item, not items, is usually the cheap lever on eval power",
+            "kind": "methodology",
+            "method_family": "eval",
+            "applicable_to": "both",
+            "base_model_family": "general",
+            "claim": "At G=16 completions per item, 80% of the per-item paired-lift variance was binomial sampling noise rather than genuine item heterogeneity — and sampling noise is purchasable with generation.",
+            "summary": "Measured decomposition: total paired sd 7.42pp = 6.64pp measurement + 3.31pp heterogeneity floor. Raising G 16 -> 64 took the decision rule's power from 42% to 98.4%. Base is the highest-leverage seat because one base eval is shared by every arm, so its noise never averages away across arms or seeds — and base generates faster than an adapter arm.",
+            "design_implication": "Decompose eval variance before adding items. Spend generation on the shared baseline first. Note the heterogeneity floor is what no amount of generation removes.",
+            "evidence_strength": "measured-on-rig",
+            "commercial_use": "yes",
+            "commercial_notes": "Methodology.",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [],
+            "failures": [],
+            "evals": [],
+            "datasets": [],
+            "best_for": [],
+            "sources": [
+              {
+                "kind": "source",
+                "title": "ai-jam-sessions p4/scripts/gate-variance.mts, gate-allocation.mts, base-g16-vs-g64.mts",
+                "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions",
+                "claim": "Variance decomposition and the measured G=16 vs G=64 comparison on one model and pool."
+              },
+              {
+                "kind": "paper",
+                "title": "Maximizing the Coefficient of Generalizability in Multi-Facet Decision Studies",
+                "url": "https://doi.org/10.1007/BF02291112",
+                "claim": "Optimal allocation of conditions per facet under a fixed number of observations per subject — the items x generations problem, solved in 1973."
+              }
+            ]
+          }
+        ],
+        "datasets": [],
+        "failures": []
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "slug": "rl-run-variance-exceeds-effect-size",
+            "overall": "confirmed",
+            "currency": "2026-09-13",
+            "note": "Measured on rig, not literature: verified against committed receipts in mcp-tool-shop-org/ai-jam-sessions experiments/rollout-arc/p4 (run logs, run.json receipts, and scripts that reproduce the published figures as a method check)."
+          },
+          {
+            "slug": "across-run-interval-not-per-run-significance",
+            "overall": "confirmed",
+            "currency": "2026-09-13",
+            "note": "Retrieval oracle (arXiv+Semantic Scholar+Crossref, deterministic, no LLM) resolved every citation; groundedness rated SUPPORTED by two lenses from families outside the synthesiser's (qwen3:14b, mistral-small:24b), reasoning stripped. Lens saw abstracts only. Power figure computed from measured per-item variance."
+          },
+          {
+            "slug": "itemwise-not-pooled-eval-statistics",
+            "overall": "confirmed",
+            "currency": "2026-09-13",
+            "note": "Measured on rig, not literature: verified against committed receipts in mcp-tool-shop-org/ai-jam-sessions experiments/rollout-arc/p4 (run logs, run.json receipts, and scripts that reproduce the published figures as a method check)."
+          },
+          {
+            "slug": "eval-generations-dominate-power",
+            "overall": "confirmed",
+            "currency": "2026-09-13",
+            "note": "Measured on rig, not literature: verified against committed receipts in mcp-tool-shop-org/ai-jam-sessions experiments/rollout-arc/p4 (run logs, run.json receipts, and scripts that reproduce the published figures as a method check)."
+          }
+        ]
+      }
+    },
+    {
+      "slug": "rlvr-sharpening-and-latent-capability",
+      "name": "What RLVR does to the output distribution, and what a lift is allowed to claim",
+      "research": {
+        "techniques": [
+          {
+            "slug": "rlvr-sharpens-the-prior",
+            "name": "Plain GRPO sharpens the output prior rather than flattening it",
+            "kind": "mechanism",
+            "method_family": "grpo",
+            "applicable_to": "text",
+            "base_model_family": "general",
+            "claim": "Across three independent runs, item-wise concentration on the model's modal output moved +2.44pp [+0.07, +4.82] — excluding zero, positive. Training made the policy MORE mode-locked while improving its pass rate.",
+            "summary": "This is the predicted behaviour of a KL-regularised objective at low beta, not a failed run. A single earlier run showing a -9.00pp flattening was an outlier that three replications refused.",
+            "design_implication": "Do not expect an RLVR pass-rate gain to broaden outputs; expect the opposite. If output diversity is the goal, the objective's family has to change (entropy term, divergence choice, or reward), not the sampling scaffold.",
+            "evidence_strength": "paper+measured",
+            "commercial_use": "yes",
+            "commercial_notes": "Methodology.",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [],
+            "failures": [],
+            "evals": [],
+            "datasets": [],
+            "best_for": [],
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "KL-Regularized Reinforcement Learning is Designed to Mode Collapse",
+                "url": "https://arxiv.org/abs/2510.20817",
+                "claim": "Under standard settings such as a low KL coefficient, the optimal policy is by construction non-diverse."
+              },
+              {
+                "kind": "source",
+                "title": "ai-jam-sessions p4/GATE-RESULTS.md",
+                "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions",
+                "claim": "Three runs: +2.92 / +3.27 / +1.15pp item-wise concentration, across-run +2.44pp excluding zero."
+              }
+            ]
+          },
+          {
+            "slug": "verbalized-sampling-reveals-unexpressed-capability",
+            "name": "Verbalized Sampling as a $0 probe for capability the policy has but never samples",
+            "kind": "method",
+            "method_family": "prompting",
+            "applicable_to": "text",
+            "base_model_family": "general",
+            "claim": "Asking the model to list K candidates with probabilities revealed that it can produce structurally varied, EQUALLY ADMISSIBLE outputs it otherwise never samples — 2.96 distinct of 5, pass rate 0.1045 against standard sampling's 0.1117.",
+            "summary": "Critically, the decomposition matters: the model's FIRST-listed candidate was MORE concentrated than ordinary sampling (0.9790 vs 0.9333), and it assigned a flat 1/K probability to every candidate. So VS does not move the prior — it enumerates a tail beneath an unchanged head. Taken as a pooled number it looked like a 41pp diversity gain and would have redirected a research programme.",
+            "design_implication": "Run this before pricing any expensive diversity intervention. It separates 'the model cannot do X' from 'the model will not sample X', which are different problems with different fixes. Always decompose within-completion vs across-completion before believing the headline.",
+            "evidence_strength": "paper+measured",
+            "commercial_use": "yes",
+            "commercial_notes": "Prompting technique; no licence constraint.",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [],
+            "failures": [],
+            "evals": [],
+            "datasets": [],
+            "best_for": [],
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Verbalized Sampling: How to Mitigate Mode Collapse and Unlock LLM Diversity",
+                "url": "https://arxiv.org/abs/2510.01171",
+                "claim": "Mode collapse traces to typicality bias and can be substantially mitigated at inference time by prompting alone, without training."
+              },
+              {
+                "kind": "source",
+                "title": "ai-jam-sessions p4/scripts/score-vs.mts, vs-within-vs-across.mts",
+                "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions",
+                "claim": "75-item measurement: within-completion 2.96 distinct of 5; first-candidate concentration 0.9790 vs standard 0.9333; pass 0.1045 vs 0.1117."
+              }
+            ]
+          },
+          {
+            "slug": "rlvr-lift-is-not-new-capability",
+            "name": "An RLVR pass-rate lift is not licensed to be called new capability",
+            "kind": "methodology",
+            "method_family": "rl",
+            "applicable_to": "text",
+            "base_model_family": "general",
+            "claim": "RLVR improves pass@1 while losing to the base model at large k; the sampled reasoning paths already exist in the base distribution. The debate is live and both sides must be represented.",
+            "summary": "The skeptic result is Yue et al. 2025. The strongest rebuttal is Yuan et al. 2026, which argues high-k pass@k is structurally biased against RLVR because it declines from overtraining on already-solved problems, and shows that restricting updates to problems with no observed success can lift Pass@256 above base. ProRL reports boundary expansion at >2000 steps with the largest gains where the base model is weakest.",
+            "design_implication": "Write the lift as a lift. To claim capability you need a discriminating test — the base-Pass@k=0 subset, or atomic-to-composite transfer — not a bigger pass@1. A local Verbalized-Sampling probe is cheap direct evidence about how much re-weightable material the base already has.",
+            "evidence_strength": "paper",
+            "commercial_use": "yes",
+            "commercial_notes": "Methodology.",
+            "rig_fit": 4,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [],
+            "failures": [],
+            "evals": [],
+            "datasets": [],
+            "best_for": [],
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Does Reinforcement Learning Really Incentivize Reasoning Capacity in LLMs Beyond the Base Model?",
+                "url": "https://arxiv.org/abs/2504.13837",
+                "claim": "RLVR beats base at k=1 but loses at large k; sampled paths already exist in the base model."
+              },
+              {
+                "kind": "paper",
+                "title": "Understanding Diversity Collapse in RLVR via the Lens of Overtraining",
+                "url": "https://arxiv.org/abs/2606.15455",
+                "claim": "High-k pass@k is structurally biased against RLVR; restricting updates to unsolved problems can lift Pass@256 above baseline."
+              },
+              {
+                "kind": "paper",
+                "title": "ProRL: Prolonged Reinforcement Learning Expands Reasoning Boundaries in Large Language Models",
+                "url": "https://arxiv.org/abs/2505.24864",
+                "claim": "Prolonged RL over thousands of steps expands the boundary, with the largest gains where the base model is weakest."
+              },
+              {
+                "kind": "paper",
+                "title": "Spurious Rewards: Rethinking Training Signals in RLVR",
+                "url": "https://arxiv.org/abs/2506.10947",
+                "claim": "Random rewards produced large gains on Qwen math models but did not transfer to other model families, so a flat random-reward control is family-dependent evidence rather than a universal null."
+              }
+            ]
+          }
+        ],
+        "datasets": [],
+        "failures": []
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "slug": "rlvr-sharpens-the-prior",
+            "overall": "confirmed",
+            "currency": "2026-09-13",
+            "note": "Retrieval oracle (arXiv+Semantic Scholar+Crossref, deterministic, no LLM) resolved every citation; groundedness rated SUPPORTED by two lenses from families outside the synthesiser's (qwen3:14b, mistral-small:24b), reasoning stripped. Lens saw abstracts only. Measured half is three replicated runs."
+          },
+          {
+            "slug": "verbalized-sampling-reveals-unexpressed-capability",
+            "overall": "confirmed",
+            "currency": "2026-09-13",
+            "note": "Retrieval oracle (arXiv+Semantic Scholar+Crossref, deterministic, no LLM) resolved every citation; groundedness rated SUPPORTED by two lenses from families outside the synthesiser's (qwen3:14b, mistral-small:24b), reasoning stripped. Lens saw abstracts only. Measured half is a 75-item run."
+          },
+          {
+            "slug": "rlvr-lift-is-not-new-capability",
+            "overall": "confirmed",
+            "currency": "2026-09-13",
+            "note": "Retrieval oracle (arXiv+Semantic Scholar+Crossref, deterministic, no LLM) resolved every citation; groundedness rated SUPPORTED by two lenses from families outside the synthesiser's (qwen3:14b, mistral-small:24b), reasoning stripped. Lens saw abstracts only. Both sides of a live disagreement are carried."
+          }
+        ]
+      }
+    }
+  ]
+}

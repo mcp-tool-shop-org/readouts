@@ -1,0 +1,432 @@
+{
+  "wave": 4,
+  "date": "2026-06-06",
+  "lanes": [
+    {
+      "slug": "diffusion-sdxl-lora",
+      "research": {
+        "techniques": [
+          {
+            "slug": "prodigy-sdxl-style-lora-measured-5090",
+            "name": "Prodigy SDXL style-LoRA — MEASURED on the 5090 (auto-LR works; ~1.8-2x the per-step cost of AdamW)",
+            "kind": "recipe",
+            "method_family": "lora",
+            "applicable_to": "diffusion",
+            "base_model_family": "SDXL",
+            "base_model_slug": "sdxl-base-1.0",
+            "claim": "Prodigy's lr=1.0 sentinel auto-finds a working LR (no manual sweep) and binds the style at 600 steps — but MEASURED on the 5090 it costs ~1.8-2.2x wall-clock per step vs AdamW (1.21-1.44 vs 0.685 s/it) + ~1.2 GB more VRAM. It is a CONVENIENCE optimizer, not a free one.",
+            "summary": "Matched A/B vs AdamW-fp32 baseline #166 v2 (stdstyl 16-img cyanotype set, dim16/alpha16, TE on, no reg). Run 1 (400 steps): 1.21 s/it, 20.5 GB, loss 0.094 — only the weakest-prior subject (ship) bound; locomotive + portrait stayed photoreal (UNDERTRAINED). Run 1b (600 steps, matched): 1.44 s/it (ran hotter -> mild clock throttle), 20.6 GB, loss 0.105 — ship + locomotive bound (engraving), portrait shifted to a drawn look. Binding follows the subject-prior gradient (ship > loco > portrait), the #165 base-bounds-the-style interaction, optimizer-independent. The auto-LR mechanism works; the wave-3 'slightly higher state' wording understated a material throughput tax.",
+            "design_implication": "Use Prodigy ONLY for the first pass on an unknown style set (it skips the LR sweep). For any retrain at a known LR, use AdamW at 1x. Breakeven: Prodigy (1 run @ ~1.8x, no sweep) beats AdamW (S sweep runs + 1 production run @ 1x) when S >= 1.",
+            "evidence_strength": "measured-on-rig",
+            "seed": "42",
+            "num_runs": 2,
+            "variance_note": "2 runs (400, 600 steps); the 1.21->1.44 s/it rise is sustained-load clock throttle, not a step-count effect.",
+            "tuning_budget": "2 matched runs",
+            "search_method": "matched A/B vs #166 v2",
+            "measured_conditions": "RTX 5090 sm_120 32GB; E:/AI/training/sd-scripts .venv torch 2.12.0+cu130; SDXL base 1.0; stdstyl 16-img set; dim16/alpha16 TE-on no-reg; bf16 sdpa cache_latents; Prodigy decouple/wd=0.01/d_coef=2/use_bias_correction/safeguard_warmup; cosine + 30-step warmup. 2026-06-06.",
+            "commercial_use": "yes",
+            "commercial_notes": "Prodigy MIT (konstmish/prodigy); output license = base + dataset.",
+            "rig_fit": 4,
+            "studio_fit": 5,
+            "status": "recommended",
+            "supersedes": "prodigy-adaptive-lr-sdxl-style-lora",
+            "hparams": [
+              {
+                "name": "optimizer",
+                "value": "Prodigy",
+                "required": true
+              },
+              {
+                "name": "learning_rate",
+                "value": "1.0",
+                "required": true,
+                "note": "SENTINEL — auto-estimated; never set a real LR"
+              },
+              {
+                "name": "d_coef",
+                "value": "2",
+                "note": "control aggressiveness here instead of LR"
+              },
+              {
+                "name": "safeguard_warmup",
+                "value": "True",
+                "required": true,
+                "note": "with lr_warmup_steps>0"
+              },
+              {
+                "name": "network_dim",
+                "value": "16"
+              },
+              {
+                "name": "alpha",
+                "value": "16"
+              },
+              {
+                "name": "scheduler",
+                "value": "cosine"
+              },
+              {
+                "name": "warmup",
+                "value": "30",
+                "unit": "steps"
+              },
+              {
+                "name": "steps",
+                "value": "600",
+                "note": "needs full budget for consistent binding"
+              },
+              {
+                "name": "measured_s_per_it",
+                "value": "1.21-1.44",
+                "unit": "s/it",
+                "note": "vs AdamW 0.685"
+              },
+              {
+                "name": "measured_peak_vram",
+                "value": "20.5-21.1",
+                "unit": "GB",
+                "note": "vs AdamW 19.4"
+              }
+            ],
+            "failures": [
+              {
+                "symptom": "style binds only some subjects",
+                "cause": "undertraining (400 steps)",
+                "remediation": "use the full ~600-step budget; binding follows subject prior",
+                "recipe_field": "steps",
+                "severity": "quality"
+              },
+              {
+                "symptom": "run ~2x slower than AdamW",
+                "cause": "d-estimate + extra optimizer state (inherent)",
+                "remediation": "use AdamW at a known LR for retrains; reserve Prodigy for unknown sets",
+                "recipe_field": "optimizer",
+                "severity": "quality"
+              }
+            ],
+            "best_for": [
+              {
+                "purpose": "first LoRA on an unknown style set (no LR sweep)",
+                "fitness": 5,
+                "use_tag": "sdxl"
+              }
+            ],
+            "sources": [
+              {
+                "kind": "receipt",
+                "title": "training-knowledge wave-4 measurement (Prodigy Run 1 + 1b)",
+                "url": "https://github.com/mcp-tool-shop-org/readouts",
+                "claim": "rig-measured on RTX 5090, 2026-06-06; samples looked-at",
+                "finding_supported": "SUPPORTED"
+              },
+              {
+                "kind": "paper",
+                "title": "Prodigy: An Expeditiously Adaptive Parameter-Free Learner",
+                "authors": "Mishchenko & Defazio",
+                "year": "2023",
+                "identifier": "arXiv:2306.06101",
+                "url": "https://arxiv.org/abs/2306.06101",
+                "claim": "parameter-free LR via distance-to-solution estimation; fixed lr=1.0",
+                "finding_supported": "SUPPORTED"
+              }
+            ],
+            "engine_recipe_ref": "training-kohya-sdxl-lora-proven-blackwell-5090"
+          },
+          {
+            "slug": "adamw8bit-sdxl-lora-measured-5090",
+            "name": "AdamW8bit SDXL LoRA — MEASURED (no VRAM saving for LoRA; ~4% faster than fp32)",
+            "kind": "recipe",
+            "method_family": "lora",
+            "applicable_to": "diffusion",
+            "base_model_family": "SDXL",
+            "base_model_slug": "sdxl-base-1.0",
+            "claim": "MEASURED on the 5090: AdamW8bit is ~4% FASTER than fp32 AdamW (1.52 vs 1.46 it/s) but gives essentially NO VRAM saving for LoRA (19.7 vs 19.4 GB) — a LoRA's optimizer state is already tiny, so 8-bit quantizing it saves nothing (bitsandbytes block overhead even nudges it up). The 8-bit VRAM win is full-fine-tune-only.",
+            "summary": "Run 2, 600 steps, matched to #166 v2 (swap optimizer fp32->8bit + schedule constant->cosine+warmup): 1.52 it/s, peak 19.7 GB, loss 0.105, style bound across ship/loco/portrait at 600 (quality parity). Corrects the wave-3 'AdamW8bit roughly halves optimizer-state VRAM -> more headroom for higher rank/res' claim for the LoRA case.",
+            "design_implication": "Use AdamW8bit as a small free speedup. Do NOT cite it as a memory lever to fit higher rank/resolution for LoRA — it isn't. For real LoRA VRAM headroom use gradient_checkpointing (measured -13 GB on the lycoris path).",
+            "evidence_strength": "measured-on-rig",
+            "seed": "42",
+            "num_runs": 1,
+            "measured_conditions": "RTX 5090 32GB; SDXL base 1.0; stdstyl set; dim16/alpha16 TE-on no-reg; AdamW8bit; cosine+30-warmup; bf16 sdpa cache_latents; 600 steps. 2026-06-06.",
+            "commercial_use": "yes",
+            "commercial_notes": "output license = base + dataset.",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "supersedes": "adamw8bit-cosine-warmup-sdxl-lora",
+            "hparams": [
+              {
+                "name": "optimizer",
+                "value": "AdamW8bit",
+                "required": true
+              },
+              {
+                "name": "learning_rate",
+                "value": "1e-4",
+                "required": true
+              },
+              {
+                "name": "scheduler",
+                "value": "cosine"
+              },
+              {
+                "name": "warmup",
+                "value": "30",
+                "unit": "steps"
+              },
+              {
+                "name": "network_dim",
+                "value": "16"
+              },
+              {
+                "name": "alpha",
+                "value": "16"
+              },
+              {
+                "name": "steps",
+                "value": "600"
+              },
+              {
+                "name": "measured_it_s",
+                "value": "1.52",
+                "unit": "it/s",
+                "note": "vs fp32 AdamW 1.46"
+              },
+              {
+                "name": "measured_peak_vram",
+                "value": "19.7",
+                "unit": "GB",
+                "note": "vs fp32 19.4 — NO saving"
+              }
+            ],
+            "failures": [
+              {
+                "symptom": "expected VRAM drop from AdamW8bit didn't materialize (LoRA)",
+                "cause": "LoRA optimizer state already negligible; 8-bit block overhead",
+                "remediation": "don't rely on AdamW8bit for LoRA headroom; use gradient_checkpointing",
+                "recipe_field": "optimizer",
+                "severity": "quality"
+              }
+            ],
+            "best_for": [
+              {
+                "purpose": "small free speedup at a known LR",
+                "fitness": 4,
+                "use_tag": "sdxl"
+              }
+            ],
+            "sources": [
+              {
+                "kind": "receipt",
+                "title": "training-knowledge wave-4 measurement (AdamW8bit Run 2)",
+                "url": "https://github.com/mcp-tool-shop-org/readouts",
+                "claim": "rig-measured RTX 5090 2026-06-06; samples looked-at",
+                "finding_supported": "SUPPORTED"
+              },
+              {
+                "kind": "docs",
+                "title": "bitsandbytes 8-bit optimizers",
+                "authors": "Dettmers et al.",
+                "year": "2022",
+                "identifier": "arXiv:2110.02861",
+                "url": "https://arxiv.org/abs/2110.02861",
+                "claim": "8-bit optimizer states cut memory for the optimizer — material only when optimizer state is large (full FT), not LoRA",
+                "finding_supported": "PARTIAL"
+              }
+            ],
+            "engine_recipe_ref": "training-kohya-sdxl-lora-proven-blackwell-5090"
+          },
+          {
+            "slug": "network-type-choice-sdxl-measured-5090",
+            "name": "Network-type choice for SDXL style — MEASURED 3-way (DoRA +52% time / LoKr 6 MB)",
+            "kind": "recipe",
+            "method_family": "lokr",
+            "applicable_to": "diffusion",
+            "base_model_family": "SDXL",
+            "base_model_slug": "sdxl-base-1.0",
+            "claim": "MEASURED 3-way on the 5090 (lycoris.kohya, same codepath, gradient-checkpointed, matched dim16/600-step): plain LoRA 1.06 s/it / 121.8 MB; DoRA 1.61 s/it (+52% wall-clock) / 125.6 MB for a MARGINAL quality edge — NOT 'near-free'; LoKr 1.15 s/it / 6.1 MB (~20x smaller) at comparable style quality — the portability win.",
+            "summary": "All three bound the style at 600 steps (ship engraving, portrait drawn). DoRA's ship was the crispest of the campaign but the +52% training cost is real (the 'zero overhead' is inference-post-merge only). LoKr delivered ship-quality style binding in a 6.1 MB adapter at ~9% over LoRA's speed. Corrects the wave-3 'DoRA = near-free quality upgrade' framing; confirms + quantifies the LoKr efficiency claim. [EVAL-QUANTIFIED wave-5, n=20]: CLIP-sim/CMMD overturned the n=3 quality reads — DoRA is statistically INDISTINGUISHABLE from LoRA on style fidelity (0.739 vs 0.734, <1 SEM), so its +52% training cost buys NO measurable fidelity gain (the 'crispest ship' was a sampling artifact); LoKr is measurably LOWER fidelity (0.673 vs 0.734, ~3.5 SEM) — the 6MB/20x-smaller is a real size-vs-fidelity tradeoff, not 'comparable.' See diffusion-style-fidelity-eval-panel-measured-5090.",
+            "design_implication": "Default to plain LoRA. Use LoKr when adapter SIZE/portability matters (6 MB vs 122 MB, comparable quality, ~9% slower). Reserve DoRA for when a marginal fidelity edge justifies +52% training time.",
+            "evidence_strength": "measured-on-rig",
+            "seed": "42",
+            "num_runs": 3,
+            "tuning_budget": "3 matched runs (LoRA/DoRA/LoKr)",
+            "search_method": "same-codepath 3-way A/B",
+            "measured_conditions": "RTX 5090 32GB; SDXL base 1.0; stdstyl set; lycoris.kohya algo=lora / lora+dora_wd / lokr; dim16/alpha16; AdamW; cosine+30-warmup; bf16 sdpa cache_latents --gradient_checkpointing; 600 steps. 2026-06-06.",
+            "commercial_use": "yes",
+            "commercial_notes": "LyCORIS Apache-2.0; output license = base + dataset.",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "supersedes": "network-type-choice-locon-lokr-dora-sdxl-style",
+            "hparams": [
+              {
+                "name": "lora_measured",
+                "value": "1.06 s/it / 14.2 GB / 121.8 MB",
+                "note": "lycoris control (gradient-checkpointed)"
+              },
+              {
+                "name": "dora_measured",
+                "value": "1.61 s/it / 14.3 GB / 125.6 MB",
+                "note": "+52% time, marginal quality edge"
+              },
+              {
+                "name": "lokr_measured",
+                "value": "1.15 s/it / 13.5 GB / 6.1 MB",
+                "note": "~20x smaller adapter, comparable quality"
+              },
+              {
+                "name": "network_module",
+                "value": "lycoris.kohya",
+                "required": true,
+                "note": "this sd-scripts has no native DoRA"
+              },
+              {
+                "name": "gradient_checkpointing",
+                "value": "required",
+                "required": true,
+                "note": "else lycoris spills 32 GB — see efficiency lane"
+              }
+            ],
+            "failures": [
+              {
+                "symptom": "DoRA picked for a 'free' quality bump but training is +50%",
+                "cause": "DoRA magnitude decomposition adds real per-step compute",
+                "remediation": "only use DoRA when the marginal fidelity is worth it; default LoRA, or LoKr for size",
+                "recipe_field": "network_type",
+                "severity": "quality"
+              }
+            ],
+            "best_for": [
+              {
+                "purpose": "smallest portable style adapter at full quality",
+                "fitness": 5,
+                "use_tag": "lokr"
+              },
+              {
+                "purpose": "marginal fidelity edge regardless of train time",
+                "fitness": 3,
+                "use_tag": "dora"
+              }
+            ],
+            "sources": [
+              {
+                "kind": "receipt",
+                "title": "training-knowledge wave-4 measurement (network-type 3-way Run 3)",
+                "url": "https://github.com/mcp-tool-shop-org/readouts",
+                "claim": "rig-measured RTX 5090 2026-06-06; all 6 sample grids looked-at",
+                "finding_supported": "SUPPORTED"
+              }
+            ],
+            "engine_recipe_ref": "training-kohya-sdxl-lora-proven-blackwell-5090"
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "slug": "prodigy-sdxl-style-lora-measured-5090",
+            "overall": "confirmed",
+            "currency": "measured 2026-06-06",
+            "note": "direct rig measurement + looked-at samples (no adversarial verifier needed; the rig is the oracle)"
+          },
+          {
+            "slug": "adamw8bit-sdxl-lora-measured-5090",
+            "overall": "confirmed",
+            "currency": "measured 2026-06-06",
+            "note": "direct rig measurement + looked-at samples"
+          },
+          {
+            "slug": "network-type-choice-sdxl-measured-5090",
+            "overall": "confirmed",
+            "currency": "measured 2026-06-06",
+            "note": "direct rig measurement + looked-at samples"
+          }
+        ]
+      }
+    },
+    {
+      "slug": "efficiency",
+      "research": {
+        "techniques": [
+          {
+            "slug": "lycoris-gradient-checkpointing-mandatory-sdxl-5090",
+            "name": "gradient_checkpointing is mandatory for lycoris.kohya LoRA on 32 GB (MEASURED 27.7 -> 14.5 GB)",
+            "kind": "failure-fix",
+            "method_family": "lora",
+            "applicable_to": "diffusion",
+            "base_model_family": "SDXL",
+            "claim": "MEASURED: lycoris.kohya SDXL LoRA (dim16/1024) peaks 27.7 GB WITHOUT gradient_checkpointing (vs native sd-scripts LoRA's 19.4 GB), and DoRA on top SPILLS the 32 GB ceiling -> WDDM pages GPU memory to system RAM -> 33 s/it (~50x slower); adding --gradient_checkpointing drops the peak to 14.5 GB at 1.06 s/it, fitting DoRA + LoKr with ~18 GB headroom.",
+            "summary": "Earned the hard way (a ~2-hour spilled DoRA run before catching it). Two env facts for this rig: (1) lycoris.kohya is far heavier than native LoRA without gradient checkpointing; pass --gradient_checkpointing for ANY lycoris training here. (2) This sd-scripts checkout has NO native DoRA ('dora_wd' absent from networks.lora) -> DoRA/LoKr/LoCon route through lycoris-lora 3.4.0, installed via `uv pip install --no-deps` (the venv is uv-managed with no pip; --no-deps protected the torch 2.12.0+cu130 build, the #155 trap).",
+            "design_implication": "Always pass --gradient_checkpointing for lycoris.kohya on the 5090. And verify run-1's VRAM receipt before launching any unattended multi-run training batch — a 27.7 GB run-1 was the visible warning that DoRA would spill.",
+            "evidence_strength": "measured-on-rig",
+            "num_runs": 4,
+            "measured_conditions": "RTX 5090 32GB; SDXL base 1.0; stdstyl set; lycoris.kohya dim16; with/without --gradient_checkpointing. 2026-06-06.",
+            "commercial_use": "yes",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [
+              {
+                "name": "lycoris_lora_vram_NO_gc",
+                "value": "27.7",
+                "unit": "GB"
+              },
+              {
+                "name": "lycoris_lora_vram_WITH_gc",
+                "value": "14.5",
+                "unit": "GB"
+              },
+              {
+                "name": "native_lora_vram_no_gc",
+                "value": "19.4",
+                "unit": "GB",
+                "note": "native sd-scripts is lighter than lycoris"
+              },
+              {
+                "name": "dora_no_gc",
+                "value": "32 GB spill -> 33 s/it (WDDM paging)",
+                "note": "unusable without gradient_checkpointing"
+              }
+            ],
+            "failures": [
+              {
+                "symptom": "lycoris DoRA/LoRA training at ~33 s/it with VRAM pinned near 32 GB",
+                "cause": "no gradient_checkpointing + lycoris codepath overhead spills the card -> system-RAM paging",
+                "remediation": "--gradient_checkpointing (27.7 -> 14.5 GB measured)",
+                "recipe_field": "gradient_checkpointing",
+                "severity": "blocker"
+              }
+            ],
+            "best_for": [
+              {
+                "purpose": "fitting lycoris LoRA/DoRA/LoKr training on 32 GB",
+                "fitness": 5,
+                "use_tag": "single-gpu"
+              }
+            ],
+            "sources": [
+              {
+                "kind": "receipt",
+                "title": "training-knowledge wave-4 measurement (lycoris VRAM, the spill + the fix)",
+                "url": "https://github.com/mcp-tool-shop-org/readouts",
+                "claim": "rig-measured RTX 5090 2026-06-06",
+                "finding_supported": "SUPPORTED"
+              }
+            ],
+            "engine_recipe_ref": "training-kohya-sdxl-lora-proven-blackwell-5090"
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "slug": "lycoris-gradient-checkpointing-mandatory-sdxl-5090",
+            "overall": "confirmed",
+            "currency": "measured 2026-06-06",
+            "note": "direct rig measurement (incl. the spill failure)"
+          }
+        ]
+      }
+    }
+  ]
+}

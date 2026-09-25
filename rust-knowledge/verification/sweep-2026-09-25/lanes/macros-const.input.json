@@ -1,0 +1,1264 @@
+{
+  "bucket": "macros-const",
+  "title": "Macros, const evaluation & build scripts",
+  "tier": "advanced",
+  "count": 10,
+  "recipes": [
+    {
+      "slug": "write-macro-rules-with-fragment-follow-sets-crate-paths-and-edition-2024-s-wider-expr-expr-2021-in-mind",
+      "name": "Write macro_rules! with fragment follow-sets, $crate paths and edition 2024's wider expr (expr_2021) in mind",
+      "what": "macro_rules! matches token fragments under follow-set rules and mixed-site hygiene, is visible only after its definition unless #[macro_export] moves it to the crate root, and from edition 2024 `expr` also matches `const { }` and `_` while `expr_2021` keeps the 2021 set.",
+      "how": "Fragments on 1.98.1 (Reference): block, expr, expr_2021, ident, item, lifetime, literal, meta, pat, pat_param, path, stmt, tt, ty, vis. Repetition is `$( ... ) sep op` with `*`, `+` or `?` (`?` takes no separator); end a list with `$(,)?` to accept a trailing comma. `expr` and `stmt` may be followed only by `=>`, `,` or `;`, so `($e:expr $i:ident)` is rejected where the macro is defined. Locals and labels created inside an expansion are invisible to the caller (E0425, 'not accessible due to macro hygiene'); other names resolve at the call site. A macro enters textual scope after its definition; `#[macro_export]` makes it pub at the crate root (`crate::slot!`, `other_crate::slot!`), so name every item the expansion uses as `$crate::module::item`. Edition 2024: for `example!(const { 1 + 1 })` the same two-arm macro prints 'second rule' in 2021 and 'first rule' in 2024; `m!(_)` goes to the `tt` arm in 2021 and the `expr` arm in 2024; `expr_2021` (stable in every edition since 1.83) restores the 2021 set, and the `edition_2024_expr_fragment_specifier` lint that `cargo fix --edition` applies rewrites `expr` to `expr_2021`. For ABI numbers use `$v:literal`, which no edition changes. Use macro_rules! to declare items (consts, exports, impls) or to name them with `stringify!`; compute values with const fn.",
+      "rust_version": "any; expr_2021 1.83+; the wider expr is edition 2024 only",
+      "gotchas": "Arms are tried in order and the first match wins, so an `expr` arm placed before a `const`-prefixed arm silently changes which arm fires when the crate moves to 2024. `cargo fix --edition` turns every `expr` into `expr_2021`: behaviour-preserving, but it hides whether the new meaning was wanted. `#[macro_export]` ignores the defining module's path (the macro lives at the crate root); `local_inner_macros` exists for pre-$crate code and is discouraged in new code. Invoking a macro above its definition fails with 'cannot find macro' (rustc notes that one exists later); a non-exported macro inside `mod abi` is invisible outside it unless the module carries `#[macro_use]`. Diagnostics point into expansions, so keep macro bodies to declarations and call functions for logic.",
+      "engine_note": "solver/src/lib.rs and rapier_law.rs (e5fbcb9) contain no macro_rules! today. The first one that earns its place is the ABI table (see 'Pin the solver ABI with const _ assertions...'): one invocation declaring BODY_STRIDE, HX..DRIVEN and COLLIDER_STRIDE plus their stringify!'d names. The solver crate is edition 2021, so write `$v:literal` (or `expr_2021`) there: an `expr` fragment written today would widen on a 2024 migration.",
+      "checks": [
+        {
+          "label": "repetition + stringify!: one invocation declares six consts and a names table",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "BODY_STRIDE=17 HX=13 HY=14 HZ=15 DRIVEN=16 COLLIDER_STRIDE=10 | 29",
+          "source": "macro_rules! abi_table {\n    ($( $name:ident = $val:literal ),+ $(,)?) => {\n        $( pub const $name: usize = $val; )+\n        pub const ABI_NAMES: &[&str] = &[ $( stringify!($name) ),+ ];\n        pub const ABI_VALUES: &[usize] = &[ $( $val ),+ ];\n    };\n}\nabi_table! { BODY_STRIDE = 17, HX = 13, HY = 14, HZ = 15, DRIVEN = 16, COLLIDER_STRIDE = 10, }\nfn main() {\n    for (n, v) in ABI_NAMES.iter().zip(ABI_VALUES) { print!(\"{n}={v} \"); }\n    println!(\"| {}\", HX + DRIVEN);\n}\n"
+        },
+        {
+          "label": "hygiene: a local declared inside the expansion is invisible to the caller (E0425)",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0425"
+          ],
+          "stderr_contains": [
+            "not accessible due to macro hygiene"
+          ],
+          "source": "macro_rules! declare { () => { let x = 1; }; }\nfn main() { declare!(); println!(\"{}\", x); }\n"
+        },
+        {
+          "label": "textual scope: a macro used above its definition is not found",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "cannot find macro `m` in this scope"
+          ],
+          "source": "fn main() { m!(); }\nmacro_rules! m { () => {}; }\n"
+        },
+        {
+          "label": "follow-set: an expr fragment may not be followed by an ident",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "which is not allowed for `expr` fragments"
+          ],
+          "source": "macro_rules! bad { ($e:expr $i:ident) => {}; }\nfn main() {}\n"
+        },
+        {
+          "label": "#[macro_export] puts the macro at the crate root; $crate finds items with no import",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "47",
+          "source": "pub mod abi {\n    pub const BODY_STRIDE: usize = 17;\n    pub fn at(i: usize, slot: usize) -> usize { i * BODY_STRIDE + slot }\n    #[macro_export]\n    macro_rules! slot {\n        ($i:expr, $s:expr) => { $crate::abi::at($i, $s) };\n    }\n}\nmod elsewhere {\n    pub fn probe() -> usize { crate::slot!(2, 13) }\n}\nfn main() { println!(\"{}\", elsewhere::probe()); }\n"
+        },
+        {
+          "label": "edition 2021: `expr` does not match a const block, so the `const` arm wins",
+          "edition": "2021",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "second rule",
+          "source": "macro_rules! example {\n    ($e:expr) => { println!(\"first rule\"); };\n    (const $e:expr) => { println!(\"second rule\"); };\n}\nfn main() { example!(const { 1 + 1 }); }\n"
+        },
+        {
+          "label": "edition 2024: the same macro now matches `expr` first",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "first rule",
+          "source": "macro_rules! example {\n    ($e:expr) => { println!(\"first rule\"); };\n    (const $e:expr) => { println!(\"second rule\"); };\n}\nfn main() { example!(const { 1 + 1 }); }\n"
+        },
+        {
+          "label": "edition 2024: expr_2021 keeps the 2021 matching",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "second rule",
+          "source": "macro_rules! example {\n    ($e:expr_2021) => { println!(\"first rule\"); };\n    (const $e:expr_2021) => { println!(\"second rule\"); };\n}\nfn main() { example!(const { 1 + 1 }); }\n"
+        },
+        {
+          "label": "edition 2021: `_` is not an expr fragment (falls to tt)",
+          "edition": "2021",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "tt",
+          "source": "macro_rules! m {\n    ($e:expr) => { \"expr\" };\n    ($t:tt) => { \"tt\" };\n}\nfn main() { println!(\"{}\", m!(_)); }\n"
+        },
+        {
+          "label": "edition 2024: `_` matches expr",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "expr",
+          "source": "macro_rules! m {\n    ($e:expr) => { \"expr\" };\n    ($t:tt) => { \"tt\" };\n}\nfn main() { println!(\"{}\", m!(_)); }\n"
+        },
+        {
+          "label": "the migration lint edition_2024_expr_fragment_specifier flags `expr` in a 2021 crate",
+          "edition": "2021",
+          "target": "host",
+          "expect": "runs",
+          "lints": [
+            "edition_2024_expr_fragment_specifier"
+          ],
+          "stderr_contains": [
+            "use the `expr_2021` fragment specifier"
+          ],
+          "stdout": "tt",
+          "source": "#[warn(edition_2024_expr_fragment_specifier)]\nmacro_rules! m {\n    ($e:expr) => { \"expr\" };\n    ($t:tt) => { \"tt\" };\n}\nfn main() { println!(\"{}\", m!(_)); }\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference: Macros By Example",
+          "url": "https://doc.rust-lang.org/stable/reference/macros-by-example.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Lists the fragment specifiers including expr_2021, the *, +, ? repetition operators, the follow-set rules (expr/stmt only before =>, , or ;), mixed-site hygiene, textual scope, $crate, and that #[macro_export] exports the macro from the crate root."
+        },
+        {
+          "title": "The Rust Edition Guide: Macro Fragment Specifiers (Rust 2024)",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/macro-fragment-specifiers.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "In edition 2024 the expr fragment also matches const and _ expressions, expr_2021 keeps the old behaviour, and the edition_2024_expr_fragment_specifier lint rewrites expr to expr_2021; gives the example!(const { 1 + 1 }) macro."
+        },
+        {
+          "title": "Rust 1.83.0 release notes",
+          "url": "https://github.com/rust-lang/rust/releases/tag/1.83.0",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Language: 'Stabilize expr_2021 macro fragment specifier in all editions.'"
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "use-a-derive-proc-macro-only-when-code-must-read-a-type-s-definition-count-its-syn-builds-in-build-time",
+      "name": "Use a derive proc macro only when code must read a type's definition; count its syn builds in build time",
+      "what": "Proc macros (derive, attribute, function-like) live in separate proc-macro crates that rustc runs during expansion, usually on syn, quote and proc-macro2; they can generate code and compile-time checks from a struct's definition, and they cost host-side dependency builds plus unoptimized expansion (uncached, per the 2025 survey post).",
+      "how": "Kinds (Reference): `#[proc_macro]` for `name!(...)`, `#[proc_macro_derive(Name, attributes(helper))]` for `#[derive(Name)]`, `#[proc_macro_attribute]` for `#[name]`; they must sit at the root of a crate with `proc-macro = true` and can be used only from another crate. The usual stack: syn parses the TokenStream into a syntax tree (default features derive, parsing, printing, clone-impls, proc-macro; `full`, `visit`, `fold` are opt-in because syn is 'aggressively feature gated'), `quote!` turns syntax back into tokens (`#var`, `#(...)*`), and proc-macro2 wraps the compiler's proc_macro types so the same code also runs in build scripts and unit tests. Cargo builds build scripts, proc macros and their dependencies with `build-override` `opt-level = 0`, `codegen-units = 256` in dev and in release. Measured cost (`cargo +1.98.1 build --release --target wasm32-unknown-unknown --offline --locked --timings` on a scratch copy of solver/ at e5fbcb9, cold, 24 jobs): 66 units in 30.6 s; syn 2.0.119 (1.95 s) and syn 3.0.6 (1.38 s) compiled in parallel, then thiserror-impl 0.65 s, num-derive 0.56 s, nalgebra-macros 0.31 s, profiling-procmacros 0.25 s, all done by about 3.8 s and off the critical path wide (5.7 s) -> simba -> nalgebra (4.7 s) -> parry3d-f64 (12.1 s) -> rapier3d-f64 (15.3 s). Choose macro_rules! when the input is tokens written at the call site; choose a derive when the code must read fields and repr. Example: bytemuck's `#[derive(Pod)]` fails a padded `#[repr(C)]` struct with E0080 and lets `bytemuck::cast_slice` view `[Body]` as `[f64]` without unsafe.",
+      "rust_version": "any; as locked: syn 2.0.119 and 3.0.6, quote 1.0.47, proc-macro2 1.0.107, bytemuck 1.25.2",
+      "gotchas": "Proc macros are unhygienic: their output behaves as if typed at the use site, so it can capture or clash with local names. They run with the compiler's own resources (files, stdin/stdout), so a macro that reads files, env or the clock is an input the pinned artifact silently depends on. Two majors of syn can coexist in one graph, and each is compiled separately. The 2025 compiler-performance survey post says derive expansion was not cached at the time (work underway), so every rebuild of a crate re-runs its derives. Raising build-override opt-level speeds expansion but slows the macro crates' own compile, and overrides cannot set panic, lto or rpath. A derive's check is only as strong as the macro: derive(Pod) reports a missing repr(C) as a plain error with no code and padding as E0080.",
+      "engine_note": "The solver's own code uses no proc macro, yet every clean wasm build compiles four proc-macro crates from solver/Cargo.lock: nalgebra-macros, num-derive and profiling-procmacros on syn 2.0.119, thiserror-impl on syn 3.0.6. serde_derive 1.0.229 in the same lockfile also depends on syn 3.0.6, so a serde derive for world files would not add a third syn. If the stride-17 buffer is ever redesigned, a `#[derive(Pod)] #[repr(C)] struct Body` is the typed alternative to hand indices, proven padding-free at compile time.",
+      "checks": [
+        {
+          "label": "derive(Pod) rejects a padded repr(C) struct at compile time (E0080)",
+          "edition": "2024",
+          "target": "host",
+          "deps": [
+            "bytemuck"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "derive(Pod) was applied to a type with padding"
+          ],
+          "source": "use bytemuck::{Pod, Zeroable};\n#[derive(Clone, Copy, Pod, Zeroable)]\n#[repr(C)]\nstruct Padded { flag: u8, x: f64 }\nfn main() {}\n"
+        },
+        {
+          "label": "derive(Pod) rejects a struct without repr(C) / repr(transparent)",
+          "edition": "2024",
+          "target": "host",
+          "deps": [
+            "bytemuck"
+          ],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "Pod requires the type to be #[repr(C)] or #[repr(transparent)]"
+          ],
+          "source": "use bytemuck::{Pod, Zeroable};\n#[derive(Clone, Copy, Pod, Zeroable)]\nstruct NoRepr { x: f64, y: f64 }\nfn main() {}\n"
+        },
+        {
+          "label": "a 17-f64 repr(C) body passes derive(Pod) and casts to a flat f64 slice",
+          "edition": "2024",
+          "target": "host",
+          "deps": [
+            "bytemuck"
+          ],
+          "expect": "runs",
+          "stdout": "34 136 0.5 1",
+          "source": "use bytemuck::{Pod, Zeroable};\n#[derive(Clone, Copy, Pod, Zeroable)]\n#[repr(C)]\nstruct Body { pos: [f64; 3], vel: [f64; 3], rot: [f64; 4], ang: [f64; 3], half: [f64; 3], driven: f64 }\nfn main() {\n    let b = Body { pos: [1.0, 2.0, 3.0], vel: [0.0; 3], rot: [0.0, 0.0, 0.0, 1.0], ang: [0.0; 3], half: [0.5, 0.25, 0.125], driven: 1.0 };\n    let bodies = [b; 2];\n    let flat: &[f64] = bytemuck::cast_slice(&bodies);\n    println!(\"{} {} {} {}\", flat.len(), core::mem::size_of::<Body>(), flat[17 + 13], flat[17 + 16]);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference: Procedural Macros",
+          "url": "https://doc.rust-lang.org/stable/reference/procedural-macros.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Three kinds (function-like, derive, attribute); must be defined at the root of a proc-macro crate and used from another crate; they run during compilation with the compiler's resources and are unhygienic."
+        },
+        {
+          "title": "syn 3.0.6 crate documentation",
+          "url": "https://docs.rs/syn/3.0.6/syn/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "syn parses a stream of Rust tokens into a syntax tree for procedural macros; default features are derive, parsing, printing, clone-impls and proc-macro, and functionality is feature gated so macros do not pay compile time for the rest."
+        },
+        {
+          "title": "quote 1.0.47 crate documentation",
+          "url": "https://docs.rs/quote/1.0.47/quote/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "quote! turns Rust syntax into a TokenStream with #var interpolation and #(...)* repetition, on top of proc-macro2."
+        },
+        {
+          "title": "proc-macro2 1.0.107 crate documentation",
+          "url": "https://docs.rs/proc-macro2/1.0.107/proc_macro2/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Types from proc_macro cannot exist outside a procedural macro; proc-macro2 wraps them so macro code runs in build scripts and unit tests."
+        },
+        {
+          "title": "The Cargo Book: Profiles (build-override)",
+          "url": "https://doc.rust-lang.org/cargo/reference/profiles.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "By default no profile optimizes build scripts, proc macros and their dependencies (build-override opt-level = 0, codegen-units = 256); overrides cannot specify panic, lto or rpath."
+        },
+        {
+          "title": "bytemuck 1.25.2: derive macro Pod",
+          "url": "https://docs.rs/bytemuck/1.25.2/bytemuck/derive.Pod.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "derive(Pod) requires all fields Pod, #[repr(C)] or #[repr(transparent)], and no padding bytes, and fails to compile otherwise."
+        },
+        {
+          "title": "si-rpg-engine solver/Cargo.lock at e5fbcb9",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/e5fbcb9/solver/Cargo.lock",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "The solver lockfile holds syn 2.0.119 and syn 3.0.6; nalgebra-macros, num-derive and profiling-procmacros use syn 2.0.119, thiserror-impl and serde_derive use syn 3.0.6."
+        },
+        {
+          "title": "Rust compiler performance survey 2025 results",
+          "url": "https://blog.rust-lang.org/2025/09/10/rust-compiler-performance-survey-2025-results/",
+          "year": 2025,
+          "kind": "blog",
+          "identifier": "",
+          "claim": "States that expansion of derive proc macros was not cached, with work underway to change that."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "emit-cargo-lines-from-build-rs-pair-rustc-cfg-with-rustc-check-cfg-and-read-the-target-from-cargo-cfg",
+      "name": "Emit cargo:: lines from build.rs, pair rustc-cfg with rustc-check-cfg, and read the target from CARGO_CFG_*",
+      "what": "A build script is a host program Cargo compiles and runs before the crate; since Cargo 1.77 it speaks `cargo::KEY=VALUE`, it must learn the target from CARGO_CFG_* (cfg! there describes the host), write only into OUT_DIR, and declare every cfg it sets.",
+      "how": "Directives (Cargo Book): `cargo::rerun-if-changed=PATH` (a directory is scanned whole), `rerun-if-env-changed=VAR`, `rustc-cfg=KEY[=\"VALUE\"]`, `rustc-check-cfg=CHECK_CFG` (respected from 1.80), `rustc-env=VAR=VALUE`, `warning=MSG`, `error=MSG` (1.84+, fails the build), `metadata=KEY=VALUE`, and the rustc-link-* family. `cargo::KEY=VALUE` needs Cargo 1.77 (rust-lang/cargo#12201, milestone 1.77.0); older toolchains need `cargo:KEY=VALUE`, where unsupported keys are taken as metadata. Measured on a scratch crate with `cargo +1.98.1 build --target wasm32-unknown-unknown --offline`: `cargo::rustc-cfgg=x` -> error 'invalid output in build script ... Unknown key: `rustc-cfgg`', while `cargo:rustc-cfgg=x` passed silently; the script printed `cfg!(target_arch = \"wasm32\") = false` beside `CARGO_CFG_TARGET_ARCH = wasm32`, `CARGO_CFG_TARGET_FAMILY = wasm`, `HOST = x86_64-pc-windows-msvc`; with `rerun-if-changed=build.rs` and `=abi.txt`, editing src/lib.rs recompiled only the lib and editing abi.txt re-ran build-script-build; `cargo build -v` showed the script's lines arriving as `--cfg si_abi_generated --check-cfg 'cfg(si_abi_generated)'` next to Cargo's defaults `--check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())'`. Generated code goes to `OUT_DIR` and in with `include!(concat!(env!(\"OUT_DIR\"), \"/abi.rs\"));`. Cost, cold on this rig: a trivial script took 0.32 s to compile and 0.05 s to run against 0.13 s for the lib; the solver's graph compiles 8 dependency build scripts (0.34-0.49 s each) and runs them (0.08-0.29 s).",
+      "rust_version": "cargo:: 1.77+; rustc-check-cfg respected 1.80+; cargo::error 1.84+",
+      "gotchas": "`cargo::rustc-cfg=X` without `cargo::rustc-check-cfg=cfg(X)` makes every `#[cfg(X)]` warn unexpected_cfgs although X is set (measured). cfg!/#[cfg] inside build.rs test the host, so a wasm cross-build silently takes the host branch; the Cargo Book says to use CARGO_CFG_* instead. With no rerun-if line Cargo reruns the script whenever any file in the package changes. OUT_DIR is not cleaned between builds and may hold stale files. 'Scripts should not modify any files outside of that directory', so a build.rs cannot legitimately write a JS module next to the wasm. A build script is arbitrary host code inside the build: reading the clock, undeclared env vars or files outside the package makes the artifact depend on the machine.",
+      "engine_note": "The solver has no build.rs; its generator is node (solver/build.mjs), outside Cargo. A build.rs that generated the ABI table could write only the Rust half into OUT_DIR, so build.mjs would still have to read the same data file itself; that is why the macro table in 'Pin the solver ABI with const _ assertions...' is the smaller change. If one is ever added, it must test CARGO_CFG_TARGET_FAMILY (wasm), never cfg! (the Linux or Windows host), and every clean build gains a compile and a run unit.",
+      "checks": [
+        {
+          "label": "`cargo::rustc-cfg=si_abi_generated` reaches rustc as --cfg: the gated item exists",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "--cfg=si_abi_generated"
+          ],
+          "expect": "runs",
+          "stdout": "true",
+          "source": "#[cfg(si_abi_generated)]\nconst GENERATED: bool = true;\n#[cfg(not(si_abi_generated))]\nconst GENERATED: bool = false;\nfn main() { println!(\"{}\", GENERATED); }\n"
+        },
+        {
+          "label": "without the build script's --cfg the other branch is compiled",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "false",
+          "source": "#[cfg(si_abi_generated)]\nconst GENERATED: bool = true;\n#[cfg(not(si_abi_generated))]\nconst GENERATED: bool = false;\nfn main() { println!(\"{}\", GENERATED); }\n"
+        },
+        {
+          "label": "`cargo::rustc-cfg=abi=\"v2\"` is a key-value cfg: #[cfg(abi = \"v2\")] selects",
+          "edition": "2024",
+          "target": "host",
+          "rustc_flags": [
+            "--cfg=abi=\"v2\""
+          ],
+          "expect": "runs",
+          "stdout": "v2",
+          "source": "#[cfg(abi = \"v2\")]\nconst ABI: &str = \"v2\";\n#[cfg(not(abi = \"v2\"))]\nconst ABI: &str = \"v1\";\nfn main() { println!(\"{}\", ABI); }\n"
+        },
+        {
+          "label": "OUT_DIR exists only in a Cargo build with a build script; plain rustc refuses the include",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "environment variable `OUT_DIR` not defined at compile time"
+          ],
+          "source": "include!(concat!(env!(\"OUT_DIR\"), \"/abi.rs\"));\nfn main() {}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Cargo Book: Build Scripts",
+          "url": "https://doc.rust-lang.org/cargo/reference/build-scripts.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Lists the cargo:: instructions; 'MSRV: 1.77 is required for cargo::KEY=VALUE syntax'; rustc-check-cfg respected as of 1.80 and cargo::error as of 1.84; default rerun on any package change; write only into OUT_DIR; cfg! in a build script checks the host."
+        },
+        {
+          "title": "The Cargo Book: Environment Variables",
+          "url": "https://doc.rust-lang.org/cargo/reference/environment-variables.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Cargo sets CARGO_CFG_<cfg> (multiple values joined by commas), OUT_DIR, TARGET and HOST for build scripts, and says to use CARGO_CFG_* rather than cfg!, which checks the host."
+        },
+        {
+          "title": "rust-lang/cargo#12201: Extend the build directive syntax with cargo::",
+          "url": "https://github.com/rust-lang/cargo/pull/12201",
+          "year": 2023,
+          "kind": "pr",
+          "identifier": "",
+          "claim": "Adds the cargo:: build-directive prefix alongside cargo:, merged 2023-12-24 in milestone 1.77.0."
+        },
+        {
+          "title": "This Development-cycle in Cargo: 1.77",
+          "url": "https://blog.rust-lang.org/inside-rust/2024/02/13/this-development-cycle-in-cargo-1-77/",
+          "year": 2024,
+          "kind": "blog",
+          "identifier": "",
+          "claim": "The cargo: prefix shared a namespace with users' link metadata, which made new directives hard to add; cargo:: separates the two."
+        },
+        {
+          "title": "The rustc book: check-cfg, Cargo specifics",
+          "url": "https://doc.rust-lang.org/rustc/check-cfg/cargo-specifics.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Custom cfgs set by a build script are declared with cargo::rustc-check-cfg (new with Cargo 1.80); static ones with [lints.rust] unexpected_cfgs check-cfg."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "gate-wasm-code-on-target-family-wasm-and-turn-a-forbidden-target-feature-into-compile-error",
+      "name": "Gate wasm code on target_family = \"wasm\" and turn a forbidden target feature into compile_error!",
+      "what": "#[cfg] removes items before type checking, cfg! only yields a bool, and cfg_attr adds attributes conditionally; on 1.98.1 wasm32-unknown-unknown sets target_family = \"wasm\", target_arch = \"wasm32\", target_os = \"unknown\" and panic = \"abort\", so `#[cfg(target_feature = \"relaxed-simd\")] compile_error!(...)` turns a flag slip into a failed build.",
+      "how": "`#[cfg(pred)]` on items with `all()`, `any()`, `not()`; `cfg!(pred)` is the literal true or false, so both branches must compile (calling a cfg'd-out fn is E0425); `#[cfg_attr(pred, a, b)]` expands to each listed attribute (the check exports `law_version` through `cfg_attr(target_family = \"wasm\", unsafe(no_mangle), inline(never))`). Measured `rustc +1.98.1 --print cfg`: wasm32-unknown-unknown -> target_family=\"wasm\", target_arch=\"wasm32\", target_os=\"unknown\", panic=\"abort\", target_feature bulk-memory, multivalue, mutable-globals, nontrapping-fptoint, reference-types, sign-ext; wasm32v1-none -> target_os=\"none\" with only mutable-globals; `-C target-feature=+relaxed-simd` also sets simd128; `-C target-cpu=bleeding-edge` turns on relaxed-simd and simd128. The guard `#[cfg(target_feature = \"relaxed-simd\")] compile_error!(\"...\");` compiles by default and fails with its message under +relaxed-simd. Name checking: Cargo 1.80+ passes --check-cfg by default and the warn-by-default unexpected_cfgs lint flags unknown names and values (measured: `#[cfg(si_abi_generatd)]` -> 'there is a config with a similar name: `si_abi_generated`'); declare static custom cfgs with `[lints.rust] unexpected_cfgs = { level = \"warn\", check-cfg = ['cfg(name)'] }` and build-script ones with `cargo::rustc-check-cfg`. Use target_family = \"wasm\" for any wasm target and target_arch = \"wasm32\" when the 32-bit pointer width matters.",
+      "rust_version": "any; unexpected_cfgs on by default in Cargo 1.80+",
+      "gotchas": "cfg! does not remove code; the other branch must still resolve and type-check. target_family can hold several values at once (the Reference names unix together with wasm), so compare, never assume a single value. Plain rustc, and this KB's oracle, checks cfg names only when a --check-cfg flag is passed ('Well known names and values are implicitly added as long as at least one --check-cfg argument is present'), so typos surface only in Cargo builds. A guard written as `#[cfg(not(target_family = \"wasm\"))] compile_error!` would also break host `cargo test` of pure functions: forbid the feature, not the host. The rustc feature name is relaxed-simd, and enabling it implies simd128.",
+      "engine_note": "solver/.cargo/config.toml and solver/build.mjs both pass `-C target-feature=-relaxed-simd` because RUSTFLAGS replaces the config's rustflags (build.mjs says so). Two lines in lib.rs, `#[cfg(target_feature = \"relaxed-simd\")] compile_error!(...)`, make the source refuse that configuration however the flags arrive, e.g. a `RUSTFLAGS=\"-C target-cpu=bleeding-edge\"` build that forgot the disable. T3's opcode lint stays the check on the bytes. Measured on a scratch copy of solver/ at e5fbcb9: appended to the end of lib.rs, the guard left si_solver.wasm byte-identical, and a RUSTFLAGS='-C target-cpu=bleeding-edge' build then failed with the guard's message.",
+      "checks": [
+        {
+          "label": "wasm32-unknown-unknown: family wasm, arch wasm32, os unknown, panic abort, no simd128 (=23)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "23",
+          "wasm_exports": [
+            "cfg_word"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "cfg_word",
+            "args": []
+          },
+          "source": "#[cfg(target_feature = \"relaxed-simd\")]\ncompile_error!(\"si-solver refuses relaxed-simd: it admits fused multiply-add and non-deterministic lanes\");\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn cfg_word() -> u32 {\n    (cfg!(target_family = \"wasm\") as u32)\n        | (cfg!(target_arch = \"wasm32\") as u32) << 1\n        | (cfg!(target_os = \"unknown\") as u32) << 2\n        | (cfg!(target_feature = \"simd128\") as u32) << 3\n        | (cfg!(panic = \"abort\") as u32) << 4\n}\n"
+        },
+        {
+          "label": "-C target-feature=+simd128 flips only the simd128 bit (=31)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "target-feature=+simd128"
+          ],
+          "expect": "runs",
+          "stdout": "31",
+          "wasm_call": {
+            "export": "cfg_word",
+            "args": []
+          },
+          "source": "#[cfg(target_feature = \"relaxed-simd\")]\ncompile_error!(\"si-solver refuses relaxed-simd: it admits fused multiply-add and non-deterministic lanes\");\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn cfg_word() -> u32 {\n    (cfg!(target_family = \"wasm\") as u32)\n        | (cfg!(target_arch = \"wasm32\") as u32) << 1\n        | (cfg!(target_os = \"unknown\") as u32) << 2\n        | (cfg!(target_feature = \"simd128\") as u32) << 3\n        | (cfg!(panic = \"abort\") as u32) << 4\n}\n"
+        },
+        {
+          "label": "the cfg + compile_error! guard fails a build that enables relaxed-simd",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "rustc_flags": [
+            "-C",
+            "target-feature=+relaxed-simd"
+          ],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "si-solver refuses relaxed-simd"
+          ],
+          "source": "#[cfg(target_feature = \"relaxed-simd\")]\ncompile_error!(\"si-solver refuses relaxed-simd: it admits fused multiply-add and non-deterministic lanes\");\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn cfg_word() -> u32 {\n    (cfg!(target_family = \"wasm\") as u32)\n        | (cfg!(target_arch = \"wasm32\") as u32) << 1\n        | (cfg!(target_os = \"unknown\") as u32) << 2\n        | (cfg!(target_feature = \"simd128\") as u32) << 3\n        | (cfg!(panic = \"abort\") as u32) << 4\n}\n"
+        },
+        {
+          "label": "wasm32v1-none: same family and arch, target_os = \"none\" (=19)",
+          "edition": "2024",
+          "target": "wasm32v1-none",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "19",
+          "wasm_call": {
+            "export": "cfg_word",
+            "args": []
+          },
+          "source": "#![no_std]\n#[panic_handler]\nfn on_panic(_: &core::panic::PanicInfo) -> ! { loop {} }\n#[cfg(target_feature = \"relaxed-simd\")]\ncompile_error!(\"si-solver refuses relaxed-simd: it admits fused multiply-add and non-deterministic lanes\");\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn cfg_word() -> u32 {\n    (cfg!(target_family = \"wasm\") as u32)\n        | (cfg!(target_arch = \"wasm32\") as u32) << 1\n        | (cfg!(target_os = \"unknown\") as u32) << 2\n        | (cfg!(target_feature = \"simd128\") as u32) << 3\n        | (cfg!(panic = \"abort\") as u32) << 4\n}\n"
+        },
+        {
+          "label": "cfg! only yields a bool: the dead branch must still resolve (E0425 on the host)",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0425"
+          ],
+          "source": "#[cfg(target_family = \"wasm\")]\nfn wasm_only() -> &'static str { \"wasm\" }\nfn main() {\n    let s = if cfg!(target_family = \"wasm\") { wasm_only() } else { \"host\" };\n    println!(\"{s}\");\n}\n"
+        },
+        {
+          "label": "#[cfg] removes the item, so the host build compiles without it",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "host",
+          "source": "#[cfg(target_family = \"wasm\")]\nfn which() -> &'static str { \"wasm\" }\n#[cfg(not(target_family = \"wasm\"))]\nfn which() -> &'static str { \"host\" }\nfn main() { println!(\"{}\", which()); }\n"
+        },
+        {
+          "label": "cfg_attr expands to several attributes: an export named only on wasm",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "2",
+          "wasm_exports": [
+            "law_version"
+          ],
+          "wasm_call": {
+            "export": "law_version",
+            "args": []
+          },
+          "source": "#[cfg_attr(target_family = \"wasm\", unsafe(no_mangle), inline(never))]\npub extern \"C\" fn law_version() -> u32 { 2 }\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference: Conditional compilation",
+          "url": "https://doc.rust-lang.org/stable/reference/conditional-compilation.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Defines target_arch, target_family (any number of values, e.g. \"wasm\"), target_os, target_feature and panic; cfg_attr expands to each listed attribute; cfg! evaluates to a true or false literal; arbitrary options come from --cfg."
+        },
+        {
+          "title": "The rustc book: Checking conditional configurations",
+          "url": "https://doc.rust-lang.org/rustc/check-cfg.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "rustc checks cfg names and values when --check-cfg is passed, adds well-known names once any --check-cfg is present, and reports unexpected_cfgs, warn by default."
+        },
+        {
+          "title": "Announcing Rust 1.80.0",
+          "url": "https://blog.rust-lang.org/2024/07/25/Rust-1.80.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Cargo 1.80 enables cfg name and value checking by default; the warn-by-default unexpected_cfgs lint; custom cfgs via [lints.rust] check-cfg or cargo::rustc-check-cfg."
+        },
+        {
+          "title": "std macro compile_error!",
+          "url": "https://doc.rust-lang.org/stable/std/macro.compile_error.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "compile_error! fails compilation with the given message and is meant for conditional-compilation strategies such as a #[cfg(not(...))] guard."
+        },
+        {
+          "title": "si-rpg-engine solver/build.mjs at e5fbcb9",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/e5fbcb9/solver/build.mjs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "build.mjs repeats -C target-feature=-relaxed-simd in RUSTFLAGS because RUSTFLAGS overrides .cargo/config.toml."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "compute-tables-in-const-fn-with-while-match-and-mut-expect-e0015-on-for-loops-trait-calls-and-formatting",
+      "name": "Compute tables in const fn with while, match and &mut; expect E0015 on for-loops, trait calls and formatting",
+      "what": "On 1.98.1 const code runs loop/while/if/match, takes &mut (1.83), does float arithmetic (1.82) and panics with literal messages (1.57); for-loops, iterator methods, trait operators on your own types, PartialEq on str, heap allocation and formatted panic messages are refused.",
+      "how": "Const contexts, always evaluated at compile time: array lengths and repeat counts, const and static initializers, enum discriminants, const generic arguments, `const { }` blocks. Write loops as `let mut i = 0; while i < N { ...; i += 1; }` or `loop { ... break v; }`; pass `&mut [T; N]` into a const fn to fill a table in place and bind the result: `const TABLE: [f64; 4] = { let mut t = [0.0; 4]; fill(&mut t, 0.25); t };`. Panic with `panic!(\"literal\")` or `assert!(cond, \"literal\")` (one &str through `{}` also works); failure is E0080 'evaluation panicked: ...'. Measured refusals on 1.98.1: `for i in 0..n` -> E0015 'cannot use `for` loop on `std::ops::Range<u32>` in constant functions'; `a.iter().sum()` -> E0015 plus '`iter` is not yet stable as a const fn'; `a + b` through a user `impl Add` -> E0015 'cannot call non-const operator'; `a == b` on &str -> E0658 '`PartialEq` is not yet stable as a const trait'; `Vec::push` -> E0658 plus E0493 (destructor at compile time); `assert!(x == 17, \"stride is {}\", x)` with a usize -> E0015 'cannot call non-const formatting macro'.",
+      "rust_version": "1.83+ (&mut in const), 1.82+ (float ops in const fn), 1.57+ (panic in const); no stable const traits on 1.98.1",
+      "gotchas": "A const fn called outside a const context is not guaranteed to run at compile time; bind it to a const or wrap it in `const { }` to force it. Overflow and out-of-bounds indexing in a const context are compile errors, not wraps or run-time panics. A mutable reference may not become part of a const's final value (1.83 post). Generic code over `T: Add` cannot be const on stable, so write concrete f64/usize const fns.",
+      "engine_note": "lib.rs's `step` and `resolve_pair` already use index while loops, a const-compatible style. The realistic const work in the solver is proofs and tables over the ABI constants (see 'Pin the solver ABI with const _ assertions...'); the step itself reads `static mut` buffers at run time and stays an ordinary fn.",
+      "checks": [
+        {
+          "label": "const fn with while, &mut, match, if and loop-break builds tables at compile time",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "[0.0, 0.25, 0.5, 0.75] zero big 12",
+          "source": "const fn fill(buf: &mut [f64; 4], v: f64) {\n    let mut i = 0;\n    while i < buf.len() { buf[i] = v * i as f64; i += 1; }\n}\nconst TABLE: [f64; 4] = { let mut t = [0.0; 4]; fill(&mut t, 0.25); t };\nconst fn classify(n: i32) -> &'static str {\n    match n { i32::MIN..=-1 => \"neg\", 0 => \"zero\", _ => if n > 100 { \"big\" } else { \"pos\" } }\n}\nconst LOOPED: u32 = { let mut n = 0u32; loop { n += 3; if n > 10 { break n; } } };\nfn main() { println!(\"{:?} {} {} {}\", TABLE, classify(0), classify(500), LOOPED); }\n"
+        },
+        {
+          "label": "a `for` loop in a const fn is refused (E0015)",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0015"
+          ],
+          "stderr_contains": [
+            "cannot use `for` loop"
+          ],
+          "source": "const fn sum(n: u32) -> u32 { let mut s = 0; for i in 0..n { s += i; } s }\nfn main() { println!(\"{}\", sum(4)); }\n"
+        },
+        {
+          "label": "iterator methods are trait calls: a.iter().sum() in a const is refused (E0015)",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0015"
+          ],
+          "stderr_contains": [
+            "is not yet stable as a const fn"
+          ],
+          "source": "const S: f64 = { let a = [1.0f64, 2.0]; a.iter().sum() };\nfn main() { println!(\"{S}\"); }\n"
+        },
+        {
+          "label": "an operator from a user impl of Add is not callable in a const fn (E0015)",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0015"
+          ],
+          "stderr_contains": [
+            "cannot call non-const operator in constant functions"
+          ],
+          "source": "#[derive(Clone, Copy)] struct V(f64);\nimpl core::ops::Add for V { type Output = V; fn add(self, o: V) -> V { V(self.0 + o.0) } }\nconst fn twice(a: V) -> V { a + a }\nfn main() { println!(\"{}\", twice(V(1.0)).0); }\n"
+        },
+        {
+          "label": "str == str in a const fn: PartialEq is not a stable const trait (E0658)",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0658"
+          ],
+          "stderr_contains": [
+            "`PartialEq` is not yet stable as a const trait"
+          ],
+          "source": "const fn same(a: &str, b: &str) -> bool { a == b }\nfn main() { println!(\"{}\", same(\"a\", \"a\")); }\n"
+        },
+        {
+          "label": "heap allocation in a const fn: Vec::push is refused (E0658, E0493)",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0658",
+            "E0493"
+          ],
+          "source": "const fn make() -> usize { let mut v: Vec<u8> = Vec::new(); v.push(1); v.len() }\nfn main() { println!(\"{}\", make()); }\n"
+        },
+        {
+          "label": "a const assert! may not format an integer (E0015)",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0015"
+          ],
+          "stderr_contains": [
+            "cannot call non-const formatting macro"
+          ],
+          "source": "const STRIDE: usize = 17;\nconst _: () = assert!(STRIDE == 17, \"stride is {}\", STRIDE);\nfn main() {}\n"
+        },
+        {
+          "label": "a literal panic in a const fn called from a const is compile error E0080",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "BODY_STRIDE changed: update build.mjs"
+          ],
+          "source": "const fn check(stride: usize) { if stride != 17 { panic!(\"BODY_STRIDE changed: update build.mjs\"); } }\nconst _: () = check(18);\nfn main() {}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference: Constant evaluation",
+          "url": "https://doc.rust-lang.org/stable/reference/const_eval.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Expressions in const contexts are always evaluated at compile time; lists the const contexts and permitted expressions (loop, while, if, match, arithmetic on integers and floats, borrows, calls to const fns); overflow or out-of-bounds in a const context is a compile error."
+        },
+        {
+          "title": "Announcing Rust 1.83.0",
+          "url": "https://blog.rust-lang.org/2024/11/28/Rust-1.83.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Mutable references become usable in const computations (const fn inc(x: &mut i32)) but cannot become part of a constant's final value."
+        },
+        {
+          "title": "Announcing Rust 1.57.0",
+          "url": "https://blog.rust-lang.org/2021/12/02/Rust-1.57.0/",
+          "year": 2021,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "panic! and assert! become usable in const contexts, with messages limited to a static string or a single &str via {}; example const _: () = assert!(size_of::<u64>() == 8)."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "trust-const-f64-bits-for-but-keep-d-pi-180-0-to-radians-differs-on-93-of-361-integer-degrees",
+      "name": "Trust const f64 bits for + - * /, but keep d * PI / 180.0: to_radians() differs on 93 of 361 integer degrees",
+      "what": "rustc evaluates const float arithmetic in the soft-float rustc_apfloat, so finite + - * / results are the IEEE bits an IEEE-conforming target computes at run time, whatever the build host (only NaN sign and payload may differ); sqrt, powi, exp, sin and cos are not const on 1.98.1; and to_radians() multiplies by a pre-rounded PI / 180, a different rounding from d * PI / 180.0.",
+      "how": "Float operations in const fn are stable since 1.82; RFC 3514 fixes + - * / % and sqrt to IEEE 754 results with non-deterministic NaN sign and payload, which may differ between compile time and run time. At tag 1.98.1, rustc_const_eval/src/interpret/operator.rs computes float Add/Sub/Mul/Div/Rem as `(l op r).value` on rustc_apfloat types followed by `adjust_nan`; rustc_apfloat is a Rust port of LLVM's APFloat softfloat with no host floating-point use. Measured under 1.98.1: `50.0 * PI / 180.0` as a const, at run time behind black_box, and as `50f64.to_radians()` are all 0x3febecde5da115a9; `FRAC_PI_4` and `45.0 * PI / 180.0` are both 0x3fe921fb54442d18; a wasm32 export computing `d * PI / 180.0` under node v22 matched the compiler's consts bit for bit for d = 50, 45 and 46. But `46.0 * PI / 180.0` = 0x3fe9b0f58956c201 while `46f64.to_radians()` = 0x3fe9b0f58956c202, because core computes `self * RADS_PER_DEG` with `RADS_PER_DEG = PI / 180.0`. Over integer degrees 0..=360, JS `d * Math.PI / 180` equals Rust `d * PI / 180.0` for 361 of 361 and `d.to_radians()` for 268; the other 93 differ by exactly one ulp. Const-callable on 1.98.1 (compiler): abs, signum, copysign, min, max, clamp, recip, to_degrees, to_radians, floor, ceil, round, round_ties_even, trunc, fract, mul_add, midpoint, to_bits, from_bits; not const: sqrt, powi, exp, sin, cos, rem_euclid (E0015) and total_cmp (not yet const-stable). NaN: on this x86_64 host `0.0 / 0.0` is 0x7ff8000000000000 (positive) as a const and 0xfff8000000000000 (negative) at run time, the 1.82 post's own example.",
+      "rust_version": "1.82+ (float ops in const fn); to_radians and to_degrees const since 1.85",
+      "gotchas": "Do not tidy `50.0 * PI / 180.0` into `50f64.to_radians()` without comparing bits: equal for 44, 45 and 50, one ulp apart for 3, 46, 51 and 90 other integer degrees. Transcendentals have unspecified precision at run time and are not const, so a compile-time sin/cos table needs a pinned offline generator and literal bits. Never compare or hash a NaN made in const against one made at run time. core's comment calls PI / 180 'correctly rounded with respect to the true value', which is still a different rounding path from the (d * PI) / 180 order that JS uses.",
+      "engine_note": "rapier_law.rs: CLIMB_ANGLE = FRAC_PI_4 (0x3fe921fb54442d18) and SLIDE_ANGLE = 50.0 * PI / 180.0 (0x3febecde5da115a9) are produced by the compiler's soft-float, independent of the build host, and equal to what V8 computes at run time in wasm from the same expression. For T4's 44 deg / 46 deg climb course, build angles as `d * PI / 180.0` in Rust and `d * Math.PI / 180` in JS: `46f64.to_radians()` is one ulp away from both.",
+      "checks": [
+        {
+          "label": "SLIDE_ANGLE/CLIMB_ANGLE: const bits equal run-time bits and to_radians for 50 and 45",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "3febecde5da115a9 3febecde5da115a9 3febecde5da115a9\n3fe921fb54442d18 3fe921fb54442d18",
+          "source": "use core::f64::consts::{FRAC_PI_4, PI};\nuse std::hint::black_box;\nconst SLIDE_ANGLE: f64 = 50.0 * PI / 180.0;\nconst SLIDE_TO_RAD: f64 = 50.0f64.to_radians();\nconst CLIMB_ANGLE: f64 = FRAC_PI_4;\nconst CLIMB_EXPR: f64 = 45.0 * PI / 180.0;\nfn main() {\n    let rt = black_box(50.0f64) * black_box(PI) / black_box(180.0f64);\n    println!(\"{:016x} {:016x} {:016x}\", SLIDE_ANGLE.to_bits(), rt.to_bits(), SLIDE_TO_RAD.to_bits());\n    println!(\"{:016x} {:016x}\", CLIMB_ANGLE.to_bits(), CLIMB_EXPR.to_bits());\n}\n"
+        },
+        {
+          "label": "to_radians multiplies by a pre-rounded PI/180: 46 and 3 degrees differ by one ulp",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "3fe9b0f58956c201 3fe9b0f58956c202\n3faacee9f37bebd5 3faacee9f37bebd6",
+          "source": "use core::f64::consts::PI;\nconst D46: f64 = 46.0 * PI / 180.0;\nconst D46_TO_RAD: f64 = 46.0f64.to_radians();\nconst D3: f64 = 3.0 * PI / 180.0;\nconst D3_TO_RAD: f64 = 3.0f64.to_radians();\nfn main() {\n    println!(\"{:016x} {:016x}\", D46.to_bits(), D46_TO_RAD.to_bits());\n    println!(\"{:016x} {:016x}\", D3.to_bits(), D3_TO_RAD.to_bits());\n}\n"
+        },
+        {
+          "label": "in wasm (node), run-time d*PI/180 matches the compiler's consts; 46 still != to_radians (=15)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "15",
+          "wasm_call": {
+            "export": "angle_word",
+            "args": [
+              50,
+              45,
+              46
+            ]
+          },
+          "source": "use core::f64::consts::{FRAC_PI_4, PI};\nconst SLIDE_ANGLE: f64 = 50.0 * PI / 180.0;\nconst D46: f64 = 46.0 * PI / 180.0;\n#[unsafe(no_mangle)]\npub extern \"C\" fn angle_word(d50: f64, d45: f64, d46: f64) -> u32 {\n    let slide = d50 * PI / 180.0;\n    let climb = d45 * PI / 180.0;\n    let a46 = d46 * PI / 180.0;\n    ((slide.to_bits() == SLIDE_ANGLE.to_bits()) as u32)\n        | ((climb.to_bits() == FRAC_PI_4.to_bits()) as u32) << 1\n        | ((a46.to_bits() == D46.to_bits()) as u32) << 2\n        | ((a46.to_bits() != d46.to_radians().to_bits()) as u32) << 3\n}\n"
+        },
+        {
+          "label": "f64::sin is not const on 1.98.1 (E0015)",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0015"
+          ],
+          "stderr_contains": [
+            "cannot call non-const method `f64::<impl f64>::sin`"
+          ],
+          "source": "const S: f64 = (0.5f64).sin();\nfn main() { println!(\"{}\", S); }\n"
+        },
+        {
+          "label": "f64::sqrt is not const on 1.98.1 (E0015)",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0015"
+          ],
+          "stderr_contains": [
+            "cannot call non-const method `f64::<impl f64>::sqrt`"
+          ],
+          "source": "const S: f64 = (2.0f64).sqrt();\nfn main() { println!(\"{}\", S); }\n"
+        },
+        {
+          "label": "x86_64 host: 0.0/0.0 is +NaN in const, -NaN at run time (the 1.82 post's example)",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "const 7ff8000000000000 true\nrt    fff8000000000000 false",
+          "source": "use std::hint::black_box;\nconst CT: f64 = 0.0 / 0.0;\nconst CT_POSITIVE: bool = (0.0f64 / 0.0).is_sign_positive();\nfn main() {\n    let rt = black_box(0.0f64) / black_box(0.0f64);\n    println!(\"const {:016x} {}\", CT.to_bits(), CT_POSITIVE);\n    println!(\"rt    {:016x} {}\", rt.to_bits(), rt.is_sign_positive());\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Announcing Rust 1.82.0",
+          "url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "With NaN semantics settled, floating-point operations are permitted in const fn; (0.0 / 0.0).is_sign_positive() can differ between compile time and run time, and code must not rely on a const fn giving the exact same result."
+        },
+        {
+          "title": "RFC 3514: Float semantics",
+          "url": "https://rust-lang.github.io/rfcs/3514-float-semantics.html",
+          "year": 2023,
+          "kind": "rfc",
+          "identifier": "RFC 3514",
+          "claim": "Float arithmetic follows IEEE 754 except for NaN sign and payload, which are non-deterministic and may differ between compile-time and run-time evaluation."
+        },
+        {
+          "title": "rust-lang/rust 1.98.1: compiler/rustc_const_eval/src/interpret/operator.rs",
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/compiler/rustc_const_eval/src/interpret/operator.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "The const-eval interpreter imports rustc_apfloat and computes float Add/Sub/Mul/Div/Rem as (l op r).value with a non-deterministic adjust_nan step."
+        },
+        {
+          "title": "rust-lang/rustc_apfloat README",
+          "url": "https://github.com/rust-lang/rustc_apfloat",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "rustc_apfloat is the Rust port of LLVM's APFloat softfloat library and lacks host floating-point use, which preserves determinism."
+        },
+        {
+          "title": "core::num::f64 source (to_radians)",
+          "url": "https://doc.rust-lang.org/stable/src/core/num/f64.rs.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "to_radians is const-stable since 1.85.0 and computes self * RADS_PER_DEG with RADS_PER_DEG = consts::PI / 180.0."
+        },
+        {
+          "title": "std primitive f64",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.f64.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "sin, cos, powi, powf, exp and ln have unspecified precision that varies by platform and Rust version, while sqrt is the correctly rounded IEEE squareRoot; f64::NAN's sign and payload are arbitrary and may change across Rust versions and targets."
+        },
+        {
+          "title": "si-rpg-engine solver/src/rapier_law.rs at e5fbcb9",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/e5fbcb9/solver/src/rapier_law.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Declares CLIMB_ANGLE = core::f64::consts::FRAC_PI_4 and SLIDE_ANGLE = 50.0 * core::f64::consts::PI / 180.0."
+        }
+      ],
+      "background_sources": [
+        {
+          "title": "rust-lang/rust#77745: Must a const fn behave exactly the same at runtime as at compile-time?",
+          "url": "https://github.com/rust-lang/rust/issues/77745",
+          "year": 2020,
+          "kind": "issue",
+          "identifier": "",
+          "claim": "Frames the question with a / b in a const fn: compile-time evaluation uses apfloat soft-float, run time uses hardware NaN patterns.",
+          "retrieved": true
+        }
+      ]
+    },
+    {
+      "slug": "use-const-for-values-static-for-one-address-const-for-non-copy-repeats-and-generic-compile-time-asserts",
+      "name": "Use const for values, static for one address, const { } for non-Copy repeats and generic compile-time asserts",
+      "what": "A const is inlined as a fresh value at every use, so interior mutability on it does nothing (rustc warns), while a static has one address and must be Sync unless mut; inline `const { }` blocks (1.79) run at compile time inside functions, may use generics, and fail per instantiation.",
+      "how": "Reference rule: prefer const unless you store a lot of data, need the single-address property, or need interior mutability. Measured: `const COUNTER: AtomicU32` plus two fetch_add still loads 0 and rustc warns `const_item_interior_mutations`; the same `static` loads 2 and two `&raw const` of it compare equal; `static FLAG: Cell<bool>` is E0277 (not Sync). `[const { Vec::new() }; 4]` builds an array of a non-Copy type where `[Vec::new(); 4]` is E0277 (Copy). `fn stride_of<const N: usize>()` with `const { assert!(N > 0, \"...\") }` compiles for 17 and stops a binary's build for 0 with E0080 '... while instantiating `fn stride_of::<0>`'; the same `assert!` outside `const { }` compiles and panics at run time (exit 101).",
+      "rust_version": "inline const 1.79+",
+      "gotchas": "A const holding a Vec, Cell, atomic or Once gives each use a fresh copy; state belongs in a static. A const block that is never executed 'may or may not be evaluated' (Reference): the same stride_of file compiled as a lib, where main is unused and nothing instantiates stride_of::<0>, built cleanly on 1.98.1, so a generic const assertion guards only instantiations that are actually codegen'd. Large tables in a const are copied into each use site. static mut needs unsafe and its references are an unsafe-ffi topic (static_mut_refs). The 1.79 stabilization is for const blocks in expression position.",
+      "engine_note": "BODIES, COLLIDERS and HEIGHTS must stay statics: bodies_ptr(), colliders_ptr() and heights_ptr() hand JS one address that its Float64Array views index. Their lengths (MAX_BODIES * BODY_STRIDE, MAX_COLLIDERS * COLLIDER_STRIDE, MAX_HEIGHTS) and the SOLVER initializer (`Solver { loaded: None, snapshot: Vec::new() }`) are const contexts. DT, G, the strides and the angles are rightly consts.",
+      "checks": [
+        {
+          "label": "a const atomic is a fresh copy per use (warns); the static keeps state and one address",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "lints": [
+            "const_item_interior_mutations"
+          ],
+          "stdout": "const 0 static 2\nsame address true",
+          "source": "use std::sync::atomic::{AtomicU32, Ordering};\nconst COUNTER_C: AtomicU32 = AtomicU32::new(0);\nstatic COUNTER_S: AtomicU32 = AtomicU32::new(0);\nfn main() {\n    COUNTER_C.fetch_add(1, Ordering::Relaxed);\n    COUNTER_C.fetch_add(1, Ordering::Relaxed);\n    COUNTER_S.fetch_add(1, Ordering::Relaxed);\n    COUNTER_S.fetch_add(1, Ordering::Relaxed);\n    println!(\"const {} static {}\", COUNTER_C.load(Ordering::Relaxed), COUNTER_S.load(Ordering::Relaxed));\n    let a = &raw const COUNTER_S;\n    let b = &raw const COUNTER_S;\n    println!(\"same address {}\", a == b);\n}\n"
+        },
+        {
+          "label": "a non-mut static must be Sync: static Cell is E0277",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "source": "use std::cell::Cell;\nstatic FLAG: Cell<bool> = Cell::new(false);\nfn main() { FLAG.set(true); }\n"
+        },
+        {
+          "label": "inline const repeats a non-Copy value: [const { Vec::new() }; 4]",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "4",
+          "source": "fn main() {\n    let bufs: [Vec<f64>; 4] = [const { Vec::new() }; 4];\n    println!(\"{}\", bufs.iter().map(|b| b.capacity()).sum::<usize>() + bufs.len());\n}\n"
+        },
+        {
+          "label": "without const { }, [Vec::new(); 4] needs Copy (E0277)",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "source": "fn main() {\n    let bufs: [Vec<f64>; 4] = [Vec::new(); 4];\n    println!(\"{}\", bufs.len());\n}\n"
+        },
+        {
+          "label": "const { assert! } in a generic fn fails to compile for the bad instantiation (E0080)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "while instantiating `fn stride_of::<0>`"
+          ],
+          "source": "fn stride_of<const N: usize>() -> usize {\n    const { assert!(N > 0, \"stride must be positive\") };\n    N\n}\nfn main() { println!(\"{}\", stride_of::<17>()); println!(\"{}\", stride_of::<0>()); }\n"
+        },
+        {
+          "label": "the same file as a lib (main unused, nothing instantiates ::<0>) builds cleanly",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "source": "fn stride_of<const N: usize>() -> usize {\n    const { assert!(N > 0, \"stride must be positive\") };\n    N\n}\nfn main() { println!(\"{}\", stride_of::<17>()); println!(\"{}\", stride_of::<0>()); }\n"
+        },
+        {
+          "label": "the same assert! outside const { } compiles and panics at run time (exit 101)",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "17",
+          "exit_code": 101,
+          "source": "fn stride_of<const N: usize>() -> usize {\n    assert!(N > 0, \"stride must be positive\");\n    N\n}\nfn main() { println!(\"{}\", stride_of::<17>()); println!(\"{}\", stride_of::<0>()); }\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference: Static items",
+          "url": "https://doc.rust-lang.org/stable/reference/items/static-items.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "All references to a static refer to the same allocation; non-mut statics must be Sync; prefer constants unless storing large data, needing the single-address property, or needing interior mutability."
+        },
+        {
+          "title": "The Rust Reference: Constant items",
+          "url": "https://doc.rust-lang.org/stable/reference/items/constant-items.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "A constant is not associated with a specific memory location and is essentially inlined wherever it is used."
+        },
+        {
+          "title": "The rustc book: Warn-by-default lints",
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "const_item_interior_mutations warns on calls that mutate an interior-mutable const item, because each use of the const is a new temporary."
+        },
+        {
+          "title": "Announcing Rust 1.79.0",
+          "url": "https://blog.rust-lang.org/2024/06/13/Rust-1.79.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilizes const { ... } blocks in expression position, which can use in-scope generics, e.g. [const { None }; 100] and [const { None::<T> }; N]."
+        },
+        {
+          "title": "The Rust Reference: Block expressions (const blocks)",
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/block-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Const blocks may reference generic parameters; a const block that is executed at run time is guaranteed to have been evaluated, one that is not executed may or may not be."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "keep-const-generics-to-standalone-integer-bool-and-char-params-size-nested-arrays-never-n-stride",
+      "name": "Keep const generics to standalone integer, bool and char params; size nested arrays, never N * STRIDE",
+      "what": "Stable const generics (since 1.51) take integer, bool and char parameters used standalone in types; arithmetic on a parameter inside a type, f64 or &str parameters, and #![feature(generic_const_exprs)] are all refused on 1.98.1.",
+      "how": "Write `struct Pool<const N: usize, const STRIDE: usize> { data: [[f64; STRIDE]; N] }` and flatten with `as_flattened()` (stable 1.80; `[[f64; 17]; 2]` -> 34 contiguous f64, 272 bytes). Derived numbers go in associated consts (`const WORDS: usize = N * STRIDE;`) or `const { }` blocks, usable in expressions but not in types (`[f64; Self::WORDS]` -> 'generic `Self` types are currently not permitted in anonymous constants'). A const argument must be a literal, a single identifier or a braced block: `f::<{ K + 1 }>()` with K a const item compiles; `[f64; N * 17]` with N a parameter -> 'generic parameters may not be used in const operations'. Parameter types are u8..u128, usize, i8..i128, isize, char and bool; `const RAD: f64` -> '`f64` is forbidden as the type of a const generic parameter'; `#![feature(generic_const_exprs)]` (tracking issue #76560) -> E0554 on stable.",
+      "rust_version": "1.51+ (min_const_generics); generic_const_exprs unstable on 1.98.1",
+      "gotchas": "Every distinct <N, STRIDE> is a separate monomorphized copy. rustc itself marks generic_const_exprs incomplete ('may not be safe to use and/or cause compiler crashes', printed with the E0554 error). An angle or tolerance cannot be a const parameter; keep it a const item. In a type a parameter must stand alone ({N} is accepted, {N + 1} is not).",
+      "engine_note": "lib.rs's `[f64; MAX_BODIES * BODY_STRIDE]` compiles because MAX_BODIES and BODY_STRIDE are const items, not generic parameters. Making the body count generic would force `[[f64; BODY_STRIDE]; N]` (the same 64 x 136 bytes, flattened with as_flattened) and buys nothing while the ABI is fixed at 64 x 17.",
+      "checks": [
+        {
+          "label": "stable const generics: usize/bool/char params, nested arrays, assoc const, braced arg",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "1088 64 0.875\n4",
+          "source": "struct Pool<const N: usize, const STRIDE: usize> { data: [[f64; STRIDE]; N] }\nimpl<const N: usize, const STRIDE: usize> Pool<N, STRIDE> {\n    const WORDS: usize = N * STRIDE;\n    fn new() -> Self { Pool { data: [[0.0; STRIDE]; N] } }\n    fn words(&self) -> usize { Self::WORDS }\n}\nfn sum<const N: usize>(xs: [f64; N]) -> f64 { let mut s = 0.0; let mut i = 0; while i < N { s += xs[i]; i += 1; } s }\nstruct Flag<const ON: bool>;\nstruct Axis<const C: char>;\nfn main() {\n    let p: Pool<64, 17> = Pool::new();\n    println!(\"{} {} {}\", p.words(), p.data.len(), sum([0.5, 0.25, 0.125]));\n    let _ = (Flag::<true>, Axis::<'y'>);\n    const K: usize = 3;\n    println!(\"{}\", sum::<{ K + 1 }>([1.0; 4]));\n}\n"
+        },
+        {
+          "label": "N * 17 in a type is generic_const_exprs territory: refused on stable",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "generic parameters may not be used in const operations"
+          ],
+          "source": "fn flat<const N: usize>() -> [f64; N * 17] { [0.0; N * 17] }\nfn main() { println!(\"{}\", flat::<2>().len()); }\n"
+        },
+        {
+          "label": "an associated const derived from params still cannot size a type",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "generic `Self` types are currently not permitted in anonymous constants"
+          ],
+          "source": "struct Pool<const N: usize, const STRIDE: usize>;\nimpl<const N: usize, const STRIDE: usize> Pool<N, STRIDE> {\n    const WORDS: usize = N * STRIDE;\n    fn flat(&self) -> [f64; Self::WORDS] { [0.0; Self::WORDS] }\n}\nfn main() {}\n"
+        },
+        {
+          "label": "f64 is not an allowed const parameter type",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "`f64` is forbidden as the type of a const generic parameter"
+          ],
+          "source": "struct Angle<const RAD: f64>;\nfn main() {}\n"
+        },
+        {
+          "label": "#![feature(generic_const_exprs)] is refused on the stable channel (E0554)",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0554"
+          ],
+          "source": "#![feature(generic_const_exprs)]\nfn main() {}\n"
+        },
+        {
+          "label": "the stable workaround: [[f64; 17]; 2] flattens to 34 contiguous f64",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "34 272",
+          "source": "fn main() {\n    let nested: [[f64; 17]; 2] = [[1.0; 17]; 2];\n    let flat: &[f64] = nested.as_flattened();\n    println!(\"{} {}\", flat.len(), core::mem::size_of::<[[f64; 17]; 2]>());\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference: Generic parameters",
+          "url": "https://doc.rust-lang.org/stable/reference/items/generics.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Const parameter types are the integer types, char and bool; in a type or array repeat a const parameter must stand alone; a const argument is a literal, a single identifier or a block; [u8; {N + 1}] is rejected."
+        },
+        {
+          "title": "Announcing Rust 1.51.0",
+          "url": "https://blog.rust-lang.org/2021/03/25/Rust-1.51.0/",
+          "year": 2021,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "The const generics MVP makes code generic over integer, bool and char values; struct or enum values remain unstable."
+        },
+        {
+          "title": "The Unstable Book: generic_const_exprs",
+          "url": "https://doc.rust-lang.org/unstable-book/language-features/generic-const-exprs.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "generic_const_exprs (tracking issue #76560) allows non-trivial generic constants and is unstable."
+        },
+        {
+          "title": "Rust 1.80.0 release notes",
+          "url": "https://github.com/rust-lang/rust/releases/tag/1.80.0",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilized APIs include <[[T; N]]>::as_flattened, as_flattened_mut and Vec::<[T; N]>::into_flattened."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "pin-the-solver-abi-with-const-assertions-and-generate-the-js-strides-from-one-rust-table-not-by-hand",
+      "name": "Pin the solver ABI with const _ assertions and generate the JS strides from one Rust table, not by hand",
+      "what": "`const _: () = { ... }` blocks, offset_of! (1.77) and size_of turn layout and slot invariants into E0080 build failures that add no bytes when appended; a macro_rules! table can emit the consts, the proof and one exported descriptor so JS never retypes 17 or 10.",
+      "how": "Free const items are always evaluated, even inside unused functions, so the proof runs on every build. Proof: list every slot of the record, `const SLOTS: [usize; BODY_STRIDE] = [0, 1, 2, 3, 4, 5, QX, QY, QZ, QW, WX, WY, WZ, HX, HY, HZ, DRIVEN];`, then check in while loops that each is below BODY_STRIDE and no two are equal: 17 distinct values below 17 cover the record exactly once. Mirror the layout in a `#[repr(C)]` struct and assert `size_of::<Body>() == BODY_STRIDE * 8` and `offset_of!(Body, driven) == DRIVEN * 8`. A macro `abi_layout! { BODY_STRIDE = 17; HX = 13, HY = 14, HZ = 15, DRIVEN = 16 }` emits the consts, the same proof and `#[unsafe(no_mangle)] extern \"C\" fn abi_word(i: u32) -> u32` over a static table; the check builds it for wasm32 and abi_word(0) returns 17. Measured bytes. In a test cdylib (rustc 1.98.1, wasm32-unknown-unknown, opt-level 3, panic=abort, codegen-units 1, strip=debuginfo, same file and output names) appending a const-assert block, or a cfg-guarded compile_error!, after the last line left the .wasm SHA-256 unchanged, while inserting one line, assertion or comment, above an indexing expression changed exactly one byte of the data section: the panic Location line went from 10 to 11. On a scratch copy of solver/ at e5fbcb9 (`cargo +1.98.1 build --release --target wasm32-unknown-unknown --offline --locked`, RUSTFLAGS='-C target-feature=-relaxed-simd', Windows host): appending the 17-slot proof to rapier_law.rs and the relaxed-simd guard to lib.rs kept si_solver.wasm at SHA-256 c8782b06d03c046a...; one comment line inserted at the top of rapier_law.rs changed it to b308cfd2e80bf850..., the same line at the top of lib.rs did not.",
+      "rust_version": "1.57+ (panic in const); offset_of! 1.77+",
+      "gotchas": "Messages in const assertions must be literals or one &str through {}; formatting a usize is E0015. offset_of! on a repr(Rust) type may change between compilations, so assert offsets only on repr(C). A const _ proof guards the Rust side only; build.mjs's literals can still drift until the glue reads the numbers from the module or from a generated file. Any edit that shifts lines above a panic site that survives optimization, even a comment, changes the wasm bytes and the pinned digest (measured on the solver: one line added at the top of rapier_law.rs changed the digest, at the top of lib.rs it did not, presumably because no lib.rs panic location survives optimization): append new proofs at the end of a file, or take one deliberate digest bump. The output file name also has to match when comparing bytes: two builds of one source differed only by `-o` name in this measurement.",
+      "engine_note": "lib.rs declares BODY_STRIDE = 17, HX = 13, HY = 14, HZ = 15, DRIVEN = 16, COLLIDER_STRIDE = 10 and rapier_law.rs QX = 6 .. WZ = 12 (slots 0-5 are bare literals), while the module build.mjs generates hard-codes `i * 17` four times, `j * 10` twice and `view[at + 13..16]` eight times (e5fbcb9). Step one costs no bytes, measured: the 17-slot SLOTS proof appended to the end of rapier_law.rs, which already sees both sets of constants, compiled under the crate's edition 2021 and left si_solver.wasm unchanged. Step two removes the JS copy: build.mjs reads abi_word(i) from the module it has just built and emits the offsets; that export is new code, so the digest pin moves once, in the same commit.",
+      "checks": [
+        {
+          "label": "a const proof that slots 0..16 are each used once, plus repr(C) size and offset_of! checks",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "ok 136 17",
+          "source": "pub const BODY_STRIDE: usize = 17;\npub const QX: usize = 6;\npub const QY: usize = 7;\npub const QZ: usize = 8;\npub const QW: usize = 9;\npub const WX: usize = 10;\npub const WY: usize = 11;\npub const WZ: usize = 12;\npub const HX: usize = 13;\npub const HY: usize = 14;\npub const HZ: usize = 15;\npub const DRIVEN: usize = 16;\n// Every slot of the 17-f64 body record, named or literal, exactly once.\nconst SLOTS: [usize; BODY_STRIDE] = [0, 1, 2, 3, 4, 5, QX, QY, QZ, QW, WX, WY, WZ, HX, HY, HZ, DRIVEN];\nconst _: () = {\n    let mut i = 0;\n    while i < SLOTS.len() {\n        assert!(SLOTS[i] < BODY_STRIDE, \"ABI slot outside the body stride\");\n        let mut j = i + 1;\n        while j < SLOTS.len() {\n            assert!(SLOTS[i] != SLOTS[j], \"two ABI slots share an index\");\n            j += 1;\n        }\n        i += 1;\n    }\n};\n#[repr(C)]\npub struct Body { pos: [f64; 3], vel: [f64; 3], rot: [f64; 4], ang: [f64; 3], half: [f64; 3], driven: f64 }\nconst _: () = assert!(core::mem::size_of::<Body>() == BODY_STRIDE * core::mem::size_of::<f64>());\nconst _: () = assert!(core::mem::offset_of!(Body, rot) == QX * 8);\nconst _: () = assert!(core::mem::offset_of!(Body, half) == HX * 8);\nconst _: () = assert!(core::mem::offset_of!(Body, driven) == DRIVEN * 8);\nfn main() { println!(\"ok {} {}\", core::mem::size_of::<Body>(), SLOTS.len()); }\n"
+        },
+        {
+          "label": "two slots on one index (DRIVEN = HZ) stop the build with E0080",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "two ABI slots share an index"
+          ],
+          "source": "pub const BODY_STRIDE: usize = 17;\npub const QX: usize = 6;\npub const QY: usize = 7;\npub const QZ: usize = 8;\npub const QW: usize = 9;\npub const WX: usize = 10;\npub const WY: usize = 11;\npub const WZ: usize = 12;\npub const HX: usize = 13;\npub const HY: usize = 14;\npub const HZ: usize = 15;\npub const DRIVEN: usize = 15;\n// Every slot of the 17-f64 body record, named or literal, exactly once.\nconst SLOTS: [usize; BODY_STRIDE] = [0, 1, 2, 3, 4, 5, QX, QY, QZ, QW, WX, WY, WZ, HX, HY, HZ, DRIVEN];\nconst _: () = {\n    let mut i = 0;\n    while i < SLOTS.len() {\n        assert!(SLOTS[i] < BODY_STRIDE, \"ABI slot outside the body stride\");\n        let mut j = i + 1;\n        while j < SLOTS.len() {\n            assert!(SLOTS[i] != SLOTS[j], \"two ABI slots share an index\");\n            j += 1;\n        }\n        i += 1;\n    }\n};\n#[repr(C)]\npub struct Body { pos: [f64; 3], vel: [f64; 3], rot: [f64; 4], ang: [f64; 3], half: [f64; 3], driven: f64 }\nconst _: () = assert!(core::mem::size_of::<Body>() == BODY_STRIDE * core::mem::size_of::<f64>());\nconst _: () = assert!(core::mem::offset_of!(Body, rot) == QX * 8);\nconst _: () = assert!(core::mem::offset_of!(Body, half) == HX * 8);\nconst _: () = assert!(core::mem::offset_of!(Body, driven) == DRIVEN * 8);\nfn main() { println!(\"ok {} {}\", core::mem::size_of::<Body>(), SLOTS.len()); }\n"
+        },
+        {
+          "label": "one macro table emits consts, the proof and an exported descriptor (wasm: word 0 = 17)",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "17",
+          "wasm_exports": [
+            "abi_word",
+            "bodies_ptr",
+            "memory"
+          ],
+          "wasm_call": {
+            "export": "abi_word",
+            "args": [
+              0
+            ]
+          },
+          "source": "macro_rules! abi_layout {\n    ($stride:ident = $n:literal; $( $name:ident = $slot:literal ),+ $(,)?) => {\n        pub const $stride: usize = $n;\n        $( pub const $name: usize = $slot; )+\n        const _: () = {\n            let slots = [$( $slot ),+];\n            let mut i = 0;\n            while i < slots.len() {\n                assert!(slots[i] < $n, \"slot outside the stride\");\n                let mut j = i + 1;\n                while j < slots.len() { assert!(slots[i] != slots[j], \"two slots share an index\"); j += 1; }\n                i += 1;\n            }\n        };\n        /// [stride, slots...] in declaration order, for the JS glue to read instead of typing 17.\n        static ABI_WORDS: &[u32] = &[$n, $( $slot ),+];\n        #[unsafe(no_mangle)]\n        pub extern \"C\" fn abi_word(i: u32) -> u32 {\n            match ABI_WORDS.get(i as usize) { Some(w) => *w, None => u32::MAX }\n        }\n    };\n}\nabi_layout! { BODY_STRIDE = 17; HX = 13, HY = 14, HZ = 15, DRIVEN = 16 }\nstatic mut BODIES: [f64; 64 * BODY_STRIDE] = [0.0; 64 * BODY_STRIDE];\n#[unsafe(no_mangle)]\npub extern \"C\" fn bodies_ptr() -> *mut f64 { (&raw mut BODIES).cast() }\n"
+        },
+        {
+          "label": "the same table with a slot equal to the stride fails in the macro's proof (E0080)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "slot outside the stride"
+          ],
+          "source": "macro_rules! abi_layout {\n    ($stride:ident = $n:literal; $( $name:ident = $slot:literal ),+ $(,)?) => {\n        pub const $stride: usize = $n;\n        $( pub const $name: usize = $slot; )+\n        const _: () = {\n            let slots = [$( $slot ),+];\n            let mut i = 0;\n            while i < slots.len() {\n                assert!(slots[i] < $n, \"slot outside the stride\");\n                let mut j = i + 1;\n                while j < slots.len() { assert!(slots[i] != slots[j], \"two slots share an index\"); j += 1; }\n                i += 1;\n            }\n        };\n        /// [stride, slots...] in declaration order, for the JS glue to read instead of typing 17.\n        static ABI_WORDS: &[u32] = &[$n, $( $slot ),+];\n        #[unsafe(no_mangle)]\n        pub extern \"C\" fn abi_word(i: u32) -> u32 {\n            match ABI_WORDS.get(i as usize) { Some(w) => *w, None => u32::MAX }\n        }\n    };\n}\nabi_layout! { BODY_STRIDE = 17; HX = 13, HY = 14, HZ = 17, DRIVEN = 16 }\n"
+        },
+        {
+          "label": "a free const _ is evaluated even inside an unused generic function (E0080)",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "source": "#[allow(dead_code)]\nfn unused_generic_function<T>() {\n    const _: () = assert!(usize::BITS == 0);\n}\nfn main() {}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference: Constant items",
+          "url": "https://doc.rust-lang.org/stable/reference/items/constant-items.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Free constants may be unnamed (const _) and are always evaluated at compile time to surface panics, even inside an unused function; the example is const _: () = assert!(usize::BITS == 0)."
+        },
+        {
+          "title": "Announcing Rust 1.57.0",
+          "url": "https://blog.rust-lang.org/2021/12/02/Rust-1.57.0/",
+          "year": 2021,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Compile-time assertions via const _: () = assert!(std::mem::size_of::<u64>() == 8) become possible with panic in const."
+        },
+        {
+          "title": "core::mem::offset_of!",
+          "url": "https://doc.rust-lang.org/stable/core/mem/macro.offset_of.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "offset_of! is stable since 1.77.0 and gives a field's byte offset; layout of types without an explicit repr may differ between compilations."
+        },
+        {
+          "title": "Announcing Rust 1.77.0",
+          "url": "https://blog.rust-lang.org/2024/03/21/Rust-1.77.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilizes offset_of!(StructName, field) returning the field's byte offset as usize."
+        },
+        {
+          "title": "si-rpg-engine solver/src/lib.rs at e5fbcb9",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/e5fbcb9/solver/src/lib.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Declares BODY_STRIDE = 17, HX = 13, HY = 14, HZ = 15, DRIVEN = 16, COLLIDER_STRIDE = 10 and the static mut [f64; MAX_BODIES * BODY_STRIDE] buffers."
+        },
+        {
+          "title": "si-rpg-engine solver/build.mjs at e5fbcb9",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/e5fbcb9/solver/build.mjs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "The generated module writes bodies at bodyBase + i * 17 with view[at + 13..16] and colliders at colliderBase + j * 10, literals typed by hand."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "embed-build-inputs-with-include-bytes-include-str-env-and-concat-and-know-which-of-them-fail-the-build",
+      "name": "Embed build inputs with include_bytes!, include_str!, env! and concat!, and know which of them fail the build",
+      "what": "include_bytes!/include_str! embed a file located relative to the current source file, env! bakes in a compile-time variable and fails the build when it is unset (option_env! returns None), concat! joins literals into a &'static str, stringify! returns tokens as text, and compile_error! stops the build with your message.",
+      "how": "`include_bytes!(\"pinned/si_solver.wasm\")` -> `&'static [u8; N]`, the path relative to the current file and interpreted per platform (write `/`); a missing file fails with 'couldn't read ...'. `env!(\"NAME\")` -> `&'static str`; unset -> 'environment variable `NAME` not defined at compile time'; `env!(\"NAME\", \"msg\")` replaces the text; `option_env!(\"NAME\")` -> `Option<&'static str>`. `concat!(\"si-solver/\", 17, \"/\", 2.5, \"/\", true, \"/\", 'x')` -> \"si-solver/17/2.5/true/x\"; arguments may be macro calls that expand to literals (stringify!, env!, your own). `stringify!(BODY_STRIDE * 8 + HX)` -> \"BODY_STRIDE * 8 + HX\". They compose with const fn: a const FNV-1a over `include_bytes!(file!())` is computed during compilation and equals a run-time recomputation. `compile_error!` in a macro_rules! fallback arm turns bad input into your message (`law!(havok)` -> 'law! accepts `box` or `rapier`').",
+      "rust_version": "any",
+      "gotchas": "env! reads the environment of the rustc process, so a variable present on one CI machine and absent on another changes the bytes or breaks the build; under Cargo, OUT_DIR is set only during compilation. std warns that stringify!'s expansion 'may change in the future': use it for single identifiers in a names table, never as hashed or persisted text. A backslash path in include_bytes! does not compile on Unix. include_bytes! copies the file into the artifact at compile time; a changed file means a rebuild, not a reload.",
+      "engine_note": "build.mjs embeds the pinned wasm into JS as a Uint8Array literal. A native Rust host shell (the Godot or Unreal bindings slice) would embed it with include_bytes!(\".../si_solver.wasm\") and can refuse to compile against any other module with a const-fn digest check over those bytes; the pin itself stays the SHA-256 in fixtures/solver.sha256, and FNV-1a here only demonstrates compile-time hashing.",
+      "checks": [
+        {
+          "label": "concat!, stringify!, include_str!/include_bytes! of this file, option_env! of an unset var",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "si-solver/17/2.5/true/x\nBODY_STRIDE * 8 + HX\ntrue true\nNone",
+          "source": "const TAG: &str = concat!(\"si-solver/\", 17, \"/\", 2.5, \"/\", true, \"/\", 'x');\nconst SRC: &str = stringify!(BODY_STRIDE * 8 + HX);\nconst ME: &[u8] = include_bytes!(file!());\nconst ME_STR: &str = include_str!(file!());\nconst MISSING: Option<&str> = option_env!(\"SI_RK_ORACLE_UNSET_9F3A\");\nfn main() {\n    println!(\"{TAG}\");\n    println!(\"{SRC}\");\n    println!(\"{} {}\", ME.len() == ME_STR.len(), ME_STR.lines().next().unwrap().starts_with(\"const TAG\"));\n    println!(\"{:?}\", MISSING);\n}\n"
+        },
+        {
+          "label": "env! of an unset variable fails the build",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "environment variable `SI_RK_ORACLE_UNSET_9F3A` not defined at compile time"
+          ],
+          "source": "const V: &str = env!(\"SI_RK_ORACLE_UNSET_9F3A\");\nfn main() { println!(\"{V}\"); }\n"
+        },
+        {
+          "label": "env!'s second argument replaces the error text",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "set SI_RK_ORACLE_UNSET_9F3A to the law version"
+          ],
+          "source": "const V: &str = env!(\"SI_RK_ORACLE_UNSET_9F3A\", \"set SI_RK_ORACLE_UNSET_9F3A to the law version\");\nfn main() { println!(\"{V}\"); }\n"
+        },
+        {
+          "label": "include_bytes! of a missing file fails the build",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "couldn't read"
+          ],
+          "source": "const B: &[u8] = include_bytes!(\"pinned/si_solver.wasm\");\nfn main() { println!(\"{}\", B.len()); }\n"
+        },
+        {
+          "label": "a const fn hash over include_bytes! is computed at compile time and matches run time",
+          "edition": "2024",
+          "target": "host",
+          "expect": "runs",
+          "stdout": "true",
+          "source": "const BYTES: &[u8] = include_bytes!(file!());\nconst fn fnv1a(b: &[u8]) -> u64 {\n    let mut h = 0xcbf29ce484222325u64;\n    let mut i = 0;\n    while i < b.len() { h ^= b[i] as u64; h = h.wrapping_mul(0x100000001b3); i += 1; }\n    h\n}\nconst DIGEST: u64 = fnv1a(BYTES);\nfn main() { println!(\"{}\", DIGEST == fnv1a(std::hint::black_box(BYTES))); }\n"
+        },
+        {
+          "label": "compile_error! in a fallback arm names the valid inputs",
+          "edition": "2024",
+          "target": "host",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "law! accepts `box` or `rapier`"
+          ],
+          "source": "macro_rules! law {\n    (box) => { 1u32 };\n    (rapier) => { 2u32 };\n    ($other:ident) => { compile_error!(\"law! accepts `box` or `rapier`\") };\n}\nfn main() { println!(\"{}\", law!(rapier) + law!(havok)); }\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "std macro include_bytes!",
+          "url": "https://doc.rust-lang.org/stable/std/macro.include_bytes.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Includes a file as &'static [u8; N]; the file is located relative to the current file and the path is interpreted in a platform-specific way, so backslash paths fail on Unix."
+        },
+        {
+          "title": "std macro env!",
+          "url": "https://doc.rust-lang.org/stable/std/macro.env.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Inspects an environment variable at compile time; an undefined variable is a compile error, a second argument customizes the message, and option_env! is the non-failing form."
+        },
+        {
+          "title": "std macro concat!",
+          "url": "https://doc.rust-lang.org/stable/std/macro.concat.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Concatenates string, integer, float, bool and char literals into a &'static str."
+        },
+        {
+          "title": "std macro stringify!",
+          "url": "https://doc.rust-lang.org/stable/std/macro.stringify.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Yields the stringification of its input tokens and warns that the expanded results may change in the future."
+        },
+        {
+          "title": "std macro compile_error!",
+          "url": "https://doc.rust-lang.org/stable/std/macro.compile_error.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Fails compilation with the given message; the documented example uses it in a macro_rules! fallback arm for invalid input."
+        },
+        {
+          "title": "si-rpg-engine solver/build.mjs at e5fbcb9",
+          "url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/e5fbcb9/solver/build.mjs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Emits a JS module whose bytes export is the pinned wasm as a Uint8Array literal."
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

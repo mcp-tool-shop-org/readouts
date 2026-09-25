@@ -1,0 +1,180 @@
+{
+  "bucket": "ownership-borrowing",
+  "verifier_note": "Checked all 10 recipes' warrant sources by retrieval (doc.rust-lang.org book/reference/error-code pages, rustc-dev-guide, RFCs, rust-lang/rust and rust-clippy source for two pages that truncated on fetch, two blog posts, two docs.rs pages pinned at rapier3d-f64 0.35.3, and the ICSE 2022 Rust-challenges PDF via pdftotext), verified all 6 engine_note claims against solver/src/lib.rs, solver/src/rapier_law.rs and solver/Cargo.toml (all accurate), and ran 7 of the recipes' own check snippets through compile_oracle.py myself on the pinned 1.98.1 toolchain to settle the highest-uncertainty claims (all matched exactly, including two edge cases central to whole recipes: From::from not reborrowing, and NLL problem-case-3/Polonius examples). Two defects found. Systemic weakness: two recipes (two-phase borrows; disjoint closure capture) cite a pre-2021 RFC (2025; 2229) as the SOLE documentary warrant for one specific, still-load-bearing edge case (indexing forces immediate borrow activation / counts as an impure capture) that their companion current source (rustc-dev-guide; the 2021 Edition Guide) covers only in general and silently omits — recency compliance for that detail depended on nobody having re-checked it against the live compiler, which I did (both still hold on 1.98.1). One factual defect: recipe 9's ICSE-paper source claim cites \"finding 6\" for the array-vs-tuple participant-confusion result; the paper's own text says \"explaining Finding 5 in Section 3.3\" — Finding 6 is a different, unrelated finding about compiler-message completeness.",
+  "verdicts": [
+    {
+      "slug": "treat-every-by-value-use-as-a-move-derive-copy-only-for-plain-data-clone-on-purpose-e0382-e0505-e0204",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Book/Copy/E0382/E0505 pages match claims verbatim. docs.rs confirms KinematicCharacterController (0.35.3): 8 public fields, impl Copy+Clone. Oracle-ran the engine check on 1.98.1: stdout (true, true, 1), exact match.",
+      "evidence_url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.KinematicCharacterController.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/book/ch04-01-what-is-ownership.html", "supported": true, "note": "3 ownership rules, s1/s2 E0382 example, Copy list, Drop-excludes-Copy — all verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/marker/trait.Copy.html", "supported": true, "note": "Bitwise copy, Clone supertrait, E0204, &mut T never Copy, public-API note — all verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0382.html", "supported": true, "note": "Use-after-move description + borrow/Clone/Copy/Rc-RefCell fixes confirmed."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0505.html", "supported": true, "note": "Moved-while-borrowed description + 3 fixes (ref, reorder, Copy) confirmed."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.KinematicCharacterController.html", "supported": true, "note": "v0.35.3 confirmed; 8 public fields incl. slide/autostep; impl Copy + impl Clone; oracle ran the exact check."}
+      ]
+    },
+    {
+      "slug": "keep-one-mut-xor-any-number-of-live-at-once-and-end-each-borrow-at-its-last-use-e0499-e0502-e0506",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Book + 4 error-code pages + NLL(2022)/Polonius-alpha(2026) blogs all match verbatim. Oracle-confirmed on pinned 1.98.1: NLL problem-case-3 fn is E0502, the Polonius-post get_mut_or_default fn is E0499, exactly as claimed.",
+      "evidence_url": "https://blog.rust-lang.org/2026/08/04/enabling-polonius-alpha-on-nightly/",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/book/ch04-02-references-and-borrowing.html", "supported": true, "note": "One-&mut-xor-many-& rule + last-use scoping + E0499/E0502 examples confirmed verbatim."},
+        {"url": "https://blog.rust-lang.org/2022/08/05/nll-by-default/", "supported": true, "note": "Confirms NLL default since 1.63 (all editions) + the still-broken last_or_push example."},
+        {"url": "https://blog.rust-lang.org/2026/08/04/enabling-polonius-alpha-on-nightly/", "supported": true, "note": "Aug 2026, nightly-only, reborrow+get_mut_or_default accepted, stabilize-by-year-end — confirmed."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0499.html", "supported": true, "note": "Two-live-&mut description confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0502.html", "supported": true, "note": "Mixed-mutability re-borrow + end-first-borrow fix confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0506.html", "supported": true, "note": "Assign-to-borrowed description + scoped-block fix confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0503.html", "supported": true, "note": "Use-after-mut-borrow description + finish-borrow-first fix confirmed verbatim."}
+      ]
+    },
+    {
+      "slug": "know-where-two-phase-borrows-apply-v-push-v-len-compiles-vec-push-mut-v-v-len-is-e0502",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "rustc-dev-guide confirms the 3-case rule + mem::replace example verbatim but omits indexing. RFC2025(2017) is the sole source for indexing-activates-immediately; I ran that exact example on 1.98.1 myself: still E0502 today.",
+      "evidence_url": "https://rustc-dev-guide.rust-lang.org/borrow-check/two-phase-borrows.html",
+      "corrections": {
+        "claim": "RFC 2025 (2017) is the sole warrant for 'indexing activates the borrow immediately' (the v[0].push_str example); rustc-dev-guide (current) covers two-phase borrows generally but omits indexing. Verified via compile_oracle on pinned 1.98.1: still E0502 today."
+      },
+      "sources": [
+        {"url": "https://rustc-dev-guide.rust-lang.org/borrow-check/two-phase-borrows.html", "supported": true, "note": "3-case rule, explicit &mut excluded, reservation=shared-borrow, mem::replace example — verbatim; omits indexing."},
+        {"url": "https://rust-lang.github.io/rfcs/2025-nested-method-calls.html", "supported": true, "note": "Reservation/activation + the v[0].push_str indexing-error example match verbatim; pre-2021, sole warrant for it."}
+      ]
+    },
+    {
+      "slug": "pass-a-held-mut-to-generic-parameters-as-mut-r-concrete-mut-parameters-reborrow-generic-t-moves-e0382",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Issues #162690(2026,closed-dup) and #108532(2023,open) match verbatim incl. 'fresh reborrow' help text. rustc-dev-guide's fn-arg-reborrow example confirmed. Oracle-ran both central claims (From::from, generic AsMut): E0382 on 1.98.1.",
+      "evidence_url": "https://github.com/rust-lang/rust/issues/108532",
+      "corrections": null,
+      "sources": [
+        {"url": "https://github.com/rust-lang/rust/issues/162690", "supported": true, "note": "Opened 2026-09-12, closed as dup of #108532; concrete-reborrows/generic-moves/turbofish-OK confirmed verbatim."},
+        {"url": "https://github.com/rust-lang/rust/issues/108532", "supported": true, "note": "Opened 2023-02-27, still open, labels A-borrow-checker+C-bug; From::from-moves confirmed verbatim."},
+        {"url": "https://rustc-dev-guide.rust-lang.org/borrow-check/two-phase-borrows.html", "supported": true, "note": "Lists fn-arg mutable reborrow + std::mem::replace(r,vec![1,r.len()]) example verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/reference/type-coercions.html", "supported": true, "note": "let-with-type and fn-call-arg coercion sites + deref coercion + [T;n]->[T] all confirmed."},
+        {"url": "https://doc.rust-lang.org/stable/std/marker/trait.Copy.html", "supported": true, "note": "&mut T cannot be Copy (would alias) confirmed verbatim."}
+      ]
+    },
+    {
+      "slug": "take-t-mut-t-and-str-parameters-instead-of-vec-t-string-or-t-n",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Book ch4.3 and Reference type-coercions confirmed verbatim. Clippy ptr_arg confirmed via clippy_lints source (style, warn): flags &String/&Vec/&PathBuf/Cow, fn(&Vec)-pointer known-problem — rendered page truncated on fetch.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/type-coercions.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/book/ch04-03-slices.html", "supported": true, "note": "&str-generalizes-API-via-deref-coercion + &a[1..3]:&[i32] example confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/reference/type-coercions.html", "supported": true, "note": "let/fn-arg coercion sites, Deref coercion, [T;n]->[T] unsized coercion confirmed."},
+        {"url": "https://rust-lang.github.io/rust-clippy/stable/index.html#ptr_arg", "supported": true, "note": "Confirmed via clippy source: style/warn, flags &String/&Vec/&PathBuf/Cow, fn(&Vec) known-problem."}
+      ]
+    },
+    {
+      "slug": "name-lifetimes-only-where-the-three-elision-rules-fail-two-reference-inputs-none-or-a-struct-field-e0106",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Reference/Book/E0106 confirmed verbatim. rustc source (lifetime_syntax.rs) matches named/elided/hidden + Warn exactly (listing page truncated on fetch). ICSE paper: 118/77/30 + Fig.4 exact. 2 checks oracle-confirmed on 1.98.1.",
+      "evidence_url": "https://github.com/rust-lang/rust/blob/master/compiler/rustc_lint/src/lifetime_syntax.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/reference/lifetime-elision.html", "supported": true, "note": "Rules 1-3 + illegal get_str/frob examples confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/book/ch10-03-lifetime-syntax.html", "supported": true, "note": "3 elision rules, longest() E0106, ImportantExcerpt<'a>, anti-'static warning — all verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0106.html", "supported": true, "note": "Missing-lifetime description + struct/enum field + fn-elision examples confirmed."},
+        {"url": "https://blog.rust-lang.org/2025/08/07/Rust-1.89.0/", "supported": true, "note": "Aug 7 2025; mismatched_lifetime_syntaxes lint + Iter<u8>->Iter<'_,u8> fix + supersedes elided_named_lifetimes."},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html", "supported": true, "note": "Page truncated on fetch; confirmed via rustc source (lifetime_syntax.rs): named/elided/hidden + Warn, verbatim."},
+        {"url": "https://songlh.github.io/paper/survey.pdf", "supported": true, "note": "PDF text-extracted: 118 total, 77 lifetime, 30 inter-procedural, Fig.4 code all exact matches."}
+      ]
+    },
+    {
+      "slug": "keep-the-owner-alive-past-its-last-borrow-fix-e0597-e0716-and-e0515-by-binding-it-or-returning-owned-data",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "E0597/E0716/E0515 pages, the Reference's destructors page (extension list incl. tuple-ctor args, fn-args NOT extended), and the Edition Guide 2024 tail-expr page (RefCell example, 2021-E0597 vs 2024-compiles) confirmed verbatim.",
+      "evidence_url": "https://doc.rust-lang.org/edition-guide/rust-2024/temporary-tail-expr-scope.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0597.html", "supported": true, "note": "Dropped-while-borrowed + remove-inner-scope fix confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0716.html", "supported": true, "note": "Temporary-dropped-at-statement-end + let-bind and &foo() extension fixes confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0515.html", "supported": true, "note": "Returned-ref-to-local + return-owned(IntoIter) fix confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/reference/destructors.html", "supported": true, "note": "Statement-end default, borrow/ctor/tail-expr extension list, fn-args NOT extended, 2024 tail-first-drop — verbatim."},
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/temporary-tail-expr-scope.html", "supported": true, "note": "Exact RefCell::new/c.borrow().len() example: 2021 E0597 -> 2024 compiles, confirmed verbatim."}
+      ]
+    },
+    {
+      "slug": "move-a-value-out-from-behind-mut-with-mem-take-mem-replace-or-mem-swap-instead-of-fighting-e0507",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "std::mem::take/replace/swap and Option::take/replace confirm exact versions (1.40.0; 1.0.0/const-1.83.0; 1.0.0/const-1.85.0; 1.0.0; 1.31.0). E0507 confirmed incl. mem::replace fix. Combined check hand-traced to its stdout.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/mem/fn.take.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/mem/fn.take.html", "supported": true, "note": "1.40.0; replaces with T::default(); Buffer &mut-self example confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/mem/fn.replace.html", "supported": true, "note": "1.0.0 (const 1.83.0); moves src into dest, neither dropped; confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/mem/fn.swap.html", "supported": true, "note": "1.0.0 (const 1.85.0); swaps without deinitializing — confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/option/enum.Option.html", "supported": true, "note": "take 1.0.0 -> None; replace 1.31.0 (const 1.83.0) -> old value returned; confirmed."},
+        {"url": "https://doc.rust-lang.org/stable/error_codes/E0507.html", "supported": true, "note": "Borrowed-value-moved-out + borrow/reclaim/Copy/mem::replace fixes confirmed verbatim."}
+      ]
+    },
+    {
+      "slug": "split-one-flat-buffer-into-disjoint-mut-with-split-at-mut-as-chunks-mut-and-get-disjoint-mut-1-86",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Slice/GetDisjointMutError/1.86.0-blog/Nomicon confirmed verbatim incl. exact versions (1.0.0/1.80.0/1.5.0/1.86.0/1.88.0/1.31.0). Paper is right about Fig.1/E0502/split_first_mut but mislabels the finding number (read PDF text directly).",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/primitive.slice.html",
+      "corrections": {
+        "claim": "Source claim cites 'finding 6' for the array/tuple participant-confusion result. The paper's own text reads 'explaining Finding 5 in Section 3.3'; its Finding 6 is unrelated (compiler messages lacking information). Rest of the claim (Figure 1 code, E0502, split_first_mut fix) is accurate."
+      },
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.slice.html", "supported": true, "note": "All 7 methods' versions confirmed via curl+extract: 1.0.0/1.80.0/1.5.0/1.86.0/1.86.0/1.88.0/1.31.0, exact."},
+        {"url": "https://doc.rust-lang.org/stable/std/slice/enum.GetDisjointMutError.html", "supported": true, "note": "1.86.0; exactly IndexOutOfBounds+OverlappingIndices, returned by get_disjoint_mut — confirmed."},
+        {"url": "https://blog.rust-lang.org/2025/04/03/Rust-1.86.0/", "supported": true, "note": "Apr 3 2025; stabilizes get_disjoint_mut/_unchecked_mut/GetDisjointMutError/HashMap version — verbatim."},
+        {"url": "https://doc.rust-lang.org/nomicon/borrow-splitting.html", "supported": true, "note": "Struct-fields-OK / array-indices-E0499 + split_at_mut-uses-unsafe-internally confirmed verbatim."},
+        {"url": "https://songlh.github.io/paper/survey.pdf", "supported": false, "note": "Fig.1/E0502/split_first_mut fix accurate, but the paper attributes this result to Finding 5, not 6."}
+      ]
+    },
+    {
+      "slug": "borrow-struct-fields-directly-not-through-mut-self-getters-edition-2021-closures-capture-only-used-fields",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Nomicon and Edition-Guide-2021 confirmed verbatim (field splitting, drop/Send/Clone, cargo fix+lint) but the Guide omits indexing. RFC2229(2017) is sole source for indexing-is-impure; ran the closure example on 1.98.1: still E0502.",
+      "evidence_url": "https://rust-lang.github.io/rfcs/2229-capture-disjoint-fields.html",
+      "corrections": {
+        "claim": "RFC 2229 (2017) is the sole warrant for 'indexing/function calls are impure for capture, so the whole base is captured'; Edition Guide 2021 covers field capture but omits indexing. Verified via compile_oracle on 1.98.1: indexing s.rows[0] in a closure still forces whole-field capture (E0502)."
+      },
+      "sources": [
+        {"url": "https://doc.rust-lang.org/nomicon/borrow-splitting.html", "supported": true, "note": "Same page as recipe 9's source; struct-fields-OK / arrays-not-understood confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2021/disjoint-capture-in-closures.html", "supported": true, "note": "|| a.x+1 captures only a.x, drop/Send/Clone changes, cargo fix + lint name confirmed; omits indexing."},
+        {"url": "https://rust-lang.github.io/rfcs/2229-capture-disjoint-fields.html", "supported": true, "note": "Minimal-capture proposal + 'all indexing/functions considered impure' confirmed verbatim; pre-2021, sole source."},
+        {"url": "https://goals.rust-lang.org/2026/roadmap-borrow-checker-within.html", "supported": true, "note": "View-types 2026 goal, Polonius-alpha parallel goal, indices/RefCell-as-costly-workarounds confirmed."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/struct.PhysicsWorld.html", "supported": true, "note": "v0.35.3; broad_phase/narrow_phase/bodies/colliders public; step(&mut self) advances one timestep — confirmed."}
+      ]
+    }
+  ]
+}

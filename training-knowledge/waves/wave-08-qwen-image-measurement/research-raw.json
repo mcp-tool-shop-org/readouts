@@ -1,0 +1,295 @@
+{
+  "wave": 8,
+  "date": "2026-06-09",
+  "lanes": [
+    {
+      "slug": "diffusion-qwen-lora",
+      "research": {
+        "techniques": [
+          {
+            "slug": "qwen-image-style-lora-uint3-ara-measured-5090",
+            "name": "Qwen-Image style-LoRA on 32GB (AI-Toolkit uint3+ARA) — MEASURED on the 5090 (the first Qwen-Image-as-base row)",
+            "kind": "recipe",
+            "method_family": "lora",
+            "applicable_to": "diffusion",
+            "base_model_family": "Qwen-Image",
+            "base_model_slug": "qwen-image",
+            "claim": "MEASURED end-to-end on the 5090 (tallow_fen_style_v1, 2026-06-09): a rank-16 style LoRA on the 20B Qwen-Image DiT trains in ~2h10m at 3.6-4.7 s/it and ~18GB peak VRAM using Ostris AI-Toolkit with uint3+ARA transformer quantization (ostris's own 'required for 32GB'), TE qfloat8, low_vram, cache_text_embeddings + cache_latents_to_disk, adamw8bit lr 1e-4, 2000 steps. The resulting LoRA loads NATIVELY in ComfyUI LoraLoaderModelOnly (no key conversion). Trigger-only prompts carry the trained style to unseen subjects; the no-trigger gating probe stayed photoreal through all 2000 steps. Best checkpoint was 1250 of 2000 — step 2000 had the HIGHEST CLIP-sim (0.7937) but with embedding-cloud anisotropy spiking 8.2->12.5 and effective dimension collapsing 7.0->6.76: overfit masquerading as improvement, visible to eyes as monochrome drift on neutral subjects. CMMD minimum (0.1351) and looked-at agreed on 1250. ComfyUI inference strength sweep: 1.0 visibly weaker than the training sampler, 1.5 = dataset look, 1.75 = content bleed (fen moss on neutral objects).",
+            "summary": "Dataset = sdlab style-on-neutral-subjects package (44 train images: 24 creatures + lantern-free neutral objects + lantern-as-subject keepers), captions 'trigger, a concept, <content-only prose>' with the trigger IN the caption text because cache_text_embeddings locks captions at cache time (trigger_word injection does not work with cached embeddings). Base = Qwen/Qwen-Image HF snapshot 75e0b4be (full bf16 repo, ~54GB; the ARA is calibrated against original weights so the on-rig ComfyUI fp8 single-file was NOT used as the training base). Per-checkpoint eval: fixed 12-prompt grid x 8 checkpoints, CLIP ViT-B/32 cloud measured (sim-to-curated-centroid, CMMD, spread/anisotropy/effective-dimension). Run config pinned at E:/AI/training/tallow_fen_style_v1.yaml; dataset pkg tp-20260609-201716-4744; trajectory series archived in vector-caliper/baselines/.",
+            "design_implication": "Qwen-Image is now a practical 32GB style-LoRA base: use the ostris 24gb example as the recipe spine (uint3+ARA is mandatory; qfloat8-TE; low_vram), rank 16 transfers from the DiT guidance, and budget checkpoint selection by distribution + GEOMETRY metrics plus eyes — never by similarity alone (the step-2000 trap). Plan inference strength ~1.5 in ComfyUI (mirrors the Chroma precedent where ComfyUI strength ran hotter than the training sampler). Keep ALL intermediate checkpoints (peak was at 62% of the run).",
+            "evidence_strength": "measured-on-rig",
+            "seed": "42",
+            "num_runs": 1,
+            "variance_note": "Single 2000-step run; the checkpoint trajectory (8 points) is within-run. Strength sweep n=2 subjects x 4 strengths, looked-at. A/B vs no-LoRA baseline n=24 per arm (same seeds), CLIP-sim/CMMD + SigLIP2 contrastive probes + full looked-at pass.",
+            "tuning_budget": "1 training run + 4-point inference strength sweep + 8-checkpoint eval grids (96 images)",
+            "search_method": "pinned single recipe; checkpoint + strength selected post-hoc by CMMD + cloud geometry + looked-at",
+            "measured_conditions": "RTX 5090 32GB native Windows; AI-Toolkit (April-2026 clone) venv torch 2.9.1+cu128; Qwen/Qwen-Image bf16 + uint3|ARA + qfloat8 TE; 44-image dataset @ 512/768/1024 bucketing; watchdog 31200MiB/87C active throughout; 2026-06-09.",
+            "engine_recipe_ref": "",
+            "commercial_use": "yes",
+            "commercial_notes": "Qwen-Image is Apache-2.0; the LoRA inherits it. Output commercial-clean given a clean dataset (this one is studio-synthetic from canon).",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [
+              {
+                "name": "quantization",
+                "value": "uint3|ostris/accuracy_recovery_adapters/qwen_image_torchao_uint3.safetensors",
+                "required": true,
+                "note": "ostris: 3-bit+ARA required for 32GB-class cards on the 20B; ARA is calibrated for ORIGINAL weights — train from the HF repo, not a pre-quantized fp8 single-file"
+              },
+              {
+                "name": "qtype_te",
+                "value": "qfloat8",
+                "required": true
+              },
+              {
+                "name": "low_vram_plus_caching",
+                "value": "low_vram + cache_text_embeddings + cache_latents_to_disk",
+                "required": true,
+                "note": "cached TE means trigger_word injection is a no-op — put the trigger in the caption text"
+              },
+              {
+                "name": "rank_alpha",
+                "value": "16/16",
+                "note": "DiT style-LoRA floor per the Chroma/klein guidance; adapter = 295MB on the 20B"
+              },
+              {
+                "name": "throughput",
+                "value": "3.6-4.7 s/it, ~18GB peak, ~2h10m / 2000 steps",
+                "note": "sampling adds ~5min per 4-prompt grid every 250 steps"
+              },
+              {
+                "name": "best_checkpoint",
+                "value": "1250 of 2000",
+                "note": "CMMD min 0.1351 + healthy geometry; step-2000 sim-uptick was cloud-collapse overfit"
+              },
+              {
+                "name": "comfyui_strength",
+                "value": "1.5",
+                "note": "sweep: 1.0 weak / 1.5 dataset-look / 1.75 content bleed; loads natively in LoraLoaderModelOnly"
+              }
+            ],
+            "failures": [
+              {
+                "symptom": "trainer crashes at import: torchaudio _torchaudio.pyd 'specified procedure could not be found'",
+                "cause": "requirements resolve pulled torchaudio 2.11 against torch 2.9.1; config_modules.py imports torchaudio unconditionally",
+                "remediation": "pin torchaudio==torch minor (2.9.1+cu128)",
+                "recipe_field": "torchaudio",
+                "severity": "blocking"
+              },
+              {
+                "symptom": "later checkpoints' eval grids silently identical to the first checkpoint",
+                "cause": "ComfyUI caches LoRA-patched models keyed on the lora_name STRING and does not re-read a same-named file whose bytes changed",
+                "remediation": "unique lora filename per checkpoint; budget VRAM for the accumulated patched-model caches (8 cached LoRAs + a fresh load tripped a 31.2GB watchdog)",
+                "recipe_field": "lora_name",
+                "severity": "correctness"
+              },
+              {
+                "symptom": "ComfyUI killed mid-pipeline by the VRAM/RAM watchdog during or after training",
+                "cause": "trainer load spikes system RAM >=90%; separately, ollama-intern prewarms hermes3:8b with keep_alive=-1 (5GB resident forever) which collides with ComfyUI's 20B under a 31.2GB ceiling",
+                "remediation": "stop ComfyUI before training; `ollama stop <model>` before any image-gen/training block; restart ComfyUI after",
+                "recipe_field": "vram_budget",
+                "severity": "operational"
+              },
+              {
+                "symptom": "one creature class regresses to an off-canon mode under trigger prompts (skull faces on a canonically faceless creature, 6/8)",
+                "cause": "2 off-canon exemplars in an 8-image class (25% of the class mode) + the base model's strong prior for that mode; accurate captions and prompt negatives do NOT contain it at inference",
+                "remediation": "per-creature canon needs DATASET-level enforcement: curate the off-canon exemplars out and outnumber the prior with on-canon ones. MEASURED v2 outcome (2026-06-10, single-lever retrain, 2 skull exemplars out / 5 faceless in): trigger-prompt faceless rate 2/8 -> 6/8 by eyes (5/8 by SigLIP2 probe — one marginal disagreement where the probe text is confounded by the skeletal body), remaining misses concentrated on the seeds that produced the original off-canon exemplars. BONUS: the v2 trajectory shows NO late cloud-collapse (v1 aniso 8.2->12.5 by 2000; v2 recovers to 8.1 with CMMD min 0.1333 AT 2000) — hypothesis: off-canon exemplars drove v1's late collapse. v2 ship ckpt = 1500 @ strength 1.5.",
+                "recipe_field": "dataset_curation",
+                "severity": "quality"
+              }
+            ],
+            "evals": [
+              {
+                "eval_kind": "diffusion-style",
+                "metric": "CLIP-sim-to-curated-centroid (ViT-B/32)",
+                "harness": "_eval_tallow_ab.py",
+                "seed": "fixed per-subject",
+                "judge_model_family": "clip-vit-b32",
+                "result": "arm A baseline 0.9055 (inflated: members of the centroid) / arm B descriptor+LoRA 0.8925 / arm C trigger-only 0.8686; n=24 per arm",
+                "threshold": "directional only — arm A is structurally inflated",
+                "accepted": 1,
+                "note": "the decisive signals were SigLIP2 probes + looked-at, not this table"
+              },
+              {
+                "eval_kind": "diffusion-style",
+                "metric": "CMMD vs curated set",
+                "harness": "_caliper_capture.py per checkpoint",
+                "judge_model_family": "clip-vit-b32",
+                "result": "min 0.1351 @ step 1250; 0.1431 @ 2000 with anisotropy 12.5",
+                "threshold": "min over checkpoints",
+                "accepted": 1
+              },
+              {
+                "eval_kind": "diffusion-canon",
+                "metric": "SigLIP2 contrastive canon probes (good-vs-bad description)",
+                "harness": "_probe_tallow_canon.py (ai-eyes engine)",
+                "judge_model_family": "siglip2-so400m",
+                "result": "hound 8/8, bog-tithe 8/8 canon-correct both arms; widow 2/8 (the diagnosed regression)",
+                "threshold": "per-class majority",
+                "accepted": 1,
+                "note": "verifier family differs from the Qwen generator; verdicts confirmed by the looked-at pass"
+              }
+            ],
+            "best_for": [
+              {
+                "purpose": "commercial-safe studio style LoRA on a 32GB card (20B-class DiT base)",
+                "fitness": 5,
+                "use_tag": "style-lora"
+              },
+              {
+                "purpose": "trigger-carried house style for unseen subjects (props/locations/creatures)",
+                "fitness": 5,
+                "use_tag": "style-transfer"
+              }
+            ],
+            "sources": [
+              {
+                "kind": "receipt",
+                "title": "tallow_fen_style_v1 pinned run (config + log + 8 checkpoints + A/B + trajectory)",
+                "authors": "studio (rig-measured)",
+                "year": 2026,
+                "identifier": "E:/AI/training/tallow_fen_style_v1.yaml",
+                "url": "https://github.com/mcp-tool-shop-org/style-dataset-lab/pull/25",
+                "claim": "full measured run: 3.6-4.7 s/it, ~18GB, ckpt-1250 ship, strength 1.5, gating clean",
+                "finding_supported": "the whole recipe"
+              },
+              {
+                "kind": "code",
+                "title": "ai-toolkit train_lora_qwen_image_24gb.yaml + qwen_image arch (uint3+ARA example)",
+                "authors": "ostris",
+                "year": 2026,
+                "identifier": "ostris/ai-toolkit",
+                "url": "https://github.com/ostris/ai-toolkit",
+                "claim": "uint3+ARA quantization is the blessed 24-32GB fit for Qwen-Image LoRA training",
+                "finding_supported": "quantization + recipe spine"
+              },
+              {
+                "kind": "doc",
+                "title": "studio sprite pipeline runbook (Phase-1 results section)",
+                "authors": "studio",
+                "year": 2026,
+                "identifier": "memory/studio-sprite-pipeline-2026-06.md",
+                "url": "https://github.com/mcp-tool-shop-org/tool-shop-studio",
+                "claim": "ops gotchas + earned rules recorded same-day",
+                "finding_supported": "failures table"
+              }
+            ]
+          },
+          {
+            "slug": "qwen-style-descriptor-noun-literalization",
+            "name": "Qwen-Image literalizes NOUNS in style descriptors — name light by material, not object (58/58 lantern-prop rate; negatives lose)",
+            "kind": "failure-fix",
+            "method_family": "dataset",
+            "applicable_to": "diffusion",
+            "base_model_family": "Qwen-Image",
+            "base_model_slug": "qwen-image",
+            "claim": "MEASURED across two full neutral-object waves (2026-06-09): the style descriptor phrase 'a single warm lantern light in cold fen gloom' produced a physical lantern PROP in 58/58 neutral-object images, INCLUDING a 28/28 wave with 'lantern, oil lamp, candle, lamp, torch, light fixture' in the negative prompt — on Qwen-Image, negative prompts cannot beat a noun in the positive style descriptor. Rewording the light source by MATERIAL ('one warm tallow light in cold sunless gloom', the canon lighting clause verbatim) eliminated the prop in the next 28-image wave while preserving the chiaroscuro: the warm light re-rendered as material glow (inside a cracked pot, embers, backlight) instead of a repeated object.",
+            "summary": "Found while building a style-on-neutral-subjects LoRA dataset: a 100%-correlated prop across the dataset would leak into the style trigger regardless of caption attribution, so the prop had to go at generation time. Wave 3 (no anti-lantern negative): 30/30 lanterns. Wave 3b (strong anti-lantern negatives): 28/28 lanterns. Wave 3c (descriptor reworded to material): 0/28 lantern objects; small varied flames/glows remained and were captioned per-image as content.",
+            "design_implication": "When authoring style descriptors for Qwen-Image dataset waves, audit every concrete NOUN — each is a latent prop. Name light sources by material/quality ('warm tallow light', 'cold grey daylight'), not by emitting object. Do not rely on negative prompts to suppress a noun the positive prompt asserts. This is dataset-craft canon for every sdlab project generating on the Qwen base.",
+            "evidence_strength": "measured-on-rig",
+            "num_runs": 3,
+            "variance_note": "Three 28-30 image waves, fixed seeds per wave; the effect was 100%-of-wave in both failing configurations and 0%-of-wave after the fix — no statistics needed.",
+            "measured_conditions": "Qwen-Image fp8 native graph, cfg 3.5, euler/simple, 22 steps, 1024px; sdlab generate; RTX 5090; 2026-06-09.",
+            "commercial_use": "yes",
+            "commercial_notes": "Prompt-craft finding; base-agnostic license-wise.",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [
+              {
+                "name": "failing_phrase",
+                "value": "a single warm lantern light in cold fen gloom",
+                "note": "lantern prop in 58/58 across waves 3+3b"
+              },
+              {
+                "name": "fixed_phrase",
+                "value": "one warm tallow light in cold sunless gloom",
+                "note": "0/28 lantern objects in wave 3c; lighting intent preserved"
+              }
+            ],
+            "failures": [
+              {
+                "symptom": "a style-descriptor noun materializes as a physical object in ~100% of generations",
+                "cause": "Qwen-Image's strong prompt adherence treats every concrete noun as depictable content; negatives cannot override the positive assertion",
+                "remediation": "reword the descriptor to name the QUALITY/MATERIAL instead of the object",
+                "recipe_field": "style_prefix",
+                "severity": "quality"
+              }
+            ],
+            "evals": [],
+            "best_for": [
+              {
+                "purpose": "style-descriptor authoring for Qwen-base dataset waves",
+                "fitness": 5,
+                "use_tag": "dataset-craft"
+              }
+            ],
+            "sources": [
+              {
+                "kind": "receipt",
+                "title": "tallow-fen waves 3/3b/3c (prompt packs + 86 looked-at images + curation records)",
+                "authors": "studio (rig-measured)",
+                "year": 2026,
+                "identifier": "style-dataset-lab projects/tallow-fen inputs/prompts/tallow-fen-wave3*",
+                "url": "https://github.com/mcp-tool-shop-org/style-dataset-lab/pull/25",
+                "claim": "30/30 and 28/28 lantern props pre-fix; 0/28 post-fix",
+                "finding_supported": "the whole finding"
+              }
+            ]
+          }
+        ],
+        "datasets": [
+          {
+            "slug": "tallow-fen-style-v1-pkg",
+            "name": "Tallow Fen style-on-neutral-subjects package (tp-20260609-201716-4744)",
+            "base_model_target": "qwen-image",
+            "modality": "image",
+            "image_count": 56,
+            "caption_format": "txt sidecar, trigger-first natural-language prose",
+            "caption_strategy": "flux-natural-language (sdlab): 'tallow_fen style, a <lane>, <curation explanation as content-only prose>' — style vocabulary NEVER in captions",
+            "pruning_rule": "lantern-prop-correlated waves rejected wholesale (style_residue_prop); off-canon faces rejected at v2 (canon_violation_face)",
+            "reg_image_count": 0,
+            "reg_source": "none — separation is via in-style neutral objects, not a no-style reg set",
+            "real_synthetic_ratio": "0:100 (studio-synthetic from authored canon)",
+            "motivation": "content/style separation for a studio style LoRA: creatures + neutral objects in one style so the trigger binds brushwork/palette/lighting, captions own content",
+            "collection_process": "sdlab generate (Qwen-native) from canon-derived waves; every image human-looked-at; curate -> canon-bind -> snapshot -> split (subject-isolated 44/6/6) -> export -> package",
+            "intended_uses": "Qwen-Image style-LoRA training (tallow_fen_style_v1/v2)",
+            "license": "studio-owned synthetic; Apache-2.0 generating base",
+            "maintained": "yes — v2 (tp-20260610-030434-413e) re-curates 2 off-canon exemplars out, adds 5 faceless widow exemplars",
+            "train_eval_overlap_checked": 1,
+            "sources": [
+              {
+                "kind": "receipt",
+                "title": "sdlab export/manifest/package chain (config-fingerprinted)",
+                "authors": "studio",
+                "year": 2026,
+                "identifier": "tm-20260609-201701-baf6",
+                "url": "https://github.com/mcp-tool-shop-org/style-dataset-lab/pull/25",
+                "claim": "zero subject leakage across splits; eligibility = approved + canon-bound",
+                "finding_supported": "dataset integrity"
+              }
+            ]
+          }
+        ],
+        "failures": []
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "slug": "qwen-image-style-lora-uint3-ara-measured-5090",
+            "overall": "confirmed",
+            "currency": "measured 2026-06-09",
+            "note": "oracle = rig + harness + full looked-at pass; v2 retrain MEASURED 2026-06-10: dataset-level canon enforcement confirmed (widow 2/8 -> 6/8 eyes, 5/8 SigLIP2; no late trajectory collapse; ship ckpt 1500 @ 1.5)"
+          },
+          {
+            "slug": "qwen-style-descriptor-noun-literalization",
+            "overall": "confirmed",
+            "currency": "measured 2026-06-09",
+            "note": "three-wave A/B/B' with 86 looked-at images; binary outcome per wave"
+          }
+        ]
+      }
+    }
+  ]
+}

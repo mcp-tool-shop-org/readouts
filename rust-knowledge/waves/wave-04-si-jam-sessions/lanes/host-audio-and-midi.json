@@ -1,0 +1,505 @@
+{
+  "laneSlug": "host-audio-and-midi",
+  "title": "Native audio and MIDI host",
+  "tier": "si-jam-sessions",
+  "recipes": [
+    {
+      "name": "Request cpal BufferSize::Fixed on WASAPI shared-mode output",
+      "what": "cpal’s WASAPI backend always creates shared-mode streams, and BufferSize::Fixed only requests a callback size that the host may round.",
+      "how": "Set StreamConfig.buffer_size to BufferSize::Fixed(frames) before calling build_output_stream. Query SupportedBufferSize::Range on the device to pick a valid value. Expect shared mode; cpal does not expose exclusive mode.",
+      "rust_version": "cpal 0.18.2",
+      "gotchas": "Requesting BufferSize::Fixed does not guarantee that exact size; WASAPI may round. Cpal does not expose exclusive mode; shared mode is always used.",
+      "engine_note": "Bears on the host audio output path; use BufferSize::Fixed to control latency when playing committed events through the oscillator.",
+      "checks": [
+        {
+          "label": "cpal BufferSize::Fixed and shared mode compile",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "cpal"
+          ],
+          "expect": "compiles",
+          "source": "use cpal::{BufferSize, StreamConfig};\nuse cpal::traits::{DeviceTrait, HostTrait};\nfn main() {\n    let host = cpal::default_host();\n    if let Some(device) = host.default_output_device() {\n        let config = StreamConfig {\n            channels: 2,\n            sample_rate: 48000,\n            buffer_size: BufferSize::Fixed(256),\n        };\n        let _ = device.build_output_stream::<f32, _, _>(\n            config,\n            move |_data: &mut [f32], _info: &cpal::OutputCallbackInfo| {},\n            move |_err| {},\n            None,\n        );\n    }\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "cpal 0.18.2 src/lib.rs",
+          "url": "https://docs.rs/crate/cpal/0.18.2/source/src/lib.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "When BufferSize::Fixed(x) is specified, the host may round to hardware-supported values and no guarantees can be made about the actual callback size.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "cpal 0.18.2 src/host/wasapi/device.rs",
+          "url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/device.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The WASAPI device implementation comments state that cpal always creates voices in shared mode, therefore all samples go through an audio processor to mix them together.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "request-cpal-buffersize-fixed-on-wasapi-shared-mode-output"
+    },
+    {
+      "name": "Use OutputCallbackInfo playback timestamp for latency alignment",
+      "what": "cpal output callbacks receive an OutputCallbackInfo whose timestamp contains a callback instant and a predicted playback instant derived from the device clock and buffered frames.",
+      "how": "In the output callback, read info.timestamp().playback as a StreamInstant. On WASAPI this is computed from IAudioClock::GetPosition, frames_written, and stream_latency. Use playback minus callback to estimate latency.",
+      "rust_version": "cpal 0.18.2",
+      "gotchas": "playback is a prediction, not a hardware interrupt timestamp; subtracting callback from playback gives latency but not sample-accurate device time.",
+      "engine_note": "Bears on the host sample clock; use the playback instant to align the law's integer sample timeline with the audio device.",
+      "checks": [
+        {
+          "label": "OutputCallbackInfo timestamp fields accessible",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "cpal"
+          ],
+          "expect": "compiles",
+          "source": "use cpal::traits::{DeviceTrait, HostTrait};\nfn main() {\n    let host = cpal::default_host();\n    if let Some(device) = host.default_output_device() {\n        let config = device.default_output_config().unwrap().config();\n        let _stream = device.build_output_stream::<f32, _, _>(\n            config,\n            move |_data: &mut [f32], info: &cpal::OutputCallbackInfo| {\n                let ts = info.timestamp();\n                let _callback = ts.callback;\n                let _playback = ts.playback;\n            },\n            move |_err| {},\n            None,\n        );\n    }\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "cpal 0.18.2 src/timestamp.rs",
+          "url": "https://docs.rs/crate/cpal/0.18.2/source/src/timestamp.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "OutputStreamTimestamp contains a callback StreamInstant and a playback StreamInstant, and on WASAPI the time source for StreamInstant is QueryPerformanceCounter().",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "cpal 0.18.2 src/host/wasapi/stream.rs",
+          "url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/stream.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The output_timestamp function derives playback by adding stream.stream_latency and the duration of buffered frames to the callback instant obtained from IAudioClock::GetPosition.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "use-outputcallbackinfo-playback-timestamp-for-latency-alignment"
+    },
+    {
+      "name": "Handle cpal WASAPI xruns and device changes in error callback",
+      "what": "The cpal WASAPI backend forwards discontinuities as ErrorKind::Xrun and device removals as DeviceNotAvailable or StreamInvalidated on the error callback.",
+      "how": "Provide an error callback to build_output_stream. Match on err.kind(): ErrorKind::Xrun for glitches, ErrorKind::DeviceNotAvailable when the endpoint is unplugged, and ErrorKind::StreamInvalidated when the default device changes.",
+      "rust_version": "cpal 0.18.2",
+      "gotchas": "ErrorKind::Xrun is only emitted on the input path in cpal 0.18.2; output underruns are not explicitly flagged as Xrun in the WASAPI backend.",
+      "engine_note": "Bears on host reliability; route ErrorKind::Xrun and DeviceNotAvailable to the law's error log so replay can remain deterministic.",
+      "checks": [
+        {
+          "label": "cpal error callback handles ErrorKind",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "cpal"
+          ],
+          "expect": "compiles",
+          "source": "use cpal::{Error, ErrorKind};\nuse cpal::traits::{DeviceTrait, HostTrait};\nfn main() {\n    let host = cpal::default_host();\n    if let Some(device) = host.default_output_device() {\n        let config = device.default_output_config().unwrap().config();\n        let _stream = device.build_output_stream::<f32, _, _>(\n            config,\n            move |_data: &mut [f32], _info: &cpal::OutputCallbackInfo| {},\n            move |err: Error| {\n                match err.kind() {\n                    ErrorKind::Xrun => {}\n                    ErrorKind::DeviceNotAvailable => {}\n                    ErrorKind::StreamInvalidated => {}\n                    _ => {}\n                }\n            },\n            None,\n        );\n    }\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "cpal 0.18.2 src/host/wasapi/stream.rs",
+          "url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/stream.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "In process_input, the WASAPI stream emits ErrorKind::Xrun when the AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY flag is set.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "cpal 0.18.2 src/host/wasapi/mod.rs",
+          "url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/mod.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Windows error codes AUDCLNT_E_DEVICE_INVALIDATED and AUDCLNT_E_ENDPOINT_CREATE_FAILED map to ErrorKind::DeviceNotAvailable, and AUDCLNT_E_RESOURCES_INVALIDATED maps to ErrorKind::StreamInvalidated.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "handle-cpal-wasapi-xruns-and-device-changes-in-error-callback"
+    },
+    {
+      "name": "Send events to audio callback via lock-free rtrb or ringbuf queue",
+      "what": "Both rtrb and ringbuf provide single-producer single-consumer queues that are lock-free and allocate only on construction, making them safe for real-time audio callbacks.",
+      "how": "Create a RingBuffer::new(capacity) (rtrb) or HeapRb::new(capacity) (ringbuf) on the host thread before starting the stream. Move the Consumer into the cpal callback and the Producer stays on the host thread. Use try_push and try_pop (or pop) so the callback never blocks.",
+      "rust_version": "rtrb 0.4.0, ringbuf 0.5.2",
+      "gotchas": "rtrb requires std or alloc by default; ringbuf 0.5 uses edition 2024 and requires the std feature for HeapRb. Neither queue provides blocking pop, so the callback must poll.",
+      "engine_note": "Bears on the host-to-callback event delivery; adopt a wait-free SPSC queue so the audio callback never blocks or allocates.",
+      "checks": [
+        {
+          "label": "rtrb SPSC queue works across threads without blocking",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rtrb"
+          ],
+          "expect": "runs",
+          "stdout": "ok",
+          "source": "use rtrb::{RingBuffer, PopError};\nfn main() {\n    let (mut p, mut c) = RingBuffer::<i32>::new(4);\n    std::thread::spawn(move || {\n        p.push(1).unwrap();\n        p.push(2).unwrap();\n    }).join().unwrap();\n    assert_eq!(c.pop(), Ok(1));\n    assert_eq!(c.pop(), Ok(2));\n    assert_eq!(c.pop(), Err(PopError::Empty));\n    println!(\"ok\");\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "rtrb 0.4.0 src/lib.rs",
+          "url": "https://docs.rs/crate/rtrb/0.4.0/source/src/lib.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Reading from and writing into the ring buffer is lock-free and wait-free; a fixed-capacity buffer is allocated on construction and no more memory is allocated afterwards.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "ringbuf 0.5.2 src/rb/shared.rs",
+          "url": "https://docs.rs/crate/ringbuf/0.5.2/source/src/rb/shared.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "SharedRb synchronizes producer and consumer via AtomicUsize indices with Ordering::Acquire and Ordering::Release, providing a lock-free SPSC implementation.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "send-events-to-audio-callback-via-lock-free-rtrb-or-ringbuf-queue"
+    },
+    {
+      "name": "Wrap oscillator callback in assert_no_alloc with cpal equilibrium buffer",
+      "what": "assert_no_alloc aborts or warns if the audio callback allocates, and cpal pre-fills the output buffer with silence before invoking the callback.",
+      "how": "Register the global allocator AllocDisabler in main (debug builds). Inside the cpal output callback, wrap all work in assert_no_alloc(|| { ... }). Because cpal calls fill_equilibrium before the callback, any slot the callback does not overwrite remains silent.",
+      "rust_version": "assert_no_alloc 1.1.2, cpal 0.18.2",
+      "gotchas": "assert_no_alloc only catches allocations made through the global allocator; it does not prevent Vec growth inside the closure unless the global allocator is hooked. In release mode with default features it is a no-op.",
+      "engine_note": "Bears on the real-time guarantee; wrap the oscillator callback in assert_no_alloc to enforce zero allocation on the audio thread.",
+      "checks": [
+        {
+          "label": "assert_no_alloc wraps cpal callback pattern compiles",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "cpal",
+            "assert_no_alloc"
+          ],
+          "expect": "compiles",
+          "source": "use assert_no_alloc::assert_no_alloc;\nuse cpal::traits::{DeviceTrait, HostTrait};\nfn main() {\n    let host = cpal::default_host();\n    if let Some(device) = host.default_output_device() {\n        let config = device.default_output_config().unwrap().config();\n        let _stream = device.build_output_stream::<f32, _, _>(\n            config,\n            move |_data: &mut [f32], _info: &cpal::OutputCallbackInfo| {\n                assert_no_alloc(|| {\n                    for s in _data.iter_mut() { *s = 0.0; }\n                });\n            },\n            move |_err| {},\n            None,\n        );\n    }\n}",
+          "oracle_set": "jam"
+        },
+        {
+          "label": "with AllocDisabler as #[global_allocator], an allocation inside assert_no_alloc aborts (debug build); one outside it is allowed",
+          "oracle_set": "jam",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "assert_no_alloc"
+          ],
+          "expect": "runs",
+          "source": "use assert_no_alloc::{assert_no_alloc, AllocDisabler};\n\n#[global_allocator]\nstatic ALLOC: AllocDisabler = AllocDisabler;\n\nfn main() {\n    println!(\"before\");\n    // Allowed: outside assert_no_alloc.\n    let ok: Vec<u8> = Vec::with_capacity(8);\n    std::hint::black_box(&ok);\n    // Forbidden: an allocation inside the closure reaches AllocDisabler, which calls handle_alloc_error.\n    assert_no_alloc(|| {\n        let v: Vec<u8> = Vec::with_capacity(16);\n        std::hint::black_box(&v);\n    });\n    println!(\"unreachable\");\n}\n",
+          "stdout": "before",
+          "exit_code": 3221226505
+        }
+      ],
+      "sources": [
+        {
+          "title": "assert_no_alloc 1.1.2 README.md",
+          "url": "https://docs.rs/crate/assert_no_alloc/1.1.2/source/README.md",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "If a (de)allocation is attempted inside the forbidden zone, the program will abort or print a warning.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "cpal 0.18.2 src/host/wasapi/stream.rs",
+          "url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/stream.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Before invoking the output data callback, process_output calls fill_equilibrium to pre-fill the buffer with silence.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "wrap-oscillator-callback-in-assert-no-alloc-with-cpal-equilibrium-buffer"
+    },
+    {
+      "name": "Interpret midir WinMM input timestamps as microseconds since start",
+      "what": "midir’s WinMM backend delivers input callback timestamps in microseconds, converted from the Windows MIDI driver’s millisecond timestamp that starts at zero when midiInStart is called.",
+      "how": "In the MidiInput::connect callback, treat the first u64 argument as microseconds elapsed since the connection began. Do not assume it is an absolute clock; it is an arbitrary epoch fixed for the lifetime of the MidiInputConnection.",
+      "rust_version": "midir 0.11.0",
+      "gotchas": "The timestamp epoch is fixed per MidiInputConnection, but it is not comparable across connections or processes. Do not assume it is Unix time.",
+      "engine_note": "Bears on MIDI input ingestion; treat the u64 microseconds as relative to midiInStart and convert to the law's integer sample timeline.",
+      "checks": [
+        {
+          "label": "midir input callback signature and timestamp type compile",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "midir"
+          ],
+          "expect": "compiles",
+          "source": "use midir::{MidiInput, Ignore};\nfn main() {\n    let mut midi_in = MidiInput::new(\"test\").unwrap();\n    midi_in.ignore(Ignore::None);\n    let _ports = midi_in.ports();\n    let _conn = midi_in.connect(\n        &_ports[0],\n        \"test-port\",\n        move |_timestamp: u64, _message: &[u8], _data: &mut ()| {},\n        (),\n    );\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midir 0.11.0 README.md",
+          "url": "https://docs.rs/crate/midir/0.11.0/source/README.md",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "midir supports the WinMM backend on Windows.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "midir 0.11.0 src/backend/winmm/handler.rs",
+          "url": "https://docs.rs/crate/midir/0.11.0/source/src/backend/winmm/handler.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The WinMM input handler sets data.message.timestamp = timestamp as u64 * 1000, converting the dwTimestamp (milliseconds since midiInStart) to microseconds.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "interpret-midir-winmm-input-timestamps-as-microseconds-since-start"
+    },
+    {
+      "name": "Anchor midir microseconds to cpal StreamInstant and re-anchor for drift",
+      "what": "Because midir timestamps and cpal StreamInstant come from independent clocks, the host must establish an anchor and re-anchor periodically to keep the law’s sample clock aligned.",
+      "how": "At stream start (or first MIDI event), record both the midir microseconds value and cpal’s StreamInstant (or frames_written). For each subsequent MIDI event, compute delta_us = midi_timestamp - anchor_midi, then convert to samples with delta_us * sample_rate / 1_000_000. Re-sample both clocks every few seconds to correct drift.",
+      "rust_version": "midir 0.11.0, cpal 0.18.2",
+      "gotchas": "Integer division when converting microseconds to samples truncates; accumulate remainders to avoid systematic timing drift. Re-anchor at least every few seconds.",
+      "engine_note": "Bears on the integer sample clock; re-anchor the midir-to-cpal offset regularly because the two device clocks drift independently.",
+      "checks": [
+        {
+          "label": "midir timestamp and cpal StreamInstant types can be combined",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "cpal",
+            "midir"
+          ],
+          "expect": "compiles",
+          "source": "use cpal::StreamInstant;\nfn midi_to_sample_offset(midi_us: u64, _anchor_cpal: StreamInstant, anchor_midi_us: u64, sample_rate: u32) -> i64 {\n    let delta_us = midi_us as i64 - anchor_midi_us as i64;\n    (delta_us * sample_rate as i64) / 1_000_000\n}\nfn main() {\n    let _ = midi_to_sample_offset(1000, StreamInstant::ZERO, 0, 48000);\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midir 0.11.0 src/backend/winmm/handler.rs",
+          "url": "https://docs.rs/crate/midir/0.11.0/source/src/backend/winmm/handler.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "WinMM timestamps are in milliseconds beginning at zero when midiInStart was called, and midir multiplies by 1000 to produce microseconds.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "cpal 0.18.2 src/timestamp.rs",
+          "url": "https://docs.rs/crate/cpal/0.18.2/source/src/timestamp.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "On WASAPI, StreamInstant uses QueryPerformanceCounter() as its time source.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "anchor-midir-microseconds-to-cpal-streaminstant-and-re-anchor-for-drift"
+    },
+    {
+      "name": "Enumerate midir WinMM input ports by interface ID",
+      "what": "MidiInput::ports returns a vector of MidiInputPort values on Windows via the WinMM midiInGetNumDevs and midiInGetDevCapsW APIs.",
+      "how": "Create a MidiInput, call ports(), then iterate and call port_name() for display and id() for a stable string identifier. Use the id string to reconnect to the same physical device across restarts.",
+      "rust_version": "midir 0.11.0",
+      "gotchas": "WinMM port indices can change when devices are plugged or unplugged; use port.id() (the interface ID string) for stable identification, not the port index.",
+      "engine_note": "Bears on host setup; enumerate WinMM ports with MidiInput::ports() before opening the input used for admitted actions.",
+      "checks": [
+        {
+          "label": "midir port enumeration compiles on Windows host",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "midir"
+          ],
+          "expect": "compiles",
+          "source": "use midir::MidiInput;\nfn main() {\n    let midi_in = MidiInput::new(\"test\").unwrap();\n    let ports = midi_in.ports();\n    for port in &ports {\n        let _name = midi_in.port_name(port).unwrap();\n        let _id = port.id();\n    }\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midir 0.11.0 src/common.rs",
+          "url": "https://docs.rs/crate/midir/0.11.0/source/src/common.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "MidiInput::ports returns a Vec<MidiInputPort> and port_name returns the port name string.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "midir 0.11.0 src/backend/winmm/mod.rs",
+          "url": "https://docs.rs/crate/midir/0.11.0/source/src/backend/winmm/mod.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "On Windows, ports_internal enumerates devices by calling midiInGetNumDevs and midiInGetDevCapsW.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "enumerate-midir-winmm-input-ports-by-interface-id"
+    },
+    {
+      "name": "Render oscillator voices from SPSC queue into cpal silence buffer",
+      "what": "The cpal output callback buffer is pre-filled with silence, and the callback can pop committed events from an rtrb Consumer without blocking or allocating.",
+      "how": "In the callback, call consumer.pop() or consumer.pop_partial_slice() for each voice event. Write the rendered samples into the &mut [f32] buffer. If the queue is empty, do nothing; the buffer remains silent because cpal pre-filled it with equilibrium.",
+      "rust_version": "cpal 0.18.2, rtrb 0.4.0",
+      "gotchas": "The callback must not block waiting for the queue; always use try_pop and render silence if the queue is empty. Pre-silencing by cpal means missing a write leaves silence, not garbage.",
+      "engine_note": "Bears on the oscillator renderer; read committed events from the SPSC queue and write samples into cpal's pre-silenced buffer.",
+      "checks": [
+        {
+          "label": "SPSC event queue feeds non-allocating audio callback simulation",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rtrb"
+          ],
+          "expect": "runs",
+          "stdout": "ok",
+          "source": "use rtrb::{RingBuffer, PopError};\nfn main() {\n    let (mut prod, mut cons) = RingBuffer::<f32>::new(16);\n    prod.push(0.5).unwrap();\n    prod.push(-0.5).unwrap();\n    let mut buf = [0.0f32; 4];\n    for s in buf.iter_mut() {\n        *s = cons.pop().unwrap_or(0.0);\n    }\n    assert_eq!(buf, [0.5, -0.5, 0.0, 0.0]);\n    println!(\"ok\");\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "cpal 0.18.2 src/host/wasapi/stream.rs",
+          "url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/stream.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The output data callback receives &mut Data that has been pre-filled with equilibrium silence.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "rtrb 0.4.0 src/lib.rs",
+          "url": "https://docs.rs/crate/rtrb/0.4.0/source/src/lib.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Producer::push and Consumer::pop are non-blocking; attempts on a full or empty buffer return an error immediately.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "render-oscillator-voices-from-spsc-queue-into-cpal-silence-buffer"
+    },
+    {
+      "name": "Build cpal output stream in f32 for highest real-time priority",
+      "what": "cpal ranks F32 highest in its default-format heuristic because it is the universal real-time audio format, and build_output_stream::<f32> selects compile-time sample processing.",
+      "how": "When building the output stream, use build_output_stream::<f32, _, _> so the callback receives &mut [f32]. If the device default is not F32, cpal may insert a converter in shared mode, but F32 is still the preferred real-time choice.",
+      "rust_version": "cpal 0.18.2",
+      "gotchas": "Not all devices support f32 natively; cpal may insert a format converter in shared mode. Query supported_output_configs() if bit-exact output is required.",
+      "engine_note": "Bears on the oscillator output; request f32 format because cpal ranks it highest for real-time streams.",
+      "checks": [
+        {
+          "label": "cpal F32 output stream compiles",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "cpal"
+          ],
+          "expect": "compiles",
+          "source": "use cpal::traits::{DeviceTrait, HostTrait};\nfn main() {\n    let host = cpal::default_host();\n    if let Some(device) = host.default_output_device() {\n        let supported = device.default_output_config().unwrap();\n        let config = supported.config();\n        let _stream = device.build_output_stream::<f32, _, _>(\n            config,\n            move |_data: &mut [f32], _info: &cpal::OutputCallbackInfo| {},\n            move |_err| {},\n            None,\n        );\n    }\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "cpal 0.18.2 src/lib.rs",
+          "url": "https://docs.rs/crate/cpal/0.18.2/source/src/lib.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "In cmp_default_heuristics, SampleFormat::F32 is ranked highest as the universal realtime audio format.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "cpal 0.18.2 src/traits.rs",
+          "url": "https://docs.rs/crate/cpal/0.18.2/source/src/traits.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "build_output_stream::<f32> creates an output stream with compile-time sample type f32.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "build-cpal-output-stream-in-f32-for-highest-real-time-priority"
+    }
+  ]
+}

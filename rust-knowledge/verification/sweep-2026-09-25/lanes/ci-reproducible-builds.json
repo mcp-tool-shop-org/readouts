@@ -1,0 +1,194 @@
+{
+  "bucket": "ci-reproducible-builds",
+  "verifier_note": "Checked all 10 recipes' warrant sources by retrieval (WebFetch/gh api against doc.rust-lang.org, the rustup/cargo/rustc/clippy/edition-guide books, docs.rs at the pinned rapier3d-f64/parry3d-f64 versions, cargo-deny/cargo-vet/cargo-mutants/rust-fuzz books, and GitHub READMEs/PRs/issue comments/changelogs), cross-checked every engine_note against si-rpg-engine's main branch read-only via gh api (ci.yml, solver/build.mjs, solver/FLAGS.md, solver/src/lib.rs, solver/src/rapier_law.rs, solver/Cargo.toml, solver/Cargo.lock, solver/.cargo/config.toml, docs/dispatch-t3-platforms.md, docs/PHASE-2.md) and against the actual raw log of CI run 36121826863, and independently reproduced four load-bearing claims myself: the exact rustc rejection text for unstabilized trim-paths (three variants, byte-for-byte), the exact cargo-tree output for the wasm32 dependency graph (rapier3d-f64/parry3d-f64/simba/wide feature lists matched verbatim, plus the rayon-absent error), and the invalid_reference_casting lint firing on a direct &T-to-&mut-T cast but staying silent when the cast and dereference are split across two loops (compile_oracle.py, both PASS). Every one of the 61 warrant sources was reachable and dated 2021 or later. Two genuine defects surfaced: recipe 6 cites the wasm32-unknown-unknown platform-support page for '-Ctarget-feature=-foo disables a feature', but that page only documents the '+foo' enable form and target-cpu=mvp — the disable syntax is real and current, just documented on rustc/codegen-options/index.html instead; and recipe 7's engine_note places canon_zero in solver/src/lib.rs when the live repository shows it defined in solver/src/rapier_law.rs (js_min is correctly in lib.rs). The systemic weakness of this lane is exactly that kind of citation drift: individual numeric/version/API claims are exceptionally well-grounded (dozens of exact-string, line-number and CI-log matches, including exact byte counts and a rustc commit hash that verified against this rig's own toolchain), but a claim occasionally borrows the authority of a citation that supports an adjacent fact rather than the specific one asserted, or misattributes which file in a multi-file crate a function lives in — the kind of small slippage that only shows up by actually opening the cited page or the cited file rather than trusting the surrounding rigor.",
+  "verdicts": [
+    {
+      "slug": "install-the-solver-s-pinned-toolchain-in-ci-with-rustup-toolchain-install-not-a-second-version-pin",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "CI run 36121826863 log: dtolnay/rust-toolchain@stable resolved SHA 6bed0761...; exact install/default commands match. rustup CHANGELOG.md newest entry is 1.29.0 (rig runs 1.29.1) as claimed.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/actions/runs/36121826863/job/108028868499",
+      "corrections": null,
+      "sources": [
+        {"url": "https://rust-lang.github.io/rustup/overrides.html", "supported": true, "note": "Precedence order and [toolchain] keys match exactly."},
+        {"url": "https://rust-lang.github.io/rustup/environment-variables.html", "supported": true, "note": "RUSTUP_AUTO_INSTALL default 1 / behavior quoted verbatim."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rustup/main/CHANGELOG.md", "supported": true, "note": "1.28.0/1.28.1 dates and behavior exact; newest entry confirmed 1.29.0."},
+        {"url": "https://api.github.com/repos/rust-lang/rustup/issues/comments/4467247352", "supported": true, "note": "Comment body matches; issue #4836 closed, milestone 1.30.0."},
+        {"url": "https://rust-lang.github.io/rustup/concepts/profiles.html", "supported": true, "note": "minimal=rustc/rust-std/cargo; default adds docs/rustfmt/clippy; verbatim."},
+        {"url": "https://github.com/dtolnay/rust-toolchain", "supported": true, "note": "README confirms @rev selection, @master for explicit toolchain, 3 inputs."},
+        {"url": "https://github.com/dtolnay/rust-toolchain/blob/stable/action.yml", "supported": true, "note": "default: stable; exact install/default/CARGO_INCREMENTAL steps confirmed."},
+        {"url": "https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md", "supported": true, "note": "Image 20260920.314.1, Cargo/Rust 1.98.1, Rustup 1.29.1 all exact."}
+      ]
+    },
+    {
+      "slug": "cache-solver-deps-with-swatinem-rust-cache-v2-and-build-with-locked-build-mjs-s-flags-never-reach-the-key",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "CI log matches exactly: key v0-rust-engines-Linux-x64-6ff13d87-a62750e7, full match true, env/lockfiles considered, digest ede99ea1... 1.37s later, post-step 'Cache up-to-date.' with no save.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/actions/runs/36121826863/job/108028868499",
+      "corrections": null,
+      "sources": [
+        {"url": "https://github.com/Swatinem/rust-cache", "supported": true, "note": "README confirms job_id/rustc-triple/env-prefix/file-hash key, no-workspace-cache, CARGO_INCREMENTAL=0."},
+        {"url": "https://github.com/Swatinem/rust-cache/blob/master/src/config.ts", "supported": true, "note": "envPrefixes array and OS/arch key-building code match claim verbatim."},
+        {"url": "https://doc.rust-lang.org/cargo/commands/cargo-build.html", "supported": true, "note": "--locked/--offline/--frozen definitions match verbatim."},
+        {"url": "https://doc.rust-lang.org/cargo/guide/continuous-integration.html", "supported": true, "note": "Scheduled/continue-on-error latest-deps guidance and example match."}
+      ]
+    },
+    {
+      "slug": "remap-cargo-home-to-make-the-solver-digest-path-independent-then-scan-the-wasm-for-any-leaked-build-path",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "All 3 checks PASS under the oracle and semantically test the prose (default Location leaks build dir; -C strip=symbols does not remove it). build.mjs's 3 remaps and FLAGS.md's 132-string count match the repo exactly.",
+      "evidence_url": "https://doc.rust-lang.org/rustc/remap-source-paths.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/rustc/remap-source-paths.html", "supported": true, "note": "Best-effort/textual, last-match-wins, and scope list all verbatim."},
+        {"url": "https://doc.rust-lang.org/rustc/command-line-arguments.html", "supported": true, "note": "--remap-path-prefix and --remap-path-scope descriptions match."},
+        {"url": "https://doc.rust-lang.org/stable/releases.html", "supported": true, "note": "1.95.0 (2026-04-16) #147611 and 1.97.0 (2026-07-09) #151994 dates/PRs exact."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust/1.83.0/RELEASES.md", "supported": true, "note": "#129687 rust-src remap note quoted almost verbatim, incl. sanitize instructions."},
+        {"url": "https://doc.rust-lang.org/stable/std/panic/struct.Location.html", "supported": true, "note": "caller()/file() docs match, incl. 'refers to a source path on the compiling system' verbatim."}
+      ]
+    },
+    {
+      "slug": "re-pin-the-solver-digest-only-from-x86-64-linux-ci-host-toolchain-lock-version-and-crate-type-all-move-it",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "hash_rustc_version in compilation_files.rs confirmed line-by-line (host line hashed iff unit.kind.is_host()). Independently reproduced all 3 trim-paths stable-Cargo error strings verbatim via `cargo +1.98.1 build`.",
+      "evidence_url": "https://github.com/rust-lang/cargo/blob/rust-1.98.0/src/cargo/core/compiler/build_runner/compilation_files.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://github.com/rust-lang/cargo/blob/rust-1.98.0/src/cargo/core/compiler/build_runner/compilation_files.rs", "supported": true, "note": "RUSTFLAGS exclusion comment and is_host() branch read exactly as claimed."},
+        {"url": "https://github.com/rust-lang/cargo/pull/15477", "supported": true, "note": "Body matches claim verbatim; confirmed OPEN/isDraft=true."},
+        {"url": "https://github.com/rust-lang/cargo/pull/14107", "supported": true, "note": "Confirmed MERGED 2024-06-20T04:14:33Z, title matches exactly."},
+        {"url": "https://api.github.com/repos/rust-lang/cargo/issues/comments/3737127656", "supported": true, "note": "Comment dated 2026-01-12 and content paraphrase confirmed."},
+        {"url": "https://doc.rust-lang.org/cargo/reference/unstable.html", "supported": true, "note": "trim-paths unstable, #12137, sysroot/package/registry remap, object default for release."},
+        {"url": "https://doc.rust-lang.org/cargo/commands/cargo-update.html", "supported": true, "note": "--precise/conservative-update, --dry-run, --breaking(nightly) all confirmed via full page text."},
+        {"url": "https://doc.rust-lang.org/stable/releases.html", "supported": true, "note": "Same 1.95.0/1.97.0 entries as the remap-cargo-home lane, confirmed."}
+      ]
+    },
+    {
+      "slug": "give-the-arm-lane-the-x64-built-solver-and-check-sha256-of-its-embedded-bytes-against-fixtures-solver-sha256",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "upload-artifact: artifact-digest = 'SHA-256 digest of an Artifact', v7 current. download-artifact digest-mismatch defaults 'error', v8 current. Partner arm64 image (Node 20.20.0, Rust 1.93.0, rustup 1.28.2) exact.",
+      "evidence_url": "https://github.blog/changelog/2025-08-07-arm64-hosted-runners-for-public-repositories-are-now-generally-available/",
+      "corrections": null,
+      "sources": [
+        {"url": "https://github.blog/changelog/2025-08-07-arm64-hosted-runners-for-public-repositories-are-now-generally-available/", "supported": true, "note": "Labels, 4vCPU, free for public repos, Arm LLC image, date all match."},
+        {"url": "https://docs.github.com/en/actions/reference/runners/github-hosted-runners", "supported": true, "note": "4 CPU/16GB/14GB and the 3 arm64 labels confirmed in the runner table."},
+        {"url": "https://github.com/actions/upload-artifact", "supported": true, "note": "v7 usage example and artifact-digest=SHA-256 output confirmed."},
+        {"url": "https://github.com/actions/download-artifact", "supported": true, "note": "v8 usage example, digest-mismatch input with default 'error' confirmed verbatim."},
+        {"url": "https://github.com/rust-lang/cargo/pull/15477", "supported": true, "note": "Same PR as re-pin lane; draft/open, body matches."},
+        {"url": "https://api.github.com/repos/rust-lang/cargo/issues/comments/5137819585", "supported": true, "note": "Comment dated 2026-07-31 matches claim near-verbatim (aarch64 vs x86_64, same lockfile)."},
+        {"url": "https://github.com/actions/partner-runner-images/blob/main/images/Ubuntu2404-Readme.md", "supported": true, "note": "Node.js 20.20.0, Cargo/Rust 1.93.0, Rustup 1.28.2 all exact matches."}
+      ]
+    },
+    {
+      "slug": "pass-build-mjs-s-flags-via-cargo-encoded-rustflags-and-refuse-relaxed-simd-in-code-the-bytes-hide-the-pin",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "3 of 4 sources verbatim. The wasm32-unknown-unknown page supports the 1.87.0-defaults half of its claim but never shows '-foo' disable syntax; both checks PASS oracle and match prose exactly.",
+      "evidence_url": "https://doc.rust-lang.org/cargo/reference/config.html",
+      "corrections": {
+        "claim": "Cited page (platform-support/wasm32-unknown-unknown.html) confirms 1.87.0 defaults but only documents '+foo' enable syntax and target-cpu=mvp, never '-foo'. The disable syntax is real/current rustc behavior, documented instead at rustc/codegen-options/index.html#target-feature."
+      },
+      "sources": [
+        {"url": "https://doc.rust-lang.org/cargo/reference/config.html", "supported": true, "note": "4 mutually-exclusive rustflags sources and order match verbatim; build-script exclusion under --target confirmed."},
+        {"url": "https://doc.rust-lang.org/cargo/reference/environment-variables.html", "supported": true, "note": "RUSTFLAGS whitespace-split and CARGO_ENCODED_RUSTFLAGS 0x1f separator confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html", "supported": false, "note": "1.87.0 defaults confirmed, but page never shows '-Ctarget-feature=-foo'; only '+foo' and target-cpu=mvp appear."},
+        {"url": "https://doc.rust-lang.org/clippy/continuous_integration/github_actions.html", "supported": true, "note": "Example workflow's RUSTFLAGS:-Dwarnings and cargo clippy --all-targets --all-features confirmed verbatim."}
+      ]
+    },
+    {
+      "slug": "gate-the-solver-in-ci-yml-with-fmt-check-clippy-d-warnings-for-wasm32-and-host-cargo-test-lib",
+      "verdict": "corrected",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "All 7 warning sites' file:line and mutable(4)/shared(3) split verified exactly against the repo. But canon_zero is in solver/src/rapier_law.rs, not lib.rs as engine_note states (js_min is correctly in lib.rs).",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/main/solver/src/rapier_law.rs",
+      "corrections": {
+        "claim": "engine_note says 'solver/src/lib.rs's pure functions (canon_zero, js_min)'. canon_zero is actually defined in solver/src/rapier_law.rs (line 82), not lib.rs. js_min is correctly located in lib.rs."
+      },
+      "sources": [
+        {"url": "https://doc.rust-lang.org/clippy/continuous_integration/index.html", "supported": true, "note": "-Dwarnings recommendation, RUSTFLAGS scope, same-toolchain advice all verbatim."},
+        {"url": "https://doc.rust-lang.org/clippy/continuous_integration/github_actions.html", "supported": true, "note": "Same example workflow confirmed as in the CARGO_ENCODED_RUSTFLAGS lane."},
+        {"url": "https://github.com/rust-lang/rustfmt", "supported": true, "note": "--check exit codes and CI --check example confirmed; style_edition is in the repo's Configurations.md."},
+        {"url": "https://doc.rust-lang.org/cargo/reference/profiles.html", "supported": true, "note": "Tests/build-scripts ignore panic setting (unwind required) quoted verbatim; build-override opt-level 0 confirmed."},
+        {"url": "https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html", "supported": true, "note": "deny-by-default, implicit-reference example (NUMS.len()), &raw const/mut replacement all confirmed."}
+      ]
+    },
+    {
+      "slug": "guard-the-solver-s-dependency-graph-with-cargo-tree-and-cargo-deny-no-parallel-no-rayon-crates-io-only",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Independently reran `cargo tree --target wasm32-unknown-unknown -e normal --format '{p} [{f}]'` against rapier3d-f64=0.35.3: all 4 claimed lines (rapier3d-f64/parry3d-f64/simba/wide) matched byte-for-byte, incl. the rayon-absent error text.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/features",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/cargo/reference/features.html", "supported": true, "note": "Feature-union, cargo tree -e features -i, resolver-2 build-dep separation all verbatim."},
+        {"url": "https://doc.rust-lang.org/cargo/commands/cargo-tree.html", "supported": true, "note": "-e features, -i invert, --target host default, {p}/{f} placeholders confirmed."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/features", "supported": true, "note": "15 features exact; parallel->rayon+parry/parallel; enh-determinism->parry/enh-det+simba/libm_force; no simd feature."},
+        {"url": "https://embarkstudios.github.io/cargo-deny/checks/bans/cfg.html", "supported": true, "note": "multiple-versions warn-default, deny-list reason field, bans.features exact all confirmed."},
+        {"url": "https://embarkstudios.github.io/cargo-deny/checks/cfg.html", "supported": true, "note": "[graph] targets ignoring unsatisfied dependency links confirmed verbatim."},
+        {"url": "https://embarkstudios.github.io/cargo-deny/checks/index.html", "supported": true, "note": "cargo deny check runs licenses/bans/advisories/sources by default, confirmed."},
+        {"url": "https://embarkstudios.github.io/cargo-deny/checks/sources/cfg.html", "supported": true, "note": "unknown-registry/unknown-git default warn; allow-registry defaults to crates.io index."},
+        {"url": "https://mozilla.github.io/cargo-vet/", "supported": true, "note": "Core definition matches near-verbatim; specific subcommands not on this page but are real cargo-vet commands."},
+        {"url": "https://mozilla.github.io/cargo-vet/configuring-ci.html", "supported": true, "note": "Pinned-version install and 'cargo vet --locked' confirmed verbatim."}
+      ]
+    },
+    {
+      "slug": "run-miri-cargo-fuzz-and-cargo-mutants-on-a-date-pinned-nightly-job-that-never-builds-the-pinned-digest",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Reproduced both halves of the lint claim myself: a direct &T->&mut T cast fires invalid_reference_casting with the exact quoted message; splitting the cast/deref across two loops (as solver_clear_warmstart does) compiles silently.",
+      "evidence_url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://github.com/rust-lang/miri", "supported": true, "note": "UB categories and FFI/platform-API limitation confirmed; no-nightly-on-rig claim independently verified true."},
+        {"url": "https://rust-lang.github.io/rustup-components-history/", "supported": true, "note": "miri shown present for x86_64-linux nightlies 2026-09-19 through 2026-09-25."},
+        {"url": "https://rust-fuzz.github.io/book/cargo-fuzz/setup.html", "supported": true, "note": "Nightly-required-for--Z, libFuzzer C++11/sanitizer requirement confirmed verbatim."},
+        {"url": "https://mutants.rs/ci.html", "supported": true, "note": "taiki-e/install-action, 'cargo mutants -vV --in-place', mutants.out upload all confirmed."},
+        {"url": "https://mutants.rs/exit-codes.html", "supported": true, "note": "Exit 0/2/3/4 meanings match verbatim."},
+        {"url": "https://mutants.rs/in-diff.html", "supported": true, "note": "--in-diff tests only overlapping mutants, not a full-run substitute; git-diff example is the recipe's own illustration."},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html", "supported": true, "note": "invalid_reference_casting description matches verbatim; error text reproduced exactly via compile_oracle.py."},
+        {"url": "https://doc.rust-lang.org/reference/behavior-considered-undefined.html", "supported": true, "note": "Shared-reference immutability, UnsafeCell carve-out, 'not exhaustive' warning all quoted verbatim."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.NarrowPhase.html", "supported": true, "note": "contact_pairs/contact_pair/contact_pairs_with signatures and &self-only confirmed exactly."}
+      ]
+    },
+    {
+      "slug": "schedule-rust-drift-checks-weekly-and-bounded-advisories-an-uncached-digest-rebuild-and-the-replay-corpus",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "docs/PHASE-2.md T5 row and Standards-compliance remediation line quoted verbatim from the live repo. CI log lines 'Image: ubuntu-24.04' / 'Version: 20260920.314.1' match the engine_note exactly.",
+      "evidence_url": "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows", "supported": true, "note": "Default-branch, 5-min floor, start-of-hour delay, 60-day public-repo disable all confirmed verbatim."},
+        {"url": "https://github.com/rustsec/audit-check", "supported": true, "note": "Scheduled->issues, push/PR->failing check, issues:write+checks:write, daily example cron all confirmed."},
+        {"url": "https://doc.rust-lang.org/cargo/guide/continuous-integration.html", "supported": true, "note": "Same page confirmed as in the rust-cache lane."},
+        {"url": "https://github.com/actions/runner-images", "supported": true, "note": "'Typically deploy weekly updates'; ubuntu-latest = ubuntu-24.04, both confirmed verbatim."},
+        {"url": "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax", "supported": true, "note": "concurrency group/cancel-in-progress and permissions (contents, issues) at workflow/job level confirmed."},
+        {"url": "https://github.com/rustsec/rustsec/tree/main/cargo-audit", "supported": true, "note": "RustSec Advisory Database description and 'cargo audit bin' subcommand both confirmed verbatim."}
+      ]
+    }
+  ]
+}

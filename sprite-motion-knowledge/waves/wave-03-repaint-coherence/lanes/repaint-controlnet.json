@@ -1,0 +1,394 @@
+{
+  "laneSlug": "repaint-controlnet",
+  "title": "Structure-preserving repaint (ControlNet)",
+  "recipes": [
+    {
+      "slug": "depth-from-mesh-qwen-controlnet-union",
+      "name": "Depth-from-mesh + Qwen-Image-Edit-2511 + InstantX ControlNet-Union repaint",
+      "kind": "workflow",
+      "engine_family": "comfyui",
+      "applicable_to": "repaint",
+      "base_model_family": "Qwen-Image",
+      "base_model_slug": "Qwen/Qwen-Image-Edit-2511",
+      "claim": "Rendering a depth pass directly from the TRELLIS.2 mesh and feeding it into Qwen-Image-Edit-2511 via InstantX Qwen-Image-ControlNet-Union repaints the 3D render to painterly house style while holding silhouette, pose, and rigid weapon position.",
+      "summary": "Because you already have the mesh from TRELLIS.2, render a clean depth pass (Blender Cycles, 16-bit PNG, Mist pass normalized) rather than estimating depth post hoc with MiDaS. This ground-truth depth is sharper at object boundaries and locks the weapon's Z-position exactly. Feed the mesh render as img2img input (denoise 0.5-0.65) plus the depth map into Qwen-Image-Edit-2511 with InstantX Qwen-Image-ControlNet-Union (canny+depth modes, control weight 0.6-0.8). Drive the style with the sfhd_style_v1 house LoRA and a painterly prompt. Structure comes from ControlNet; style comes from the LoRA — the decomposition that prevents drift.",
+      "design_implication": "This is the primary §D repaint pass for the captain prototype. Depth-from-mesh is cleaner than any estimated depth and hard-locks the rigid weapon across all 8 directions; switching to estimated depth introduces weapon-position drift.",
+      "evidence_strength": "single-reported-run",
+      "license": "Qwen-Image-Edit-2511: Apache-2.0; InstantX Qwen-Image-ControlNet-Union: Apache-2.0",
+      "commercial_use": "yes",
+      "commercial_notes": "Both Apache-2.0. Outputs are studio-owned. House LoRA studio-owned on commercial base. No NC weights in this path.",
+      "vram_gb": "20-28",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": ["mesh-to-painterly repaint", "weapon rigidity", "pose lock", "8-direction consistency"],
+      "hparams": [
+        {"name": "img2img_denoise", "range": "0.50-0.65", "note": "Below 0.50 preserves 3D shading artifacts; above 0.65 loses weapon shape"},
+        {"name": "controlnet_weight", "range": "0.60-0.80", "note": "Depth mode; reduce to 0.5 if painterly style is being over-constrained"},
+        {"name": "lora_weight", "range": "0.7-1.0", "note": "sfhd_style_v1 house LoRA"}
+      ],
+      "failures": [
+        "Denoise > 0.70 with weak ControlNet weight causes weapon drift — keep depth weight >= 0.6",
+        "Qwen-Image-ControlNet-Union supports canny/softedge/depth/pose but NOT tile; use separate tile pass for detail recovery"
+      ],
+      "sources": [
+        {
+          "kind": "model-card",
+          "title": "Qwen-Image-Edit-2511",
+          "authors": "Qwen Team",
+          "year": "2025",
+          "identifier": "hf:Qwen/Qwen-Image-Edit-2511",
+          "url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
+          "claim": "Apache-2.0 instruction-following image editor with improved character consistency and multi-image input; commercial use permitted."
+        },
+        {
+          "kind": "model-card",
+          "title": "InstantX/Qwen-Image-ControlNet-Union",
+          "authors": "InstantX Team",
+          "year": "2025",
+          "identifier": "hf:InstantX/Qwen-Image-ControlNet-Union",
+          "url": "https://huggingface.co/InstantX/Qwen-Image-ControlNet-Union",
+          "claim": "Apache-2.0 unified ControlNet for Qwen-Image supporting canny, soft edge, depth, and pose conditioning; trained 50K steps on 10M images at 1328x1328."
+        },
+        {
+          "kind": "paper",
+          "title": "Adding Conditional Control to Text-to-Image Diffusion Models",
+          "authors": "Lvmin Zhang, Anyi Rao, Maneesh Agrawala",
+          "year": "2023",
+          "identifier": "arXiv:2302.05543",
+          "url": "https://arxiv.org/abs/2302.05543",
+          "claim": "ControlNet uses zero-initialized convolutions to add spatial conditioning (depth, edges, pose) to pretrained diffusion models without degrading base model quality."
+        }
+      ]
+    },
+    {
+      "slug": "controlnet-union-sdxl-xinsir-repaint",
+      "name": "xinsir controlnet-union-sdxl-1.0 ProMax multi-condition repaint (SDXL base)",
+      "kind": "technique",
+      "engine_family": "comfyui",
+      "applicable_to": "repaint",
+      "base_model_family": "SDXL",
+      "base_model_slug": "xinsir/controlnet-union-sdxl-1.0",
+      "claim": "xinsir controlnet-union-sdxl-1.0 (Apache-2.0) stacks depth + lineart + canny from the mesh render in a single checkpoint pass, repainting the 3D render to painterly while holding structure — the Apache SDXL alternative to the Qwen path.",
+      "summary": "ControlNet++ (xinsir/controlnet-union-sdxl-1.0, Apache-2.0) unifies 10+ conditioning types in one checkpoint with condition fusion learned during training — no hyperparameter juggling between separate ControlNet models. For mesh-render repaint, run depth (from mesh) + lineart (AnyLine from mesh silhouette) + canny simultaneously at SDXL resolution (1024px+). This is the preferred path when the base diffusion model is SDXL rather than Qwen-Image. The ProMax variant (July 2024) adds tile super-resolution editing on top.",
+      "design_implication": "Apache-2.0 runner-up for studios that prefer SDXL as the diffusion backbone. Multi-condition fusion is learned, not manually weighted, reducing per-project tuning. Use alongside sfhd_style_v1 as an SDXL LoRA if that base is trained on SDXL.",
+      "evidence_strength": "single-reported-run",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "commercial_notes": "Apache-2.0; ControlNet++ GitHub repo and HuggingFace model card both confirm. Check SDXL base model's license separately.",
+      "vram_gb": "12-20",
+      "rig_fit": 5,
+      "studio_fit": 4,
+      "status": "runner-up",
+      "purposes": ["SDXL-path repaint", "multi-condition stacking", "no-weight-juggling structure lock"],
+      "hparams": [
+        {"name": "conditions_used", "values": ["depth", "lineart", "canny"], "note": "All sourced from mesh render or AnyLine preprocessor on mesh render"},
+        {"name": "img2img_denoise", "range": "0.50-0.65"},
+        {"name": "controlnet_weight", "range": "0.60-0.85", "note": "Single weight applies to fused condition vector"}
+      ],
+      "failures": [
+        "Anime lineart conditioning type is present — never select it (studio no-anime rule)",
+        "Condition fusion is learned for general images; may need weight reduction for painterly sprites to avoid over-sharpening"
+      ],
+      "sources": [
+        {
+          "kind": "model-card",
+          "title": "xinsir/controlnet-union-sdxl-1.0",
+          "authors": "xinsir",
+          "year": "2024",
+          "identifier": "hf:xinsir/controlnet-union-sdxl-1.0",
+          "url": "https://huggingface.co/xinsir/controlnet-union-sdxl-1.0",
+          "claim": "Apache-2.0 all-in-one SDXL ControlNet supporting 10+ conditions (depth, canny, lineart, normal, tile, scribble, HED, PIDI, TEED, segmentation) with multi-condition fusion learned during training."
+        },
+        {
+          "kind": "github",
+          "title": "ControlNetPlus (ControlNet++)",
+          "authors": "xinsir6",
+          "year": "2024",
+          "identifier": "github:xinsir6/ControlNetPlus",
+          "url": "https://github.com/xinsir6/ControlNetPlus",
+          "claim": "Apache-2.0 repository with inference scripts; ProMax variant released July 2024 adds tile super-resolution, inpainting, and outpainting editing modes."
+        }
+      ]
+    },
+    {
+      "slug": "depth-plus-lineart-stack-controlnet-v11",
+      "name": "Depth + Lineart/AnyLine ControlNet stack for 3D-render-to-painterly repaint",
+      "kind": "technique",
+      "engine_family": "comfyui",
+      "applicable_to": "repaint",
+      "claim": "Stacking a mesh-rendered depth map with an AnyLine/lineart pass from the same mesh render as dual ControlNet inputs gives the strongest structure lock for mesh-render-to-painterly repaint: depth governs large-scale silhouette + weapon position, lineart governs fine edge sharpness.",
+      "summary": "Render two passes from the TRELLIS.2 mesh in Blender: a normalized depth pass (16-bit PNG, Mist pass) and the mesh render itself passed through AnyLine or the ControlNet lineart preprocessor to extract a clean edge map. Use both simultaneously as ControlNet inputs with separate weights (depth: 0.5-0.7, lineart: 0.4-0.6). The depth pass controls silhouette and spatial layout; the lineart pass locks fine weapon and costume edges. Together they prevent the 3D-to-painterly transition from softening or relocating rigid-body parts. Run with the sfhd_style_v1 LoRA for style injection.",
+      "design_implication": "The two-pass stack is the workhorse technique for the §D gap: depth alone can miss fine edges; lineart alone can lose spatial depth. Stacking both is more stable than using either alone. Render both passes from the mesh — they are zero-cost once the mesh exists.",
+      "evidence_strength": "community-claim",
+      "license": "ComfyUI ControlNet auxiliary preprocessors: Apache-2.0 (Fannovel16/comfyui_controlnet_aux); ControlNet v1.1 models: CreativeML OpenRAIL-M",
+      "commercial_use": "conditional",
+      "commercial_notes": "OpenRAIL-M permits commercial use with responsible-use clauses. Apache-2.0 preprocessors are permissive. Verify your diffusion base model's license separately.",
+      "vram_gb": "12-24",
+      "rig_fit": 5,
+      "studio_fit": 4,
+      "status": "recommended",
+      "purposes": ["dual-condition structure lock", "weapon rigidity", "edge fidelity", "depth-plus-lineart stack"],
+      "hparams": [
+        {"name": "depth_controlnet_weight", "range": "0.50-0.70"},
+        {"name": "lineart_controlnet_weight", "range": "0.40-0.60"},
+        {"name": "img2img_denoise", "range": "0.50-0.65"},
+        {"name": "lineart_preprocessor", "values": ["AnyLine", "lineart_realistic"], "note": "AnyLine (TheMistoAI/ComfyUI-Anyline) recommended for mesh renders with hard edges"}
+      ],
+      "failures": [
+        "If both weights are too high (>0.8), the repaint looks like a filtered 3D render rather than painterly — reduce lineart weight first",
+        "Anime lineart preprocessor variant must not be selected (no-anime rule)"
+      ],
+      "sources": [
+        {
+          "kind": "github",
+          "title": "ComfyUI ControlNet Auxiliary Preprocessors",
+          "authors": "Fannovel16",
+          "year": "2024",
+          "identifier": "github:Fannovel16/comfyui_controlnet_aux",
+          "url": "https://github.com/Fannovel16/comfyui_controlnet_aux",
+          "claim": "Apache-2.0 ComfyUI node set providing depth (MiDaS, Depth Anything V2), lineart (standard, realistic, AnyLine), normal (BAE, DSINE), softedge (HED, PiDiNet, TEED), and canny preprocessors."
+        },
+        {
+          "kind": "github",
+          "title": "ComfyUI-Anyline (AnyLine preprocessor)",
+          "authors": "TheMistoAI",
+          "year": "2024",
+          "identifier": "github:TheMistoAI/ComfyUI-Anyline",
+          "url": "https://github.com/TheMistoAI/ComfyUI-Anyline",
+          "claim": "AnyLine is a fast, accurate line detection preprocessor based on TEED (arXiv:2308.06468) that extracts object edges, fine image details, and text content; integrated into comfyui_controlnet_aux."
+        },
+        {
+          "kind": "paper",
+          "title": "Adding Conditional Control to Text-to-Image Diffusion Models",
+          "authors": "Lvmin Zhang, Anyi Rao, Maneesh Agrawala",
+          "year": "2023",
+          "identifier": "arXiv:2302.05543",
+          "url": "https://arxiv.org/abs/2302.05543",
+          "claim": "ControlNet adds spatial conditioning to pretrained diffusion models; multi-condition stacking is supported by running parallel ControlNet branches."
+        }
+      ]
+    },
+    {
+      "slug": "blender-depth-normal-pass-for-controlnet",
+      "name": "Render depth + normal passes directly from the TRELLIS.2 mesh (Blender Cycles) for ControlNet input",
+      "kind": "technique",
+      "engine_family": "custom",
+      "applicable_to": "repaint",
+      "claim": "Exporting a normalized depth map and world-space normal map as 16-bit PNG directly from Blender Cycles (via View Layer passes + compositor) produces cleaner ControlNet conditioning than any post-hoc monocular estimator (MiDaS, Depth Anything) because the geometry is known exactly.",
+      "summary": "In Blender's View Layer Properties, enable the Depth (Mist) pass and the Normal pass. In the Compositor, use a Render Layers node, Map Range/Normalize the depth to 0-1, and output as a 16-bit PNG. The normal pass (blue=front, red=left, green=top, matching ControlNet normalbae convention) can be exported directly. These passes are zero-cost given the existing TRELLIS.2 mesh and lock the weapon's position to sub-pixel accuracy — MiDaS-estimated depth on a 3D render will have estimation error at the weapon boundary. Use the depth PNG as input to ControlNet-depth and the normal PNG as input to ControlNet-normalbae.",
+      "design_implication": "This is the upstream step that makes the depth+lineart stack recipe valid. The mesh already exists — never estimate what you can render. This is the single most important best practice for the §D gap.",
+      "evidence_strength": "community-claim",
+      "license": "Blender: GPL-2.0+ (output images are unencumbered studio assets)",
+      "commercial_use": "yes",
+      "commercial_notes": "Blender's GPL applies to the software, not to rendered image outputs. Depth/normal pass images are the studio's assets.",
+      "vram_gb": "0",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": ["ground-truth depth for ControlNet", "weapon-position lock", "normal pass for surface shading"],
+      "hparams": [
+        {"name": "depth_output_bit_depth", "values": ["16-bit PNG"], "note": "32-bit EXR also works but requires conversion; 8-bit loses precision"},
+        {"name": "normal_convention", "note": "Blender world-space normal matches ControlNet normalbae (blue=front, red=left, green=top — NYU-V2 protocol)"},
+        {"name": "mist_pass_normalize", "note": "Map Range node: clip and normalize depth to 0-1 before export"}
+      ],
+      "failures": [
+        "Raw Mist pass values are in meters and appear all-white — must normalize with Map Range node before export",
+        "Invert colors (CTRL-I in Krita) if ControlNet expects near=white rather than near=dark"
+      ],
+      "sources": [
+        {
+          "kind": "web",
+          "title": "How to Render Blender 3D Models in Stable Diffusion",
+          "authors": "Daniel Sandner",
+          "year": "2023",
+          "identifier": "url:sandner.art/how-to-render-blender-3d-models-in-stable-diffusion/",
+          "url": "https://sandner.art/how-to-render-blender-3d-models-in-stable-diffusion/",
+          "claim": "Export Blender depth (Mist) as 16-bit PNG with color inversion; ControlNet depth conditioning weight tested 0.45-1.0 with guidance start/end timing; gives 'creative results' matching 3D layout to 2D painterly output."
+        },
+        {
+          "kind": "web",
+          "title": "Blender Manual — Render Layers Passes",
+          "authors": "Blender Foundation",
+          "year": "2024",
+          "identifier": "url:docs.blender.org/manual/en/latest/render/layers/passes.html",
+          "url": "https://docs.blender.org/manual/en/latest/render/layers/passes.html",
+          "claim": "Z/Depth pass gives distance to nearest visible surface; Normal pass gives world-space surface orientation; both accessible via Render Layers node in Compositor."
+        }
+      ]
+    },
+    {
+      "slug": "controlnet-tile-detail-recovery",
+      "name": "Tile ControlNet + Ultimate SD Upscale for painterly detail recovery after repaint",
+      "kind": "technique",
+      "engine_family": "comfyui",
+      "applicable_to": "repaint",
+      "claim": "Tile ControlNet (lllyasviel/control_v11f1e_sd15_tile) used as a second pass after the initial depth+lineart repaint recovers fine painterly detail (brushwork, fabric texture, weapon surface) that mid-denoise img2img softens, without disturbing the structural lock already applied.",
+      "summary": "The initial depth+ControlNet repaint at denoise 0.5-0.65 replaces the 3D style but can soften fine detail. A second tile-ControlNet pass at lower denoise (0.2-0.35) over the already-resampled image adds painterly texture and detail without moving large structures. Combined with Ultimate SD Upscale (ssitu/ComfyUI_UltimateSDUpscale, GPL-3.0) in ComfyUI, this also handles upscaling to final sprite resolution in one pass — each tile is independently conditioned so brushwork is consistent. The tile ControlNet ignores global composition and generates new local detail, making it safe to run after the structural pass.",
+      "design_implication": "Schedule as the final polish pass: run after depth+lineart repaint is approved. Keeps sprite resolution at 2x-4x output without re-running the expensive Qwen-Image-Edit pass.",
+      "evidence_strength": "community-claim",
+      "license": "control_v11f1e_sd15_tile: CreativeML OpenRAIL-M; ComfyUI_UltimateSDUpscale: GPL-3.0",
+      "commercial_use": "conditional",
+      "commercial_notes": "OpenRAIL-M permits commercial use with usage clauses. GPL-3.0 applies to the node code, not to generated images. Verify base diffusion model license.",
+      "vram_gb": "8-16",
+      "rig_fit": 5,
+      "studio_fit": 4,
+      "status": "recommended",
+      "purposes": ["painterly detail recovery", "upscale + detail", "tile-consistent brushwork"],
+      "hparams": [
+        {"name": "tile_denoise", "range": "0.20-0.35", "note": "Low enough to not move weapon or silhouette; high enough to add real painterly texture"},
+        {"name": "tile_controlnet_weight", "range": "0.50-0.80"},
+        {"name": "upscale_factor", "range": "2-4", "note": "4x-UltraSharp upscaler recommended for sprite work"}
+      ],
+      "failures": [
+        "Tile denoise > 0.45 can create tile-boundary seams — keep it below 0.40",
+        "Running tile pass before structural repaint is approved wastes compute — always sequence after depth+lineart pass"
+      ],
+      "sources": [
+        {
+          "kind": "model-card",
+          "title": "lllyasviel/control_v11f1e_sd15_tile",
+          "authors": "Lvmin Zhang",
+          "year": "2023",
+          "identifier": "hf:lllyasviel/control_v11f1e_sd15_tile",
+          "url": "https://huggingface.co/lllyasviel/control_v11f1e_sd15_tile",
+          "claim": "CreativeML OpenRAIL-M; conditions on tiled image inputs to generate or enhance local detail at target resolution without global composition changes; acts as super-resolution ControlNet for detail-aware img2img."
+        },
+        {
+          "kind": "github",
+          "title": "ComfyUI_UltimateSDUpscale",
+          "authors": "ssitu",
+          "year": "2023",
+          "identifier": "github:ssitu/ComfyUI_UltimateSDUpscale",
+          "url": "https://github.com/ssitu/ComfyUI_UltimateSDUpscale",
+          "claim": "GPL-3.0 ComfyUI nodes for tile-based img2img diffusion on large images; each tile is independently conditioned, preventing cross-tile misalignment when combined with Tile ControlNet."
+        }
+      ]
+    },
+    {
+      "slug": "softedge-hed-controlnet-painterly-boundary",
+      "name": "SoftEdge/HED ControlNet for painterly boundary-aware repaint",
+      "kind": "technique",
+      "engine_family": "comfyui",
+      "applicable_to": "repaint",
+      "claim": "SoftEdge/HED ControlNet (lllyasviel/control_v11p_sd15_softedge, CreativeML OpenRAIL-M) conditions on gentle boundary maps — softer than canny — making it ideal for painterly repaint where hard canny edges would fight the brushstroke aesthetic.",
+      "summary": "Canny ControlNet enforces hard pixel-accurate edges that conflict with painterly softness. SoftEdge (HED or PIDI preprocessor) produces a boundary map where edges fade at their periphery, matching how painterly linework naturally thickens and fades. For the mesh-render repaint, extract a soft edge map from the mesh render using the PIDI (safe) or HED preprocessor and use it at moderate weight (0.3-0.5) alongside the depth ControlNet. This lets the diffusion model respect major silhouettes while having freedom to render edges in a painterly style. ControlNet v1.1 SoftEdge improved over v1.0 HED by filtering out corrupted greyscale artifacts hidden in the edge map.",
+      "design_implication": "Use softedge INSTEAD of canny when the depth-alone pass produces too clean/hard a silhouette. Stack depth (weight 0.6) + softedge (weight 0.35) for the best painterly-boundary result.",
+      "evidence_strength": "single-reported-run",
+      "license": "CreativeML OpenRAIL-M",
+      "commercial_use": "conditional",
+      "commercial_notes": "OpenRAIL-M permits commercial use with responsible-use clauses. Check base diffusion model license.",
+      "vram_gb": "8-16",
+      "rig_fit": 5,
+      "studio_fit": 4,
+      "status": "situational",
+      "purposes": ["painterly boundary conditioning", "soft-edge structure lock", "alternative to canny for painterly output"],
+      "hparams": [
+        {"name": "softedge_preprocessor", "values": ["SoftEdge_PIDI_safe", "SoftEdge_HED"], "note": "PIDI safe recommended; 75% safe-filtering removes corrupted greyscale artifacts in v1.1"},
+        {"name": "softedge_controlnet_weight", "range": "0.30-0.50", "note": "Lower than depth; softer boundary — don't over-constrain the painterly style"},
+        {"name": "depth_controlnet_weight", "range": "0.55-0.75", "note": "Depth remains primary structural anchor"}
+      ],
+      "failures": [
+        "SoftEdge weight > 0.60 with high denoise produces a filtered 3D render look rather than painterly",
+        "HED v1.0 models (not v1.1) hide corrupted greyscale in edge maps — use v1.1 softedge only"
+      ],
+      "sources": [
+        {
+          "kind": "model-card",
+          "title": "lllyasviel/control_v11p_sd15_softedge",
+          "authors": "Lvmin Zhang",
+          "year": "2023",
+          "identifier": "hf:lllyasviel/control_v11p_sd15_softedge",
+          "url": "https://huggingface.co/lllyasviel/control_v11p_sd15_softedge",
+          "claim": "CreativeML OpenRAIL-M; soft edge v1.1 improved over HED 1.0 by training with 75% safe-filtered HED/PIDI maps to remove corrupted greyscale hidden in older edge models; produces gentle painterly-compatible boundary conditioning."
+        }
+      ]
+    },
+    {
+      "slug": "normal-bae-controlnet-surface-repaint",
+      "name": "Normal BAE ControlNet from mesh — surface orientation lock during repaint",
+      "kind": "technique",
+      "engine_family": "comfyui",
+      "applicable_to": "repaint",
+      "claim": "Exporting the world-space normal pass from the TRELLIS.2 mesh and feeding it to ControlNet NormalBAE (lllyasviel/control_v11p_sd15_normalbae) locks surface orientation across repaint, preventing flat-shading artifacts on armor, weapons, and curved costume elements.",
+      "summary": "ControlNet NormalBAE v1.1 uses the NYU-V2 protocol for normal maps (blue=front, red=left, green=top) which directly matches what Blender Cycles' Normal pass outputs. Export the normal pass as a 16-bit PNG from Blender. Feed it into NormalBAE ControlNet at moderate weight (0.4-0.6) alongside depth or lineart. The normal signal tells the diffusion model which surfaces face the viewer vs. tilt away, preventing the painted surface from losing the convex/concave cues that give 2.5D sprites believable volume. Most useful on armored characters and metallic weapons where surface orientation is visible as specular highlights in the painterly style.",
+      "design_implication": "Add to the stack when weapon or armor repaints come out flat. Normal maps from mesh are exact; do not run the NormalBAE preprocessor on the 3D render — it will re-estimate from pixels and introduce error.",
+      "evidence_strength": "community-claim",
+      "license": "CreativeML OpenRAIL-M",
+      "commercial_use": "conditional",
+      "commercial_notes": "OpenRAIL-M permits commercial use with responsible-use clauses.",
+      "vram_gb": "8-16",
+      "rig_fit": 5,
+      "studio_fit": 3,
+      "status": "situational",
+      "purposes": ["surface volume preservation", "specular cue retention", "armored character repaint"],
+      "hparams": [
+        {"name": "normalbae_weight", "range": "0.40-0.60", "note": "Higher than 0.65 can over-constrain style; normal is a refinement signal, not the primary anchor"},
+        {"name": "source", "values": ["Blender Normal pass export"], "note": "Never run NormalBAE preprocessor on the 3D render — use the mesh-rendered pass directly"}
+      ],
+      "failures": [
+        "Normal weight > 0.70 competes with depth ControlNet and causes confused surface gradients",
+        "Running NormalBAE preprocessor on the 3D render reintroduces estimation error — use the raw Blender Normal pass"
+      ],
+      "sources": [
+        {
+          "kind": "model-card",
+          "title": "lllyasviel/control_v11p_sd15_normalbae",
+          "authors": "Lvmin Zhang",
+          "year": "2023",
+          "identifier": "hf:lllyasviel/control_v11p_sd15_normalbae",
+          "url": "https://huggingface.co/lllyasviel/control_v11p_sd15_normalbae",
+          "claim": "CreativeML OpenRAIL-M; NormalBAE v1.1 uses Bae's normal estimation (NYU-V2 protocol: blue=front, red=left, green=top) which matches Blender Cycles world-space normal output — significant improvement over the 'physically incorrect' MiDaS-based normal in v1.0."
+        }
+      ]
+    },
+    {
+      "slug": "structure-from-controlnet-style-from-lora-decomposition",
+      "name": "Structure-from-ControlNet, style-from-LoRA decomposition principle",
+      "kind": "technique",
+      "engine_family": "n/a",
+      "applicable_to": "repaint",
+      "claim": "Explicitly separating the structural signal (ControlNet handles pose, depth, edges) from the style signal (LoRA + prompt handles painterly house style) is the architectural principle that prevents style drift and structural collapse in mesh-render repaint — each axis has a dedicated mechanism.",
+      "summary": "When both structure and style are driven by a single channel (e.g., prompt alone, or img2img alone), they compete: a stronger style prompt softens structure; a stronger denoise loses style. The correct decomposition: ControlNet takes responsibility for structure (depth, lineart, normal from mesh), the house LoRA + prompt takes responsibility for style (sfhd_style_v1, painterly descriptors). The img2img denoise is the mix dial — set it in the range 0.50-0.65 so neither axis dominates. The ControlNet end-step can also be set to 0.5-0.6 so the style has breathing room in the late diffusion steps. This principle is architecture-agnostic and applies to both the Qwen-Image-Edit path and the SDXL path.",
+      "design_implication": "This is the operating principle behind every repaint recipe in this lane. If a repaint attempt is failing (structure lost OR style not matching), the first diagnostic is which axis is broken — then tune the responsible mechanism independently.",
+      "evidence_strength": "community-claim",
+      "license": "n/a",
+      "commercial_use": "yes",
+      "commercial_notes": "Architectural principle; no specific weight. Commercial viability depends on weights used in the implementing recipe.",
+      "vram_gb": "0",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "purposes": ["architectural principle", "style-structure decomposition", "drift prevention", "repaint diagnostics"],
+      "hparams": [
+        {"name": "img2img_denoise", "range": "0.50-0.65", "note": "Primary mix dial between structure preservation and style injection"},
+        {"name": "controlnet_end_step", "range": "0.50-0.60", "note": "Stop ControlNet influence at 50-60% of sampling steps to give style breathing room in late diffusion"},
+        {"name": "controlnet_weight_range", "range": "0.50-0.80", "note": "Structure axis; reduce if style is being over-constrained"}
+      ],
+      "failures": [
+        "Driving style through ControlNet (e.g., using a stylized image as ControlNet input) causes the two axes to collapse into one — keep them separate",
+        "Over-constraining: both high denoise AND high ControlNet weight causes the model to fight itself; tune one axis at a time"
+      ],
+      "sources": [
+        {
+          "kind": "web",
+          "title": "ControlNet SoftEdge — painterly weight settings and structure/style interaction",
+          "authors": "Segmind",
+          "year": "2024",
+          "identifier": "url:blog.segmind.com/introduction-to-controlnet-softedge/",
+          "url": "https://blog.segmind.com/introduction-to-controlnet-softedge/",
+          "claim": "SoftEdge/HED weight 0.3-0.6 for painterly subtlety; img2img denoising 0.35-0.55 for strong structure retention; ControlNet End set to 0.5-0.6 allows style to breathe in late sampling steps."
+        },
+        {
+          "kind": "paper",
+          "title": "Adding Conditional Control to Text-to-Image Diffusion Models",
+          "authors": "Lvmin Zhang, Anyi Rao, Maneesh Agrawala",
+          "year": "2023",
+          "identifier": "arXiv:2302.05543",
+          "url": "https://arxiv.org/abs/2302.05543",
+          "claim": "ControlNet locks spatial structure (pose, depth, edges) while the pretrained diffusion model's locked weights retain text-driven style — the architecture inherently separates structural and style conditioning."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,408 @@
+{
+  "bucket": "rapier-shapes-kcc",
+  "verifier_note": "Checked every warrant against pinned crate source at ~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ (parry3d-f64-0.30.2, rapier3d-f64-0.35.3), live docs.rs/rapier.rs/GitHub-raw/Khronos pages, and si-rpg-engine via gh api (read-only, main). Independently reran four of the five flagged high-stakes claims through compile_oracle.py file mode with my own counter-examples, not copied from the lane's checks: coplanar convex_hull (own 5-point pentagon) -> Some(mass=0); TriMesh::with_flags on a fresh degenerate BadTriangle case -> is_ok=true, topology_is_some=false, while set_flags on the same mesh correctly returns Err; heightfield scale with independently chosen dimensions -> cell_width = scale.x/(ncols-1), proving rapier3d-f64 0.35.3's own ColliderBuilder::heightfield doc text ('Size of each grid cell') wrong; and an airborne, never-grounded character with zero vertical intent still autostepped onto a step (dy=0.16, grounded=true), proving handle_stairs never reads grounded_at_starting_pos despite the 0.36 guide's claim that autostep needs floor contact first. The fifth (vertex order under MERGE_DUPLICATE_VERTICES) was confirmed by direct source read instead of re-executed: HashablePartialEq hashes raw bytes while Eq is by value, a Hash/Eq contract break that explains the size-dependent welding. One defect found: recipe 1's engine_note claims rapier_law.rs 'builds only ColliderBuilder::cuboid colliders ... every body', but current main (solver/src/rapier_law.rs:425-431) builds ColliderBuilder::capsule_y for driven bodies with shape==1. Systemic weakness: engine_note prose about si-rpg-engine's own current source carries no citation, so it is the one place narrative can drift from the live repo unnoticed -- every parry/rapier API and docs.rs claim in this lane held up; the single defect was an uncited claim about 'current' engine state.",
+  "verdicts": [
+    {
+      "slug": "pick-parry-0-30-2-shapes-by-body-role-primitives-convex-or-compound-on-moving-bodies-trimeshes-on-fixed",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "engine_note wrong: rapier_law.rs:425-431 on main builds ColliderBuilder::capsule_y for driven+shape==1 bodies, not only cuboid. All parry/rapier API claims confirmed on docs.rs + the rapier.rs colliders guide.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/main/solver/src/rapier_law.rs",
+      "corrections": {
+        "claim": "engine_note says rapier_law.rs 'builds only ColliderBuilder::cuboid colliders ... every body'. False on current main: driven bodies with shape==1 get ColliderBuilder::capsule_y as their registered collider (lines 425-431), not just as character_shape's raw KCC shape."
+      },
+      "sources": [
+        {
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.SharedShape.html",
+          "supported": true,
+          "note": "All named ctors confirmed incl. voxels/voxels_from_points/voxelized_mesh, convex_hull/convex_mesh."
+        },
+        {
+          "url": "https://rapier.rs/docs/user_guides/rust/colliders",
+          "supported": true,
+          "note": "0.36 guide confirmed verbatim: discourages trimesh/polyline on dynamic bodies, recommends compound."
+        },
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ColliderBuilder.html",
+          "supported": true,
+          "note": "trimesh/trimesh_with_flags/converted_trimesh/convex_hull/convex_mesh/convex_decomposition confirmed."
+        },
+        {
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/mesh_converter.rs",
+          "supported": true,
+          "note": "Read locally: exactly 7 MeshConverter variants, TriMesh is #[default]; both error variants present."
+        }
+      ]
+    },
+    {
+      "slug": "validate-mesh-buffers-before-trimesh-with-flags-parry-0-30-2-drops-topologyerror-and-panics-on-bad-indices",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "trimesh.rs:744 is literally `let _ = result.set_flags(flags);`. Independently reran with a fresh BadTriangle counter-example via compile_oracle.py file: is_ok=true, topology_is_some=false; set_flags on same mesh -> Err(BadTriangle(0)).",
+      "evidence_url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/trimesh.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.TriMesh.html",
+          "supported": true,
+          "note": "Doc promises an Err for invalid HALF_EDGE_TOPOLOGY; source (with_flags) contradicts it."
+        },
+        {
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/trimesh.rs",
+          "supported": true,
+          "note": "Confirmed: with_flags drops the Result; exactly 2 doc-tests commented out as failing."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/dimforge/parry/v0.30.2/CHANGELOG.md",
+          "supported": true,
+          "note": "All 3 items confirmed verbatim: BVH panic fix (rapier#961), proj. panic fix (#395), TOI fix (#429)."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/dimforge/rapier/v0.35.3/CHANGELOG.md",
+          "supported": true,
+          "note": "0.35.0-beta.0 quarantine entry and max_ccd_substeps=0 entry both confirmed verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "canonicalise-0-0-and-weld-vertices-offline-merge-duplicate-vertices-keys-raw-bits-and-renumbers-the-mesh",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Source-confirmed: FIX_INTERNAL_EDGES bits=144=(1<<7)|MERGE.bits(); HashablePartialEq hashes raw bytes but Eq is by value -- a Hash/Eq contract break that mechanically explains the size-dependent -0.0 welding.",
+      "evidence_url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/utils/hashable_partial_eq.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.TriMeshFlags.html",
+          "supported": true,
+          "note": "8 flags confirmed; MERGE/DELETE_DEGENERATE/FIX_INTERNAL_EDGES doc text matches claims verbatim."
+        },
+        {
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/trimesh.rs",
+          "supported": true,
+          "note": "merge_duplicate_vertices confirmed: keys HashablePartialEq<Vector>, numbers by first insertion."
+        },
+        {
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/utils/hashable_partial_eq.rs",
+          "supported": true,
+          "note": "Confirmed: Hash writes value.as_bytes() (raw bits); Eq derives from PartialEq (by value)."
+        },
+        {
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/utils/hashmap.rs",
+          "supported": true,
+          "note": "Confirmed exactly: enhanced-determinism -> IndexMap+FxHasher32; else hashbrown+foldhash FixedState."
+        },
+        {
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.TriMesh.html",
+          "supported": true,
+          "note": "vertices() doc says 'stored in the order provided during construction'; merge flags contradict it."
+        }
+      ]
+    },
+    {
+      "slug": "compute-convex-hulls-and-vhacd-parts-offline-with-pinned-parameters-then-load-stored-buffers-with-convex-mesh",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Independently reran via compile_oracle.py with an original 5-point coplanar pentagon: try_convex_hull=Ok, convex_hull=Some(mass=0); NaN input correctly Err. initial_mesh.rs's dimension==2 branch (1e-7 eigenvalue) explains why.",
+      "evidence_url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/transformation/convex_hull3/initial_mesh.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/transformation/fn.try_convex_hull.html",
+          "supported": true,
+          "note": "Signature and IncompleteInput-for-<3-points confirmed via convex_hull.rs source."
+        },
+        {
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/transformation/enum.ConvexHullError.html",
+          "supported": true,
+          "note": "Doc confirmed: MissingSupportPoint covers NaN/infinite or 'nearly coplanar' input, verbatim."
+        },
+        {
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/transformation/convex_hull3/initial_mesh.rs",
+          "supported": true,
+          "note": "Confirmed: eigenvalue epsilon 1.0e-7; dimension==2 builds a flat top+bottom triangulation."
+        },
+        {
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/convex_polyhedron.rs",
+          "supported": true,
+          "note": "from_convex_hull = try_convex_hull(pts).ok().and_then(from_convex_mesh) confirmed verbatim."
+        },
+        {
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/transformation/vhacd/struct.VHACDParameters.html",
+          "supported": true,
+          "note": "All 3D defaults confirmed exactly (res 64, concavity .01, alpha/beta .05, downsample 4/4)."
+        },
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ColliderBuilder.html",
+          "supported": true,
+          "note": "convex_hull/convex_mesh/convex_decomposition confirmed; 'None if...not valid' quoted verbatim."
+        },
+        {
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/geometry/mesh_converter.rs",
+          "supported": true,
+          "note": "MeshConverter::ConvexHull calls SharedShape::convex_hull(..).ok_or(Failed) -- passes coplanar as Some."
+        },
+        {
+          "url": "https://rapier.rs/docs/user_guides/rust/colliders",
+          "supported": true,
+          "note": "convex_hull vs convex_mesh distinction confirmed verbatim (auto-computed vs assumed-convex)."
+        }
+      ]
+    },
+    {
+      "slug": "fill-a-parry-heightfield-column-major-with-scale-as-the-whole-extent-and-sample-it-as-two-triangles-per-cell",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Independently reran via compile_oracle.py with different dims/scale than the lane's check: cell_width=1.5 for scale.x=12,cols=9 (=12/8). rapier3d-f64's ColliderBuilder doc still calls scale 'Size of each grid cell' -- wrong.",
+      "evidence_url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.HeightField.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.HeightField.html",
+          "supported": true,
+          "note": "Row i->z, col j->x confirmed verbatim; triangle_normal_constraints gated on FIX_INTERNAL_EDGES."
+        },
+        {
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/heightfield3.rs",
+          "supported": true,
+          "note": "with_flags asserts nrows/ncols>1 (panic); unit_cell_width=1/(ncols-1); AABB centred +-scale/2."
+        },
+        {
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/utils/array2.rs",
+          "supported": true,
+          "note": "Not read directly, but Array2::new/from_fn behaved exactly column-major in my own oracle runs."
+        },
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ColliderBuilder.html",
+          "supported": false,
+          "note": "Doc says scale is 'Size of each grid cell in X and Z' -- proven wrong by source + my oracle run."
+        }
+      ]
+    },
+    {
+      "slug": "set-fix-internal-edges-on-ground-dynamic-bodies-slide-over-test-heightfield-row-0-moving-x-on-its-own",
+      "verdict": "confirmed",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Flags confirmed (FIX_INTERNAL_EDGES fixes normals causing 'incorrect bumps'). Engine facts confirmed: heightfield built with no flags (rapier_law.rs:378); verbs.test.js:41 uses a 2-row sloped field. Row-0 numbers not re-executed by me.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/main/packages/tick/verbs.test.js",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.TriMeshFlags.html",
+          "supported": true,
+          "note": "Same page as recipe 3; FIX_INTERNAL_EDGES text confirmed."
+        },
+        {
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/heightfield3.rs",
+          "supported": true,
+          "note": "HeightFieldFlags::FIX_INTERNAL_EDGES exists; ZIGZAG_SUBDIVISION cell-status flag confirmed."
+        },
+        {
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.HeightField.html",
+          "supported": true,
+          "note": "Same page as recipe 5; row/column axes confirmed."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/dimforge/rapier/v0.35.3/CHANGELOG.md",
+          "supported": true,
+          "note": "Same changelog as recipe 2; max_ccd_substeps=0 disables CCD entirely, confirmed verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "call-kinematiccharactercontroller-move-shape-with-absolute-lengths-and-self-exclusion-then-apply-the-result",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Reran the airborne-autostep claim independently: no floor anywhere, zero vertical intent, one horizontal move_shape call into a step -> dy=0.16, grounded=true. handle_stairs never reads grounded_at_starting_pos (character_controller.rs).",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/control/character_controller.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.KinematicCharacterController.html",
+          "supported": true,
+          "note": "Fields/signature confirmed; 'only approximate' on solve_character_collision_impulses confirmed."
+        },
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.EffectiveCharacterMovement.html",
+          "supported": true,
+          "note": "translation/grounded/is_sliding_down_slope fields confirmed."
+        },
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.CharacterAutostep.html",
+          "supported": true,
+          "note": "max_height/min_width/include_dynamic_bodies confirmed."
+        },
+        {
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/control/character_controller.rs",
+          "supported": true,
+          "note": "Default offset=Rel(0.01), snap=Rel(0.2); Autostep default 0.25/0.5; stairs add offset to both."
+        },
+        {
+          "url": "https://rapier.rs/docs/user_guides/rust/character_controller",
+          "supported": false,
+          "note": "Guide: autostep 'will only activate if...touching the floor' -- disproved by my oracle run + source."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/dimforge/parry/v0.30.2/CHANGELOG.md",
+          "supported": true,
+          "note": "Same changelog as recipe 2; TOI fix #429 confirmed verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "push-dynamic-bodies-with-solve-character-collision-impulses-and-plan-all-walkers-against-the-last-step-s-poses",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "integrate() (rapier_law.rs:476-550) confirmed exactly: every move_shape call finishes before any set_next_kinematic_translation; character_mass=1.0, additional_mass(1.0), include_dynamic_bodies:false. move.json speed=1 confirmed.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/main/solver/src/rapier_law.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.KinematicCharacterController.html",
+          "supported": true,
+          "note": "Same page as recipe 7, confirmed."
+        },
+        {
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/control/character_controller.rs",
+          "supported": true,
+          "note": "solve_character_collision_impulses loops collisions; 'only approximate' confirmed twice in source."
+        },
+        {
+          "url": "https://rapier.rs/docs/user_guides/rust/character_controller",
+          "supported": true,
+          "note": "Filter-must-exclude-moved-body and manual-impulse-for-dynamics text confirmed verbatim."
+        },
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.CharacterAutostep.html",
+          "supported": true,
+          "note": "Same page as recipe 7, confirmed."
+        }
+      ]
+    },
+    {
+      "slug": "test-line-of-sight-with-an-eye-to-target-ray-at-max-toi-1-0-on-fixed-colliders-once-the-broad-phase-holds-them",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "cast_ray/intersect_ray/only_fixed/PhysicsWorld confirmed on docs.rs + source. dispatch-e5-minds.md (main) confirms 'the swept test with zero extents' at distance<=sight and 'the binary does not change' (solver.sha256 untouched) verbatim.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/main/docs/dispatch-e5-minds.md",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/struct.QueryPipeline.html",
+          "supported": true,
+          "note": "cast_ray doc says 'use it for line-of-sight checks'; solid-flag semantics confirmed via source."
+        },
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/struct.QueryFilter.html",
+          "supported": true,
+          "note": "only_fixed/exclude_rigid_body/predicate all confirmed verbatim."
+        },
+        {
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/query/struct.Ray.html",
+          "supported": true,
+          "note": "point_at = origin+dir*t confirmed; non-unit dir scaling TOI by dir.length() confirmed verbatim."
+        },
+        {
+          "url": "https://rapier.rs/docs/user_guides/rust/scene_queries",
+          "supported": true,
+          "note": "0.36 guide confirmed: step updates broad phase; hit=origin+dir*toi; solid=true -> toi 0 inside."
+        },
+        {
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/struct.PhysicsWorld.html",
+          "supported": true,
+          "note": "cast_ray described as shorthand for query_pipeline_with_filter(filter).cast_ray, confirmed."
+        }
+      ]
+    },
+    {
+      "slug": "bake-gltf-collision-meshes-offline-with-the-gltf-crate-and-refuse-what-the-deterministic-law-cannot-reproduce",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Khronos glTF 2.0 spec + node/mesh.primitive schemas confirmed verbatim. gltf 1.4.1 API (Transform/Mode/Primitive/Reader/ReadIndices/Node/Skin) confirmed on docs.rs; v1.4.1's real publish date (2024-05-10) verified via docs.rs/crate page.",
+      "evidence_url": "https://raw.githubusercontent.com/KhronosGroup/glTF/main/specification/2.0/Specification.adoc",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://raw.githubusercontent.com/KhronosGroup/glTF/main/specification/2.0/Specification.adoc",
+          "supported": true,
+          "note": "6 sub-claims confirmed verbatim: meters/radians/+Y-up, index limits, POSITION, skin, TRS."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/KhronosGroup/glTF/main/specification/2.0/schema/node.schema.json",
+          "supported": true,
+          "note": "rotation (x,y,z,w), matrix column-major exclusive of T/R/S, skin requires mesh -- confirmed."
+        },
+        {
+          "url": "https://raw.githubusercontent.com/KhronosGroup/glTF/main/specification/2.0/schema/mesh.primitive.schema.json",
+          "supported": true,
+          "note": "mode default 4=TRIANGLES, all 7 enum values 0-6, indices MUST be unsigned SCALAR -- confirmed."
+        },
+        {
+          "url": "https://docs.rs/gltf/latest/gltf/",
+          "supported": true,
+          "note": "latest=1.4.1 confirmed; gltf::import and scene/mesh/skin/animation/accessor modules confirmed."
+        },
+        {
+          "url": "https://docs.rs/gltf/1.4.1/gltf/scene/enum.Transform.html",
+          "supported": true,
+          "note": "Matrix/Decomposed variants, f32 components, matrix()=T*R*S composition confirmed verbatim."
+        },
+        {
+          "url": "https://docs.rs/gltf/1.4.1/gltf/mesh/struct.Primitive.html",
+          "supported": true,
+          "note": "mode()/indices()/reader() confirmed."
+        },
+        {
+          "url": "https://docs.rs/gltf/1.4.1/gltf/mesh/enum.Mode.html",
+          "supported": true,
+          "note": "7 variants Points..TriangleFan confirmed."
+        },
+        {
+          "url": "https://docs.rs/gltf/1.4.1/gltf/mesh/struct.Reader.html",
+          "supported": true,
+          "note": "read_positions/read_indices/read_joints/read_weights confirmed."
+        },
+        {
+          "url": "https://docs.rs/gltf/1.4.1/gltf/mesh/util/enum.ReadIndices.html",
+          "supported": true,
+          "note": "U8/U16/U32 variants and into_u32() confirmed."
+        },
+        {
+          "url": "https://docs.rs/gltf/1.4.1/gltf/scene/struct.Node.html",
+          "supported": true,
+          "note": "transform/mesh/skin/weights/children confirmed; weights() tied to morph targets."
+        },
+        {
+          "url": "https://docs.rs/gltf/1.4.1/gltf/skin/struct.Skin.html",
+          "supported": true,
+          "note": "Confirmed as joints+matrices; joints() visits skeleton nodes used as joints in the skin."
+        },
+        {
+          "url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/trimesh.rs",
+          "supported": true,
+          "note": "Same source file as recipe 2; with_flags/set_flags behaviour re-confirmed."
+        }
+      ]
+    }
+  ]
+}

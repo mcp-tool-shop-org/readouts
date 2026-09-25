@@ -1,0 +1,152 @@
+{
+  "bucket": "integer-time",
+  "verifier_note": "Checked all 10 recipes by re-deriving every formula and running 18 counter-examples through the pinned rustc 1.98.1 oracle (host + wasm32-unknown-unknown/cdylib), including two checks the lane itself lacked: an overflow-checks on/off/default probe at opt-level 3, and a direct FFI probe of a u128 extern \"C\" signature. Every given check's stdout reproduced exactly, and every SMF/Rust fact traced to midly 0.5.3 (event.rs, primitive.rs) or current doc.rust-lang.org pages held up; nothing was refuted. Systemic weakness: citation precision inside midly and reflexive padding. The two u128-tempo-map recipes cite src/primitive.rs for 'tempo=u24, delta=u28', but that tie is only made in src/event.rs (MetaMessage::Tempo(u24), TrackEvent.delta: u28) -- primitive.rs defines just the generic bit-width wrapper types, forcing me to retrieve the other file to actually confirm the claim. Separately, the generic u128-primitive-type doc page is cited as a stock second source on 5 of 10 recipes regardless of relevance (e.g. the f64-precision and remainder-carry recipes never touch u128), while the one recipe that actually needed an ABI citation (u128 across the wasm extern \"C\" boundary) cited two sources that never mention FFI/ABI at all and missed doc.rust-lang.org's own i128 'ABI compatibility' note -- which is exactly the passage that explains why wasm32-unknown-unknown (no C/C++ toolchain) leaves u128 there unstable, confirmed live when my counter-example compiled silently into a 3-argument wasm export instead of a clean 1-in/1-out signature.",
+  "verdicts": [
+    {
+      "slug": "compute-tick-to-microseconds-with-u128-intermediate-and-floor",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Host port of the wasm check ran: stdout 500000, exact. Wasm build with #[unsafe(no_mangle)] compiles on 1.98.1/ed2024. Gotcha confirmed: u64.checked_mul at max tick x u24::MAX tempo overflows; the u128 product does not.",
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/event.rs",
+      "corrections": {
+        "claim": "Source cites src/primitive.rs for 'tempo=u24, delta=u28'; that tie is made in src/event.rs (MetaMessage::Tempo(u24); TrackEvent.delta: u28). primitive.rs only defines the generic bit-width wrapper types, not their use."
+      },
+      "sources": [
+        {"url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs", "supported": false, "note": "Defines u24/u28 as generic wrapper types only; never mentions tempo or tick delta. Real tie is in event.rs."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.u128.html", "supported": true, "note": "MAX=2^128-1=340282366920938463463374607431768211455 confirmed; re-derived headroom for a u64*u24 product."}
+      ]
+    },
+    {
+      "slug": "compute-tick-to-samples-through-tempo-map-with-u128",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Host port of the wasm check ran: stdout 24000, exact. Same primitive.rs mis-citation as the tick-to-us recipe; the u24 tempo / u28 delta tie is defined in event.rs, not primitive.rs.",
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/event.rs",
+      "corrections": {
+        "claim": "Source cites src/primitive.rs for 'tempo=u24, delta=u28'; that tie is in src/event.rs (MetaMessage::Tempo(u24); TrackEvent.delta: u28), not primitive.rs, which only defines the bit-width types generically."
+      },
+      "sources": [
+        {"url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs", "supported": false, "note": "Defines u24/u28 generically only; the Tempo/delta tie is in event.rs, not this file."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.u128.html", "supported": true, "note": "MAX=2^128-1 confirmed; re-derived u64*u24*u32 product (~1.29e36) fits under u128::MAX (~3.4e38)."}
+      ]
+    },
+    {
+      "slug": "choose-ppq-divisible-by-3-and-5-for-exact-tuplets",
+      "verdict": "confirmed",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Ran the check verbatim: stdout matched exactly for 480/960/3840 mod 3,5,7. Timing::Metrical(u15) confirmed in primitive.rs. checked_rem source is accurate but the check itself only ever uses plain %.",
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs", "supported": true, "note": "Confirmed: 'Specifies ticks/beat as a 15-bit integer', Timing::Metrical(u15)."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.u64.html", "supported": true, "note": "Wording matches doc.rust-lang.org exactly; method is not actually called by this recipe's check."}
+      ]
+    },
+    {
+      "slug": "calculate-bar-and-beat-from-tick-under-smf-time-signatures",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Ran the check verbatim (stdout '1 0 0') plus my own non-boundary case tick=2500: got '1 1 100', matching hand derivation. SMF spec (retrieved separately) confirms the denominator byte is the power-of-2 exponent.",
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/event.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/midly/0.5.3/source/src/event.rs", "supported": true, "note": "4 u8 TimeSignature fields confirmed; midly's own text just says 'per the MIDI spec', SMF spec fills in 'power of two'."},
+        {"url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs", "supported": true, "note": "Timing::Metrical(u15) PPQ confirmed verbatim."}
+      ]
+    },
+    {
+      "slug": "refuse-on-overflow-with-checked-arithmetic",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Ran the check verbatim: stdout 'refused' (u64::MAX.checked_mul(2) -> None). Both sources match doc.rust-lang.org wording verbatim.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/primitive.u64.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.u64.html", "supported": true, "note": "'Computes self*rhs, returning None if overflow occurred' - verbatim match."},
+        {"url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html", "supported": true, "note": "'panic when they overflow ... in debug mode' - verbatim match."}
+      ]
+    },
+    {
+      "slug": "enable-overflow-checks-in-release-or-rely-on-checked-ops",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "No check was given, so I wrote one: -C overflow-checks=on panicked on an opaque u64::MAX+1 at opt-level 3; =off and the un-set default at opt-level 3 both wrapped to 0, matching the Cargo doc's stated release default.",
+      "evidence_url": "https://doc.rust-lang.org/stable/cargo/reference/profiles.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/cargo/reference/profiles.html", "supported": true, "note": "Confirmed near-verbatim, incl. release default=false / dev default=true."},
+        {"url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html", "supported": true, "note": "Confirms debug-assertions/overflow-checks flags govern panic-on-overflow."}
+      ]
+    },
+    {
+      "slug": "reserve-wrapping-arithmetic-for-hash-state-only",
+      "verdict": "confirmed",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Ran the check verbatim: stdout 4294967295 (Wrapping(0u32)-Wrapping(1u32) underflows). engine_note states the hash specifically uses Wrapping, a detail the given lock doesn't itself lock (only 'audio outside the hash').",
+      "evidence_url": "https://doc.rust-lang.org/std/num/struct.Wrapping.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/num/struct.Wrapping.html", "supported": true, "note": "'Provides intentionally-wrapped arithmetic on T' confirmed via page text."},
+        {"url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html", "supported": true, "note": "Same panic-in-debug-mode wording confirmed."}
+      ]
+    },
+    {
+      "slug": "use-u128-intermediates-on-wasm32-unknown-unknown",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Wasm build compiles; host port gave stdout 1. Neither source discusses FFI/ABI. Counter-example: extern \"C\" fn(u128)->u128 compiles with NO lint, but its wasm export has JS arity 3, not 1 -- confirms the gotcha by a different route.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/primitive.i128.html",
+      "corrections": {
+        "claim": "Neither cited source discusses the C ABI or FFI. The real warrant is doc.rust-lang.org's i128 page: i128/u128 ABI matches C's __int128 only where that type exists; wasm32-unknown-unknown has no C/C++ toolchain at all."
+      },
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.u128.html", "supported": true, "note": "'128-bit unsigned integer type' confirmed; page explicitly defers ABI questions to i128's page, uncited here."},
+        {"url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html", "supported": true, "note": "'full support for core and alloc' confirmed verbatim; page says nothing about FFI/ABI."}
+      ]
+    },
+    {
+      "slug": "exclude-f64-seconds-from-the-law-time-path",
+      "verdict": "confirmed",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Ran the check verbatim: stdout '9007199254740993 9007199254740992' exact -- 2^53+1 round-trips through f64 losing 1. midly's second_f32 confirmed on SmpteTime. Second source (u128) is true but unrelated filler.",
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs", "supported": true, "note": "Confirmed verbatim: 'pub fn second_f32(&self) -> f32' on SmpteTime, for SMPTE display only."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.u128.html", "supported": true, "note": "True but unrelated to this recipe's f64 claim; not used anywhere in its how/check."}
+      ]
+    },
+    {
+      "slug": "carry-division-remainders-across-tempo-segments",
+      "verdict": "confirmed",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Ran the check verbatim: stdout '3 2' then '3' -- confirms floor((a+b)/c) != a/c+b/c, and the remainder-carry sum recovers the exact total. Both cited sources are true but unused; the check only uses plain u64 %,/.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/primitive.u64.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.u64.html", "supported": true, "note": "checked_rem wording confirmed verbatim; not actually called (check uses %)."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.u128.html", "supported": true, "note": "True but irrelevant; this check never uses u128."}
+      ]
+    }
+  ]
+}

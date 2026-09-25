@@ -1,0 +1,354 @@
+{
+  "bucket": "prompt-craft-3",
+  "verifier_note": "Every citation was retrieved live rather than recalled: 12 confirmed, 21 corrected, 1 refuted, 0 unfindable. Roughly a third of this lane is folklore by content, but the author flagged most of it honestly and no recipe is pure unmechanised ritual — the seed and quality-token debunks are the best-sourced items here. The failures are in citations and numbers, not credulity: arXiv:2601.08070 is a real paper about LLM forbidden-token suppression misapplied to image depictability, ComfyUI's prompt-weighting mechanism is stated backwards, BREAK is A1111-only and absent from core ComfyUI, two token caps are wrong, and six recipes rest a load-bearing CFG or token number on nothing retrievable.",
+  "verdicts": [
+    {
+      "slug": "clip-clip-cannot-do-negation-positive-prompt-hat",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM: CLIP negation failure confirmed — NegBench (Alhamoud, CVPR 2025) finds VLMs at chance on negated captions. But 'no hat' ACTIVELY ADDING the hat is unmeasured in diffusion; the priming evidence is LLM-side only.",
+      "evidence_url": "https://arxiv.org/abs/2501.09425",
+      "corrections": {
+        "claim": "CLIP cannot process negation in a positive prompt: VLMs perform at or near chance on negated captions (NegBench, Alhamoud et al., CVPR 2025, arXiv:2501.09425), so 'no hat' / 'without a scar' does not reliably exclude. The stronger folk claim that the negation ACTIVELY ADDS the thing is documented for LLM forbidden-token suppression (arXiv:2601.08070, 87.5% 'priming failure') but has NOT been measured in diffusion — treat it as unreliability, not reliable inversion. The separate negative-prompt channel works by mutual cancellation in latent space (Ban et al., arXiv:2406.02965), which is a different mechanism from understanding 'not'."
+      }
+    },
+    {
+      "slug": "clip-non-depictable-narrative-tokens-dilute-embedding-abstractions",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM: the ~20-token effective window is real — Long-CLIP (2403.15378): 'the actual effective length is even less than 20'. Bag-of-words confirmed (ARO 2210.01936). That narrative tokens specifically DILUTE is inference, not measured.",
+      "evidence_url": "https://arxiv.org/abs/2403.15378",
+      "corrections": {
+        "claim": "Non-depictable / narrative tokens consume CLIP's very small effective budget. Two things are sourced: CLIP's positional cap is 77 but 'the actual effective length is even less than 20' (Long-CLIP, Zhang et al., arXiv:2403.15378), and CLIP behaves like a bag-of-words, failing attribute binding, relations and order (ARO, Yuksekgonul et al., arXiv:2210.01936). The specific step — that abstractions like 'worn by grief' measurably dilute the visual tokens — is a reasonable inference from those two findings plus catastrophic neglect (Attend-and-Excite, arXiv:2301.13826), but no study has measured narrative-token dilution directly. The design implication (translate every emotional beat into a visible cue) stands on the budget argument alone."
+      }
+    },
+    {
+      "slug": "clip-token-order-front-loading-materially-change-image",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "FOLKLORE, correctly self-flagged. Only the effective-length half is sourced (Long-CLIP, <20 tokens). No study establishes a position-weight law, and ARO measured CLIP as severely ORDER-INSENSITIVE, cutting against a semantic order effect.",
+      "evidence_url": "https://arxiv.org/abs/2403.15378",
+      "corrections": {
+        "claim": "Front-loading is a heuristic with one sourced half and one unsourced half. SOURCED: CLIP's effective text length is under 20 tokens (Long-CLIP, arXiv:2403.15378), so a defining attribute placed late in a long prompt genuinely can have near-zero effect. NOT SOURCED: no study establishes that earlier tokens carry more weight per se; searches return only SEO prompt guides. Worse for the folk version, ARO (arXiv:2210.01936) measured CLIP as having 'a severe lack of order sensitivity' as a text-image matcher, so any residual order effect comes from positional-embedding training coverage, not from semantics. Front-load because the tail decays, not because position is a weighting dial."
+      }
+    },
+    {
+      "slug": "depict-cross-attention-has-fixed-budget-every-added",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM: 'disproportionately focus on certain tokens' is verbatim Attention Regulation (Zhang et al., 2403.06381); neglect confirmed by Attend-and-Excite (2301.13826). The 'evenly distributed in successes' line is not in that abstract.",
+      "evidence_url": "https://arxiv.org/abs/2403.06381",
+      "corrections": {
+        "claim": "Cross-attention mass is finite and unevenly spent. Confirmed verbatim: cross-attention layers show 'a propensity for these layers to disproportionately focus on certain tokens during the generation process' (Zhang et al., 'Enhancing Semantic Fidelity in Text-to-Image Synthesis: Attention Regulation in Diffusion Models', arXiv:2403.06381). Independently, catastrophic neglect — the model failing to render subjects present in the prompt — is documented and is fixed by boosting attention to the neglected tokens (Attend-and-Excite, arXiv:2301.13826). Softmax over prompt tokens does sum to 1, so tokens do compete. NOT verified: the specific 'correct generations have attention evenly distributed / failures show neglected tokens' framing does not appear in the Attention Regulation abstract, and no paper measures backstory clauses starving visual tokens."
+      }
+    },
+    {
+      "slug": "depict-llm-based-encoders-qwen2-5-vl-qwen",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM: encoder identities confirmed (Qwen2.5-VL, 2508.02324; Qwen3-4B, 2511.22699). But 'parses negation FAR better than CLIP' is unmeasured, and Qwen-Image's negative channel is reported inert — do not trust 'no helmet' untested.",
+      "evidence_url": "https://arxiv.org/abs/2508.02324",
+      "corrections": {
+        "claim": "Qwen-Image conditions on Qwen2.5-VL and Z-Image on Qwen3-4B — both confirmed from the primary reports (arXiv:2508.02324; arXiv:2511.22699). These are LLM hidden states rather than a contrastive CLIP pooling, so grammar and word order do carry weight, and the structured-description prompt shape is the documented path. NOT verified: no measurement shows these encoders handle negation 'FAR better' than CLIP. Given that Qwen-Image's negative-prompt channel is separately reported inert, do NOT rely on in-prompt negation such as 'no helmet' on these models without an A/B on your own stack. The un-depictable-intent point stands: backstory remains inert regardless of encoder."
+      }
+    },
+    {
+      "slug": "depict-token-limits-hard-truncation-silent-work-past",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM, three errors: BREAK is native to A1111 only (zero hits across 829 core ComfyUI .py files); diffusers WARNS on truncation rather than failing silently; FluxPipeline already defaults to 512, it is not opt-in.",
+      "evidence_url": "https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux/pipeline_flux.py",
+      "corrections": {
+        "claim": "Token limits differ per encoder and overflow is easy to miss, with these fixes. CLIP-L / OpenCLIP-bigG: 77 including BOS/EOS (model_max_length 77 in both SDXL tokenizer configs). diffusers truncates and emits logger.warning ('The following part of your input was truncated because CLIP can only handle sequences up to 77 tokens') — it is warned, not silent, though the warning is unseen in most UIs. ComfyUI and A1111 CHUNK into 75-token blocks and concatenate, so cross-chunk binding is lost — but BREAK is native to A1111 ONLY (sd_hijack_clip.py); core ComfyUI has no BREAK keyword and needs a custom node. T5-XXL: FluxPipeline ALREADY defaults max_sequence_length=512 (nothing to opt into); schnell's 256 lives in Black Forest Labs' reference cli.py and in diffusers docs, but is NOT enforced anywhere in pipeline_flux.py. Qwen-Image is capped at 512 by QwenImagePipeline.__call__, not uncapped."
+      }
+    },
+    {
+      "slug": "face-folklore-debunked-piling-quality-tokens-masterpiece-ultra",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "FOLKLORE, correctly debunked and correctly bounded. Animagine XL 3.1 documents masterpiece/best quality as literal percentile-derived TRAINED tags; Pony V6 states it needs none. The ~20-token dead zone is real (Long-CLIP).",
+      "evidence_url": "https://huggingface.co/cagliostrolab/animagine-xl-3.1",
+      "corrections": null
+    },
+    {
+      "slug": "face-reference-conditioning-ip-adapter-faceid-instantid-runs",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM: 'decoupled cross-attention mechanism that separates cross-attention layers for text features and image features' is verbatim IP-Adapter (2308.06721). InstantID uses exactly five keypoints, explicitly 'to maintain editability'.",
+      "evidence_url": "https://arxiv.org/abs/2401.07519",
+      "corrections": null
+    },
+    {
+      "slug": "face-t5-s-full-512-token-budget-opt",
+      "verdict": "refuted",
+      "verified": 0,
+      "status": "avoid",
+      "verify_note": "MECHANISM FALSE: FluxPipeline already defaults max_sequence_length=512; no diffusers path defaults to 256 on dev and no schnell conditional exists in pipeline_flux.py. Truncation warns, not silent. The real 256 trap is Chroma inpaint.",
+      "evidence_url": "https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/flux/pipeline_flux.py",
+      "corrections": null
+    },
+    {
+      "slug": "llm-official-positive-magic-quality-tail-real-specific",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM: both positive_magic strings verbatim on the Qwen/Qwen-Image card — EN ', Ultra HD, 4K, cinematic composition.' and ZH ', 超清，4K，电影级构图.'. Model is Apache-2.0, so commercially clean for the studio.",
+      "evidence_url": "https://huggingface.co/Qwen/Qwen-Image",
+      "corrections": null
+    },
+    {
+      "slug": "llm-qwen-image-s-encoder-qwen2-5-vl",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM: all three reasons appear near-verbatim in the Qwen-Image technical report (2508.02324), including preferring Qwen2.5-VL over language-only Qwen3 for already-aligned spaces. diffusers uses hidden_states[-1] as claimed.",
+      "evidence_url": "https://arxiv.org/abs/2508.02324",
+      "corrections": null
+    },
+    {
+      "slug": "llm-z-image-s-encoder-qwen3-4b-pure",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM: the Qwen3-4B sentence is verbatim in Z-Image section 4.1 (2511.22699); 3D Unified RoPE with image tokens spatial and text tokens temporal is verbatim. hidden_states[-2] and dim 2560 come from implementation docs, not the paper.",
+      "evidence_url": "https://arxiv.org/html/2511.22699v1",
+      "corrections": null
+    },
+    {
+      "slug": "neg-cfg-cfg-scale-ranges-model-family-specific-interchangeable",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MEASURED, bands unsourced: the SDXL paper uses cfg-scale 8.0 in its showcase figures (5 for FID), contradicting the 'cap 7'; official Chroma1-Base uses 3.0, not 4-6. The distilled-vs-true-CFG split IS confirmed.",
+      "evidence_url": "https://arxiv.org/html/2307.01952v1",
+      "corrections": {
+        "claim": "CFG is family-specific — that part is confirmed from primary sources — but the specific bands in this recipe are unsourced community numbers and two are contradicted. CONFIRMED: FLUX.1-dev's guidance_scale is a distilled guidance embedding (model card: 'Trained using guidance distillation'), example value 3.5, and it does not enable negatives; FLUX.1-schnell, SDXL-Turbo and SDXL-Lightning model cards all specify guidance_scale 0.0 with no negative prompt ('SDXL-Turbo does not make use of guidance_scale or negative_prompt'); Qwen-Image exposes a real two-pass true_cfg_scale, diffusers default 4.0. CONTRADICTED: the SDXL paper (Podell et al., arXiv:2307.01952) uses cfg-scale 8.0 in Figures 4/14/15 and guidance scale 5 for its FID table, so '4-7, 9+ over-sharpens' is preference not vendor guidance; the official Chroma1-Base example uses guidance_scale=3.0, not 4-6. No official source found for 'Qwen-Image base 3-5'."
+      }
+    },
+    {
+      "slug": "neg-cfg-folklore-copy-pasted-50-80-word-negative",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "FOLKLORE call directionally right — tag-dependence confirmed (Animagine documents these as trained tags). But 'community testing repeatedly shows shorter is better' has no source, and ComfyUI/A1111 chunk long negatives rather than truncate.",
+      "evidence_url": "https://huggingface.co/cagliostrolab/animagine-xl-3.1",
+      "corrections": {
+        "claim": "Mega-negative blocklists are largely cargo cult, with two mechanism corrections. CONFIRMED: quality tags only bite where the training captions contained them — Animagine XL 3.1 documents an explicit percentile-derived vocabulary (masterpiece >95%, best quality >85-95%, great quality >75-85%), and Pony Diffusion V6 XL states it 'does not need other quality modifiers like hd, masterpiece, etc.' So dropping them on SDXL base / FLUX / Qwen / Z-Image is defensible. CORRECTED: the 77-token truncation only applies in diffusers — ComfyUI and A1111 CHUNK a long negative into 75-token blocks and concatenate, so terms are not dropped there, they are merely spread across non-attending chunks. UNSOURCED: 'community testing repeatedly shows SDXL/SD3.5 improve with shorter negatives' returns only SEO prompt guides, no study."
+      }
+    },
+    {
+      "slug": "neg-cfg-pag-perturbed-attention-guidance-other-distilled-model",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM confirmed verbatim: PAG (Ahn, 2403.17377) substitutes self-attention maps with an identity matrix; diffusers gives pag_scale=3.0 and warns of saturation. NAG real (2505.21179). Caveat: diffusers PAG = SDXL+PixArt only.",
+      "evidence_url": "https://arxiv.org/abs/2403.17377",
+      "corrections": {
+        "claim": "PAG is a structure booster, not a negative — confirmed, with an availability caveat. The paper is 'Self-Rectifying Diffusion Sampling with Perturbed-Attention Guidance' (Ahn et al., 2024, arXiv:2403.17377), which works by 'substituting selected self-attention maps in diffusion U-Net with an identity matrix' and explicitly improves quality 'where existing guidances such as CG or CFG cannot be fully utilized', including unconditional generation. diffusers documents pag_scale=3.0 as 'used in the official demo and works well in most of the use cases' and warns that an 'overly large guidance scale can lead to smoother textures and slight saturation'. NAG (Normalized Attention Guidance, Chen et al., arXiv:2505.21179) is the real named-concept suppressor for few-step models. CAVEAT: diffusers currently supports PAG only on selected SDXL pipelines and PixArtSigma — it is NOT available for FLUX-schnell or Z-Image-Turbo there, so the 'enable PAG on turbo renders' advice needs a per-runner check."
+      }
+    },
+    {
+      "slug": "neg-content-minimal-defensible-defaults-per-family-short-depictable",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MEASURED: CFG-rescale 0.7 is exact — Lin 2023, 'We empirically find w=7.5, phi=0.7 works great'. Qwen ' ' negative confirmed. LICENCE GAP: SDXL-Turbo is sai-nc-community and FLUX.1-dev a non-commercial model licence.",
+      "evidence_url": "https://arxiv.org/abs/2305.08891",
+      "corrections": {
+        "claim": "The per-family defaults are sound in shape, with one exact confirmation, one licence gap and one unsourced part. CONFIRMED: CFG-rescale 0.7 is the paper's own value — Lin et al. 2023, 'Common Diffusion Noise Schedules and Sample Steps are Flawed' (arXiv:2305.08891): 'We empirically find w=7.5, ϕ=0.7 works great.' Empty/space negatives for Qwen-Image are confirmed (every official example uses a single space) and for FLUX-schnell, SDXL-Turbo and SDXL-Lightning (model cards specify guidance_scale 0 and no negative prompt). UNSOURCED: the specific 5-8 term word lists are studio preference, not measured. LICENCE GAP a commercial studio must close before shipping: SDXL-Turbo is released under sai-nc-community (NON-commercial; Stability directs commercial users to a separate licence), and FLUX.1-dev is under the FLUX.1 [dev] Non-Commercial Licence for the model itself. FLUX.1-schnell (Apache-2.0), Chroma1-Base (Apache-2.0), Qwen-Image (Apache-2.0) and SDXL base / SDXL-Lightning (OpenRAIL++) are the commercially clean options."
+      }
+    },
+    {
+      "slug": "neg-content-negative-token-must-itself-be-depictable-depictability",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MISATTRIBUTED CITATION: arXiv:2601.08070 is 'Semantic Gravity Wells' — LLM forbidden-token suppression, where P0 is token probability, NOT visual depictability; the 78%/9%/46% figures were not found. Core claim survives on Ban 2406.02965.",
+      "evidence_url": "https://arxiv.org/abs/2406.02965",
+      "corrections": {
+        "claim": "Negative tokens must be depictable — the claim holds, but on one source, not two. CONFIRMED: 'Understanding the Impact of Negative Prompts: When and How Do They Take Effect?' (Ban et al., 2024, arXiv:2406.02965) states negative prompts 'delete concepts from the generated image through a mutual cancellation effect in latent space with positive prompts' — cancellation needs a localizable visual representation, which is exactly why 'blurry' / 'watermark' / 'extra fingers' bite and 'low quality' / 'bad' smear. REMOVE the second citation: arXiv:2601.08070 is real but is 'Semantic Gravity Wells: Why Negative Constraints Backfire' (Shailesh Rana, Jan 2026), a study of LARGE LANGUAGE MODELS failing to avoid forbidden words. Its P0 is 'the model's intrinsic probability of generating the forbidden token', not a concept's visual depictability, and the quoted 78%-of-variance, 9% and 46% figures were not found in it. The logistic σ(-2.40+2.27·P0) is genuine but belongs to text generation and must not be presented as an image-model result."
+      }
+    },
+    {
+      "slug": "neg-content-qwen-image-trap-exposes-true-cfg-scale",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM: 'REQUIRES a negative_prompt' is FALSE — the signature is negative_prompt=None, optional. true_cfg_scale=4.0 confirmed. The inertness evidence is one practitioner's CFG 1.0-7.0 grid, not a study; official examples do use ' '.",
+      "evidence_url": "https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/qwenimage/pipeline_qwenimage.py",
+      "corrections": {
+        "claim": "Qwen-Image exposes CFG machinery whose negative channel appears not to work. CONFIRMED: QwenImagePipeline.__call__ takes true_cfg_scale with default 4.0 and does run a real two-pass CFG. FALSE: negative_prompt is NOT mandatory — the signature is 'negative_prompt: str | list[str] = None' and the pipeline runs without it (it only warns that CFG will not engage when true_cfg_scale > 1 with no negative). WEAK EVIDENCE, not refuted: the 'zero exclusion effect across true_cfg_scale 1.0-7.0' finding is one practitioner's grid (negative 'child' against 'young lady' / 'young girl' / 'youngie'), not a systematic study — but it is corroborated by the fact that every example in the official Qwen-Image repo uses a single space as the negative prompt and none demonstrates exclusion. Operationally the advice stands: set ' ' and steer positively, but treat inertness as strongly indicated rather than proven."
+      }
+    },
+    {
+      "slug": "neg-folklore-license-commercial-safety-these-embeddings-unverified-most",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "LICENCE: gsdf/EasyNegative card is license 'other', no commercial grant — confirmed; the EvilEngine mirror is CDLA-Permissive-2.0, so the conflict is real. But Civitai DOES expose structured commercial-use flags (honour-system).",
+      "evidence_url": "https://huggingface.co/datasets/gsdf/EasyNegative",
+      "corrections": {
+        "claim": "Third-party negative embeddings are a real commercial-licence exposure, with one overstatement. CONFIRMED: the gsdf/EasyNegative HuggingFace card (it is a dataset repo, not a model repo) declares license 'other' with no explicit commercial-use grant, and gives no training-data provenance; a mirror at EvilEngine/easynegative is tagged CDLA-Permissive-2.0, so the two genuinely disagree and provenance is ambiguous. OVERSTATED: Civitai is not licence-opaque — it exposes structured per-model permission flags (sell generated images, run on a paid/rented service, run on Civitai, sell the model or merges), and most models sit on CreativeML OpenRAIL-M or Open RAIL++. The real problem is enforcement, not metadata: Civitai states these operate on an honour system and it will not pursue claims on a creator's behalf. Conclusion unchanged — default to plain-text negatives, which carry zero licensing surface."
+      }
+    },
+    {
+      "slug": "neg-folklore-negatives-share-same-77-token-clip-budget",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM: the title contradicts its own body — the negative gets its OWN 77-token window, it does not share the positive's. diffusers logs a truncation warning (not silent); ComfyUI/A1111 chunk. CFG-rescale citation is exact.",
+      "evidence_url": "https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl.py",
+      "corrections": {
+        "claim": "The negative prompt has its OWN 77-token CLIP window — it does not share the positive's budget (the original title said the opposite of its own summary). Overflow behaviour differs by runner: diffusers truncates and logs a warning ('The following part of your input was truncated because CLIP can only handle sequences up to 77 tokens'), so it is warned-but-non-fatal rather than silent; ComfyUI and A1111 chunk into 75-token blocks and concatenate, so a 50-term negative is not dropped there at all. The second half is exact and stands: raising CFG to make a weak negative bite causes the oversaturation documented and fixed by Lin et al. 2023 (arXiv:2305.08891), whose own recommended setting is w=7.5 with rescale ϕ=0.7. T5 (FLUX/Chroma) is unaffected by the 77-token issue."
+      }
+    },
+    {
+      "slug": "seed-decide-b-prompt-change-cleanly-lock-seed-change",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM + official doc: diffusers' re-using-seeds guide says verbatim 'while keeping the first seed so that the images are similar to the first image'. But 'zero delta means the encoder dropped the token' is unsourced.",
+      "evidence_url": "https://huggingface.co/docs/diffusers/v0.14.0/using-diffusers/reusing_seeds",
+      "corrections": {
+        "claim": "Lock the seed and change one token — confirmed as the official workflow. The diffusers guide 'Re-using seeds for fast prompt engineering' states verbatim: 'Let's try to make the prompt a bit better while keeping the first seed so that the images are similar to the first image.' Determinism given (seed, prompt, sampler, steps, CFG, resolution, model) makes the delta attributable to the edit. ONE UNSOURCED INFERENCE to drop or soften: 'if a one-token change under a locked seed produces zero visible difference, that token is being dropped by the encoder.' No source supports this, and it is false in general — a token can be encoded normally yet contribute a negligible direction, or be redundant with tokens already present. Read a null delta as 'no measurable effect here', not as proof of encoder truncation."
+      }
+    },
+    {
+      "slug": "seed-decide-folklore-zone-magic-seeds-fix-bad-prompt",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "FOLKLORE, correctly bounded. Xu et al. WACV 2025 (2405.14828) verified exactly: 'we identified k=65 golden seeds for SD 2.0 and k=67 for SDXL Turbo', FID 21.60 vs 31.97, and rankings shown 'applicable across sets of prompts'.",
+      "evidence_url": "https://arxiv.org/abs/2405.14828",
+      "corrections": null
+    },
+    {
+      "slug": "seed-decide-seed-initial-noise-latent-z-t-prompt",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM, textbook and correct (Rombach arXiv:2112.10752; Ho arXiv:2006.11239). One refinement worth noting: Xu et al. observe the seed also drives reparameterisation noise at intermediate timesteps, not only the initial z_T.",
+      "evidence_url": "https://arxiv.org/abs/2112.10752",
+      "corrections": null
+    },
+    {
+      "slug": "seed-folklore-cfg-scale-seed-dial-follow-prompt-harder",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MEASURED: '4-10, defaults ~7-8' and 'SDXL ~7-9' are unsourced — the SDXL paper uses 8.0 in its figures and 5 in the FID table, and diffusers defaults to 5.0. It also conflates Qwen's true_cfg_scale (real CFG) with FLUX's distilled guidance.",
+      "evidence_url": "https://arxiv.org/html/2307.01952v1",
+      "corrections": {
+        "claim": "CFG, not the seed, is the prompt-adherence dial — the mechanism is right, the numbers are not sourced. CONFIRMED: classifier-free guidance combines conditional and unconditional predictions with a weight (Ho & Salimans, arXiv:2207.12598), and the seed is orthogonal to it. UNSOURCED: 'a guidance range around 4-10, defaults ~7-8 for many SDXL-era models' and the 'SDXL ~7-9' nudge target. What primary sources actually say: the SDXL paper (arXiv:2307.01952) uses cfg-scale 8.0 in Figures 4/14/15 and guidance scale 5 for its quantitative table. CONFLATION to fix: FLUX-dev's ~3.5 is a distilled guidance embedding (not CFG), whereas Qwen-Image's true_cfg_scale 4.0 IS real two-pass CFG — they are different quantities and must not be lumped as 'distilled guidance'. Z-Image-Turbo, like other distilled models, runs with guidance effectively off."
+      }
+    },
+    {
+      "slug": "seed-folklore-folklore-zone-there-universal-magic-lucky-seed",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "FOLKLORE, correctly bounded — best-sourced recipe in the lane. All specifics verified: Xu et al. 2405.14828, FID 21.60 vs 31.97 on SD 2.0, per-model rankings, verbatim 'it is unclear what makes seeds easily discernible'.",
+      "evidence_url": "https://arxiv.org/abs/2405.14828",
+      "corrections": null
+    },
+    {
+      "slug": "seed-folklore-seed-only-sets-start-denoising-trajectory-initial",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM correct (the CFG formula matches Ho & Salimans arXiv:2207.12598), but 'the seed ONLY sets the start' overstates — it also drives intermediate reparameterisation noise (Xu et al.). The '4-8 adherence band' is an unsourced number.",
+      "evidence_url": "https://arxiv.org/abs/2207.12598",
+      "corrections": {
+        "claim": "A generic-nobody character is a conditioning miss, not a sampling miss — the decision rule is sound. CONFIRMED: latent diffusion starts from a Gaussian latent (Rombach, arXiv:2112.10752), denoising follows the DDPM reverse process (Ho, arXiv:2006.11239), and classifier-free guidance forms score = unconditional + w·(conditional − unconditional) (Ho & Salimans, arXiv:2207.12598). OVERSTATED: the seed does not ONLY set the start — Xu et al. (arXiv:2405.14828) note it also controls 'the noise used for reparameterization at intermediate timesteps in the reverse diffusion process'. UNSOURCED: 'confirm CFG is in the 4-8 adherence band' — no source gives that band; the SDXL paper's own settings are 8.0 (figures) and 5 (FID table). Keep the rule, drop the number."
+      }
+    },
+    {
+      "slug": "seed-roles-same-seed-edited-prompt-global-structure-preserved",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM + official doc: exactly the workflow in diffusers' 'Re-using seeds for fast prompt engineering', which keeps the first seed while improving the prompt. Sound, safe, consistent with the seed-A/B recipe.",
+      "evidence_url": "https://huggingface.co/docs/diffusers/v0.14.0/using-diffusers/reusing_seeds",
+      "corrections": null
+    },
+    {
+      "slug": "seed-roles-seed-primarily-fixes-composition-pose-framing-specific",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MEASURED, not folklore: Xu et al. (2405.14828) measured it directly — 'Seeds also affect image composition, including object location, size, and depth', plus seeds that reliably yield grayscale images, prominent sky regions or borders.",
+      "evidence_url": "https://arxiv.org/abs/2405.14828",
+      "corrections": null
+    },
+    {
+      "slug": "struct-break-75-token-chunking-clip-only-plumbing",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM: chunking confirmed in both (ComfyUI sd1_clip.py, torch.cat dim=-2; A1111 chunk_length 75, torch.hstack). But BREAK is A1111-native ONLY — a grep of 829 core ComfyUI .py files finds no prompt keyword; ComfyUI needs a custom node.",
+      "evidence_url": "https://github.com/comfyanonymous/ComfyUI/blob/master/comfy/sd1_clip.py",
+      "corrections": {
+        "claim": "75-token chunking is CLIP-only plumbing, and chunks do not cross-attend — confirmed in both runners' source. ComfyUI chunks in SDTokenizer.tokenize_with_weights at max_length 77 and concatenates with torch.cat(output, dim=-2) (comfy/sd1_clip.py); A1111 uses chunk_length 75 and torch.hstack (modules/sd_hijack_clip.py), whose own comment reads 'Each PromptChunk contains an exact amount of tokens - 77 ... so just 75 tokens from prompt.' CORRECTION: BREAK is native to A1111 ONLY (sd_hijack_clip.py: if text == 'BREAK' and weight == -1: next_chunk()). Core ComfyUI has NO BREAK keyword — a grep of all 829 core .py files finds only unrelated matches — so on ComfyUI you must install a custom node or use ConditioningConcat, which joins two separately-encoded conditionings and is not an exact equivalent. FLUX / Chroma / Qwen / Z-Image have no chunking; BREAK is literal text to them."
+      }
+    },
+    {
+      "slug": "struct-hard-token-limits-differ-wildly-per-encoder",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM, two caps wrong: QwenImagePipeline.__call__ defaults to 512 (1024 is only encode_prompt's default); Z-Image's 'local 1024' is height/width, and ComfyUI passes max_length=99999999. Issue #12075 is real and correctly cited.",
+      "evidence_url": "https://github.com/huggingface/diffusers/issues/12075",
+      "corrections": {
+        "claim": "Per-encoder caps, corrected against source: CLIP 77 (75 usable) — confirmed in both SDXL tokenizer configs. FLUX-dev T5 512 — confirmed, and check_inputs raises only above 512. FLUX-schnell 256 — real in Black Forest Labs' reference cli.py (max_length=256 if name == 'flux-schnell'), but diffusers does NOT enforce it; the 256 appears only in the docs, so schnell will silently accept and encode 512. Chroma 512. Qwen-Image is 512, NOT 1024 — QwenImagePipeline.__call__ defaults max_sequence_length=512; the 1024 is only encode_prompt's own default, which is the inconsistency behind diffusers issue #12075 ('Qwen Image prompt encoding is not padding to max seq len', open, filed 2025-08-05, RoPE artifacts from short padding). Z-Image is 512 (official src/config/inference.py DEFAULT_MAX_SEQUENCE_LENGTH = 512 and ZImagePipeline) — the '1024 local' is wrong: 1024 is DEFAULT_HEIGHT/WIDTH, and ComfyUI is effectively uncapped (max_length=99999999). Truncation in diffusers is warned via logger.warning, not silent."
+      }
+    },
+    {
+      "slug": "struct-prompt-weighting-word-1-3-clip-embedding",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM INVERTED: ComfyUI is not a raw multiplier — sd1_clip.py does (z - z_empty)*w + z_empty, the empty-anchored formula credited to compel; A1111 is the one that restores the mean. sd_embed does implement weighting for FLUX's T5.",
+      "evidence_url": "https://github.com/comfyanonymous/ComfyUI/blob/master/comfy/sd1_clip.py",
+      "corrections": {
+        "claim": "Weighting syntax is a UI-side embedding-scaling trick, but the per-UI mechanisms in this recipe are backwards. ComfyUI is NOT a raw multiplier: comfy/sd1_clip.py computes z[i][j] = (z[i][j] - z_empty[j]) * weight + z_empty[j], anchoring on a synthetic empty-prompt encoding — the exact formula the recipe attributed to compel. A1111 IS the one that renormalises: modules/sd_emphasis.py EmphasisOriginal multiplies then restores the original mean (with an EmphasisOriginalNoNorm variant that skips it). compel uses the same empty-anchored formula as ComfyUI, plus an extra lerp for weights below 1. ALSO TOO STRONG: 'no equivalent hook in T5 or LLM encoders' — the sd_embed library that diffusers recommends for weighting explicitly supports Flux (T5), though the diffusers docs add that weighting 'doesn't necessarily help for newer models like Flux'. The operational advice survives intact: typing (word:1.3) into a raw FLUX/Qwen/Z-Image prompt field only inserts literal tokens, so strip the parentheses there and emphasise with natural language."
+      }
+    },
+    {
+      "slug": "t5-flux-splits-labor-t5-supplies-per-token",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM: verbatim in 'Demystifying Flux Architecture' (2507.09595) — T5 gives 'dense (per token) embeddings', CLIP 'pooled embeddings ... denoted pooled projection' feeding temb. CLIPTextEncodeFlux is core, guidance 3.5.",
+      "evidence_url": "https://arxiv.org/html/2507.09595v1",
+      "corrections": null
+    },
+    {
+      "slug": "t5-t5-full-encoder-decoder-language-model-bidirectional",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM: T5 encoder-decoder on C4 confirmed (Raffel, 1910.10683); diffusion loads only T5EncoderModel. The CLIP contrast is well-sourced — ARO 2210.01936 (relations, attributes, order) and NegBench 2501.09425 (negation).",
+      "evidence_url": "https://arxiv.org/abs/2210.01936",
+      "corrections": null
+    },
+    {
+      "slug": "t5-t5-xxl-flux-dev-chroma-reads-512",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "MECHANISM: the Chroma-inpaint trap is REAL and exact — pipeline_chroma_inpainting.py defaults to 256 while the other two default to 512. But diffusers does not forbid >256 on schnell: no schnell conditional exists in pipeline_flux.py.",
+      "evidence_url": "https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/chroma/pipeline_chroma_inpainting.py",
+      "corrections": {
+        "claim": "The Chroma inpaint trap is real and verified exactly as described — ChromaPipeline and ChromaImg2ImgPipeline default max_sequence_length=512, while ChromaInpaintPipeline defaults to 256, and the divergence is deliberate (its docstring reads 'max_sequence_length (int defaults to 256)'). All paths use T5TokenizerFast on google/t5-v1_1-xxl. Note the filename is pipeline_chroma_inpainting.py. CORRECTION: diffusers does NOT forbid >256 for schnell — FluxPipeline.check_inputs raises only above 512, and the string 'schnell' appears in pipeline_flux.py exactly once, in a docstring, with no conditional logic. The 256 originates in Black Forest Labs' reference cli.py and in the diffusers documentation, so schnell will silently accept 512 tokens through diffusers while the reference implementation truncates at 256 — budget to 256 for portability, not because the code enforces it. Also note Chroma is de-distilled from FLUX.1-schnell (not dev), is Apache-2.0, and its official example uses guidance_scale 3.0."
+      }
+    }
+  ]
+}

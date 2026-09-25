@@ -1,0 +1,1402 @@
+{
+  "bucket": "traits-advanced",
+  "title": "Advanced traits & the type system",
+  "tier": "advanced",
+  "count": 10,
+  "recipes": [
+    {
+      "slug": "choose-associated-types-for-one-impl-per-type-outputs-enforce-associated-consts-and-gats-at-compile-time",
+      "name": "Choose associated types for one-impl-per-type outputs; enforce associated consts and GATs at compile time",
+      "what": "An associated type fixes one output per implementing type (a second impl is E0119) while a generic parameter allows many impls; an associated const is evaluated only when an instantiated path references it; generic associated types (stable since 1.65) let an associated type borrow from self.",
+      "how": "Use `trait Law { type Input; const STRIDE: usize; ... }` when each implementor has exactly one natural choice (the Book's `Iterator::Item` argument). Use a generic parameter (`trait Integrate<T>`) when one type must serve several (f32 and f64), and disambiguate with `<Euler as Integrate<f64>>::integrate(&e, ..)`. Defaults shorten impls: `const ID: i32 = 1;` in the trait, `trait Add<Rhs = Self>`. Put an invariant on an associated const as `const STRIDE_OK: () = assert!(Self::STRIDE > 0, \"...\");` and reference it (`let () = Self::STRIDE_OK;`) inside the method that relies on it: an impl that violates it fails the build with E0080 ('evaluation panicked: ...') as soon as that method is instantiated. For a lending iterator write a GAT: `type Item<'a> where Self: 'a; fn next<'a>(&'a mut self) -> Option<Self::Item<'a>>;` so each item may be `&'a mut [f64]` into the iterator's own buffer, which `Iterator` cannot express.",
+      "rust_version": "any; GATs 1.65+ (checked on 1.98.1)",
+      "gotchas": "The `where Self: 'a` on a GAT is mandatory whenever a method signature proves it (`&'a mut self` returning `Self::Item<'a>`); leaving it off is a hard error, 'missing required bound on `Item`', with no error code. An associated-const assert only fires on a path the build instantiates: the same `STRIDE = 0` impl compiles in a binary that never calls `stride()` on it, and in a library whose only caller is private dead code; it fails once `main`, a test or a `pub fn` reaches it. A generic associated const cannot size an array on stable (`[f64; L::STRIDE]` is 'generic parameters may not be used in const operations'). Associated consts and GATs each make the trait dyn-incompatible. The GAT stabilization post lists known limits: an implied 'static requirement from higher-ranked bounds such as `for<'a> I::Item<'a>: Debug`, and borrow-checker false errors with lending iterators.",
+      "engine_note": "If the solver grows a Law trait, `const STRIDE: usize` plus an assert-const is how BODY_STRIDE = 17 and COLLIDER_STRIDE = 10 (solver/src/lib.rs) become per-law compile-time facts. A concrete path still sizes the static buffers (`[f64; 64 * <BoxLaw as Law>::STRIDE]` is 1088 elements), but code generic over `L: Law` cannot declare `[f64; L::STRIDE]` on stable, so the buffers stay concrete arrays.",
+      "checks": [
+        {
+          "label": "A second impl of a trait with an associated type conflicts (E0119)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0119"
+          ],
+          "source": "trait Law {\n    type Input;\n    fn step(&mut self, input: Self::Input) -> u32;\n}\nstruct BoxLaw;\nimpl Law for BoxLaw {\n    type Input = (u32, u32);\n    fn step(&mut self, input: (u32, u32)) -> u32 { input.0 + input.1 }\n}\nimpl Law for BoxLaw {\n    type Input = f64;\n    fn step(&mut self, _input: f64) -> u32 { 0 }\n}\nfn main() {}\n"
+        },
+        {
+          "label": "A generic-parameter trait allows Integrate<f32> and Integrate<f64> on one type",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "1.03125 1.03125",
+          "source": "trait Integrate<T> {\n    fn integrate(&self, x: T, v: T) -> T;\n}\nstruct Euler;\nimpl Integrate<f32> for Euler {\n    fn integrate(&self, x: f32, v: f32) -> f32 { x + v / 64.0 }\n}\nimpl Integrate<f64> for Euler {\n    fn integrate(&self, x: f64, v: f64) -> f64 { x + v / 64.0 }\n}\nfn main() {\n    let e = Euler;\n    let a: f32 = e.integrate(1.0f32, 2.0f32);\n    let b = <Euler as Integrate<f64>>::integrate(&e, 1.0, 2.0);\n    println!(\"{a} {b}\");\n}\n"
+        },
+        {
+          "label": "A zero-stride impl compiles while nothing instantiates the assert that forbids it",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "17",
+          "source": "trait Law {\n    const STRIDE: usize;\n    const STRIDE_OK: () = assert!(Self::STRIDE > 0, \"a law needs a non-zero stride\");\n    fn stride() -> usize {\n        let () = Self::STRIDE_OK;\n        Self::STRIDE\n    }\n}\nstruct BoxLaw;\nimpl Law for BoxLaw { const STRIDE: usize = 17; }\nstruct Broken;\nimpl Law for Broken { const STRIDE: usize = 0; }\nfn main() {\n    println!(\"{}\", BoxLaw::stride());\n}\n"
+        },
+        {
+          "label": "Calling stride() on the zero-stride impl evaluates the assert: E0080 at build time",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "a law needs a non-zero stride"
+          ],
+          "source": "trait Law {\n    const STRIDE: usize;\n    const STRIDE_OK: () = assert!(Self::STRIDE > 0, \"a law needs a non-zero stride\");\n    fn stride() -> usize {\n        let () = Self::STRIDE_OK;\n        Self::STRIDE\n    }\n}\nstruct BoxLaw;\nimpl Law for BoxLaw { const STRIDE: usize = 17; }\nstruct Broken;\nimpl Law for Broken { const STRIDE: usize = 0; }\nfn main() {\n    println!(\"{}\", BoxLaw::stride());\n    println!(\"{}\", Broken::stride());\n}\n"
+        },
+        {
+          "label": "In a library, a private dead helper does not trigger the assert",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "source": "pub trait Law {\n    const STRIDE: usize;\n    const STRIDE_OK: () = assert!(Self::STRIDE > 0, \"a law needs a non-zero stride\");\n    fn stride() -> usize {\n        let () = Self::STRIDE_OK;\n        Self::STRIDE\n    }\n}\npub struct Broken;\nimpl Law for Broken { const STRIDE: usize = 0; }\n// A private, unused path: nothing instantiates Broken::stride, so no error.\n#[allow(dead_code)]\nfn never_called() -> usize { Broken::stride() }\n"
+        },
+        {
+          "label": "In a library, a pub fn reaching the zero-stride impl fails with E0080",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "source": "pub trait Law {\n    const STRIDE: usize;\n    const STRIDE_OK: () = assert!(Self::STRIDE > 0, \"a law needs a non-zero stride\");\n    fn stride() -> usize {\n        let () = Self::STRIDE_OK;\n        Self::STRIDE\n    }\n}\npub struct Broken;\nimpl Law for Broken { const STRIDE: usize = 0; }\n// An exported path instantiates it, so the library build fails.\npub fn exported() -> usize { Broken::stride() }\n"
+        },
+        {
+          "label": "A generic associated const cannot size an array on stable Rust",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "generic parameters may not be used in const operations"
+          ],
+          "source": "trait Law { const STRIDE: usize; }\nfn zeroed<L: Law>() -> [f64; L::STRIDE] { [0.0; L::STRIDE] }\n"
+        },
+        {
+          "label": "A concrete <BoxLaw as Law>::STRIDE does size a static buffer",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "1088",
+          "source": "trait Law { const STRIDE: usize; }\nstruct BoxLaw;\nimpl Law for BoxLaw { const STRIDE: usize = 17; }\nstatic BODIES: [f64; 64 * <BoxLaw as Law>::STRIDE] = [0.0; 64 * <BoxLaw as Law>::STRIDE];\nfn main() { println!(\"{}\", BODIES.len()); }\n"
+        },
+        {
+          "label": "A GAT lending iterator hands out &mut body slices one at a time",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "[0.0, 0.0, 0.0, 0.0, 1.0, 0.0]",
+          "source": "// A lending iterator: each item borrows the iterator mutably, so two items\n// can never be alive at once. std's Iterator cannot express this.\ntrait LendingIterator {\n    type Item<'a> where Self: 'a;\n    fn next<'a>(&'a mut self) -> Option<Self::Item<'a>>;\n}\nstruct BodiesMut<'s> { buf: &'s mut [f64], stride: usize, at: usize }\nimpl<'s> LendingIterator for BodiesMut<'s> {\n    type Item<'a> = &'a mut [f64] where Self: 'a;\n    fn next<'a>(&'a mut self) -> Option<&'a mut [f64]> {\n        let start = self.at * self.stride;\n        if start + self.stride > self.buf.len() { return None; }\n        self.at += 1;\n        Some(&mut self.buf[start..start + self.stride])\n    }\n}\nfn main() {\n    let mut buf = [0.0f64; 6];\n    let mut it = BodiesMut { buf: &mut buf, stride: 3, at: 0 };\n    let mut k = 0.0;\n    while let Some(body) = it.next() {\n        body[1] = k; // y of each body\n        k += 1.0;\n    }\n    println!(\"{:?}\", buf);\n}\n"
+        },
+        {
+          "label": "Omitting `where Self: 'a` on the GAT is a hard error without a code",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "missing required bound on `Item`"
+          ],
+          "source": "trait LendingIterator {\n    type Item<'a>;\n    fn next<'a>(&'a mut self) -> Option<Self::Item<'a>>;\n}\nfn main() {}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Programming Language, ch. 20.2 Advanced Traits",
+          "url": "https://doc.rust-lang.org/stable/book/ch20-02-advanced-traits.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "With a generic parameter a trait can be implemented for a type many times; with an associated type there can be only one impl, so callers need no annotation; default type parameters use `<Rhs=Self>`."
+        },
+        {
+          "title": "The Rust Reference — Associated items",
+          "url": "https://doc.rust-lang.org/stable/reference/items/associated-items.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Associated constant definitions are evaluated only when referenced, generic ones after monomorphization; GATs must repeat on themselves every where-clause a using method can prove, e.g. `where Self: 'x`."
+        },
+        {
+          "title": "Announcing Rust 1.65.0",
+          "url": "https://blog.rust-lang.org/2022/11/03/Rust-1.65.0/",
+          "year": 2022,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Rust 1.65.0 (2022-11-03) stabilized generic associated types: lifetime, type and const generics on associated types, with a LendingIterator example."
+        },
+        {
+          "title": "Generic associated types to be stable in Rust 1.65",
+          "url": "https://blog.rust-lang.org/2022/10/28/gats-stabilization/",
+          "year": 2022,
+          "kind": "blog",
+          "identifier": "",
+          "claim": "The stabilization post shows the `type Item<'a> where Self: 'a` LendingIterator, explains the required bound, and lists known limitations (implied 'static from HRTBs, no dyn, borrow-checker false errors)."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "keep-a-trait-dyn-compatible-or-fence-methods-with-where-self-sized-a-dyn-is-two-words-data-vtable",
+      "name": "Keep a trait dyn compatible or fence methods with `where Self: Sized`; a &dyn is two words: data + vtable",
+      "what": "A trait can be a `dyn` base only if its supertraits are dyn compatible, `Sized` is not a supertrait, it has no associated consts and no GATs, and each method is dispatchable (no type parameters, `Self` only in the receiver `&self`/`&mut self`/`Box<Self>`/`Rc<Self>`/`Arc<Self>`/`Pin<P>`, no `async fn`, no `-> impl Trait`) or is excluded by `where Self: Sized`; otherwise E0038, which on 1.98.1 reads 'the trait `X` is not dyn compatible' (formerly 'object safety').",
+      "how": "Audit a trait against the Reference list before writing `&dyn Trait` or `Box<dyn Trait>`. Move generic helpers behind `where Self: Sized`: they stay callable on concrete types and leave the vtable. Pointers to DSTs are twice a thin pointer: `&dyn T`, `Box<dyn T>` and `&[f64]` are `2 * size_of::<usize>()`, i.e. 16 bytes on x86_64 and 8 on wasm32, holding the data pointer plus a vtable pointer (trait objects) or a length (slices, str). The vtable holds one function pointer per method of the trait and its supertraits. Write `T: ?Sized` on a type parameter to accept `str`, `[f64]` or `dyn Trait` behind a reference (trait `Self` is already `?Sized`). `Box<dyn T>` means `Box<dyn T + 'static>`; a trait object that borrows needs `Box<dyn T + '_>`.",
+      "rust_version": "any; the 'dyn compatible' wording is what 1.98.1 prints",
+      "gotchas": "Calling a `where Self: Sized` method on a trait object fails with 'the `visit` method cannot be invoked on a trait object' (no error code). Adding a generic method, an associated const, a GAT, an `async fn` or an RPIT method to a trait that is used as `dyn` breaks every `dyn` user. Older docs and crates say 'object safe'; the diagnostic changed from 'cannot be made into an object' in rust-lang/rust#133372 (merged 2025-01-22, milestone 1.86.0), following the lang-team rename proposal. Returning `Box<dyn Probe>` built from a borrowing type fails with 'lifetime may not live long enough' because of the implicit 'static. Fat-pointer sizes are per target: never hard-code 16 in code that also builds for wasm32.",
+      "engine_note": "rapier3d-f64 0.35.3 puts dynamic dispatch on the solver's path: `PhysicsWorld::step()` is `self.step_with_events(&(), &())` with parameters `hooks: &dyn PhysicsHooks, events: &dyn EventHandler`, and `warm_broadphase` in solver/src/rapier_law.rs passes `&(), &()` to `CollisionPipeline::step`, with `()` as the no-op implementor. The solver's own `step` and `resolve_pair` (solver/src/lib.rs) use no trait objects; on wasm32 each fat pointer is two 32-bit words.",
+      "checks": [
+        {
+          "label": "A generic method makes the trait dyn-incompatible (E0038, 'not dyn compatible')",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0038"
+          ],
+          "stderr_contains": [
+            "is not dyn compatible",
+            "has generic type parameters"
+          ],
+          "source": "trait Probe {\n    fn sample(&self) -> f64;\n    fn visit<V: FnMut(f64)>(&self, v: V);\n}\nstruct Height(f64);\nimpl Probe for Height {\n    fn sample(&self) -> f64 { self.0 }\n    fn visit<V: FnMut(f64)>(&self, mut v: V) { v(self.0) }\n}\npub fn read(p: &dyn Probe) -> f64 { p.sample() }\nfn main() {}\n"
+        },
+        {
+          "label": "`where Self: Sized` on the generic method restores `&dyn Probe`",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "2.5 2.5",
+          "source": "trait Probe {\n    fn sample(&self) -> f64;\n    fn visit<V: FnMut(f64)>(&self, v: V) where Self: Sized;\n}\nstruct Height(f64);\nimpl Probe for Height {\n    fn sample(&self) -> f64 { self.0 }\n    fn visit<V: FnMut(f64)>(&self, mut v: V) { v(self.0) }\n}\nfn main() {\n    let h = Height(2.5);\n    let d: &dyn Probe = &h;\n    let mut seen = 0.0;\n    h.visit(|x| seen = x);      // static dispatch: fine on the concrete type\n    println!(\"{} {}\", d.sample(), seen);\n}\n"
+        },
+        {
+          "label": "The fenced method cannot be called on the trait object",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "cannot be invoked on a trait object"
+          ],
+          "source": "trait Probe {\n    fn sample(&self) -> f64;\n    fn visit<V: FnMut(f64)>(&self, v: V) where Self: Sized;\n}\nstruct Height(f64);\nimpl Probe for Height {\n    fn sample(&self) -> f64 { self.0 }\n    fn visit<V: FnMut(f64)>(&self, mut v: V) { v(self.0) }\n}\nfn main() {\n    let d: &dyn Probe = &Height(2.5);\n    d.visit(|_| {});            // excluded from the vtable\n}\n"
+        },
+        {
+          "label": "An associated const makes the trait dyn-incompatible (E0038)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0038"
+          ],
+          "stderr_contains": [
+            "contains associated const `STRIDE`"
+          ],
+          "source": "trait Law {\n    const STRIDE: usize;\n    fn step(&mut self) -> u32;\n}\npub fn run(l: &mut dyn Law) -> u32 { l.step() }\nfn main() {}\n"
+        },
+        {
+          "label": "A generic associated type makes the trait dyn-incompatible (E0038)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0038"
+          ],
+          "stderr_contains": [
+            "contains generic associated type `Item`"
+          ],
+          "source": "trait LendingIterator {\n    type Item<'a> where Self: 'a;\n    fn next<'a>(&'a mut self) -> Option<Self::Item<'a>>;\n}\nfn use_dyn(_: &mut dyn LendingIterator<Item<'static> = &'static mut [f64]>) {}\nfn main() {}\n"
+        },
+        {
+          "label": "&dyn, Box<dyn> and &[f64] are two usizes; &f64 is one (host)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "true true true true",
+          "source": "use std::mem::size_of;\ntrait Probe { fn sample(&self) -> f64; }\nfn main() {\n    let w = size_of::<usize>();\n    println!(\"{} {} {} {}\",\n        size_of::<&f64>() == w,\n        size_of::<&[f64]>() == 2 * w,\n        size_of::<&dyn Probe>() == 2 * w,\n        size_of::<Box<dyn Probe>>() == 2 * w);\n}\n"
+        },
+        {
+          "label": "On wasm32 a &dyn pointer is 8 bytes: two 32-bit words",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "8",
+          "wasm_exports": [
+            "dyn_ptr_bytes"
+          ],
+          "wasm_call": {
+            "export": "dyn_ptr_bytes",
+            "args": []
+          },
+          "source": "trait Probe { fn sample(&self) -> f64; }\nstruct Height(f64);\nimpl Probe for Height { fn sample(&self) -> f64 { self.0 } }\n// On wasm32 a pointer is 4 bytes, so &dyn Probe (data + vtable) is 8.\n#[no_mangle]\npub extern \"C\" fn dyn_ptr_bytes() -> u32 {\n    let h = Height(1.0);\n    let d: &dyn Probe = &h;\n    let _ = d.sample();\n    core::mem::size_of::<&dyn Probe>() as u32\n}\n"
+        },
+        {
+          "label": "An implicit Sized bound rejects T = str (E0277)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "the size for values of type `str` cannot be known at compilation time"
+          ],
+          "source": "use std::fmt::Debug;\nfn show<T: Debug>(t: &T) -> String { format!(\"{t:?}\") }\nfn main() {\n    let s: &str = \"slab\";\n    println!(\"{}\", show(s));        // T = str, which is not Sized\n}\n"
+        },
+        {
+          "label": "`T: ?Sized` accepts str and [f64] behind a reference",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "\"slab\" [0.0, 0.5]",
+          "source": "use std::fmt::Debug;\nfn show<T: Debug + ?Sized>(t: &T) -> String { format!(\"{t:?}\") }\nfn main() {\n    let s: &str = \"slab\";\n    let heights: &[f64] = &[0.0, 0.5];\n    println!(\"{} {}\", show(s), show(heights));\n}\n"
+        },
+        {
+          "label": "Box<dyn Probe> is Box<dyn Probe + 'static>: a borrowing probe is refused",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "lifetime may not live long enough",
+            "must outlive `'static`"
+          ],
+          "source": "trait Probe { fn sample(&self) -> f64; }\nstruct View<'a>(&'a [f64]);\nimpl Probe for View<'_> { fn sample(&self) -> f64 { self.0[0] } }\n// Box<dyn Probe> means Box<dyn Probe + 'static>: a borrowing probe does not fit.\nfn boxed(v: &[f64]) -> Box<dyn Probe> { Box::new(View(v)) }\nfn main() {}\n"
+        },
+        {
+          "label": "Box<dyn Probe + '_> carries the borrow",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "0.75",
+          "source": "trait Probe { fn sample(&self) -> f64; }\nstruct View<'a>(&'a [f64]);\nimpl Probe for View<'_> { fn sample(&self) -> f64 { self.0[0] } }\nfn boxed(v: &[f64]) -> Box<dyn Probe + '_> { Box::new(View(v)) }\nfn main() { let h = [0.75]; println!(\"{}\", boxed(&h).sample()); }\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference — Traits: Dyn compatibility",
+          "url": "https://doc.rust-lang.org/stable/reference/items/traits.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Lists the dyn-compatibility rules (supertraits, no Sized supertrait, no associated consts, no GATs, dispatchable receivers, no async fn or RPIT, `where Self: Sized` exemption) and notes the concept was formerly called object safety."
+        },
+        {
+          "title": "The Rust Reference — Dynamically sized types",
+          "url": "https://doc.rust-lang.org/stable/reference/dynamically-sized-types.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Pointers to DSTs are sized but twice the size of pointers to sized types: slices carry an element count, trait objects a vtable pointer; `?Sized` admits DSTs as type arguments."
+        },
+        {
+          "title": "The Rust Reference — Trait object types",
+          "url": "https://doc.rust-lang.org/stable/reference/types/trait-object.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "A pointer to a trait object holds a pointer to the value and a vtable with one function pointer per method of the trait and its supertraits."
+        },
+        {
+          "title": "The Rust Reference — Lifetime elision (default trait object lifetimes)",
+          "url": "https://doc.rust-lang.org/stable/reference/lifetime-elision.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "`Box<dyn Foo>` is the same type as `Box<dyn Foo + 'static>`; `&'a dyn Foo` defaults to `&'a (dyn Foo + 'a)`."
+        },
+        {
+          "title": "Refactor dyn-compatibility error and suggestions (rust-lang/rust#133372)",
+          "url": "https://github.com/rust-lang/rust/pull/133372",
+          "year": 2025,
+          "kind": "pr",
+          "identifier": "rust-lang/rust#133372",
+          "claim": "Merged 2025-01-22 with milestone 1.86.0; replaced 'cannot be made into an object' with dyn-compatible wording in E0038."
+        },
+        {
+          "title": "Meeting proposal: rename \"object safety\" to \"dyn compatibility\" (lang-team#286)",
+          "url": "https://github.com/rust-lang/lang-team/issues/286",
+          "year": 2024,
+          "kind": "issue",
+          "identifier": "rust-lang/lang-team#286",
+          "claim": "Proposal opened 2024-08-04 to rename 'object safe' to 'dyn compatible'; it carries the finished-final-comment-period and disposition-merge labels."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source — src/pipeline/physics_world.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_world.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`PhysicsWorld::step` calls `self.step_with_events(&(), &())`, whose parameters are `hooks: &dyn PhysicsHooks, events: &dyn EventHandler`."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source — src/pipeline/collision_pipeline.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/collision_pipeline.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`CollisionPipeline::step` takes `hooks: &dyn PhysicsHooks, events: &dyn EventHandler` after the body and collider sets."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "apply-the-whole-orphan-rule-a-local-type-before-any-uncovered-type-parameter-and-no-overlapping-impls",
+      "name": "Apply the whole orphan rule: a local type before any uncovered type parameter, and no overlapping impls",
+      "what": "For `impl<P1..=Pn> Trait<T1..=Tn> for T0` with a foreign trait, one of T0..=Tn must be local and no uncovered type parameter may appear before the first local one (RFC 2451); `&`, `&mut`, `Box` and `Pin` are fundamental, so `&Local` and `Box<Local>` count as local; overlapping impls are E0119, including overlap that only a future upstream impl could create.",
+      "how": "Read the error code: E0117 = foreign trait on only foreign types (`impl Display for Vec<f64>`, `impl From<[f64; 17]> for rapier3d_f64::prelude::Vector`) — wrap in a local newtype or record type; E0210 = uncovered type parameter before the first local type (`impl<T> From<Snapshot> for T`); E0119 = overlap. Shapes that pass: `impl<T> From<Snapshot> for Vec<T>` (T covered by Vec, Snapshot local), `impl Display for Box<Snapshot>` and `impl From<&BodyRecord> for Vector` (fundamental wrappers of a local type). A blanket impl `impl<T: Display> Describe for T` claims every type that can ever satisfy the bound: add specific impls only for local types that do not meet it.",
+      "rust_version": "any (rules of RFC 2451; checked on 1.98.1)",
+      "gotchas": "The one-sentence rule ('the trait or the type must be local') is incomplete: `impl<T> From<Snapshot> for T` names a local type and still fails with E0210. Coherence reasons about the future: next to `impl<T: Display> Describe for T`, `impl Describe for Vec<u8>` is E0119 today even though `Vec<u8>` is not Display ('upstream crates may add a new impl of trait `std::fmt::Display`...'), while the same pair for a local non-Display type compiles. Rapier's `Vector` is glam's `DVec3` at 0.35.3 (rustc names it in the E0117 note), so it is foreign to the solver crate.",
+      "engine_note": "Conversions between the solver's stride-17 body records (solver/src/lib.rs) and Rapier values must go through a local type: `impl From<[f64; 17]> for Vector` is E0117, `impl From<&BodyRecord> for Vector` with a local `BodyRecord` compiles and converts (the BodyRecord check prints `0 1.5 0`).",
+      "checks": [
+        {
+          "label": "Foreign trait for a foreign type: Display for Vec<f64> is E0117",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0117"
+          ],
+          "source": "use std::fmt;\nimpl fmt::Display for Vec<f64> {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, \"{}\", self.len()) }\n}\n"
+        },
+        {
+          "label": "RFC 2451 shapes pass: From<Local> for Vec<T>, Display for Box<Local>",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "0 3 bytes",
+          "source": "pub struct Snapshot(pub Vec<u8>);\n// Foreign trait, foreign type, but the first local type (Snapshot) comes before\n// any uncovered type parameter: allowed since RFC 2451.\nimpl<T> From<Snapshot> for Vec<T> {\n    fn from(_: Snapshot) -> Vec<T> { Vec::new() }\n}\n// A fundamental wrapper around a local type counts as local.\nimpl std::fmt::Display for Box<Snapshot> {\n    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, \"{} bytes\", self.0.len()) }\n}\nfn main() {\n    let v: Vec<u32> = Snapshot(vec![1, 2]).into();\n    println!(\"{} {}\", v.len(), Box::new(Snapshot(vec![0; 3])));\n}\n"
+        },
+        {
+          "label": "An uncovered T before the first local type is E0210",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0210"
+          ],
+          "source": "pub struct Snapshot(pub Vec<u8>);\nimpl<T> From<Snapshot> for T {\n    fn from(_: Snapshot) -> T { unimplemented!() }\n}\n"
+        },
+        {
+          "label": "Blanket impl plus a foreign type is E0119 because upstream may add Display",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0119"
+          ],
+          "stderr_contains": [
+            "upstream crates may add a new impl of trait `std::fmt::Display` for type `std::vec::Vec<u8>`"
+          ],
+          "source": "use std::fmt::Display;\ntrait Describe { fn describe(&self) -> String; }\nimpl<T: Display> Describe for T { fn describe(&self) -> String { format!(\"{self}\") } }\nimpl Describe for Vec<u8> { fn describe(&self) -> String { format!(\"{} bytes\", self.len()) } }\n"
+        },
+        {
+          "label": "Blanket impl plus a local non-Display type compiles",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "2.5 4 bytes",
+          "source": "use std::fmt::Display;\ntrait Describe { fn describe(&self) -> String; }\nimpl<T: Display> Describe for T { fn describe(&self) -> String { format!(\"{self}\") } }\nstruct Snapshot(Vec<u8>);   // local, and not Display: this crate alone decides that\nimpl Describe for Snapshot { fn describe(&self) -> String { format!(\"{} bytes\", self.0.len()) } }\nfn main() { println!(\"{} {}\", 2.5f64.describe(), Snapshot(vec![0; 4]).describe()); }\n"
+        },
+        {
+          "label": "Blanket impl plus u32 (which is Display) overlaps: E0119",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0119"
+          ],
+          "source": "use std::fmt::Display;\ntrait Describe { fn describe(&self) -> String; }\nimpl<T: Display> Describe for T { fn describe(&self) -> String { format!(\"{self}\") } }\nimpl Describe for u32 { fn describe(&self) -> String { String::from(\"u32\") } }\n"
+        },
+        {
+          "label": "From<[f64; 17]> for Rapier's Vector is foreign-for-foreign: E0117",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0117"
+          ],
+          "source": "use rapier3d_f64::prelude::Vector;\n// Foreign trait (From), foreign types ([f64; 17] and Rapier's Vector): refused.\nimpl From<[f64; 17]> for Vector {\n    fn from(b: [f64; 17]) -> Vector { Vector::new(b[0], b[1], b[2]) }\n}\n"
+        },
+        {
+          "label": "From<&BodyRecord> for Vector is legal: &Local counts as local",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "0 1.5 0",
+          "source": "use rapier3d_f64::prelude::Vector;\n// A local record type makes the conversion legal.\npub struct BodyRecord(pub [f64; 17]);\nimpl From<&BodyRecord> for Vector {\n    fn from(b: &BodyRecord) -> Vector { Vector::new(b.0[0], b.0[1], b.0[2]) }\n}\nfn main() {\n    let mut raw = [0.0; 17];\n    raw[1] = 1.5;\n    let v: Vector = (&BodyRecord(raw)).into();\n    println!(\"{} {} {}\", v.x, v.y, v.z);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference — Implementations: Trait implementation coherence, Orphan rules",
+          "url": "https://doc.rust-lang.org/stable/reference/items/implementations.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "States the orphan rule over T0..=Tn with the first local type Ti and no uncovered type parameters before it, and defines overlap as two impls instantiable with the same type."
+        },
+        {
+          "title": "The Rust Reference — Glossary",
+          "url": "https://doc.rust-lang.org/stable/reference/glossary.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "`&`, `&mut`, `Box` and `Pin` are fundamental type constructors (`&T`, `Box<T>` of a local T are local); an uncovered type is one that is not an argument of another type; `impl<T> Foo for T` is a blanket impl."
+        },
+        {
+          "title": "RFC 2451: Re-Rebalancing Coherence",
+          "url": "https://rust-lang.github.io/rfcs/2451-re-rebalancing-coherence.html",
+          "year": 2018,
+          "kind": "rfc",
+          "identifier": "RFC 2451",
+          "claim": "Introduced the current orphan rule (confirmed verbatim by the 2026 Reference); newly allows `impl<T> From<LocalType> for Vec<T>` and still rejects `impl<T> ForeignTrait<LocalType> for T`."
+        },
+        {
+          "title": "The Rust Programming Language, ch. 10.2 Traits",
+          "url": "https://doc.rust-lang.org/stable/book/ch10-02-traits.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Explains coherence and the orphan rule (no external trait on an external type) and blanket implementations such as `impl<T: Display> ToString for T`."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "let-auto-traits-follow-the-fields-steer-them-with-phantomdata-and-know-a-drop-impl-drives-drop-check",
+      "name": "Let auto traits follow the fields, steer them with PhantomData, and know a Drop impl drives drop check",
+      "what": "Send, Sync, Unpin, UnwindSafe and RefUnwindSafe are auto traits: a struct gets one when all its fields have it, and stable code cannot write negative impls; `PhantomData<*const ()>` removes Send and Sync, `PhantomData<fn() -> T>` keeps a typed handle Send + Sync whatever T is, and since RFC 1238 a `PhantomData<T>` field is superfluous for drop check when the type has an explicit Drop impl: the Drop impl itself makes drop check strict, while the phantom still sets variance and auto traits.",
+      "how": "Assert auto traits in code: `fn assert_send<T: Send>() {}` then `assert_send::<MyType>();` (E0277 names the field that breaks it). Choose the phantom from the Nomicon table: `PhantomData<T>` (owns T, covariant, inherits Send/Sync), `PhantomData<fn() -> T>` (covariant, always Send + Sync: typed ids and handles), `PhantomData<*const ()>` (!Send + !Sync), `PhantomData<fn(T) -> T>` (invariant). `size_of::<PhantomData<T>>() == 0` is guaranteed, so `Handle<Body> { index: u32, _for: PhantomData<fn() -> Body> }` is 4 bytes and a `Handle<Collider>` passed where `Handle<Body>` is wanted is E0308. A marker trait can require an auto trait for all implementors: rapier's `pub trait MaybeSync: Sync {}` with `impl<T: Sync + ?Sized> MaybeSync for T {}`, used as a supertrait.",
+      "rust_version": "any",
+      "gotchas": "Common wrong advice: 'add PhantomData<T> for drop check'. The Nomicon: since RFC 1238 an extra `PhantomData<T>` is superfluous for dropck when the type has a Drop impl (it still sets variance and auto traits), and the std docs warn its drop-check interaction may change. What makes `inspector = Inspector(&days)` fail with E0597 ('...when `inspector` is dropped and runs the `Drop` code for type `Inspector`') is the Drop impl: without it the same code compiles. `Rc`, `RefCell` and raw pointers remove Send/Sync from every struct that contains them, and you find out at the bound, not at the field.",
+      "engine_note": "rapier3d-f64 0.35.3 declares `pub trait EventHandler: crate::utils::MaybeSync`, and `MaybeSync: Sync` unless the crate's `unsync-callbacks` feature is enabled, which solver/Cargo.toml does not do. A solver-side collision log therefore must be Sync: a `RefCell<u32>` counter is E0277 ('required for `Log` to implement `MaybeSync`'), an `AtomicU32` compiles (the AtomicU32 check drops a box onto a slab for 64 quanta at dt = 1/64 with `step_with_events(&(), &log)` and counts 1 started collision). Typed `Handle<T>` wrappers over the body and collider indices would keep the stride-17 and stride-10 buffers apart at zero bytes.",
+      "checks": [
+        {
+          "label": "An Rc field makes the whole struct !Send (E0277)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "cannot be sent between threads safely"
+          ],
+          "source": "use std::rc::Rc;\nfn assert_send<T: Send>() {}\nstruct Cache { shared: Rc<Vec<f64>> }   // Rc makes the whole struct !Send\nfn main() { assert_send::<Cache>(); }\n"
+        },
+        {
+          "label": "PhantomData<*const ()> opts a type out of Send and Sync on stable",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "source": "use std::marker::PhantomData;\nfn assert_send<T: Send>() {}\nfn assert_sync<T: Sync>() {}\n// A raw-pointer phantom opts the type out of Send and Sync on stable Rust,\n// without a negative impl (those are std-only).\nstruct WorldToken { id: u32, _not_thread_safe: PhantomData<*const ()> }\nfn main() { assert_send::<WorldToken>(); assert_sync::<WorldToken>(); }\n"
+        },
+        {
+          "label": "PhantomData<fn() -> T> handle: 4 bytes, Send + Sync even for T = Rc",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "4 3 3",
+          "source": "use std::marker::PhantomData;\nuse std::mem::size_of;\nuse std::rc::Rc;\nfn assert_send_sync<T: Send + Sync>() {}\n// A typed index: PhantomData<fn() -> T> is covariant in T and Send + Sync\n// whatever T is, and it costs zero bytes.\nstruct Handle<T> { index: u32, _for: PhantomData<fn() -> T> }\nstruct Body; struct Collider;\nfn main() {\n    assert_send_sync::<Handle<Rc<f64>>>();   // Rc is !Send, the handle still is\n    let b: Handle<Body> = Handle { index: 3, _for: PhantomData };\n    let c: Handle<Collider> = Handle { index: 3, _for: PhantomData };\n    println!(\"{} {} {}\", size_of::<Handle<Body>>(), b.index, c.index);\n}\n"
+        },
+        {
+          "label": "Handle<Collider> where Handle<Body> is wanted is E0308",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0308"
+          ],
+          "source": "use std::marker::PhantomData;\nstruct Handle<T> { index: u32, _for: PhantomData<fn() -> T> }\nstruct Body; struct Collider;\nfn wake(_: Handle<Body>) {}\nfn main() {\n    let c: Handle<Collider> = Handle { index: 3, _for: PhantomData };\n    wake(c);\n}\n"
+        },
+        {
+          "label": "A Drop impl makes drop check reject the dangling borrow (E0597)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0597"
+          ],
+          "stderr_contains": [
+            "runs the `Drop` code for type `Inspector`"
+          ],
+          "source": "struct Inspector<'a>(&'a u8);\nimpl Drop for Inspector<'_> {\n    fn drop(&mut self) { println!(\"inspecting {}\", self.0); }\n}\nfn main() {\n    let (inspector, days);\n    days = Box::new(1);\n    inspector = Inspector(&days);\n    let _ = &inspector;\n}\n"
+        },
+        {
+          "label": "Without the Drop impl the same borrow compiles",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "1",
+          "source": "struct Inspector<'a>(&'a u8);   // no Drop impl: drop check has nothing to protect\nfn main() {\n    let (inspector, days);\n    days = Box::new(1);\n    inspector = Inspector(&days);\n    println!(\"{}\", inspector.0);\n}\n"
+        },
+        {
+          "label": "rapier 0.35.3 EventHandler requires Sync via MaybeSync: RefCell log is E0277",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "required for `Log` to implement `MaybeSync`"
+          ],
+          "source": "use std::cell::RefCell;\nuse rapier3d_f64::prelude::*;\n// EventHandler: MaybeSync, and MaybeSync: Sync unless rapier's\n// `unsync-callbacks` feature is on. A RefCell log is not Sync.\nstruct Log { started: RefCell<u32> }\nimpl EventHandler for Log {\n    fn handle_collision_event(&self, _: &RigidBodySet, _: &ColliderSet, e: CollisionEvent, _: Option<&ContactPair>) {\n        if e.started() { *self.started.borrow_mut() += 1; }\n    }\n    fn handle_contact_force_event(&self, _: f64, _: &RigidBodySet, _: &ColliderSet, _: &ContactPair, _: f64) {}\n}\nfn main() {}\n"
+        },
+        {
+          "label": "An AtomicU32 log satisfies MaybeSync and counts one started collision",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "expect": "runs",
+          "stdout": "1",
+          "source": "use std::sync::atomic::{AtomicU32, Ordering};\nuse rapier3d_f64::prelude::*;\n// An atomic counter is Sync, so the handler satisfies the supertrait.\nstruct Log { started: AtomicU32 }\nimpl EventHandler for Log {\n    fn handle_collision_event(&self, _: &RigidBodySet, _: &ColliderSet, e: CollisionEvent, _: Option<&ContactPair>) {\n        if e.started() { self.started.fetch_add(1, Ordering::Relaxed); }\n    }\n    fn handle_contact_force_event(&self, _: f64, _: &RigidBodySet, _: &ColliderSet, _: &ContactPair, _: f64) {}\n}\nfn main() {\n    let mut world = PhysicsWorld::new();\n    world.gravity = Vector::new(0.0, -8.0, 0.0);\n    world.integration_parameters.dt = 1.0 / 64.0;\n    let ground = RigidBodyBuilder::fixed().build();\n    let (_, _) = world.insert(ground, ColliderBuilder::cuboid(5.0, 0.5, 5.0).build());\n    let body = RigidBodyBuilder::dynamic().translation(Vector::new(0.0, 1.2, 0.0)).build();\n    let (_, _) = world.insert(body, ColliderBuilder::cuboid(0.5, 0.5, 0.5).active_events(ActiveEvents::COLLISION_EVENTS).build());\n    let log = Log { started: AtomicU32::new(0) };\n    for _ in 0..64 { world.step_with_events(&(), &log); }\n    println!(\"{}\", log.started.load(Ordering::Relaxed));\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference — Special types and traits (Auto traits, PhantomData)",
+          "url": "https://doc.rust-lang.org/stable/reference/special-types-and-traits.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Send, Sync, Unpin, UnwindSafe and RefUnwindSafe are auto traits implemented when all fields implement them; there is no stable way to write negative impls; PhantomData<T> is zero-sized and counts as owning a T for variance, drop check and auto traits."
+        },
+        {
+          "title": "The Rustonomicon — PhantomData",
+          "url": "https://doc.rust-lang.org/nomicon/phantom-data.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Since RFC 1238 a PhantomData<T> field is superfluous for drop check when the type has a Drop impl but still affects variance and auto traits; the table gives variance and Send/Sync for PhantomData<T>, <fn() -> T>, <*const T>, <fn(T) -> T> and others."
+        },
+        {
+          "title": "std::marker::PhantomData",
+          "url": "https://doc.rust-lang.org/stable/std/marker/struct.PhantomData.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Guarantees size_of::<PhantomData<T>>() == 0 and align 1, and says the exact interaction of PhantomData with drop check may change."
+        },
+        {
+          "title": "The Rustonomicon — Drop Check",
+          "url": "https://doc.rust-lang.org/nomicon/dropck.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The Inspector example compiles without a Drop impl and fails with E0597 once `impl Drop for Inspector` exists; generic arguments must strictly outlive a type that implements Drop."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source — src/utils/mod.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/utils/mod.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Without the `unsync-callbacks` feature, `pub trait MaybeSync: Sync {}` with `impl<T: Sync + ?Sized> MaybeSync for T {}`; with it, MaybeSync has no Sync requirement."
+        },
+        {
+          "title": "rapier3d-f64 0.35.3 source — src/pipeline/event_handler.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/event_handler.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`pub trait EventHandler: crate::utils::MaybeSync` with `handle_collision_event` and `handle_contact_force_event`; `impl EventHandler for ()`."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "choose-variance-on-purpose-a-t-box-and-vec-are-covariant-mut-t-and-cell-invariant-fn-t-contravariant",
+      "name": "Choose variance on purpose: &'a T, Box and Vec are covariant; &mut T and Cell invariant; fn(T) contravariant",
+      "what": "Rust subtyping is over lifetimes (`&'static str` is a subtype of `&'a str`); covariant constructors pass it through (`&'a T`, `*const T`, `[T]`, `fn() -> T`, `PhantomData<T>`, Box, Vec), `fn(T)` flips it, and `&'a mut T` (in T), `*mut T`, `UnsafeCell<T>`/`Cell<T>` and `dyn Trait<T>` (in T) forbid it; a struct takes the combination of its fields, and a parameter used both ways becomes invariant.",
+      "how": "Expect invariance wherever a type can write a T: `fn assign<T>(input: &mut T, val: T)` called with `&mut hello` (a `&'static str`) forces `T = &'static str`, so passing `&world` is E0597. Rely on covariance to shorten lifetimes (`Box<&'static str>` to `Box<&'a str>`, `Vec<&'static str>` to `Vec<&'a str>`). A sink `fn(&'a str)` may stand where `fn(&'static str)` is expected, never the reverse (E0521). In your own generic types choose with PhantomData: `PhantomData<fn(&'id ()) -> &'id ()>` makes `'id` invariant, a brand the compiler will not shrink. rustc's notes name the culprit: 'the struct `Cell<T>` is invariant over the parameter `T`'.",
+      "rust_version": "any",
+      "gotchas": "Invariance errors surface far from the cause, as 'does not live long enough' (E0597) or 'lifetime may not live long enough' (no code), because an annotation such as `&'static str` pinned the lifetime. Putting a `Cell`, `RefCell` or `&mut` of a borrowed type inside a long-lived struct makes that struct invariant, which then refuses ordinary shortening. `dyn Trait<T> + 'a` is covariant in 'a but invariant in T.",
+      "engine_note": "",
+      "checks": [
+        {
+          "label": "&mut T is invariant: assign(&mut &'static str, &local) is E0597",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0597"
+          ],
+          "source": "fn assign<T>(input: &mut T, val: T) { *input = val; }\nfn main() {\n    let mut hello: &'static str = \"hello\";\n    {\n        let world = String::from(\"world\");\n        assign(&mut hello, &world);   // &mut T is invariant in T: T must be &'static str\n    }\n    println!(\"{hello}\");\n}\n"
+        },
+        {
+          "label": "&'a T, Box<T> and Vec<T> are covariant: 'static shortens to 'a",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "xyz",
+          "source": "// Covariance: a longer-lived reference is usable where a shorter one is expected,\n// through &'a T, Box<T> and Vec<T> alike.\nfn shorten<'a>(x: &'static str, b: Box<&'static str>, v: Vec<&'static str>) -> (&'a str, Box<&'a str>, Vec<&'a str>) {\n    (x, b, v)\n}\nfn main() {\n    let (a, b, v) = shorten(\"x\", Box::new(\"y\"), vec![\"z\"]);\n    println!(\"{a}{b}{}\", v[0]);\n}\n"
+        },
+        {
+          "label": "fn(&'a str) is accepted where fn(&'static str) is expected (contravariance)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "quantum",
+          "source": "// Contravariance: fn(&'a str) is a subtype of fn(&'static str), because\n// &'static str is a subtype of &'a str and fn(T) flips the direction.\nfn wants_static_sink(f: fn(&'static str)) { f(\"quantum\") }\nfn pass<'a>(f: fn(&'a str)) { wants_static_sink(f) }\nfn print_it(s: &str) { println!(\"{s}\"); }\nfn main() { pass(print_it); }\n"
+        },
+        {
+          "label": "The reverse, fn(&'static str) for fn(&'a str), is refused (E0521)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0521"
+          ],
+          "source": "// The other direction is refused: a sink that only accepts &'static str\n// cannot stand in for one that must accept a short-lived borrow.\nfn wants_any_sink<'a>(f: fn(&'a str), s: &'a str) { f(s) }\nfn pass_static<'a>(f: fn(&'static str), s: &'a str) { wants_any_sink(f, s) }\nfn main() {}\n"
+        },
+        {
+          "label": "Cell<T> is invariant: Cell<&'static str> will not become Cell<&'a str>",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "the struct `Cell<T>` is invariant over the parameter `T`"
+          ],
+          "source": "use std::cell::Cell;\n// Cell<T> is invariant in T, like &mut T.\nfn shorten_cell<'a>(c: Cell<&'static str>) -> Cell<&'a str> { c }\nfn main() {}\n"
+        },
+        {
+          "label": "PhantomData<fn(&'id ()) -> &'id ()> makes a user struct invariant in 'id",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "the struct `Brand<'id>` is invariant over the parameter `'id`"
+          ],
+          "source": "use std::marker::PhantomData;\n// PhantomData<fn(T) -> T> makes the parameter invariant in a user type.\nstruct Brand<'id>(PhantomData<fn(&'id ()) -> &'id ()>);\nfn shrink<'a>(b: Brand<'static>) -> Brand<'a> { b }\nfn main() {}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference — Subtyping and Variance",
+          "url": "https://doc.rust-lang.org/stable/reference/subtyping.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Defines co-, contra- and invariance, gives the variance table for &'a T, &'a mut T, *const T, *mut T, [T], fn() -> T, fn(T), UnsafeCell<T>, PhantomData<T>, dyn Trait<T> + 'a, and derives struct variance from fields."
+        },
+        {
+          "title": "The Rustonomicon — Subtyping and Variance",
+          "url": "https://doc.rust-lang.org/nomicon/subtyping.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The `assign(&mut hello, &world)` example fails with E0597 because &mut T is invariant; function types are contravariant in their arguments; Box and Vec are covariant; Cell/UnsafeCell are invariant like &mut T."
+        },
+        {
+          "title": "The Rustonomicon — PhantomData",
+          "url": "https://doc.rust-lang.org/nomicon/phantom-data.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Table: PhantomData<fn(T)> is contravariant, PhantomData<fn(T) -> T> invariant, PhantomData<Cell<&'a ()>> invariant in 'a."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "write-for-a-bounds-when-a-generic-must-accept-a-borrow-that-the-function-creates-itself",
+      "name": "Write for<'a> bounds when a generic must accept a borrow that the function creates itself",
+      "what": "A lifetime parameter on a function is chosen by the caller and outlives the call, so it cannot name a borrow of a local; a higher-ranked bound (`F: for<'a> Fn(&'a f64) -> f64`, or the elided `Fn(&f64) -> f64`, or `where for<'a> &'a C: IntoIterator<Item = &'a f64>`) must hold for every lifetime, including that local one.",
+      "how": "When a generic calls a closure on data the function owns or borrows internally, write the bound elided (`F: Fn(&f64) -> f64`) or explicit (`F: for<'a> Fn(&'a f64) -> f64`); the Reference expands elided Fn-trait lifetimes to `for<'a>`. To iterate any collection by reference: `fn sum_all<C>(c: C) -> f64 where for<'a> &'a C: IntoIterator<Item = &'a f64>` serves `Vec<f64>`, `[f64; N]` and `VecDeque<f64>` with one body. `for<'a>` may prefix the whole bound (`for<'a> F: Fn(&'a i32)`) or just the trait; only the scope of the name differs.",
+      "rust_version": "any",
+      "gotchas": "The tempting fix of adding `<'a>` to the function (`fn sum_all<'a, C: 'a>(c: C) where &'a C: IntoIterator<..>`) fails with E0597 ('`c` does not live long enough'), because `'a` must outlive the whole call. Elided lifetimes in `Fn(&T) -> &U` bounds and in `fn(&T)` pointer types are already higher-ranked; `for<'a>` must be written out for non-Fn traits such as `&'a C: IntoIterator`.",
+      "engine_note": "",
+      "checks": [
+        {
+          "label": "A caller-chosen 'a cannot name a local borrow: E0597",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0597"
+          ],
+          "source": "// A lifetime chosen by the caller cannot name a borrow of a local.\nfn call_on_local<'a, F: Fn(&'a f64) -> f64>(f: F) -> f64 {\n    let x = 1.5;\n    f(&x)\n}\nfn main() { println!(\"{}\", call_on_local(|v| *v * 2.0)); }\n"
+        },
+        {
+          "label": "for<'a> Fn(&'a f64) and the elided Fn(&f64) both accept the local borrow",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "3 5",
+          "source": "// for<'a>: the bound holds for every lifetime, including the local borrow.\nfn call_on_local<F>(f: F) -> f64 where F: for<'a> Fn(&'a f64) -> f64 {\n    let x = 1.5;\n    f(&x)\n}\n// Elided form: Fn(&f64) -> f64 in a bound is the same higher-ranked bound.\nfn call_on_local_elided<F: Fn(&f64) -> f64>(f: F) -> f64 {\n    let x = 2.5;\n    f(&x)\n}\nfn main() { println!(\"{} {}\", call_on_local(|v| *v * 2.0), call_on_local_elided(|v| *v * 2.0)); }\n"
+        },
+        {
+          "label": "for<'a> &'a C: IntoIterator sums Vec, array and VecDeque by reference",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "3 2 0.5",
+          "source": "use std::collections::VecDeque;\n// Iterate any collection by shared reference, whatever its concrete type.\nfn sum_all<C>(c: C) -> f64 where for<'a> &'a C: IntoIterator<Item = &'a f64> {\n    let mut s = 0.0;\n    for x in &c { s += *x; }\n    s\n}\nfn main() {\n    let v = vec![1.0, 2.0];\n    let a = [0.5; 4];\n    let d: VecDeque<f64> = VecDeque::from(vec![0.25, 0.25]);\n    println!(\"{} {} {}\", sum_all(v), sum_all(a), sum_all(d));\n}\n"
+        },
+        {
+          "label": "The same bound with a function-level 'a is E0597",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0597"
+          ],
+          "source": "fn sum_all<'a, C: 'a>(c: C) -> f64 where &'a C: IntoIterator<Item = &'a f64> {\n    let mut s = 0.0;\n    for x in &c { s += *x; }\n    s\n}\nfn main() { println!(\"{}\", sum_all(vec![1.0, 2.0])); }\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference — Trait and lifetime bounds: Higher-ranked trait bounds",
+          "url": "https://doc.rust-lang.org/stable/reference/trait-bounds.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "A higher-ranked bound holds for all lifetimes; only a higher-ranked bound works in `call_on_ref_zero`, because the borrow of a local is shorter than any lifetime parameter on the function; `for<'a>` may precede the bound or the trait."
+        },
+        {
+          "title": "The Rustonomicon — Higher-Rank Trait Bounds",
+          "url": "https://doc.rust-lang.org/nomicon/hrtb.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "The lifetime of a borrow made inside `call` cannot be named on the impl; `where for<'a> F: Fn(&'a (u8, u16)) -> &'a u8` reads 'for all choices of 'a'."
+        },
+        {
+          "title": "The Rust Reference — Lifetime elision",
+          "url": "https://doc.rust-lang.org/stable/reference/lifetime-elision.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Elided lifetimes in function pointer and closure-trait signatures expand to higher-ranked forms: `dyn Fn(&str) -> &str` is `dyn for<'a> Fn(&'a str) -> &'a str`."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "upcast-trait-objects-to-a-supertrait-1-86-and-downcast-through-dyn-any-instead-of-an-as-any-method",
+      "name": "Upcast trait objects to a supertrait (1.86+) and downcast through dyn Any instead of an as_any method",
+      "what": "Since Rust 1.86 a pointer to `dyn Sub` coerces to a pointer to `dyn Super` for any supertrait, so with `trait Law: Any` a `&dyn Law` becomes `&dyn Any` and `downcast_ref::<ProductLaw>()` works with no `as_any` boilerplate; `Any` requires `'static`, and `Box<dyn Any>::downcast` recovers ownership.",
+      "how": "Declare `trait Law: Any { .. }`, hold `Vec<Box<dyn Law>>`, then `let any: &dyn Any = &**law; any.downcast_ref::<ProductLaw>()`, or owning: `let any: Box<dyn Any> = law; any.downcast::<ProductLaw>()`. The coercion also works for other supertraits (`&dyn Law` to `&dyn Report`) and may drop auto traits (`dyn T + Send` to `dyn U`). Supertrait items are usable in default methods (`trait Report: Display { fn banner(&self) -> String { format!(\"[{}]\", self.to_string()) } }`), and every implementor must implement the supertrait too (E0277 otherwise). Downcast API: `is`, `downcast_ref`, `downcast_mut` on `dyn Any`, `dyn Any + Send`, `dyn Any + Send + Sync`; `downcast` on `Box<dyn Any>`.",
+      "rust_version": "1.86+ for upcasting; Any any",
+      "gotchas": "`boxed.type_id()` on a `Box<dyn Any>` is the TypeId of the Box, not of the value (the check prints `false`): use `(&*boxed).type_id()` or `boxed.is::<i32>()`. `Any` cannot hold non-'static borrows: coercing `&&str` of a local String to `&dyn Any` is E0597 ('coercion requires that `name` is borrowed for `'static`'). Pre-1.86 code carries `fn as_any(&self) -> &dyn Any` methods that upcasting makes unnecessary. The unchecked downcasts (`downcast_unchecked*`) are nightly-only.",
+      "engine_note": "",
+      "checks": [
+        {
+          "label": "&dyn Law upcasts to &dyn Any; downcast_ref finds the product law",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "box -\nproduct 64",
+          "source": "use std::any::Any;\ntrait Law: Any {\n    fn name(&self) -> &'static str;\n}\nstruct BoxLaw;\nstruct ProductLaw { quanta: u32 }\nimpl Law for BoxLaw { fn name(&self) -> &'static str { \"box\" } }\nimpl Law for ProductLaw { fn name(&self) -> &'static str { \"product\" } }\nfn main() {\n    let laws: Vec<Box<dyn Law>> = vec![Box::new(BoxLaw), Box::new(ProductLaw { quanta: 64 })];\n    for law in &laws {\n        let any: &dyn Any = &**law;          // trait-object upcasting coercion (1.86+)\n        match any.downcast_ref::<ProductLaw>() {\n            Some(p) => println!(\"{} {}\", law.name(), p.quanta),\n            None => println!(\"{} -\", law.name()),\n        }\n    }\n}\n"
+        },
+        {
+          "label": "Box<dyn Law> upcasts to Box<dyn Any>; downcast returns Box<ProductLaw>",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "product 64",
+          "source": "use std::any::Any;\ntrait Law: Any { fn name(&self) -> &'static str; }\nstruct ProductLaw { quanta: u32 }\nimpl Law for ProductLaw { fn name(&self) -> &'static str { \"product\" } }\nfn main() {\n    let law: Box<dyn Law> = Box::new(ProductLaw { quanta: 64 });\n    let any: Box<dyn Any> = law;                  // Box<dyn Law> -> Box<dyn Any>\n    let p: Box<ProductLaw> = any.downcast::<ProductLaw>().ok().unwrap();\n    println!(\"{} {}\", p.name(), p.quanta);\n}\n"
+        },
+        {
+          "label": "Box<dyn Any>.type_id() is the box's TypeId; (&*boxed).type_id() is the value's",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "false true true",
+          "source": "use std::any::{Any, TypeId};\nfn main() {\n    let boxed: Box<dyn Any> = Box::new(3_i32);\n    let wrong = boxed.type_id() == TypeId::of::<i32>();     // TypeId of the Box itself\n    let right = (&*boxed).type_id() == TypeId::of::<i32>(); // TypeId of the value\n    println!(\"{wrong} {right} {}\", boxed.is::<i32>());\n}\n"
+        },
+        {
+          "label": "Any needs 'static: a borrowed &str cannot become &dyn Any (E0597)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0597"
+          ],
+          "stderr_contains": [
+            "borrowed for `'static`"
+          ],
+          "source": "use std::any::Any;\nfn store(_: &dyn Any) {}\nfn main() {\n    let name = String::from(\"slab\");\n    let r: &str = &name;     // a borrowed, non-'static value\n    store(&r);               // Any requires 'static\n}\n"
+        },
+        {
+          "label": "A supertrait default method uses Display; &dyn Law upcasts to &dyn Report",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "[box]",
+          "source": "use std::fmt;\ntrait Report: fmt::Display {\n    fn banner(&self) -> String { format!(\"[{}]\", self.to_string()) }\n}\ntrait Law: Report {}\nstruct BoxLaw;\nimpl fmt::Display for BoxLaw { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, \"box\") } }\nimpl Report for BoxLaw {}\nimpl Law for BoxLaw {}\nfn show(l: &dyn Law) -> String { let r: &dyn Report = l; r.banner() }\nfn main() { println!(\"{}\", show(&BoxLaw)); }\n"
+        },
+        {
+          "label": "Implementing the subtrait without the supertrait is E0277",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "source": "trait Report { fn banner(&self) -> String; }\ntrait Law: Report {}\nstruct BoxLaw;\nimpl Law for BoxLaw {}\nfn main() {}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Announcing Rust 1.86.0",
+          "url": "https://blog.rust-lang.org/2025/04/03/Rust-1.86.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Rust 1.86.0 (2025-04-03) stabilized trait-object upcasting to a supertrait object, including to `dyn Any` for downcasting, and for other pointers such as Arc and *const."
+        },
+        {
+          "title": "The Rust Reference — Type coercions: Unsized coercions",
+          "url": "https://doc.rust-lang.org/stable/reference/type-coercions.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "`dyn T` coerces to `dyn U` when U is a supertrait of T, and the coercion may drop auto traits."
+        },
+        {
+          "title": "std::any::Any",
+          "url": "https://doc.rust-lang.org/stable/std/any/trait.Any.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`pub trait Any: 'static`; `is`, `downcast_ref`, `downcast_mut` on dyn Any (+ Send, + Send + Sync) and `Box<dyn Any>::downcast`; unchecked variants are nightly-only."
+        },
+        {
+          "title": "std::any — Smart pointers and dyn Any",
+          "url": "https://doc.rust-lang.org/stable/std/any/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Calling `.type_id()` on a `Box<dyn Any>` yields the container's TypeId; convert to `&dyn Any` first (`(&*boxed).type_id()`)."
+        },
+        {
+          "title": "The Rust Reference — Traits: Supertraits",
+          "url": "https://doc.rust-lang.org/stable/reference/items/traits.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Supertraits are required for implementing the subtrait, and generics or trait objects bounded by the subtrait can use the supertraits' associated items."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "control-what-impl-trait-captures-rpitit-async-fn-in-traits-1-75-use-1-82-traits-1-87-2024-rules",
+      "name": "Control what impl Trait captures: RPITIT/async fn in traits (1.75), use<..> (1.82; traits 1.87), 2024 rules",
+      "what": "A free function's `-> impl Trait` captures every in-scope lifetime in edition 2024 but only lifetimes named in its bounds in 2021; `use<..>` (1.82) states the captured set in any edition and, since 1.87, inside trait definitions; `-> impl Trait` and `async fn` in traits (1.75) capture every in-scope lifetime in every edition unless a `use<..>` bound narrows it, and make the trait dyn-incompatible.",
+      "how": "Edition 2021, returning a borrow through `impl Trait`: add `+ use<'_>` (rustc's fix for E0700). Edition 2024, result does not borrow the argument: add `+ use<>`, or callers get E0502 when they mutate the argument while holding the result. `use<..>` must list every in-scope type and const parameter; in a trait method it must list `Self` (`-> impl Iterator<Item = u32> + use<Self>`), while the impl writes `use<>` because `Self` there is an alias (E0799). Before moving a crate to 2024 run `cargo fix --edition` (the `impl_trait_overcaptures` lint inserts `use<..>`); preview with `-W impl_trait_overcaptures`. For `async fn` in a public trait, heed `async_fn_in_trait`: write `fn load(&self, id: u32) -> impl Future<Output = bool> + Send` if callers need Send.",
+      "rust_version": "1.75+ RPITIT/async fn in traits; 1.82+ use<..>; 1.87+ use<..> in traits; edition 2024 (1.85+) capture rules",
+      "gotchas": "One signature, two meanings: `fn indices(v: &Vec<f64>) -> impl Iterator<Item = usize>` lets the caller push to `v` in 2021 and is E0502 in 2024 (rustc adds 'Rust 2024 has adjusted the `impl Trait` lifetime capture rules'). The `+ 'a` outlives trick and the `Captures<..>` trait still compile but are obsolete. A trait with RPITIT or async fn cannot be `dyn` (E0038, 'references an `impl Trait` type in its return type'). `use<..>` cannot appear on items with argument-position `impl Trait`. Writing `use<>` in a trait method is an error ('must mention the `Self` type of the trait in `use<...>`').",
+      "engine_note": "solver/Cargo.toml pins `edition = \"2021\"`: any `-> impl Iterator` helper added to solver/src (for example over body records for T2's restore) follows the 2021 capture rules, and moving the crate to 2024 changes borrow behaviour at call sites; run the edition migration and let the pinned golden hash and fixtures/solver.sha256 digest checks decide whether the bump is clean.",
+      "checks": [
+        {
+          "label": "Edition 2021: returning a borrow through a free fn's impl Trait is E0700",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0700"
+          ],
+          "stderr_contains": [
+            "captures lifetime that does not appear in bounds"
+          ],
+          "source": "// Edition 2021: a free function's impl Trait does not capture the elided\n// lifetime of `v`, so returning a borrow of it is refused.\nfn ys(v: &[f64]) -> impl Iterator<Item = f64> {\n    v.chunks_exact(17).map(|b| b[1])\n}\nfn main() {}\n"
+        },
+        {
+          "label": "Edition 2024: the same free fn captures the lifetime and compiles",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "[1.0, 2.0]",
+          "source": "// Edition 2024: the same signature captures every in-scope lifetime.\nfn ys(v: &[f64]) -> impl Iterator<Item = f64> {\n    v.chunks_exact(17).map(|b| b[1])\n}\nfn main() {\n    let mut bodies = vec![0.0; 34];\n    bodies[1] = 1.0;\n    bodies[18] = 2.0;\n    println!(\"{:?}\", ys(&bodies).collect::<Vec<_>>());\n}\n"
+        },
+        {
+          "label": "Edition 2021: a non-borrowing result leaves the argument free to mutate",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "3 4",
+          "source": "// Edition 2021: the same function does not capture the elided lifetime,\n// so the caller may mutate `v` while the iterator is alive.\nfn indices(v: &Vec<f64>) -> impl Iterator<Item = usize> { 0..v.len() }\nfn main() {\n    let mut v = vec![0.0; 3];\n    let it = indices(&v);\n    v.push(1.0);\n    println!(\"{} {}\", it.count(), v.len());\n}\n"
+        },
+        {
+          "label": "Edition 2024: the same code overcaptures and is E0502",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0502"
+          ],
+          "stderr_contains": [
+            "Rust 2024 has adjusted the `impl Trait` lifetime capture rules"
+          ],
+          "source": "// Edition 2024 overcapture: the iterator does not borrow `v`, but its type says it does.\nfn indices(v: &Vec<f64>) -> impl Iterator<Item = usize> { 0..v.len() }\nfn main() {\n    let mut v = vec![0.0; 3];\n    let it = indices(&v);\n    v.push(1.0);\n    println!(\"{}\", it.count());\n}\n"
+        },
+        {
+          "label": "Edition 2024: + use<> captures nothing and the mutation is allowed",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "3 4",
+          "source": "// use<> says: capture nothing. The borrow ends at the call.\nfn indices(v: &Vec<f64>) -> impl Iterator<Item = usize> + use<> { 0..v.len() }\nfn main() {\n    let mut v = vec![0.0; 3];\n    let it = indices(&v);\n    v.push(1.0);\n    println!(\"{} {}\", it.count(), v.len());\n}\n"
+        },
+        {
+          "label": "impl_trait_overcaptures flags a 2021 signature that 2024 would change",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "rustc_flags": [
+            "-W",
+            "impl_trait_overcaptures"
+          ],
+          "expect": "compiles",
+          "stderr_contains": [
+            "will capture more lifetimes than possibly intended in edition 2024"
+          ],
+          "source": "// Edition 2021 crate: the migration lint names what 2024 would capture.\npub fn indices(v: &Vec<f64>) -> impl Iterator<Item = usize> { 0..v.len() }\n"
+        },
+        {
+          "label": "Edition 2021 trait method: RPITIT captures &self anyway",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "[0.0, 3.0]",
+          "source": "// Edition 2021, but inside a trait: return-position impl Trait captures the\n// &self lifetime anyway (traits used the 2024 capture rules from 1.75 on).\ntrait Bodies {\n    fn ys(&self) -> impl Iterator<Item = f64>;\n}\nstruct World { buf: Vec<f64> }\nimpl Bodies for World {\n    fn ys(&self) -> impl Iterator<Item = f64> { self.buf.chunks_exact(17).map(|b| b[1]) }\n}\nfn main() {\n    let mut w = World { buf: vec![0.0; 34] };\n    w.buf[18] = 3.0;\n    println!(\"{:?}\", w.ys().collect::<Vec<_>>());\n}\n"
+        },
+        {
+          "label": "A trait with an RPITIT method cannot be dyn (E0038)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0038"
+          ],
+          "stderr_contains": [
+            "references an `impl Trait` type in its return type"
+          ],
+          "source": "trait Bodies {\n    fn ys(&self) -> impl Iterator<Item = f64>;\n}\npub fn count(b: &dyn Bodies) -> usize { b.ys().count() }\nfn main() {}\n"
+        },
+        {
+          "label": "async fn in a pub trait triggers the async_fn_in_trait lint",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "lints": [
+            "async_fn_in_trait"
+          ],
+          "source": "pub trait Loader {\n    async fn load(&self, world_id: u32) -> bool;\n}\n"
+        },
+        {
+          "label": "The desugared fn -> impl Future + Send compiles without warnings",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "pub trait Loader {\n    fn load(&self, world_id: u32) -> impl std::future::Future<Output = bool> + Send;\n}\n"
+        },
+        {
+          "label": "1.87+: use<Self> in a trait method; the iterator does not borrow the world",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "2 5",
+          "source": "// 1.87+: use<..> inside a trait. It must list Self; leaving out the &self\n// lifetime promises callers the iterator does not borrow the world.\ntrait Bodies {\n    fn ids(&self) -> impl Iterator<Item = u32> + use<Self>;\n}\nstruct World { n: u32 }\nimpl Bodies for World {\n    fn ids(&self) -> impl Iterator<Item = u32> + use<> { 0..self.n }\n}\nfn main() {\n    let mut w = World { n: 2 };\n    let it = w.ids();\n    w.n = 5;                       // allowed: `it` does not borrow `w`\n    println!(\"{} {}\", it.count(), w.n);\n}\n"
+        },
+        {
+          "label": "use<> in a trait definition must still mention Self",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "must mention the `Self` type of the trait in `use<...>`"
+          ],
+          "source": "trait Bodies {\n    fn ids(&self) -> impl Iterator<Item = u32> + use<>;\n}\nfn main() {}\n"
+        },
+        {
+          "label": "In the impl, use<Self> is refused: Self is an alias there (E0799)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0799"
+          ],
+          "source": "trait Bodies {\n    fn ids(&self) -> impl Iterator<Item = u32> + use<Self>;\n}\nstruct World { n: u32 }\nimpl Bodies for World {\n    fn ids(&self) -> impl Iterator<Item = u32> + use<Self> { 0..self.n }\n}\nfn main() {\n    let mut w = World { n: 2 };\n    let it = w.ids();\n    w.n = 5;\n    println!(\"{} {}\", it.count(), w.n);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference — Impl trait: capturing, precise capturing, RPIT in traits",
+          "url": "https://doc.rust-lang.org/stable/reference/types/impl-trait.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "RPIT captures all in-scope generic parameters, but before 2024 free and inherent functions do not capture lifetimes absent from the bounds; `use<..>` must list all type and const parameters and, in a trait, `Self`; it cannot be used with argument-position impl Trait."
+        },
+        {
+          "title": "Edition Guide — RPIT lifetime capture rules (Rust 2024)",
+          "url": "https://doc.rust-lang.org/edition-guide/rust-2024/rpit-lifetime-capture.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "In 2024 all in-scope lifetimes are captured when no `use<..>` is present; the `impl_trait_overcaptures` lint (rust-2024-compatibility) lets `cargo fix --edition` insert `use<..>`; the Captures and outlives tricks are replaceable."
+        },
+        {
+          "title": "Announcing Rust 1.82.0",
+          "url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Stabilized precise capturing `use<..>`; at 1.82 it could not appear in traits or trait impls and had to list all in-scope type and const parameters."
+        },
+        {
+          "title": "Announcing Rust 1.87.0",
+          "url": "https://blog.rust-lang.org/2025/05/15/Rust-1.87.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Rust 1.87.0 (2025-05-15) stabilized precise capturing (`+ use<...>`) in impl Trait in trait definitions, with a `use<Self>` example."
+        },
+        {
+          "title": "Announcing async fn and return-position impl Trait in traits",
+          "url": "https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits/",
+          "year": 2023,
+          "kind": "blog",
+          "identifier": "",
+          "claim": "Rust 1.75 stabilizes RPITIT and async fn in traits; such traits lack dynamic dispatch; async fn in public traits warns because Send bounds cannot be added later; RPITIT uses the 2024 capture rules."
+        },
+        {
+          "title": "Announcing Rust 1.85.0 and Rust 2024",
+          "url": "https://blog.rust-lang.org/2025/02/20/Rust-1.85.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "Rust 1.85.0 (2025-02-20) made the 2024 edition stable, including the RPIT lifetime capture rule change."
+        },
+        {
+          "title": "rustc book — Warn-by-default lints (async_fn_in_trait)",
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`async_fn_in_trait` fires on async fn in publicly reachable traits because auto-trait bounds on the future cannot be specified; the suggested desugaring returns `impl Future<Output = ..> + Send`."
+        },
+        {
+          "title": "rustc book — Allowed-by-default lints (impl_trait_overcaptures)",
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`impl_trait_overcaptures` warns where edition 2024 would capture more lifetimes and suggests `+ use<>`; `impl_trait_redundant_captures` flags a redundant `use<..>`."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "encode-solver-states-as-zero-sized-type-parameters-seal-traits-privately-and-import-extension-traits",
+      "name": "Encode solver states as zero-sized type parameters, seal traits privately, and import extension traits",
+      "what": "A zero-sized state marker (`Solver<Unloaded>`/`Solver<Loaded>` over `PhantomData<S>`) turns an out-of-order call into E0599 at no size cost; a public trait with a supertrait in a private module cannot be implemented outside that module (E0277, E0603); an extension trait adds methods to a foreign type such as f64, callable only where the trait is imported (E0599 otherwise).",
+      "how": "Typestate: put each state's methods in its own impl block and make transitions consume `self` (`fn load(self) -> Solver<Loaded>`), as the Book's DraftPost to PendingReviewPost to Post; `step` then exists only on `impl Solver<Loaded>`, and `size_of::<Solver<Loaded>>()` equals the payload (8 bytes for one u64). Sealing: `mod private { pub trait Sealed {} } pub trait Law: private::Sealed { .. }` in the defining module, and say in rustdoc that the trait is sealed. Extension: `pub trait CanonZero { fn canon_zero(self) -> f64; } impl CanonZero for f64 { .. }` plus `use crate::canon::CanonZero;` at each call site.",
+      "rust_version": "any",
+      "gotchas": "Typestate ends at any boundary that erases types: an `extern \"C\"` export, the JS host, a stored `Option`. The Book names the trade: transitions are no longer encapsulated in one type and callers must rebind (`let post = post.approve();`). A sealed trait still lets outsiders call its public methods; only implementing is closed. Extension-trait methods vanish when the `use` is missing; rustc's help names the import.",
+      "engine_note": "Engine hook, typestate vs `loaded: Option<Loaded>`: the JS host can call the exports in any order (`solver_step` loads lazily through `ensure`, `solver_clear_warmstart` returns 0 when nothing is loaded), and a type parameter cannot cross `extern \"C\"`, so the `Option` checks in `ensure`, `solver_step` and `solver_clear_warmstart` (solver/src/rapier_law.rs) stay at the export boundary. Inside, the code already has the typestate shape: `integrate(loaded: &mut Loaded)` and `rebuild_snapshot(loaded: &Loaded, ..)` cannot run without a loaded world. For T2's `solver_restore` (docs/dispatch-t2-restore.md: refuse and change nothing on a bad length, a NaN, a non-unit quaternion or a pair-count mismatch after the collision pass), build a complete `Loaded` from the bytes first and assign it to `SOLVER.loaded` only after every check passes; the boundary check shows the shape (`0 1 1 0 42`: step before load refused, bad restore refused, state kept).",
+      "checks": [
+        {
+          "label": "Typestate: step exists on Solver<Loaded>; the ZST marker adds no bytes",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "2 8 8",
+          "source": "use std::marker::PhantomData;\nuse std::mem::size_of;\n// Typestate: the state is a zero-sized type parameter, so `step` exists only\n// on a loaded solver and the marker costs no bytes.\npub struct Unloaded;\npub struct Loaded;\npub struct Solver<S> { quanta: u64, _state: PhantomData<S> }\nimpl Solver<Unloaded> {\n    pub fn new() -> Self { Solver { quanta: 0, _state: PhantomData } }\n    pub fn load(self) -> Solver<Loaded> { Solver { quanta: self.quanta, _state: PhantomData } }\n}\nimpl Solver<Loaded> {\n    pub fn step(&mut self) { self.quanta += 1; }\n}\nfn main() {\n    let mut s = Solver::new().load();\n    s.step();\n    s.step();\n    println!(\"{} {} {}\", s.quanta, size_of::<Solver<Loaded>>(), size_of::<u64>());\n}\n"
+        },
+        {
+          "label": "Calling step on Solver<Unloaded> is E0599",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0599"
+          ],
+          "source": "use std::marker::PhantomData;\npub struct Unloaded;\npub struct Loaded;\npub struct Solver<S> { quanta: u64, _state: PhantomData<S> }\nimpl Solver<Unloaded> {\n    pub fn new() -> Self { Solver { quanta: 0, _state: PhantomData } }\n}\nimpl Solver<Loaded> {\n    pub fn step(&mut self) { self.quanta += 1; }\n}\nfn main() {\n    let mut s = Solver::new();\n    s.step();   // no `step` on Solver<Unloaded>\n}\n"
+        },
+        {
+          "label": "Implementing a sealed trait from outside is E0277; rustc calls it a sealed trait",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "is a \"sealed trait\""
+          ],
+          "source": "mod law {\n    mod private { pub trait Sealed {} }\n    /// Sealed: only this module can add a law.\n    pub trait Law: private::Sealed { fn name(&self) -> &'static str; }\n    pub struct BoxLaw;\n    impl private::Sealed for BoxLaw {}\n    impl Law for BoxLaw { fn name(&self) -> &'static str { \"box\" } }\n}\nstruct Rogue;\nimpl law::Law for Rogue { fn name(&self) -> &'static str { \"rogue\" } }\nfn main() {}\n"
+        },
+        {
+          "label": "Naming the private Sealed supertrait from outside is E0603",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0603"
+          ],
+          "source": "mod law {\n    mod private { pub trait Sealed {} }\n    pub trait Law: private::Sealed { fn name(&self) -> &'static str; }\n}\nstruct Rogue;\nimpl law::private::Sealed for Rogue {}\nfn main() {}\n"
+        },
+        {
+          "label": "An extension trait on f64 canonicalises -0.0 to +0.0 bits",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "0x8000000000000000 0x0",
+          "source": "mod canon {\n    /// Extension trait: a method added to a foreign type (f64).\n    pub trait CanonZero { fn canon_zero(self) -> f64; }\n    impl CanonZero for f64 {\n        fn canon_zero(self) -> f64 { if self == 0.0 { 0.0 } else { self } }\n    }\n}\nuse canon::CanonZero;\nfn main() {\n    let z = -0.0f64;\n    println!(\"{:#x} {:#x}\", z.to_bits(), z.canon_zero().to_bits());\n}\n"
+        },
+        {
+          "label": "Without the use, the extension method is not found (E0599)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0599"
+          ],
+          "stderr_contains": [
+            "items from traits can only be used if the trait is in scope"
+          ],
+          "source": "mod canon {\n    pub trait CanonZero { fn canon_zero(self) -> f64; }\n    impl CanonZero for f64 {\n        fn canon_zero(self) -> f64 { if self == 0.0 { 0.0 } else { self } }\n    }\n}\nfn main() {\n    let z = -0.0f64;\n    println!(\"{}\", z.canon_zero());   // trait not in scope\n}\n"
+        },
+        {
+          "label": "Boundary keeps one Option check; restore swaps in a complete value or changes nothing",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "0 1 1 0 42",
+          "source": "// The export boundary cannot carry a typestate (the host calls exports in any\n// order), so it keeps one Option check; everything inside takes &mut Loaded.\nstruct Loaded { quanta: u64 }\nstruct Solver { loaded: Option<Loaded> }\nfn integrate(l: &mut Loaded) -> bool { l.quanta += 1; true }\nfn decode(bytes: &[u8]) -> Option<Loaded> {\n    let raw: [u8; 8] = bytes.try_into().ok()?;          // wrong length: refuse\n    Some(Loaded { quanta: u64::from_le_bytes(raw) })\n}\nfn solver_step(s: &mut Solver) -> u32 {\n    let Some(l) = s.loaded.as_mut() else { return 0 };  // step before load: refuse\n    if integrate(l) { 1 } else { 0 }\n}\nfn solver_restore(s: &mut Solver, bytes: &[u8]) -> u32 {\n    let Some(fresh) = decode(bytes) else { return 0 };  // refusal changes nothing\n    s.loaded = Some(fresh);                             // swap in a complete value\n    1\n}\nfn main() {\n    let mut s = Solver { loaded: None };\n    let before = solver_step(&mut s);\n    let ok = solver_restore(&mut s, &41u64.to_le_bytes());\n    let stepped = solver_step(&mut s);\n    let bad = solver_restore(&mut s, &[1, 2, 3]);\n    println!(\"{before} {ok} {stepped} {bad} {}\", s.loaded.as_ref().unwrap().quanta);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Programming Language, ch. 18.3 Implementing an Object-Oriented Design Pattern",
+          "url": "https://doc.rust-lang.org/stable/book/ch18-03-oo-design-patterns.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Encoding states as types (DraftPost, PendingReviewPost, Post) with transitions that take `self` makes invalid states compile errors, at the cost of transitions no longer being encapsulated."
+        },
+        {
+          "title": "Rust API Guidelines — Future proofing: Sealed traits (C-SEALED)",
+          "url": "https://rust-lang.github.io/api-guidelines/future-proofing.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A private `Sealed` supertrait in `mod private` cannot be named downstream, so implementations exist only in the defining crate; document that the trait is sealed."
+        },
+        {
+          "title": "The Rust Programming Language, ch. 10.2 Traits",
+          "url": "https://doc.rust-lang.org/stable/book/ch10-02-traits.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "To call a trait's methods the user must bring the trait into scope as well as the types."
+        },
+        {
+          "title": "std::marker::PhantomData",
+          "url": "https://doc.rust-lang.org/stable/std/marker/struct.PhantomData.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Guarantees `size_of::<PhantomData<T>>() == 0`, which is why a marker field adds no bytes."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "put-the-box-and-product-laws-behind-a-law-trait-only-when-rust-code-drives-both-keep-every-export-monomorphic",
+      "name": "Put the box and product laws behind a Law trait only when Rust code drives both; keep every export monomorphic",
+      "what": "Generic code over `L: Law` is monomorphized (static dispatch, no vtable, inlinable) but a `#[no_mangle]` export cannot be generic: rustc warns `no_mangle_generic_items` ('functions generic over types or consts must be mangled'); so each wasm export stays a concrete `extern \"C\"` shim, and a Law trait only pays off where Rust code runs both laws through one driver.",
+      "how": "When a shared Rust driver appears, write `trait Law { const GRAVITY_SCALE: f64; fn step(&mut self, body: &mut [f64; 3]) -> bool; }`, `fn run<L: Law>(law: &mut L, ..)`, and keep `#[no_mangle] pub extern \"C\" fn box_run(..) -> f64 { run(&mut BoxLaw, ..) }` and `product_run` as thin concrete exports: the wasm module still exports only `memory`, `box_run` and `product_run` and imports nothing. A stateless law is a zero-sized type (`size_of::<BoxLaw>() == 0`), so `&mut BoxLaw` costs nothing. Use `dyn Law` only for a choice made at run time, and then keep associated consts out of that trait (E0038).",
+      "rust_version": "any; the solver's edition 2021 accepts bare #[no_mangle], edition 2024 requires #[unsafe(no_mangle)]",
+      "gotchas": "This is a judgment, not a measured rule: with two laws, one call site each, and different argument lists (`step(n_bodies, n_colliders)` against `solver_step(world_id, n_bodies, n_colliders, rows, cols, cell, shape)`), a trait is an abstraction nothing calls generically, which makes it ceremony. The features that tempt a trait here (associated consts for strides, `impl Trait` returns) are the ones that rule out `dyn`. In edition 2024 bare `#[no_mangle]` is an error ('unsafe attribute used without unsafe').",
+      "engine_note": "Engine hook, Law trait with static dispatch: solver/src/lib.rs exports the box law as `step` over `BODIES`/`COLLIDERS`; solver/src/rapier_law.rs exports the product law as `solver_load`/`solver_step`/`solver_clear_warmstart` over `SOLVER`. They share constants and buffers, not code, and the law is chosen on the JS side (docs/dispatch-t2-restore.md gives the reference and box laws a records-only save). Introduce `Law` when a Rust-side driver needs both, such as a Rust replay of T2's restore-then-rerun or the host bindings (Godot, then Unreal) planned after Phase 2; until then the two export families are the simpler design.",
+      "checks": [
+        {
+          "label": "#[no_mangle] on a generic extern fn triggers no_mangle_generic_items",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "lints": [
+            "no_mangle_generic_items"
+          ],
+          "stderr_contains": [
+            "functions generic over types or consts must be mangled"
+          ],
+          "source": "pub trait Law { fn step(&mut self, y: f64) -> f64; }\npub struct BoxLaw;\nimpl Law for BoxLaw { fn step(&mut self, y: f64) -> f64 { y - 0.125 } }\n// A generic export: one symbol name cannot stand for every monomorphization.\n#[no_mangle]\npub extern \"C\" fn run<L: Law + Default>(y: f64) -> f64 { L::default().step(y) }\n"
+        },
+        {
+          "label": "wasm32: one generic driver, two monomorphic exports, no imports",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "1.75",
+          "wasm_exports": [
+            "memory",
+            "box_run",
+            "product_run"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "product_run",
+            "args": [
+              2.0,
+              4
+            ]
+          },
+          "source": "// Two laws, one generic driver, two monomorphic exports: the trait lives\n// inside the crate; the ABI stays plain extern \"C\" functions.\ntrait Law {\n    const GRAVITY_SCALE: f64;\n    fn step(&mut self, body: &mut [f64; 3]) -> bool;\n}\nstruct BoxLaw;\nstruct ProductLaw { quanta: u32 }\nimpl Law for BoxLaw {\n    const GRAVITY_SCALE: f64 = 1.0;\n    fn step(&mut self, b: &mut [f64; 3]) -> bool { b[1] += -8.0 / 64.0 * Self::GRAVITY_SCALE; !b[1].is_nan() }\n}\nimpl Law for ProductLaw {\n    const GRAVITY_SCALE: f64 = 0.5;\n    fn step(&mut self, b: &mut [f64; 3]) -> bool { self.quanta += 1; b[1] += -8.0 / 64.0 * Self::GRAVITY_SCALE; !b[1].is_nan() }\n}\nfn run<L: Law>(law: &mut L, y0: f64, n: u32) -> f64 {\n    let mut body = [0.0, y0, 0.0];\n    for _ in 0..n {\n        if !law.step(&mut body) { return f64::NAN; }\n    }\n    body[1]\n}\n#[no_mangle]\npub extern \"C\" fn box_run(y0: f64, n: u32) -> f64 { run(&mut BoxLaw, y0, n) }\n#[no_mangle]\npub extern \"C\" fn product_run(y0: f64, n: u32) -> f64 { run(&mut ProductLaw { quanta: 0 }, y0, n) }\n"
+        },
+        {
+          "label": "Host: run::<BoxLaw> and run::<ProductLaw>; the stateless law is zero bytes",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "1.5 1.75 4 0",
+          "source": "use std::mem::size_of;\ntrait Law {\n    const GRAVITY_SCALE: f64;\n    fn step(&mut self, body: &mut [f64; 3]) -> bool;\n}\nstruct BoxLaw;\nstruct ProductLaw { quanta: u32 }\nimpl Law for BoxLaw {\n    const GRAVITY_SCALE: f64 = 1.0;\n    fn step(&mut self, b: &mut [f64; 3]) -> bool { b[1] += -8.0 / 64.0 * Self::GRAVITY_SCALE; !b[1].is_nan() }\n}\nimpl Law for ProductLaw {\n    const GRAVITY_SCALE: f64 = 0.5;\n    fn step(&mut self, b: &mut [f64; 3]) -> bool { self.quanta += 1; b[1] += -8.0 / 64.0 * Self::GRAVITY_SCALE; !b[1].is_nan() }\n}\nfn run<L: Law>(law: &mut L, y0: f64, n: u32) -> f64 {\n    let mut body = [0.0, y0, 0.0];\n    for _ in 0..n {\n        if !law.step(&mut body) { return f64::NAN; }\n    }\n    body[1]\n}\nfn main() {\n    let mut p = ProductLaw { quanta: 0 };\n    let a = run(&mut BoxLaw, 2.0, 4);\n    let b = run(&mut p, 2.0, 4);\n    println!(\"{a} {b} {} {}\", p.quanta, size_of::<BoxLaw>());\n}\n"
+        },
+        {
+          "label": "The associated const that suits static dispatch rules out dyn Law (E0038)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0038"
+          ],
+          "source": "trait Law {\n    const GRAVITY_SCALE: f64;\n    fn step(&mut self, body: &mut [f64; 3]) -> bool;\n}\n// The associated const that suits static dispatch rules out a trait object.\nfn pick(which: u32, a: &mut dyn Law, b: &mut dyn Law) -> bool {\n    let mut body = [0.0; 3];\n    if which == 0 { a.step(&mut body) } else { b.step(&mut body) }\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Programming Language, ch. 18.2 Using Trait Objects",
+          "url": "https://doc.rust-lang.org/stable/book/ch18-02-trait-objects.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Monomorphized generics use static dispatch; trait objects use dynamic dispatch, with a runtime lookup that also prevents inlining; which traits can be objects is governed by dyn compatibility."
+        },
+        {
+          "title": "The Rust Programming Language, ch. 10.1 Generic Data Types",
+          "url": "https://doc.rust-lang.org/stable/book/ch10-01-syntax.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Generic code runs no slower than concrete code because monomorphization fills in concrete types at compile time."
+        },
+        {
+          "title": "rustc book — Warn-by-default lints (no_mangle_generic_items)",
+          "url": "https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`no_mangle_generic_items` detects generic items with #[no_mangle]; each monomorphization is a distinct item, so an unmangled generic is likely a mistake."
+        },
+        {
+          "title": "The Rust Reference — Application binary interface: the no_mangle attribute",
+          "url": "https://doc.rust-lang.org/stable/reference/abi.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "#[no_mangle] disables mangling and publicly exports the item from the produced library; it is an unsafe attribute that edition 2024 writes as #[unsafe(no_mangle)]."
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

@@ -1,0 +1,984 @@
+{
+  "date": "2026-06-02",
+  "wave": 4,
+  "lanes": [
+    {
+      "slug": "audio",
+      "name": "Audio — multi-stem separation tail",
+      "research": {
+        "domain": "audio",
+        "models": [
+          {
+            "name": "SCNet-large",
+            "slug": "scnet-large",
+            "developer": "starrytong (paper authors); distributed via ZFTurbo Music-Source-Separation-Training",
+            "summary": "Frequency-domain Sparse Compression Network for 4-stem music source separation (vocals/drums/bass/other). The 'large' variant is a high-SDR upgrade over the base model and is one of the strongest single models for bass and drum stems specifically. In an independent ensemble study, SCNet-large was the top-selected model for bass (67% of cases) and drums (93%), making it the go-to for clean rhythm-section stems. It is light: the architecture family is ~10M params with CPU inference at ~48% of HT Demucs time, so on a 5090 it runs near-instant with a tiny VRAM footprint. Original weights are MIT; it is fully supported in the ZFTurbo MSST toolkit for both inference and LoRA-style fine-tuning.",
+            "base_arch": "SCNet (Sparse Compression Network, frequency-domain)",
+            "params": "~10M (base); large variant larger but still small-model class",
+            "license": "MIT",
+            "commercial_use": "yes",
+            "commercial_notes": "Both the original starrytong/SCNet repo and the ZFTurbo MSST distribution framework are MIT-licensed, including the released checkpoints. Commercial use is permitted; attribution per MIT. Pretrained weights trained on MUSDB18-HQ.",
+            "min_vram_gb": 2,
+            "recommended_vram_gb": 4,
+            "runs_on_32gb": true,
+            "disk_size_gb": 0.4,
+            "release_date": "2024-09-23",
+            "repo_url": "https://github.com/starrytong/SCNet",
+            "status": "recommended",
+            "quality_tier": "frontier",
+            "game_asset_fit": 5,
+            "marketing_fit": 4,
+            "speed_note": "Very fast — CPU inference ~48% of HT Demucs; near-real-time on a 5090 with minimal VRAM. Inference is light; the A6000-48GB note in MSST refers to training batch sizes, not inference.",
+            "best_for": [
+              {
+                "purpose": "Multi-stem separation (vocals/drums/bass/other)",
+                "use_tag": "both",
+                "fitness": 5
+              },
+              {
+                "purpose": "Game-audio stem prep (isolating drums/bass/melody for adaptive layering)",
+                "use_tag": "game-asset",
+                "fitness": 5
+              },
+              {
+                "purpose": "Dataset cleanup (extracting clean stems / removing music or vocals from source audio)",
+                "use_tag": "both",
+                "fitness": 5
+              },
+              {
+                "purpose": "Bass and drum stem isolation specifically (its strongest categories)",
+                "use_tag": "game-asset",
+                "fitness": 5
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://github.com/starrytong/SCNet",
+                "claim": "Official SCNet repository; MIT license; 'large version is now available' with separate checkpoint released 2024-09-23.",
+                "kind": "official-repo",
+                "title": "starrytong/SCNet (GitHub)"
+              },
+              {
+                "url": "https://arxiv.org/abs/2401.13276",
+                "claim": "SCNet base ~10.08M params, 9.0 dB SDR on MUSDB18-HQ, CPU inference ~48% of HT Demucs time.",
+                "kind": "paper",
+                "title": "SCNet: Sparse Compression Network for Music Source Separation (arXiv 2401.13276)"
+              },
+              {
+                "url": "https://github.com/ZFTurbo/Music-Source-Separation-Training/blob/main/docs/pretrained_models.md",
+                "claim": "SCNet-large MUSDB test SDR avg 9.32 (bass 8.63, drums 10.89, vocals 10.69, other 7.06); starrytong large edition 9.70.",
+                "kind": "official-docs",
+                "title": "MSST pretrained models table"
+              },
+              {
+                "url": "https://arxiv.org/html/2410.20773v1",
+                "claim": "Independent ensemble study: SCNet-large selected as best model for bass in 67% and drums in 93% of cases.",
+                "kind": "paper",
+                "title": "An Ensemble Approach to Music Source Separation (arXiv 2410.20773)"
+              }
+            ]
+          },
+          {
+            "name": "SCNet-XL",
+            "slug": "scnet-xl",
+            "developer": "ZFTurbo (Music-Source-Separation-Training)",
+            "summary": "The top-of-line SCNet variant, released in the ZFTurbo MSST framework (v1.0.13). Pushes 4-stem separation quality to the current open-weight frontier: MUSDB test SDR avg 9.80 (SCNet-XL) and 10.08 for the XL-IHF tuning — among the highest reported for any single open model, ahead of HT Demucs. Same MIT licensing and ComfyUI-compatible workflow story as SCNet-large; the trade-off is a larger checkpoint and slower inference than base/large, but still comfortably within a 5090's envelope. Pick this when separation quality matters more than throughput.",
+            "base_arch": "SCNet (Sparse Compression Network, frequency-domain) — XL config",
+            "params": "Larger than SCNet-large (XL config); exact count not published",
+            "license": "MIT",
+            "commercial_use": "yes",
+            "commercial_notes": "Released within the MIT-licensed ZFTurbo MSST framework; weights trained on MUSDB18-HQ. Commercial use permitted with attribution per MIT.",
+            "min_vram_gb": 4,
+            "recommended_vram_gb": 8,
+            "runs_on_32gb": true,
+            "disk_size_gb": 1.5,
+            "release_date": "2024",
+            "repo_url": "https://github.com/ZFTurbo/Music-Source-Separation-Training/releases/tag/v1.0.13",
+            "status": "runner-up",
+            "quality_tier": "frontier",
+            "game_asset_fit": 5,
+            "marketing_fit": 4,
+            "speed_note": "Slower than SCNet base/large given the XL config, but well within a 5090's compute and VRAM headroom. Inference VRAM is modest; high SDR is the reason to choose it.",
+            "best_for": [
+              {
+                "purpose": "Highest-quality multi-stem separation when SDR matters more than speed",
+                "use_tag": "both",
+                "fitness": 5
+              },
+              {
+                "purpose": "Dataset cleanup requiring maximum stem fidelity",
+                "use_tag": "both",
+                "fitness": 5
+              },
+              {
+                "purpose": "Game-audio stem prep where artifact-free stems are critical",
+                "use_tag": "game-asset",
+                "fitness": 5
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://github.com/ZFTurbo/Music-Source-Separation-Training/releases/tag/v1.0.13",
+                "claim": "Release titled 'SCNet XL' (v1.0.13) with pretrained weights on MUSDB18-HQ.",
+                "kind": "official-release",
+                "title": "Release SCNet XL · ZFTurbo/MSST"
+              },
+              {
+                "url": "https://github.com/ZFTurbo/Music-Source-Separation-Training/blob/main/docs/pretrained_models.md",
+                "claim": "SCNet-XL MUSDB test SDR avg 9.80; SCNet-XL IHF avg 10.08 (drums 11.81, vocals 11.42) — top tier among listed models.",
+                "kind": "official-docs",
+                "title": "MSST pretrained models table"
+              },
+              {
+                "url": "https://github.com/ZFTurbo/Music-Source-Separation-Training",
+                "claim": "MSST repository is MIT-licensed and supports the SCNet architecture family (scnet/scnet_tran/scnet_masked) among 17+ architectures.",
+                "kind": "official-repo",
+                "title": "ZFTurbo/Music-Source-Separation-Training (GitHub)"
+              }
+            ]
+          },
+          {
+            "name": "Ultimate Vocal Remover 5 (UVR5)",
+            "slug": "uvr5-ultimate-vocal-remover",
+            "developer": "Anjok07 & aufr33",
+            "summary": "The de-facto end-user front-end for music source separation — a standalone GUI app (Windows/macOS/Linux), not a model or library. It wraps multiple separation backends (Demucs v3/v4 4-stem, MDX-Net, VR Architecture, MDX23C) behind a point-and-click interface with a model download manager, batch processing, and ensemble modes. This is the practical tool for non-coders to do vocal isolation, instrumental extraction, de-reverb/de-echo, and 4-stem splits without touching Python. Hardware needs are tiny (GTX 1060 6GB min, 8GB VRAM recommended) so a 5090 is wildly overpowered. The GUI is MIT-licensed; commercial use of OUTPUTS depends on the specific model selected, since each bundled checkpoint carries its own terms.",
+            "base_arch": "GUI front-end wrapping Demucs / MDX-Net / VR Arch / MDX23C",
+            "params": "N/A (application; loads external model checkpoints)",
+            "license": "MIT (GUI application)",
+            "commercial_use": "conditional",
+            "commercial_notes": "The UVR5 GUI itself is MIT-licensed (attribution requested). However it is a front-end: commercial use of separated audio depends on the LICENSE of whichever model you run through it. The UVR-trained models and Demucs (also MIT) are generally permissive, but each model's terms govern its outputs — verify per model before commercial release. Treat the app as MIT, the weights case-by-case.",
+            "min_vram_gb": 6,
+            "recommended_vram_gb": 8,
+            "runs_on_32gb": true,
+            "disk_size_gb": 2,
+            "release_date": "2023-09-26",
+            "repo_url": "https://github.com/Anjok07/ultimatevocalremovergui",
+            "status": "recommended",
+            "quality_tier": "strong",
+            "game_asset_fit": 4,
+            "marketing_fit": 4,
+            "speed_note": "Trivial on a 5090 (min spec is a GTX 1060 6GB). GPU-accelerated; throughput is gated by the chosen model, not the hardware. Windows install must go to the C:\\ drive per the installer.",
+            "best_for": [
+              {
+                "purpose": "End-user multi-stem separation without writing code (point-and-click GUI)",
+                "use_tag": "both",
+                "fitness": 5
+              },
+              {
+                "purpose": "Game-audio stem prep — quick vocal/instrumental/4-stem splits from reference tracks",
+                "use_tag": "game-asset",
+                "fitness": 4
+              },
+              {
+                "purpose": "Dataset cleanup at scale (batch processing, ensemble modes, de-reverb/de-echo)",
+                "use_tag": "both",
+                "fitness": 5
+              },
+              {
+                "purpose": "Marketing/video audio prep — pulling clean vocals or instrumentals for promos",
+                "use_tag": "marketing",
+                "fitness": 4
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://github.com/Anjok07/ultimatevocalremovergui",
+                "claim": "MIT-licensed standalone GUI; latest v5.6 (2023-09-26); supports Demucs v3/v4, MDX-Net, VR Arch, MDX23C; Windows/macOS/Linux; min GTX 1060 6GB, 8GB VRAM recommended; third-party model users asked to honor MIT and credit UVR.",
+                "kind": "official-repo",
+                "title": "Anjok07/ultimatevocalremovergui (GitHub)"
+              },
+              {
+                "url": "https://ultimatevocalremover.com/",
+                "claim": "Official UVR application site — confirms it is an end-user desktop application for vocal/stem removal.",
+                "kind": "official-site",
+                "title": "The Ultimate Vocal Remover Application"
+              }
+            ]
+          }
+        ],
+        "notes": "WAVE 4 audio tail — 3 entries added (target 2-4). Two SCNet model entries + the UVR5 front-end, per lane brief. Did NOT re-list the 9 already-cataloged audio models. KEY FINDINGS / DECISIONS:\n1. LICENSE (decisive axis) — all three are MIT and commercial-safe at the code level. SCNet original (starrytong/SCNet) = MIT; ZFTurbo MSST distribution framework = MIT; UVR5 GUI = MIT. All SCNet checkpoints trained on MUSDB18-HQ and released under the same MIT terms. 2. UVR5 commercial_use set to 'conditional' (not 'yes') ON PURPOSE: per the lane brief's instruction to set commercial_use/license correctly for a GUI front-end. The APP is MIT, but it is a wrapper — commercial use of separated OUTPUT depends on the specific model checkpoint loaded (Demucs=MIT/permissive; UVR-trained models permissive; but each model's terms govern). Flagged this explicitly in commercial_notes. 3. VRAM / 32GB filter — all three pass with huge headroom. SCNet is a small-model-class architecture (~10M params, CPU inference ~48% of HT Demucs). IMPORTANT: the 'A6000 48GB' figure in the MSST repo is for TRAINING batch sizes, not inference — I did NOT mislabel that as a VRAM requirement. UVR5 min spec is a GTX 1060 6GB. A 5090 (32GB) runs all of these trivially. 4. ADDED genuinely-new sibling: SCNet-XL (status runner-up). It's the highest-SDR variant (MUSDB avg 9.80; XL-IHF 10.08), released in MSST v1.0.13, and clearly distinct from SCNet-large (avg 9.32). Justified by the brief's 'plus a genuinely-new sibling if obvious' clause. 5. SCNet-large strength is bass+drums specifically — independent ensemble study (arXiv 2410.20773) found it selected as best-for-bass in 67% and best-for-drums in 93% of cases. Directly relevant to game-audio stem prep (isolating rhythm-section layers for adaptive soundtracks). 6. MVSep NOTE — the lane brief paired 'MVSep / UVR5' as the leading end-user front-ends. I cataloged UVR5 (locally-installable desktop app, fits the 32GB-local catalog). MVSep (mvsep.com) is primarily a HOSTED WEB SERVICE / cloud separation site, not a local model or installable app, so it does NOT fit a local-AI / 32GB-VRAM catalog and was deliberately NOT given its own entry. If a cloud-service entry is desired it can be noted separately, but it falls outside the local-rig scope. All facts verified live via WebSearch + WebFetch on 2026-06-02 against official HF/GitHub cards and the source paper."
+      },
+      "verify": {
+        "domain": "Audio — multi-stem separation tail",
+        "summary": "All three items verified against authoritative sources. SCNet-large (starrytong/SCNet) and UVR5 (Anjok07/ultimatevocalremovergui) repos exist with MIT licenses confirmed; SCNet-XL is released under ZFTurbo MSST v1.0.13 (release literally titled \"SCNet XL\"), repo MIT. Every load-bearing quantitative claim checked out exactly: SCNet-XL avg SDR 9.80 and XL-IHF 10.08 (per docs/pretrained_models.md), and the ensemble study (arXiv 2410.20773) confirms SCNet-large selected for bass 67% / drums 93%. All specs comfortably fit 32 GB VRAM (these are small-to-mid models; a 5090 is overkill, as the UVR5 summary itself notes). Minor fixes: SCNet-large's headline SDR in the MSST zoo is 9.70 not the implied \"highest\"; min_vram=2 for SCNet-large is a reasonable estimate but not repo-stated; ComfyUI compatibility for SCNet is via third-party nodes, not a first-party MSST feature.",
+        "verdicts": [
+          {
+            "model": "SCNet-large",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed-with-fixes",
+            "fixes": "min_vram_gb=2 is a plausible estimate (architecture is ~10M params, frequency-domain) but is NOT stated by the starrytong/SCNet repo — flag as approximate. The ensemble-study claims are exact and correct (bass 67%, drums 93%, per arXiv 2410.20773). Note the strongest SCNet-large checkpoint in the ZFTurbo MSST zoo reports MUSDB test avg SDR 9.70 (bass 9.38, drums 11.15); cite this figure rather than implying it is the single highest model (SCNet-XL/XL-IHF surpass it at 9.80/10.08).",
+            "note": "Repo confirmed: official SCNet implementation, MIT, trained on MUSDB18, 'SCNet-large' checkpoint referenced in repo. 4-stem (vocals/drums/bass/other) is correct for the SCNet family. Bass/drums ensemble-selection dominance verified verbatim in the comparative ensemble study (Section 5.3). MSST supports it for inference + LoRA fine-tuning (confirmed)."
+          },
+          {
+            "model": "SCNet-XL",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed-with-fixes",
+            "fixes": "SDR claims are EXACT and verified from docs/pretrained_models.md: SCNet XL = MUSDB test avg 9.80 (bass 9.23, drums 11.51, vocals 11.05, other 7.41); SCNet XL IHF = 10.08 (drums 11.81, vocals 11.42, other 7.88). 'Ahead of HT Demucs' is supported (HT Demucs-ft ~9.0). Correction: ComfyUI compatibility is via third-party community nodes, not a first-party MSST/SCNet-XL feature — drop or soften the 'ComfyUI-compatible workflow story' framing. min_vram_gb=4 is plausible for the XL config but not explicitly repo-stated.",
+            "note": "Release v1.0.13 is literally titled 'SCNet XL' in ZFTurbo/Music-Source-Separation-Training; repo license is MIT (repo-wide). XL is among the highest open-weight single-model 4-stem SDR results as claimed. LoRA fine-tuning supported in MSST (confirmed). Trained on MUSDB18HQ."
+          },
+          {
+            "model": "Ultimate Vocal Remover 5 (UVR5)",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "Repo Anjok07/ultimatevocalremovergui confirmed. GUI code is MIT-licensed (verbatim in README). It is a standalone GUI front-end (Win/macOS/Linux) wrapping Demucs v3/v4, MDX-Net, VR Architecture, and MDX23C — all four backends confirmed. Hardware requirements verified exactly: minimum Nvidia GTX 1060 6GB, recommended 8GB VRAM; a 5090 is vastly overpowered as stated. commercial_use='conditional' is accurate: GUI is MIT but output/commercial terms depend on the specific bundled model checkpoint selected, which the summary correctly explains. license noted as 'MIT (GUI application)' is precise."
+          }
+        ],
+        "missing": [
+          {
+            "name": "BS-Roformer (ZFTurbo) — current open-weight SDR frontier for vocals/instrumental",
+            "url": "https://github.com/ZFTurbo/Music-Source-Separation-Training/blob/main/docs/pretrained_models.md",
+            "why": "For a 'multi-stem separation tail' on a 32 GB rig, BS-Roformer / Mel-Band-Roformer checkpoints in the same MSST framework post higher vocal/instrumental SDR than SCNet and are the de-facto top picks for 2-stem vocal isolation; a separation roster that lists SCNet-XL but omits Roformer is incomplete."
+          },
+          {
+            "name": "HT Demucs v4 (htdemucs_ft) — the 4-stem/6-stem baseline being compared against",
+            "url": "https://github.com/facebookresearch/demucs",
+            "why": "Both SCNet summaries position themselves relative to HT Demucs and UVR bundles it as a backend, but HT Demucs is not itself an item. It is the canonical MIT-licensed 4-stem (and 6-stem with guitar/piano) reference model; the tail should name it directly rather than only by comparison. Note Demucs is MIT but its default pretrained weights are research/CC-BY-NC — a commercial-use nuance worth surfacing."
+          },
+          {
+            "name": "Mel-Band Roformer (vocals/karaoke) checkpoints",
+            "url": "https://github.com/ZFTurbo/Music-Source-Separation-Training",
+            "why": "Complements SCNet's rhythm-section strength; Mel-Band Roformer is widely regarded as best-in-class for clean vocal/instrumental splits and de-reverb in the same toolkit, rounding out a complete separation tail."
+          }
+        ]
+      }
+    },
+    {
+      "slug": "video",
+      "name": "Video — Wan Fun-Control tail",
+      "research": {
+        "domain": "video",
+        "notes": "WAVE 4 narrow tail — alibaba-pai VideoX-Fun control line, camera-trajectory branch. All four cataloged models are Apache-2.0 (fully commercial-safe, no gated terms, no Wan-specific extra clause — the alibaba-pai Fun fine-tunes carry Apache-2.0, NOT the more restrictive base-Wan terms; QuantStack GGUFs inherit Apache-2.0). License is the decisive axis here and it lands clean: all four are commercial-OK and LoRA-trainable. Both A14B models are Wan 2.2 MoE (dual high-noise + low-noise expert) — native fp16 is 64 GB and does NOT fit a 32 GB card without GGUF or aggressive cpu_offload; the QuantStack GGUF repos are the actual 32 GB fit and are the load-bearing extras for this rig. Because the A14B is MoE, the GGUF repos ship HighNoise/ + LowNoise/ subfolders (confirmed on the file tree); the per-file sizes reported by some card summaries (~10–16 GB) are PER EXPERT — real ComfyUI usage loads both, so budget ~2× at full residency, but ComfyUI's native Wan 2.2 sampler streams experts sequentially so Q4–Q5 fits 32 GB comfortably and Q8 is borderline-OK. The dense 5B siblings (Wan2.2-Fun-5B-Control / -Control-Camera, 23 GB native, ~10 GB at Q4 GGUF) are the trivially-safe fit and are noted as best-fit alternatives, but the A14B pair + their GGUFs are the substantive catalog entries the lane targets. ComfyUI support is first-party via VideoX-Fun (github.com/aigc-apps/VideoX-Fun, comfyui/ dir) and community via city96 ComfyUI-GGUF + Kijai nodes. Camera model = pure trajectory conditioning (pan U/D/L/R, zoom in/out, combined moves) — exactly the cutscene/marketing camera-move use the lane asks for. The plain Control model is distinct: multi-modal structural control (Canny/Depth/Pose/MLSD + trajectory + reference image), kept as a separate entry per the \"if distinct\" instruction. Collection updated 2025-10-09; current as of 2026-06-02. Did NOT re-catalog the already-covered Wan 2.2 base/Animate/TI2V-5B/Fun-A14B-Control(base)/S2V/VACE-Fun — these are the remaining camera + multi-control siblings only.",
+        "models": [
+          {
+            "name": "Wan2.2-Fun-A14B-Control-Camera",
+            "slug": "wan2-2-fun-a14b-control-camera",
+            "summary": "Alibaba PAI's Wan 2.2 A14B (MoE) fine-tune for camera-trajectory video conditioning — drive a frame through scripted pan up/down/left/right, zoom in/out, and combined moves. Apache-2.0, so commercial cutscene/marketing use and LoRA training are clean. Native fp16 is 64 GB (dual MoE expert), so on a 32 GB card use the QuantStack GGUF rather than the full checkpoint.",
+            "developer": "alibaba-pai (Alibaba PAI / VideoX-Fun)",
+            "base_arch": "Wan 2.2 (A14B MoE — dual high-noise + low-noise expert)",
+            "params": "14B (MoE; ~15B reported; dual-expert)",
+            "license": "Apache-2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "Apache-2.0 on the alibaba-pai Fun fine-tune — full commercial use, redistribution, and LoRA fine-tuning permitted with attribution + license inclusion. This is the permissive Fun-line license, not a gated base-Wan term. Camera-conditioning checkpoint is itself Apache-2.0.",
+            "quality_tier": "strong",
+            "status": "recommended",
+            "release_date": "2025-10-09",
+            "min_vram_gb": 24,
+            "recommended_vram_gb": 48,
+            "runs_on_32gb": false,
+            "disk_size_gb": 64,
+            "speed_note": "81 frames @ 16 fps, multi-res 512/768/1024. Native fp16 is 64 GB on disk and needs both MoE experts resident — does NOT fit 32 GB VRAM without GGUF or model_cpu_offload(+qfloat8)/sequential_cpu_offload. Use the QuantStack GGUF for a clean 32 GB fit.",
+            "game_asset_fit": 7,
+            "marketing_fit": 9,
+            "best_for": [
+              {
+                "purpose": "Controllable camera moves (pan up/down/left/right, zoom in/out, combined) for game cutscenes — drive a static concept frame through a scripted dolly/pan",
+                "fitness": 9,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "Marketing b-roll and trailer shots with cinematic camera language from a single key art frame",
+                "fitness": 9,
+                "use_tag": "marketing"
+              },
+              {
+                "purpose": "LoRA-trainable on a project art style for on-brand animated camera moves (Apache-2.0 allows training + commercial release)",
+                "fitness": 7,
+                "use_tag": "both"
+              }
+            ],
+            "repo_url": "https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control-Camera",
+            "sources": [
+              {
+                "url": "https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control-Camera",
+                "claim": "License: apache-2.0; 64.0 GB model; camera controls = pan up/down/left/right, zoom in/out, combined (e.g. pan up+left); 81 frames @16fps multi-res 512/768/1024; ComfyUI integration via VideoX-Fun comfyui/ dir, models in ComfyUI/models/Fun_Models/; GPU memory modes model_cpu_offload / +qfloat8 / sequential_cpu_offload; verified on RTX 3060 12G up to A100 80G.",
+                "kind": "hf-model-card",
+                "title": "alibaba-pai/Wan2.2-Fun-A14B-Control-Camera"
+              },
+              {
+                "url": "https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control-Camera/blob/main/README_en.md",
+                "claim": "English card confirms camera-lens trajectory conditioning and ComfyUI workflow.",
+                "kind": "hf-readme",
+                "title": "README_en.md — Wan2.2-Fun-A14B-Control-Camera"
+              }
+            ]
+          },
+          {
+            "name": "Wan2.2-Fun-A14B-Control",
+            "slug": "wan2-2-fun-a14b-control",
+            "summary": "The multi-control sibling of the camera model: Wan 2.2 A14B (MoE) fine-tune that conditions on Canny / Depth / Pose / MLSD, motion trajectory, and a reference image — structural control rather than camera motion. Apache-2.0, commercial-safe, LoRA-trainable. Same 64 GB native MoE footprint, so use GGUF or cpu_offload on a 32 GB card. Cataloged separately because its conditioning is genuinely distinct from Control-Camera.",
+            "developer": "alibaba-pai (Alibaba PAI / VideoX-Fun)",
+            "base_arch": "Wan 2.2 (A14B MoE — dual high-noise + low-noise expert)",
+            "params": "14B (MoE; dual-expert)",
+            "license": "Apache-2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "Apache-2.0 — same permissive Fun-line license as the camera variant. Commercial use, redistribution, LoRA training all permitted with attribution.",
+            "quality_tier": "strong",
+            "status": "situational",
+            "release_date": "2025-10-09",
+            "min_vram_gb": 24,
+            "recommended_vram_gb": 48,
+            "runs_on_32gb": false,
+            "disk_size_gb": 64,
+            "speed_note": "81 frames @ 16 fps, multi-res 512/768/1024. Same 64 GB native MoE footprint — use GGUF or cpu_offload for a 32 GB card.",
+            "game_asset_fit": 8,
+            "marketing_fit": 7,
+            "best_for": [
+              {
+                "purpose": "Structural video control (Canny / Depth / Pose / MLSD + motion trajectory + reference image) to retarget an existing clip or pose-drive a character for game cutscenes",
+                "fitness": 8,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "Pose/depth-guided marketing animation where you need to lock composition to a control signal rather than camera motion",
+                "fitness": 7,
+                "use_tag": "marketing"
+              },
+              {
+                "purpose": "Reference-image conditioned video — keep a character/asset identity while animating",
+                "fitness": 7,
+                "use_tag": "both"
+              }
+            ],
+            "repo_url": "https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control",
+            "sources": [
+              {
+                "url": "https://huggingface.co/alibaba-pai/Wan2.2-Fun-A14B-Control",
+                "claim": "Apache License 2.0; 64.0 GB; supports control conditions Canny, Depth, Pose, MLSD plus trajectory control and reference-image conditioning; ComfyUI integration via VideoX-Fun, models in ComfyUI/models/Fun_Models/; same three GPU memory modes. Distinct from Control-Camera which is camera-motion only (pan/zoom).",
+                "kind": "hf-model-card",
+                "title": "alibaba-pai/Wan2.2-Fun-A14B-Control"
+              },
+              {
+                "url": "https://huggingface.co/collections/alibaba-pai/wan22-fun-68958eabec343b948f1225c5",
+                "claim": "Wan2.2-Fun collection lists Control, Control-Camera, InP variants in 5B and A14B; collection updated Oct 9, 2025.",
+                "kind": "hf-collection",
+                "title": "Wan2.2-Fun — alibaba-pai Collection"
+              }
+            ]
+          },
+          {
+            "name": "QuantStack/Wan2.2-Fun-A14B-Control-Camera-GGUF",
+            "slug": "quantstack-wan2-2-fun-a14b-control-camera-gguf",
+            "summary": "Community GGUF quantization of the A14B camera model — the practical way to run camera-trajectory conditioning on a 32 GB RTX 5090. Ships HighNoise/ + LowNoise/ MoE expert folders; per-expert quants run Q4_K_M 10.7 GB to Q8_0 16.4 GB. Q4–Q5 fit 32 GB comfortably via ComfyUI-GGUF (city96); Q8 is borderline. Inherits Apache-2.0 from the source model, so commercial use stays clean.",
+            "developer": "QuantStack (community GGUF) — source: alibaba-pai",
+            "base_arch": "Wan 2.2 A14B MoE (GGUF quant; HighNoise/ + LowNoise/ expert folders)",
+            "params": "14B (MoE; dual-expert, quantized)",
+            "license": "Apache-2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "Direct GGUF conversion of alibaba-pai/Wan2.2-Fun-A14B-Control-Camera; inherits Apache-2.0 — the card states all original licensing terms remain in effect. Commercial use OK.",
+            "quality_tier": "strong",
+            "status": "recommended",
+            "release_date": "2025-10",
+            "min_vram_gb": 16,
+            "recommended_vram_gb": 24,
+            "runs_on_32gb": true,
+            "disk_size_gb": 21.4,
+            "speed_note": "This is the 32 GB-fitting form of the camera model. Per-expert quant sizes: Q4_K_S 9.76 / Q4_K_M 10.7 / Q5_K_M 11.8 / Q6_K 13.0 / Q8_0 16.4 GB (×2 experts). ComfyUI's native Wan 2.2 sampler streams high/low-noise experts sequentially, so Q4–Q5 fits 32 GB comfortably with umt5-xxl + Wan2.1 VAE headroom; Q8_0 (~33 GB both resident) is borderline — use sequential expert loading. Recommend Q5_K_M or Q6_K for quality, Q4_K_M for safety.",
+            "game_asset_fit": 8,
+            "marketing_fit": 9,
+            "best_for": [
+              {
+                "purpose": "Camera-trajectory cutscene moves on a 32 GB RTX 5090 without offload pain — the practical way to run the A14B camera model in ComfyUI",
+                "fitness": 9,
+                "use_tag": "both"
+              },
+              {
+                "purpose": "Marketing trailer dolly/pan/zoom shots at Q5/Q6 with near-native quality",
+                "fitness": 9,
+                "use_tag": "marketing"
+              }
+            ],
+            "repo_url": "https://huggingface.co/QuantStack/Wan2.2-Fun-A14B-Control-Camera-GGUF",
+            "sources": [
+              {
+                "url": "https://huggingface.co/QuantStack/Wan2.2-Fun-A14B-Control-Camera-GGUF",
+                "claim": "Apache-2.0 inherited from alibaba-pai/Wan2.2-Fun-A14B-Control-Camera; GGUF quants Q4_K_S 9.76GB, Q4_K_M 10.7GB, Q5_K_M 11.8GB, Q6_K 13GB, Q8_0 16.4GB; requires city96 ComfyUI-GGUF, place in ComfyUI/models/unet; base Wan2.2-I2V-A14B.",
+                "kind": "hf-model-card",
+                "title": "QuantStack/Wan2.2-Fun-A14B-Control-Camera-GGUF"
+              },
+              {
+                "url": "https://huggingface.co/QuantStack/Wan2.2-Fun-A14B-Control-Camera-GGUF/tree/main",
+                "claim": "File tree shows HighNoise/ and LowNoise/ subfolders (13 files each) — confirms Wan 2.2 MoE dual-expert structure; per-file sizes are per expert.",
+                "kind": "hf-file-tree",
+                "title": "Wan2.2-Fun-A14B-Control-Camera-GGUF file tree"
+              },
+              {
+                "url": "https://comfyui-wiki.com/en/tutorial/advanced/video/wan2.2/wan2-2-fun-control",
+                "claim": "Wan2.2 Fun Control ComfyUI workflow guide covering official + community (Kijai, GGUF) loaders for the Fun-Control / Control-Camera line.",
+                "kind": "tutorial",
+                "title": "Wan2.2 Fun Control ComfyUI Workflow Guide — ComfyUI Wiki"
+              }
+            ]
+          },
+          {
+            "name": "QuantStack/Wan2.2-Fun-A14B-Control-GGUF",
+            "slug": "quantstack-wan2-2-fun-a14b-control-gguf",
+            "summary": "Community GGUF of the multi-control A14B model — the 32 GB-fitting form of Canny/Depth/Pose/MLSD/trajectory/reference conditioning. HighNoise/ + LowNoise/ MoE folders; per-expert quants Q4_K_M ~9.66 GB to Q8_0 ~15.4 GB (plus Q2_K 6.32 for tight VRAM). Apache-2.0 inherited, needs city96 ComfyUI-GGUF + umt5-xxl + Wan2.1 VAE. Situational vs the camera GGUF — reach for it when you need structural control, not camera motion.",
+            "developer": "QuantStack (community GGUF) — source: alibaba-pai",
+            "base_arch": "Wan 2.2 A14B MoE (GGUF quant; HighNoise/ + LowNoise/ expert folders)",
+            "params": "14B (MoE; dual-expert, quantized)",
+            "license": "Apache-2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "Direct GGUF conversion of alibaba-pai/Wan2.2-Fun-A14B-Control; inherits Apache-2.0 (card states original licensing terms remain in effect). Commercial use OK.",
+            "quality_tier": "strong",
+            "status": "situational",
+            "release_date": "2025-10",
+            "min_vram_gb": 16,
+            "recommended_vram_gb": 24,
+            "runs_on_32gb": true,
+            "disk_size_gb": 19.3,
+            "speed_note": "32 GB-fitting form of the multi-control model. Per-expert quants incl. Q4_K_M ~9.66 / Q5_K_M ~10.8 / Q8_0 ~15.4 GB (also Q2_K 6.32, Q3_K_S/M, Q6_K) ×2 experts. Needs city96 ComfyUI-GGUF + umt5-xxl text encoder + Wan2.1 VAE; place GGUF in ComfyUI/models/unet. Q4–Q5 fits 32 GB; Q8 borderline both-resident.",
+            "game_asset_fit": 8,
+            "marketing_fit": 7,
+            "best_for": [
+              {
+                "purpose": "Pose/depth/canny-guided cutscene video on 32 GB — structural control of a character or scene without full 64 GB native footprint",
+                "fitness": 8,
+                "use_tag": "game-asset"
+              },
+              {
+                "purpose": "Reference-image + control-signal marketing animation at quantized cost",
+                "fitness": 7,
+                "use_tag": "marketing"
+              }
+            ],
+            "repo_url": "https://huggingface.co/QuantStack/Wan2.2-Fun-A14B-Control-GGUF",
+            "sources": [
+              {
+                "url": "https://huggingface.co/QuantStack/Wan2.2-Fun-A14B-Control-GGUF",
+                "claim": "Apache-2.0 inherited from alibaba-pai/Wan2.2-Fun-A14B-Control; GGUF quants Q2_K 5.31GB... Q4_K_M ~9.66GB, Q5_K_M ~10.8GB, Q8_0 ~15.4GB; HighNoise file e.g. Wan2.2-Fun-A14B-Control_HighNoise-Q4_K_M.gguf; requires city96 ComfyUI-GGUF in ComfyUI/models/unet, umt5-xxl text encoder, Wan2.1_VAE.safetensors.",
+                "kind": "hf-model-card",
+                "title": "QuantStack/Wan2.2-Fun-A14B-Control-GGUF"
+              },
+              {
+                "url": "https://huggingface.co/collections/QuantStack/wan22-ggufs",
+                "claim": "QuantStack Wan2.2 GGUF collection includes Fun-A14B-Control, Fun-A14B-Control-Camera, Fun-5B-Control, Fun-5B-Control-Camera GGUF repos.",
+                "kind": "hf-collection",
+                "title": "Wan2.2 GGUFs — QuantStack Collection"
+              }
+            ]
+          }
+        ],
+        "extras": [
+          {
+            "name": "Wan2.2-Fun-5B-Control-Camera",
+            "kind": "sibling-model",
+            "url": "https://huggingface.co/alibaba-pai/Wan2.2-Fun-5B-Control-Camera",
+            "note": "Dense 5B sibling of the A14B camera model — 23.0 GB native fp16, Apache-2.0, same pan/zoom/combined camera controls, 121 frames @24fps. FITS 32 GB natively (the trivially-safe camera-trajectory option if you want to skip GGUF). QuantStack also ships a GGUF (Q4_K_S etc., ~down to 1.86 GB / Q8_0 ~5.41 GB) at https://huggingface.co/QuantStack/Wan2.2-Fun-5B-Control-Camera-GGUF. Lower fidelity / motion range than A14B but fastest path."
+          },
+          {
+            "name": "Wan2.2-Fun-5B-Control",
+            "kind": "sibling-model",
+            "url": "https://huggingface.co/alibaba-pai/Wan2.2-Fun-5B-Control",
+            "note": "Dense 5B multi-control sibling — 23 GB native, Apache-2.0, Canny/Depth/Pose/MLSD/trajectory/reference. Fits 32 GB natively. GGUF: https://huggingface.co/QuantStack/Wan2.2-Fun-5B-Control-GGUF (Q2_K 1.86GB up to Q8_0 5.41GB). Best-fit dense option if A14B MoE handling is unwanted."
+          },
+          {
+            "name": "VideoX-Fun",
+            "kind": "comfyui-support",
+            "url": "https://github.com/aigc-apps/VideoX-Fun",
+            "note": "Official Alibaba PAI repo + first-party ComfyUI nodes for the entire Wan2.x-Fun / CogVideoX-Fun line (Control, Control-Camera, InP). Models go in ComfyUI/models/Fun_Models/. Web UI supports t2v / i2v / v2v / controlled gen. This is the canonical ComfyUI support path for all four cataloged models."
+          },
+          {
+            "name": "ComfyUI-GGUF (city96)",
+            "kind": "comfyui-support",
+            "url": "https://github.com/city96/ComfyUI-GGUF",
+            "note": "Required custom node to load the QuantStack GGUF camera/control repos in ComfyUI — Unet/Wan loader for GGUF weights placed in ComfyUI/models/unet. Pairs with umt5-xxl text encoder + Wan2.1 VAE. The practical 32 GB runtime for the A14B camera + control models."
+          },
+          {
+            "name": "Wan2.1-Fun-V1.1-14B-Control-Camera",
+            "kind": "predecessor-model",
+            "url": "https://huggingface.co/alibaba-pai/Wan2.1-Fun-V1.1-14B-Control-Camera",
+            "note": "Prior-generation (Wan 2.1, dense 14B, NOT MoE) camera-trajectory control checkpoint, Apache-2.0. Superseded by the Wan2.2 A14B camera model above for new work; noted only as lineage / fallback if a non-MoE 14B is preferred. Not re-cataloged as a primary entry — Wan 2.2 is current."
+          }
+        ]
+      },
+      "verify": {
+        "domain": "Video — Wan Fun-Control tail",
+        "summary": "All 4 main repos and all 5 extras verified to exist with Apache-2.0 confirmed on-page. Both alibaba-pai control models tree from Wan-AI/Wan2.2-I2V-A14B (consistent with the A14B MoE claim). The QuantStack GGUF repos' claimed HighNoise/ + LowNoise/ dual-expert MoE folder structure is CONFIRMED via the file tree (each folder ~13 files), and the per-expert quant sizes in the claims match the on-page tables exactly (Camera Q4_K_M 10.7 GB / Q8_0 16.4 GB; Control Q4_K_M 9.66 GB / Q8_0 15.4 GB plus Q2_K 6.32 GB for the camera variant — note the claim's \"6.32 Q2_K\" is actually the camera repo's value; the multi-control repo's Q2_K is 5.31 GB). Required tooling (city96 ComfyUI-GGUF, umt5-xxl, Wan2.1 VAE, Clip Vision H) is documented on the GGUF cards. 32 GB plausibility holds for every item: full A14B models are 64 GB native fp16 (run on 32 GB only via cpu_offload or GGUF, exactly as the summaries state); GGUF Q4–Q5 per-expert quants fit 32 GB comfortably. The full-model min_vram_gb of 24 reflects the offload modes the source cards document, not native footprint — plausible. Currency: A14B Fun-Control line is the current Wan 2.2 generation; Wan2.1-Fun-V1.1 is correctly cataloged as predecessor.",
+        "verdicts": [
+          {
+            "model": "Wan2.2-Fun-A14B-Control-Camera",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "Repo exists; card states License: apache-2.0. Base model Wan-AI/Wan2.2-I2V-A14B (A14B MoE) confirmed in model tree. Camera-trajectory conditioning (pan up/down/left/right, zoom in/out, combined) confirmed. Card lists 64.0 GB model size and memory-saving modes (model_cpu_offload, sequential_cpu_offload) — so 24 GB min reflects offload, and 32 GB-via-GGUF guidance in the summary is accurate. Multi-resolution 512/768/1024, 81 frames @16fps. 77 finetunes from base. Fully confirmed."
+          },
+          {
+            "model": "Wan2.2-Fun-A14B-Control",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "Repo exists; License: apache-2.0 on card. Base Wan-AI/Wan2.2-I2V-A14B confirmed. Control modalities Canny/Depth/Pose/MLSD + trajectory + reference image confirmed (card: '支持不同的控制条件，如Canny、Depth、Pose、MLSD等，同时支持使用轨迹控制'). 64.0 GB native, same offload modes documented. Conditioning is genuinely distinct from Control-Camera — separate cataloging justified. Fully confirmed."
+          },
+          {
+            "model": "QuantStack/Wan2.2-Fun-A14B-Control-Camera-GGUF",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "Repo exists; License: apache-2.0 (inherited — card notes original licensing terms remain in effect). HighNoise/ + LowNoise/ dual-expert MoE folder structure CONFIRMED via file tree (each ~13 files). Per-expert quants confirmed: Q4_K_M 10.7 GB, Q8_0 16.4 GB, plus Q2_K 6.32 GB. Q4–Q5 fit 32 GB comfortably; Q8 borderline per-expert but both experts load — guidance accurate. Requires city96 ComfyUI-GGUF + umt5-xxl + Wan2.1 VAE + Clip Vision H (documented on card). Source model alibaba-pai/Wan2.2-Fun-A14B-Control-Camera confirmed. min_vram_gb 16 plausible for Q4 per-expert."
+          },
+          {
+            "model": "QuantStack/Wan2.2-Fun-A14B-Control-GGUF",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed-with-fixes",
+            "fixes": "Q2_K is 5.31 GB for THIS multi-control repo, not 6.32 GB — the 6.32 GB Q2_K value cited in the summary belongs to the Control-Camera GGUF repo. The Q4_K_M ~9.66 GB and Q8_0 ~15.4 GB figures in the summary are correct for this repo. Minor numeric cross-reference fix only; everything else confirmed.",
+            "note": "Repo exists; License: apache-2.0 (inherited). HighNoise/ + LowNoise/ dual-expert MoE folders CONFIRMED via file tree (each ~13 files, root has.gitattributes + README.md). Source alibaba-pai/Wan2.2-Fun-A14B-Control confirmed. Required tooling city96 ComfyUI-GGUF + city96 umt5-xxl-encoder-gguf + Wan2.1_VAE (from QuantStack/Wan2.2-T2V-A14B-GGUF) documented. Structural control (Canny/Depth/Pose/MLSD/trajectory/reference) inherited from source. 32 GB fit holds for Q4–Q5 per-expert."
+          }
+        ],
+        "missing": [
+          {
+            "name": "Clip Vision H (clip_vision_h.safetensors)",
+            "url": "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+            "why": "The Control-Camera GGUF card lists Clip Vision H as a required component for the ComfyUI camera workflow (image conditioning), but it is not cataloged among the extras alongside umt5-xxl and the VAE. Users on 32 GB will hit a missing-encoder error without it."
+          },
+          {
+            "name": "umt5-xxl text encoder (GGUF)",
+            "url": "https://huggingface.co/city96/umt5-xxl-encoder-gguf",
+            "why": "Both GGUF model summaries name umt5-xxl as a hard dependency, but the encoder repo itself is not listed as a catalog extra — only ComfyUI-GGUF is. It is the single most-needed companion download for either GGUF to run."
+          },
+          {
+            "name": "Wan2.1 VAE (Wan2.1_VAE.safetensors)",
+            "url": "https://huggingface.co/QuantStack/Wan2.2-T2V-A14B-GGUF",
+            "why": "Named as required on both GGUF cards but not cataloged as a discrete extra; without it the ComfyUI graph cannot decode latents. Worth a first-class catalog entry next to ComfyUI-GGUF."
+          }
+        ]
+      }
+    },
+    {
+      "slug": "image-base",
+      "name": "Image base — FLUX.2 klein quants tail",
+      "research": {
+        "domain": "image base — narrow tail (FLUX.2 klein quantized + non-distilled base variants)",
+        "models": [
+          {
+            "name": "FLUX.2 [klein] base 4B",
+            "slug": "flux2-klein-base-4b",
+            "developer": "Black Forest Labs",
+            "base_arch": "FLUX.2 (rectified flow transformer)",
+            "params": "4B",
+            "release_date": "2026-04",
+            "license": "Apache 2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "Apache 2.0 — weights AND outputs usable commercially with no BFL self-hosted license required (unlike the 9B line). The standout commercial-safe LoRA-training base.",
+            "status": "recommended",
+            "quality_tier": "frontier",
+            "min_vram_gb": 13,
+            "recommended_vram_gb": 16,
+            "runs_on_32gb": true,
+            "disk_size_gb": 8.4,
+            "game_asset_fit": 5,
+            "marketing_fit": 4,
+            "speed_note": "Non-distilled BF16 base — needs full multi-step sampling (slower than the distilled 4B's sub-second inference), but that is the point: full training signal for fine-tuning.",
+            "summary": "Distinct release from the already-cataloged distilled klein 4B. This is the NON-DISTILLED, full-capacity 4B foundation model — 'undistilled, preserving complete training signal for maximum flexibility,' with 'higher output diversity than the distilled models.' BFL explicitly positions it for fine-tuning, LoRA training, research, and custom pipelines. Crucially it is Apache 2.0, so it is the only commercial-safe, LoRA-trainable, non-distilled FLUX.2 base — the ideal game-asset training base on a 32 GB rig (~13 GB VRAM to run, far less than the 9B's ~29 GB). For LoRA work you train on the base (undistilled) and can deploy/distill as needed. This is the single most strategically valuable klein-family row for the rig's game-asset use case.",
+            "best_for": [
+              {
+                "purpose": "Custom LoRA / fine-tune training base (commercial-safe)",
+                "use_tag": "game-asset",
+                "fitness": 5
+              },
+              {
+                "purpose": "Style/character dataset training where control beats speed",
+                "use_tag": "game-asset",
+                "fitness": 5
+              },
+              {
+                "purpose": "Research / custom generation+editing pipelines",
+                "use_tag": "both",
+                "fitness": 4
+              }
+            ],
+            "repo_url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B",
+            "sources": [
+              {
+                "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B",
+                "claim": "Apache 2.0; outputs usable commercially; '4 billion parameter rectified flow transformer'; 'full-capacity foundation model. Undistilled, preserving complete training signal'; 'Ideal for fine-tuning, LoRA training, research'; 'Higher output diversity than the distilled models'; fits in ~13GB VRAM, RTX 3090/4070 and above",
+                "kind": "model_card",
+                "title": "black-forest-labs/FLUX.2-klein-base-4B"
+              }
+            ]
+          },
+          {
+            "name": "FLUX.2 [klein] 4B FP8",
+            "slug": "flux2-klein-4b-fp8",
+            "developer": "Black Forest Labs",
+            "base_arch": "FLUX.2 (rectified flow transformer)",
+            "params": "4B (FP8 quant)",
+            "release_date": "2026-04",
+            "license": "Apache 2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "Apache 2.0 (inherits the 4B line license). Official BFL FP8 quant of the distilled klein 4B — commercial-safe.",
+            "status": "situational",
+            "quality_tier": "frontier",
+            "min_vram_gb": 7,
+            "recommended_vram_gb": 10,
+            "runs_on_32gb": true,
+            "disk_size_gb": 4.07,
+            "game_asset_fit": 4,
+            "marketing_fit": 5,
+            "speed_note": "Distilled klein 4B at FP8 — sub-second end-to-end inference; FP8 halves weight footprint vs the BF16 4B. Trivially fast headroom on a 5090.",
+            "summary": "Official BFL FP8 quantization of the (distilled) FLUX.2 [klein] 4B — single 4.07 GB safetensors. Same Apache 2.0 license as the BF16 4B, so commercial use of weights and outputs is fine. On a 32 GB 5090 the quant is overkill for VRAM (the BF16 4B already fits in ~13 GB) but it speeds load and frees VRAM for editing/multi-reference and big batches, making it a strong fast-iteration marketing-graphics generator. Note: FP8 weights are for inference, not the right base to train LoRAs on — use klein-base-4B for training.",
+            "best_for": [
+              {
+                "purpose": "Fast commercial-safe marketing/social graphics",
+                "use_tag": "marketing",
+                "fitness": 5
+              },
+              {
+                "purpose": "High-throughput batch generation with VRAM headroom",
+                "use_tag": "both",
+                "fitness": 4
+              },
+              {
+                "purpose": "Deploying a finished look (inference only)",
+                "use_tag": "game-asset",
+                "fitness": 4
+              }
+            ],
+            "repo_url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4b-fp8",
+            "sources": [
+              {
+                "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4b-fp8",
+                "claim": "Apache 2.0, commercial use allowed; 'This repository holds an FP8 version of FLUX.2 [klein] 4B'; main repo is the full BF16 weights; fits in ~13GB VRAM (base), RTX 3090/4070 and above",
+                "kind": "model_card",
+                "title": "black-forest-labs/FLUX.2-klein-4b-fp8"
+              },
+              {
+                "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4b-fp8/tree/main",
+                "claim": "flux-2-klein-4b-fp8.safetensors = 4.07 GB (single weight file)",
+                "kind": "file_tree",
+                "title": "FLUX.2-klein-4b-fp8 file tree"
+              }
+            ]
+          },
+          {
+            "name": "FLUX.2 [klein] 4B NVFP4",
+            "slug": "flux2-klein-4b-nvfp4",
+            "developer": "Black Forest Labs",
+            "base_arch": "FLUX.2 (rectified flow transformer)",
+            "params": "4B (NVFP4 quant)",
+            "release_date": "2026-04",
+            "license": "Apache 2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "Apache 2.0 (inherits the 4B line license). Official BFL NVFP4 quant — commercial-safe. NVFP4 is NVIDIA's 4-bit format with native Blackwell (RTX 5090) tensor-core acceleration.",
+            "status": "situational",
+            "quality_tier": "strong",
+            "min_vram_gb": 5,
+            "recommended_vram_gb": 8,
+            "runs_on_32gb": true,
+            "disk_size_gb": 2.46,
+            "game_asset_fit": 3,
+            "marketing_fit": 5,
+            "speed_note": "NVFP4 is hardware-accelerated on the 5090's Blackwell FP4 tensor cores — fastest klein inference path on this exact rig. 2.46 GB weights leave nearly all 32 GB free.",
+            "summary": "Official BFL NVFP4 (NVIDIA 4-bit) quantization of the distilled klein 4B — 2.46 GB, the smallest klein weight file. Apache 2.0, so commercial use is unrestricted. NVFP4 is the rig-native angle: the RTX 5090 (Blackwell) has FP4 tensor cores, so this is the lowest-latency, lowest-VRAM way to run klein on this exact hardware. Quality is slightly below FP8/BF16 (4-bit), so it earns 'strong' rather than 'frontier' tier, but for fast commercial-safe marketing iteration and previews on a 5090 it is the speed pick. Inference-only — train LoRAs on klein-base-4B, not on the NVFP4 weights.",
+            "best_for": [
+              {
+                "purpose": "Lowest-latency commercial-safe iteration on RTX 5090 (FP4 native)",
+                "use_tag": "marketing",
+                "fitness": 5
+              },
+              {
+                "purpose": "Rapid concept/preview passes with minimal VRAM",
+                "use_tag": "both",
+                "fitness": 4
+              },
+              {
+                "purpose": "Edge/low-VRAM commercial deployment",
+                "use_tag": "game-asset",
+                "fitness": 3
+              }
+            ],
+            "repo_url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4b-nvfp4",
+            "sources": [
+              {
+                "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4b-nvfp4",
+                "claim": "Apache 2.0, commercial use allowed; 'This repository holds an NVFP4 version of FLUX.2 [klein] 4B'; fits in ~13GB VRAM (base), RTX 3090/4070 and above",
+                "kind": "model_card",
+                "title": "black-forest-labs/FLUX.2-klein-4b-nvfp4"
+              },
+              {
+                "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-4b-nvfp4/tree/main",
+                "claim": "flux-2-klein-4b-nvfp4.safetensors = 2.46 GB (single weight file)",
+                "kind": "file_tree",
+                "title": "FLUX.2-klein-4b-nvfp4 file tree"
+              }
+            ]
+          },
+          {
+            "name": "FLUX.2 [klein] base 9B",
+            "slug": "flux2-klein-base-9b",
+            "developer": "Black Forest Labs",
+            "base_arch": "FLUX.2 (rectified flow transformer)",
+            "params": "9B",
+            "release_date": "2026-04",
+            "license": "FLUX Non-Commercial License",
+            "commercial_use": "no",
+            "commercial_notes": "FLUX Non-Commercial License Agreement + Acceptable Use Policy. NON-COMMERCIAL: cannot be used for game-asset shipping or paid marketing. Research / personal / fine-tuning experiments only. Same license posture as the already-cataloged distilled klein 9B.",
+            "status": "legacy",
+            "quality_tier": "frontier",
+            "min_vram_gb": 29,
+            "recommended_vram_gb": 32,
+            "runs_on_32gb": true,
+            "disk_size_gb": 18.2,
+            "game_asset_fit": 1,
+            "marketing_fit": 1,
+            "speed_note": "Non-distilled BF16 18.2 GB transformer. ~29 GB VRAM is right at the 32 GB ceiling — runs on this rig but with little headroom once the text encoder/VAE load; offloading likely needed for editing/multi-ref.",
+            "summary": "Distinct release from the cataloged distilled klein 9B: the NON-DISTILLED 9B foundation model (18.2 GB single safetensors). 'Full-capacity foundation model. Undistilled, preserving complete training signal'; 'higher output diversity than the distilled models'; positioned for fine-tuning, LoRA, research, custom pipelines. Highest-fidelity klein base. BUT it is FLUX Non-Commercial License — so for this rig's commercial game-asset + marketing mandate it is OUT; the license axis is decisive. It fits in ~29 GB on the 5090 (tight against 32 GB). Listed as 'legacy' for THIS use case purely on the commercial blocker, not on quality (quality tier is frontier). If a non-commercial LoRA base is ever wanted at max fidelity, this is the one; otherwise prefer klein-base-4B (Apache). An official FP8 quant exists at black-forest-labs/FLUX.2-klein-9b-fp8 (9.43 GB, same non-commercial license) — same commercial blocker, so not given a separate row.",
+            "best_for": [
+              {
+                "purpose": "Max-fidelity NON-COMMERCIAL LoRA/fine-tune base (research/personal only)",
+                "use_tag": "game-asset",
+                "fitness": 2
+              },
+              {
+                "purpose": "Research on undistilled FLUX.2 behavior / output diversity",
+                "use_tag": "both",
+                "fitness": 3
+              }
+            ],
+            "repo_url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-base-9B",
+            "sources": [
+              {
+                "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-base-9B",
+                "claim": "FLUX Non-Commercial License; '9 billion parameter rectified flow transformer'; 'full-capacity foundation model. Undistilled, preserving complete training signal'; 'Trained without step or guidance distillation'; 'Higher output diversity than the distilled models'; fits in ~29GB VRAM, RTX 4090 and above",
+                "kind": "model_card",
+                "title": "black-forest-labs/FLUX.2-klein-base-9B"
+              },
+              {
+                "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-base-9B/tree/main",
+                "claim": "flux-2-klein-base-9b.safetensors = 18.2 GB (single weight file)",
+                "kind": "file_tree",
+                "title": "FLUX.2-klein-base-9B file tree"
+              },
+              {
+                "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-fp8",
+                "claim": "Sibling FP8 quant of distilled klein 9B is FLUX Non-Commercial License, 'fits in ~29GB VRAM'; weight file 9.43 GB — same non-commercial blocker",
+                "kind": "model_card",
+                "title": "black-forest-labs/FLUX.2-klein-9b-fp8"
+              }
+            ]
+          }
+        ],
+        "notes": "WAVE 4 narrow tail — FLUX.2 klein quantized + non-distilled base variants. Added 4 formal rows; all confirmed live via HF cards + file trees on 2026-06-02. KEY STRUCTURAL FINDING (changes the picture vs the lane brief): The klein family has TWO axes, not one. (a) distilled vs NON-DISTILLED \"base\" — the \"base\" line is a genuinely distinct release (separate repos: FLUX.2-klein-base-4B / -base-9B), explicitly the undistilled full-capacity foundation models 'preserving complete training signal,' positioned by BFL for fine-tuning/LoRA. (b) precision: BF16 / FP8 / NVFP4 official quants exist for the distilled line, and FP8 quants also exist for the base line (e.g. klein-base-4b-fp8, klein-base-9b-fp8) plus a KV-cache variant family (klein-9b-kv). I did not give every quant its own row in a narrow tail; I picked the strategically distinct ones. LICENSE AXIS (decisive for this rig): The split is clean and confirmed on every card — - ALL 4B variants (base, distilled, fp8, nvfp4) = Apache 2.0 → commercial-safe, LoRA-trainable. GREEN for game-asset + marketing. - ALL 9B variants (base, distilled, fp8, kv) = FLUX Non-Commercial License → blocked for the rig's commercial mandate. RED. ROW SELECTION RATIONALE: 1. klein-base-4B (RECOMMENDED) — the headline add. Only commercial-safe + non-distilled + LoRA-trainable FLUX.2 base, ~13 GB VRAM. Distinct from the already-cataloged distilled 4B (which is Apache but distilled => not the right training base). This is the single most valuable klein-family entry for the rig's game-asset use case. 2. klein-4B-FP8 (situational) — Apache, 4.07 GB, fast commercial inference / marketing. 3. klein-4B-NVFP4 (situational) — Apache, 2.46 GB, RTX 5090 Blackwell FP4-native => fastest klein path on THIS exact rig. Quality 'strong' (4-bit) not 'frontier'. 4. klein-base-9B (legacy FOR THIS USE CASE) — distinct non-distilled 9B base the brief asked to confirm; FLUX Non-Commercial so OUT for commercial work despite frontier quality. Fits ~29 GB (tight on 32 GB). Folded its FP8 sibling (klein-9b-fp8, 9.43 GB, same non-commercial license) into notes rather than a separate row. VRAM/DISK confirmed from file trees (not just card claims): base-4B ~8.4 GB on disk (folder-format diffusers repo) / ~13 GB VRAM; 4b-fp8 4.07 GB; 4b-nvfp4 2.46 GB; base-9B 18.2 GB single safetensors / ~29 GB VRAM; 9b-fp8 9.43 GB. All fit on 32 GB; only the 9B line is tight. DID NOT re-catalog (already covered): distilled klein 4B (Apache), distilled klein 9B (non-commercial), FLUX.2 [dev], Qwen-Image. Quants/siblings deliberately omitted to honor narrow-tail scope: klein-base-4b-fp8, klein-base-4b-nvfp4, klein-base-9b-fp8, klein-9b-kv / klein-9b-kv-fp8 (KV-cache editing variants), and third-party GGUFs (unsloth/leejet) — all exist and are live, none change the license verdict per axis."
+      },
+      "verify": {
+        "domain": "Image base — FLUX.2 klein quants tail",
+        "summary": "All four repos verified live on Hugging Face and fully confirmed. Existence, licenses, distilled/non-distilled status, VRAM figures, and the specific safetensors file sizes (4.07 GB FP8, 2.46 GB NVFP4, 18.2 GB 9B-base) all match the claims and BFL's own model-card wording. The three Apache 2.0 4B-family rows (base-4B, 4b-fp8, 4b-nvfp4) are commercial-safe; the 9B base is FLUX Non-Commercial as claimed, correctly flagged OUT for the commercial mandate. min_vram figures for the 4B base (13) and 9B base (29) are BFL-stated verbatim; the quant min_vram values (7, 5) are reasonable estimates and not contradicted. All comfortably fit a 32 GB rig (9B base ~29 GB is tight but fits). No corrections needed.",
+        "verdicts": [
+          {
+            "model": "FLUX.2 [klein] base 4B",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "Repo black-forest-labs/FLUX.2-klein-base-4B exists. License verbatim: Apache 2.0 ('This model is licensed under the apache.org/licenses/LICENSE-2.0'). Card confirms non-distilled: 'full-capacity foundation model. Undistilled, preserving complete training signal for maximum flexibility. Ideal for fine-tuning, LoRA training, research, and custom pipelines.' 4B rectified flow transformer; 'Trained without step or guidance distillation.' VRAM verbatim: 'fits in ~13GB VRAM... RTX 3090/4070 and above' (matches min_vram_gb:13). Weights are 7.75 GB BF16 safetensors (consistent with 4B). 'Outputs can be used for commercial purposes, as described in the Apache 2.0 license.' Every claim in the summary confirmed, including the distinct-from-distilled positioning and the LoRA-training-base recommendation."
+          },
+          {
+            "model": "FLUX.2 [klein] 4B FP8",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "Repo black-forest-labs/FLUX.2-klein-4b-fp8 exists. License: Apache 2.0 (verbatim card text). Card: 'This repository holds an FP8 version of FLUX.2 [klein] 4B.' File size confirmed EXACTLY: flux-2-klein-4b-fp8.safetensors = 4.07 GB (single file). Underlying model is the distilled klein 4B (4B rectified flow transformer; base BF16 fits ~13GB VRAM). min_vram_gb:7 is a plausible inference estimate for a 4.07 GB FP8 file plus overhead, not contradicted. Commercial use permitted (Apache 2.0). Caveat in summary that FP8 weights are inference-only and LoRAs should train on klein-base-4B is sound."
+          },
+          {
+            "model": "FLUX.2 [klein] 4B NVFP4",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "Repo black-forest-labs/FLUX.2-klein-4b-nvfp4 exists. License: Apache 2.0 (verbatim card text). Card: 'This repository holds an NVFP4 version of FLUX.2 [klein] 4B.' File size confirmed EXACTLY: flux-2-klein-4b-nvfp4.safetensors = 2.46 GB (single file, smallest klein weight). Distilled klein 4B base. min_vram_gb:5 is a plausible estimate for a 2.46 GB 4-bit file plus overhead, not contradicted. RTX 5090 (Blackwell) FP4-tensor-core angle is hardware-accurate. Commercial use permitted (Apache 2.0). Inference-only caveat is correct."
+          },
+          {
+            "model": "FLUX.2 [klein] base 9B",
+            "exists": true,
+            "license_status": "confirmed",
+            "specs_plausible": true,
+            "currency": "current",
+            "overall": "confirmed",
+            "note": "Repo black-forest-labs/FLUX.2-klein-base-9B exists. License verbatim: 'This model falls under the FLUX Non-Commercial License' — confirms license:'FLUX Non-Commercial License' and commercial_use:'no'. Card confirms non-distilled: 'full-capacity foundation model. Undistilled, preserving complete training signal'; 'Trained without step or guidance distillation'; 'Best suited for creative exploration, fine-tuning, LoRA training, research, and custom... pipelines.' 9B rectified flow transformer. VRAM verbatim: 'fits in ~29GB VRAM... RTX 4090 and above' (matches min_vram_gb:29; tight but fits a 32 GB 5090). File size confirmed EXACTLY: flux-2-klein-base-9b.safetensors = 18.2 GB. Summary's 'OUT on commercial blocker, frontier quality' assessment and the referenced FLUX.2-klein-9b-fp8 quant (same non-commercial license) are accurate."
+          }
+        ],
+        "missing": [
+          {
+            "name": "FLUX.2 [klein] 9B FP8 (black-forest-labs/FLUX.2-klein-9b-fp8)",
+            "url": "https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-fp8",
+            "why": "Already referenced in the 9B-base summary (9.43 GB, FLUX Non-Commercial). Confirmed to exist by the same family pattern; the summary correctly declines a separate row on the commercial blocker. Noting it so the catalog explicitly accounts for the full 9B quant tail."
+          }
+        ]
+      }
+    },
+    {
+      "slug": "comfy",
+      "name": "ComfyUI — controlnet preprocessors tail",
+      "research": {
+        "domain": "ComfyUI nodes — narrow tail (custom nodes + workflows)",
+        "models": [],
+        "notes": "WAVE 4 narrow-tail ComfyUI lane. models array intentionally empty per lane spec — this lane returns extras only (custom-nodes + workflow links). All items verified live via WebFetch against official GitHub/ComfyUI sources on 2026-06-02. CONFIRMED CURRENCY/LICENSES:\n- comfyui_controlnet_aux (Fannovel16): Apache-2.0 (commercial-safe). Actively maintained — latest changelog work includes PyTorch 2.7 compatibility refactor eliminating custom_timm/custom_detectron2/custom_midas_repo (resolved ~59 import-failure issues). The de-facto auxiliary ControlNet preprocessor pack (Canny, HED, lineart/anime, M-LSD, PiDiNet, TEED, MiDaS/LeReS/Zoe/DepthAnythingV2 depth, BAE/DSINE normals, DWPose/OpenPose/animal pose, OneFormer/UniFormer seg). Essential for any ControlNet-guided game-asset or marketing pipeline.\n- ComfyUI-Inspire-Pack (ltdrdata): GPL-3.0 (copyleft — note for any redistribution, but fine for local/internal use and asset output). No formal GitHub releases; rolling main branch, last activity Nov 2025. Provides Lora Block Weight, Regional Prompt/Conditioning/IPAdapter, KSampler (Inspire) seed/noise control + A1111-compatible noise, Backend Cache, wildcard prompt utils. Companion to Impact Pack (same author).\n- rgthree-comfy (rgthree): MIT (commercial-safe). The universal workflow-QoL pack — Fast Muter/Bypasser + Context/Context Switch (conditional branchless workflows), Power Lora Loader (multi-LoRA with per-LoRA toggles — directly useful for stacking trained game-asset LoRAs), Seed. Added as the third genuinely-essential node: it is the de-facto workflow-control layer most published 2025-2026 workflows assume is installed. LICENSE FLAG: Inspire-Pack is GPL-3.0 (copyleft); the other two nodes are permissive (Apache-2.0 / MIT). Generated image/asset OUTPUT is not encumbered by node license in any of the three — the license governs the node code, not your renders. WORKFLOWS (kind:workflow / workflow-source, both direct + sourced):\n1. Multi-stem audio separation (SCNet/UVR) — official ComfyUI template \"Audio Separation\" (comfy.org) backed by christian-byrne/audio-separation-nodes-comfyui AND set-soft/AudioSeparation. set-soft's pack (GPL-3.0 code; UVR5/MDX/Demucs models MIT) ships 6 example workflows browsable in-app (Workflow > Browse Templates > Audio Separation), supports 46 UVR5-collected models incl. MDX-Net + Demucs 4/6-stem + Hybrid Transformer (adds guitar/piano stems). Note: the requested term \"SCNet\" is not explicitly a named model in set-soft as of v1.1.1 (2025-07-21) — the multi-stem coverage comes via UVR/MDX/Demucs; flagging this so the catalog doesn't overstate SCNet support.\n2. Wan2.2-Fun camera control — OFFICIAL ComfyUI workflow (Comfy-Org), drag-drop JSON loadable in-app. WanCameraEmbedding builds camera path (Pan U/D/L/R, Zoom In/Out + combos) from a single still. VRAM: ~84% of 24GB (RTX4090D) without LoRA, ~89% with Wan2.2-Lightning 4-step LoRA, at 640x640/81 frames. FITS 32GB comfortably (5090). Needs Wan2.2 14B fp8_scaled (high+low noise), wan_2.1_vae, umt5_xxl_fp8_e4m3fn text encoder.",
+        "extras": [
+          {
+            "kind": "custom-node",
+            "name": "comfyui_controlnet_aux",
+            "url": "https://github.com/Fannovel16/comfyui_controlnet_aux",
+            "note": "Fannovel16 — the de-facto auxiliary ControlNet preprocessor pack. Apache-2.0 (commercial-safe). Provides Canny, HED, lineart (std/realistic/anime), M-LSD, PiDiNet, scribble, TEED line extractors; MiDaS/LeReS/Zoe/Depth-Anything-V2 depth; BAE/DSINE normals; DWPose/OpenPose/animal-pose; OneFormer/UniFormer segmentation; optical flow, recolor. Actively maintained — recent PyTorch 2.7 compat refactor dropped vendored timm/detectron2/midas deps and fixed ~59 import-failure issues. Required by most ControlNet-guided workflows. Verified live 2026-06-02."
+          },
+          {
+            "kind": "custom-node",
+            "name": "ComfyUI-Inspire-Pack",
+            "url": "https://github.com/ltdrdata/ComfyUI-Inspire-Pack",
+            "note": "ltdrdata — extension-node companion to the Impact Pack. GPL-3.0 (copyleft — governs node code, not your renders). Headline nodes: Lora Block Weight, Regional Prompt/Conditioning/IPAdapter (mask-driven), KSampler (Inspire) with seed/noise control + A1111-compatible noise composition, Global Seed, Backend Cache, wildcard prompt utils. No tagged GitHub releases — rolling main branch, last activity Nov 2025. Verified live 2026-06-02."
+          },
+          {
+            "kind": "custom-node",
+            "name": "rgthree-comfy",
+            "url": "https://github.com/rgthree/rgthree-comfy",
+            "note": "rgthree — 'Making ComfyUI more comfortable.' MIT (commercial-safe). The universal workflow-control/QoL layer most 2025-2026 published workflows assume: Fast Muter/Bypasser (toggle dashboards), Context + Context Switch (conditional, branchless graphs), Power Lora Loader (stack multiple LoRAs with per-LoRA toggle + strength — ideal for combining trained game-asset LoRAs), Seed. Added as the final genuinely-essential node. Verified live 2026-06-02."
+          },
+          {
+            "kind": "workflow-source",
+            "name": "Multi-stem audio separation (UVR/MDX/Demucs) — set-soft AudioSeparation + ComfyUI official template",
+            "url": "https://github.com/set-soft/AudioSeparation",
+            "note": "SOURCE repo for SCNet/UVR multi-stem separation workflows. GPL-3.0 code; UVR5/MDX/Demucs models MIT. Ships 6 in-app example workflows (ComfyUI > Workflow > Browse Templates > 'Audio Separation'). Supports 46 UVR5-collected models: MDX-Net (Vocals/Instruments/Drums/Bass), Demucs 4/6-stem (adds guitar/piano via Hybrid Transformer). v1.1.1 (2025-07-21). NOTE: 'SCNet' is not an explicitly named model here — multi-stem coverage is via UVR/MDX/Demucs. Verified live 2026-06-02."
+          },
+          {
+            "kind": "workflow",
+            "name": "Audio Separation (official ComfyUI template, direct-loadable)",
+            "url": "https://www.comfy.org/workflows/utility-audioseparation-1446c7f47aee/",
+            "note": "Direct ComfyUI-org workflow page for stem separation — splits a track into Vocals/Drums/Bass/Other. Drag-drop loadable; built on christian-byrne/audio-separation-nodes-comfyui (Demucs/MDX-Net). The direct counterpart to the set-soft source repo above. Verified live 2026-06-02."
+          },
+          {
+            "kind": "workflow",
+            "name": "Wan2.2-Fun Camera Control (official ComfyUI workflow, direct-loadable JSON)",
+            "url": "https://docs.comfy.org/tutorials/video/wan/wan2-2-fun-camera",
+            "note": "OFFICIAL Comfy-Org tutorial + downloadable JSON for Wan2.2-Fun A14B camera control. WanCameraEmbedding builds camera path (Pan U/D/L/R, Zoom In/Out + combos) from one still image. VRAM ~84%/24GB without LoRA, ~89% with Wan2.2-Lightning 4-step LoRA at 640x640/81f — fits 32GB (RTX 5090) comfortably. Needs Wan2.2 14B fp8_scaled high+low noise, wan_2.1_vae, umt5_xxl_fp8_e4m3fn. Drag JSON into ComfyUI to load. Verified live 2026-06-02."
+          },
+          {
+            "kind": "workflow-source",
+            "name": "Wan2.2-Fun Camera Control — Comfy Hub direct workflow page",
+            "url": "https://www.comfy.org/workflows/video_wan2_2_14B_fun_camera-9dac2dae8bfc/",
+            "note": "Comfy Hub direct-download page for the same Wan2.2 14B Fun Camera Control workflow (alternate canonical source to the docs tutorial above). Verified live 2026-06-02."
+          }
+        ]
+      },
+      "verify": {
+        "domain": "ComfyUI — controlnet preprocessors tail",
+        "summary": "All 7 extras verified and confirmed via WebFetch (no models in this wave). Three GitHub custom-node repos confirmed with corrected/verified licenses: comfyui_controlnet_aux (Apache-2.0), ComfyUI-Inspire-Pack (GPL-3.0), rgthree-comfy (MIT). set-soft/AudioSeparation confirmed (GPL-3.0 code; bundled UVR-collected MDX/Demucs models noted MIT) — backs the multi-stem separation claim. Three comfy.org/docs.comfy.org workflow pages confirmed live and direct-loadable (official audio-separation template; Wan2.2-Fun Camera tutorial with JSON; Wan2.2 14B Fun Camera Hub page). comfyui_controlnet_aux currency cross-checked via WebSearch: active into 2026 (commits 2026-04-13/02-16, registry v1.1.5). VRAM relevance: node packs are negligible; only the Wan2.2 14B Fun Camera workflow carries real weight and runs comfortably on 32 GB (official docs benchmark on 24 GB RTX 4090).",
+        "verdicts": [
+          {
+            "model": "comfyui_controlnet_aux (Fannovel16) — custom-node",
+            "exists": true,
+            "overall": "confirmed",
+            "license_status": "confirmed",
+            "license_correction": "",
+            "currency": "current",
+            "specs_plausible": true,
+            "note": "Repo exists (Fannovel16/comfyui_controlnet_aux), 4k+ stars, the de-facto ControlNet aux preprocessor pack. License Apache-2.0 (LICENSE.txt). Actively maintained into 2026 (commits 2026-04-13, 2026-02-16; Comfy Registry v1.1.5, 2.3M downloads). Preprocessors only — negligible VRAM, fine on 32 GB.",
+            "fixes": ""
+          },
+          {
+            "model": "ComfyUI-Inspire-Pack (ltdrdata) — custom-node",
+            "exists": true,
+            "overall": "confirmed",
+            "license_status": "confirmed",
+            "license_correction": "",
+            "currency": "current",
+            "specs_plausible": true,
+            "note": "Repo exists (ltdrdata/ComfyUI-Inspire-Pack), by a core ComfyUI-ecosystem maintainer (also Impact Pack). License GPL-3.0 (badge). Actively maintained (compat notices through V1.18). Utility nodes — negligible VRAM.",
+            "fixes": ""
+          },
+          {
+            "model": "rgthree-comfy (rgthree) — custom-node",
+            "exists": true,
+            "overall": "confirmed",
+            "license_status": "confirmed",
+            "license_correction": "",
+            "currency": "current",
+            "specs_plausible": true,
+            "note": "Repo exists (rgthree/rgthree-comfy). License MIT. Active (418 commits, open PRs/issues). Workflow-quality-of-life nodes (seed/context/bypass/reroute) — negligible VRAM.",
+            "fixes": ""
+          },
+          {
+            "model": "set-soft/AudioSeparation — multi-stem separation (UVR/MDX/Demucs) — workflow-source",
+            "exists": true,
+            "overall": "confirmed",
+            "license_status": "confirmed",
+            "license_correction": "",
+            "currency": "current",
+            "specs_plausible": true,
+            "note": "Repo exists (set-soft/AudioSeparation). License GPL-3.0 for the code; README notes bundled models are MIT and many were collected by the UVR5 project. Supports MDX-Net (21-65 MB) and Demucs (84-870 MB), 46 models total — fully backs the 'UVR/MDX/Demucs multi-stem' claim. Current: v1.1.1 (2025-07-21). Models are small; runs easily on 32 GB.",
+            "fixes": ""
+          },
+          {
+            "model": "Audio Separation (official ComfyUI template) — workflow",
+            "exists": true,
+            "overall": "confirmed",
+            "license_status": "unverified",
+            "license_correction": "",
+            "currency": "current",
+            "specs_plausible": true,
+            "note": "Page live at comfy.org/workflows/utility-audioseparation-1446c7f47aee/ titled 'Audio Separation - ComfyUI Workflow' — an official Comfy template, direct-loadable. License not stated on the workflow page (templates ship under ComfyUI's GPL-3.0 umbrella but not asserted on-page), hence license_status unverified; does not affect usability. Lightweight audio task — fine on 32 GB.",
+            "fixes": ""
+          },
+          {
+            "model": "Wan2.2-Fun Camera Control (official ComfyUI tutorial + JSON) — workflow",
+            "exists": true,
+            "overall": "confirmed",
+            "license_status": "unverified",
+            "license_correction": "",
+            "currency": "current",
+            "specs_plausible": true,
+            "note": "docs.comfy.org/tutorials/video/wan/wan2-2-fun-camera exists: 'ComfyUI Wan2.2 Fun Camera Control: Video Generation Workflow Example' (Alibaba PAI model). Provides direct download links for a JSON workflow, model-asset locations (diffusion/LoRA/VAE/text encoder), camera-motion params (pan/zoom). Official docs benchmark on RTX 4090D (24 GB), so the 14B workflow runs comfortably on 32 GB. License: workflow JSON licensing not asserted on-page (unverified); model weights have their own (Wan/Apache-family) terms — confirm at download.",
+            "fixes": ""
+          },
+          {
+            "model": "Wan2.2 14B Fun Camera Control — Comfy Hub workflow page — workflow-source",
+            "exists": true,
+            "overall": "confirmed",
+            "license_status": "unverified",
+            "license_correction": "",
+            "currency": "current",
+            "specs_plausible": true,
+            "note": "Page live at comfy.org/workflows/video_wan2_2_14B_fun_camera-9dac2dae8bfc/ titled 'Wan 2.2 14B Fun Camera Control - ComfyUI Workflow' on Comfy Hub, sharable/direct-loadable. Companion to the docs tutorial above. 14B video model is the only VRAM-heavy item in this wave; 32 GB is comfortable (official ref config is 24 GB). License not asserted on-page (unverified).",
+            "fixes": ""
+          }
+        ],
+        "missing": [
+          {
+            "name": "ComfyUI-VideoHelperSuite (Kosinkadink)",
+            "url": "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite",
+            "why": "Near-universal companion for any video workflow (Wan2.2 Fun Camera here) — provides Load/Save Video, frame batching, and webcam/combine nodes that the camera-control JSON effectively assumes are installed."
+          },
+          {
+            "name": "ComfyUI-Frame-Interpolation (Fannovel16)",
+            "url": "https://github.com/Fannovel16/ComfyUI-Frame-Interpolation",
+            "why": "RIFE/FILM frame interpolation — standard tail node for smoothing camera-control video output; commonly paired with controlnet_aux + VHS in the same preprocessor/video stacks."
+          },
+          {
+            "name": "was-node-suite-comfyui (WASasquatch)",
+            "url": "https://github.com/WASasquatch/was-node-suite-comfyui",
+            "why": "The other large general-purpose node suite alongside Inspire-Pack and rgthree; broad image/text/number utilities frequently referenced in controlnet preprocessing graphs."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,192 @@
+{
+  "bucket": "float-determinism",
+  "verifier_note": "Checked against: the WebAssembly Core Spec (numerics/values/profiles/instruction-index pages), RFC 3514, Rust std docs and two Rust blog posts, five rust-lang/rust files fetched raw at tag 1.98.1 (one WebFetch summary inverted a cfg's boolean logic on compiler-builtins/src/math/mod.rs and had to be re-derived from a direct curl of the same URL), the pinned crate sources for rapier3d-f64/parry3d-f64/simba/glam/glamx/indexmap/hashbrown/foldhash/wide/libm read from the local cargo registry checkout (byte-identical to what docs.rs mirrors), si-rpg-engine's solver/src/lib.rs, solver/src/rapier_law.rs, solver/FLAGS.md, solver/Cargo.toml, solver/rust-toolchain.toml and solver/build.mjs fetched from GitHub main, and four of my own compile_oracle.py counter-example runs (E0015, E0599, E0658, algebraic_mul/algebraic_add) that all reproduced exactly what the checks claim. Nothing was refuted: every warrant resolved and supported its claim, every quoted engine fact matched the live repository (several verbatim, including js_min/js_max reproduced character-for-character and canonicalize_zero's real call sites on rapier3d-f64's warm-start impulses), and none of my own falsification attempts broke a recipe. The one systemic weakness is in recipe 8's engine_note: its most striking claim, that solver_step's compiled wasm actually reaches parry's BVH optimizer and glamx's eigensolver through a specific call chain, is a one-time, unrepeated wasmparser measurement on a scratch build, asserted at the same confidence as the fully source-grounded claims around it, and none of the lane's own checks re-verify that reachability (they verify wasm-vs-libm digest matching, an adjacent but weaker fact). A future dependency bump could silently break that specific claim with nothing in checks[] positioned to catch it.",
+  "verdicts": [
+    {
+      "slug": "build-hashed-math-from-f64-and-sqrt-the-same-bits-on-ieee-cpus-wasm-engines-and-in-const-eval",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "RFC 3514 confirms the basic-op IEEE guarantee verbatim; operator.rs@1.98.1 shows const eval via rustc_apfloat+adjust_nan; my own compile_oracle.py run reproduced E0015 and E0599 exactly as the checks claim.",
+      "evidence_url": "https://rust-lang.github.io/rfcs/3514-float-semantics.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://rust-lang.github.io/rfcs/3514-float-semantics.html", "supported": true, "note": "Lists +,-,*,/,%,abs,copysign,mul_add,sqrt,as-casts; names x87 NaN payload alteration verbatim."},
+        {"url": "https://webassembly.github.io/spec/core/exec/numerics.html", "supported": true, "note": "Round-to-nearest ties-to-even plus non-stop mode confirmed verbatim."},
+        {"url": "https://webassembly.github.io/spec/core/syntax/values.html", "supported": true, "note": "Subnormal grammar formula confirmed alongside normals/infinities/NaN."},
+        {"url": "https://doc.rust-lang.org/stable/core/arch/x86_64/fn._mm_setcsr.html", "supported": true, "note": "Changing rounding/DAZ is immediate UB per docs; FTZ off by default confirmed."},
+        {"url": "https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/", "supported": true, "note": "NaN semantics settled + float ops in const fn permitted, exact example quoted."},
+        {"url": "https://docs.rs/rustc_apfloat/latest/rustc_apfloat/", "supported": true, "note": "Self-contained host/target-independent apfloat, port of LLVM APFloat, confirmed."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/compiler/rustc_const_eval/src/interpret/operator.rs", "supported": true, "note": "Code shows Add/Sub/Mul/Div/Rem via rustc_apfloat .value then adjust_nan(), fetched directly."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f64.html", "supported": true, "note": "mul_add const since 1.94.0, IEEE fusedMultiplyAdd guarantee confirmed verbatim."},
+        {"url": "https://github.com/rust-lang/compiler-builtins/blob/main/libm/README.md", "supported": true, "note": "Fallback implementations for core float math + core_float_math feature, confirmed verbatim."}
+      ]
+    },
+    {
+      "slug": "expect-a-b-c-to-stay-unfused-rustc-never-contracts-mul-add-always-rounds-once-wasm-has-no-scalar-fma",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "RFC 3514 and the local wide-1.7.1 source both confirm the fused/unfused claims verbatim. The regenerated input now carries wasm_no_imports/no_warnings gates matching the 'no imports'/'no warning' check labels.",
+      "evidence_url": "https://rust-lang.github.io/rfcs/3514-float-semantics.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://rust-lang.github.io/rfcs/3514-float-semantics.html", "supported": true, "note": "FMA contraction explicitly precluded; fast-math deferred to future intrinsics, quoted verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f64.html", "supported": true, "note": "mul_add doc example reproduces (1+eps)(1-eps)-1 fused vs unfused verbatim."},
+        {"url": "https://webassembly.github.io/spec/core/appendix/index-instructions.html", "supported": true, "note": "f64 arithmetic/min/max/copysign/rounding listed; no f32.fma or f64.fma anywhere."},
+        {"url": "https://github.com/WebAssembly/relaxed-simd/blob/main/proposals/relaxed-simd/Overview.md", "supported": true, "note": "relaxed madd: 2 roundings or 1, fixed per environment, confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f32.html#algebraic-operators", "supported": true, "note": "algebraic_* may reorder/combine; same inputs can differ within one run, confirmed."},
+        {"url": "https://blog.rust-lang.org/2026/08/20/Rust-1.98.0/", "supported": true, "note": "Stabilizes algebraic_add/sub/mul/div/rem, non-deterministic but never UB, confirmed."},
+        {"url": "https://docs.rs/wide/1.7.1/wide/struct.f64x2.html", "supported": true, "note": "Doc comment literally: vfmadd on FMA x86, vfmaq_f64 on NEON, else (self*m)+a two roundings."}
+      ]
+    },
+    {
+      "slug": "keep-std-sin-cos-exp-ln-powf-atan2-and-hypot-out-of-hashed-math-call-the-cargo-lock-pinned-libm",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Fetched compiler-builtins mod.rs myself (a WebFetch summary botched the cfg's boolean logic): wasm32-unknown-unknown is in the libm_math set. Local libm-0.2.16 hypot.rs is the SPLIT/sq algorithm as claimed.",
+      "evidence_url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/compiler-builtins/compiler-builtins/src/math/mod.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f64.html", "supported": true, "note": "sin/cos/exp/ln/powf/atan2/hypot all carry the exact 'Unspecified precision' text."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/compiler-builtins/compiler-builtins/src/math/mod.rs", "supported": true, "note": "cfg(not(any(x86-no-sse2, unix, wasm-with-known-os))) includes wasm32-unknown-unknown; verified via raw curl."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/compiler-builtins/libm/src/math/hypot.rs", "supported": true, "note": "Header credits core-math/src/binary64/hypot/hypot.c, 'Ported to Rust in 2025'."},
+        {"url": "https://docs.rs/crate/libm/0.2.16/source/src/math/hypot.rs", "supported": true, "note": "Local registry copy confirms SPLIT (0x1p27+1)/sq() algorithm, distinct from the CORE-MATH port."},
+        {"url": "https://github.com/rust-lang/compiler-builtins/blob/main/libm/README.md", "supported": true, "note": "Fallback implementations for core float math, confirmed verbatim."},
+        {"url": "https://docs.rs/libm/0.2.16/libm/", "supported": true, "note": "Crate description literally 'libm in pure Rust', version confirmed not redirected."}
+      ]
+    },
+    {
+      "slug": "know-what-rapier3d-f64-0-35-3-s-enhanced-determinism-switches-libm-indexmap-canonical-zeros-not-simd",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Every source read directly from the pinned local registry checkout. compile_error!, IndexMap<FxHasher32>, and canonicalize_zero on warm-start impulses (contact_constraint/*.rs) all confirmed byte for byte.",
+      "evidence_url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/Cargo.toml.orig",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/Cargo.toml.orig", "supported": true, "note": "enhanced-determinism=[simba/libm_force,parry3d-f64/enhanced-determinism]; default=[dim3,f64,std,block-solver] verbatim."},
+        {"url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/Cargo.toml.orig", "supported": true, "note": "enhanced-determinism=[simba/libm_force,indexmap,glamx/libm,glamx/scalar-math] verbatim."},
+        {"url": "https://docs.rs/crate/simba/0.10.2/source/Cargo.toml.orig", "supported": true, "note": "libm_force={package=libm,version=0.2.15,optional=true}; std=[wide/std] verbatim."},
+        {"url": "https://docs.rs/crate/simba/0.10.2/source/src/simd/wide_simd_impl.rs", "supported": true, "note": "simd_sin/cos/sin_cos cfg-gated on libm_force; simd_mul_add ungated, confirmed by reading source."},
+        {"url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/lib.rs", "supported": true, "note": "compile_error! fires on simd8+enhanced-determinism; f64 SimdReal=WideF64x4, SIMD_WIDTH=4, read directly."},
+        {"url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/utils/hashmap.rs", "supported": true, "note": "HashMap=IndexMap<FxHasher32> under the feature, hashbrown<foldhash FixedState> otherwise, verbatim."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/utils/mod.rs", "supported": true, "note": "canonicalize_zero(x+0.0) and hashmap_remove->swap_remove confirmed; impulse call sites found in contact_constraint/*.rs."},
+        {"url": "https://docs.rs/glam/0.33.10/glam/", "supported": true, "note": "Cargo.toml: libm=[dep:libm] prefers libm; scalar-math=[]; f64 module has no SIMD code path."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_pipeline/substep.rs", "supported": true, "note": "to_wake_up/to_join use drain(..) under the feature vs drain() otherwise, verified verbatim."}
+      ]
+    },
+    {
+      "slug": "canonicalize-0-0-to-0-0-before-to-bits-feeds-a-hash-equal-values-different-bits",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "rapier_law.rs's canon/canon_zero/push_f64/write_body match the cited checks verbatim. signature() genuinely mixes raw uncanonicalized collider/height bits into the hash; build.mjs's 'box.qx || 0' found twice.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/utils/mod.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/utils/mod.rs", "supported": true, "note": "canonicalize_zero doc comment matches the claim almost verbatim, incl. SSE/NEON tie reasoning."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f64.html", "supported": true, "note": "min/max non-deterministic on a +0.0/-0.0 tie, to_bits as raw transmutation, confirmed verbatim."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/core/src/num/f64.rs", "supported": true, "note": "total_cmp doc: orders -0 before +0, disagrees with PartialEq which treats them equal, confirmed."},
+        {"url": "https://webassembly.github.io/spec/core/exec/numerics.html", "supported": true, "note": "fmin returns negative zero, fmax positive zero for opposite-signed zeroes, confirmed verbatim."}
+      ]
+    },
+    {
+      "slug": "refuse-nan-or-map-it-to-one-bit-pattern-before-hashing-its-sign-and-payload-are-the-engine-s-choice",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "rapier_law.rs's own canon() does not special-case NaN (x==0.0 is false for NaN), so push_f64 truly lets a NaN's bits through unchanged, exactly as claimed. Every NaN-nondeterminism source quoted verbatim.",
+      "evidence_url": "https://github.com/WebAssembly/design/blob/main/Nondeterminism.md",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f32.html#nan-bit-patterns", "supported": true, "note": "Lists preferred/quieting/unchanged/target-specific payload options, nondeterministic sign, const<>runtime mismatch."},
+        {"url": "https://webassembly.github.io/spec/core/exec/numerics.html", "supported": true, "note": "NaN payload propagation and deterministic-profile behaviour both documented on this exact page, confirmed."},
+        {"url": "https://github.com/WebAssembly/design/blob/main/Nondeterminism.md", "supported": true, "note": "Sign bit of a fresh NaN (no NaN inputs) is nondeterministic, quoted verbatim."},
+        {"url": "https://webassembly.github.io/spec/core/appendix/profiles.html", "supported": true, "note": "Deterministic profile: canonical AND positive NaNs, quoted verbatim."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/core/src/num/f64.rs", "supported": true, "note": "total_cmp full NaN ordering sequence (neg quiet/signaling...pos quiet) quoted verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f64.html", "supported": true, "note": "NAN bit pattern not guaranteed across versions/targets; is_sign_negative on NaN non-portable, verbatim."}
+      ]
+    },
+    {
+      "slug": "write-the-min-max-tie-rule-yourself-f64-max-0-0-0-0-changes-with-context-minimum-maximum-are-nightly",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "My own oracle run reproduced E0658 exactly. lib.rs's js_min/js_max are character-for-character the live source. Unlike sibling recipes, this one doesn't label its -O0/-O min/max asymmetry checks as host-specific.",
+      "evidence_url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/core/src/num/f64.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f64.html", "supported": true, "note": "min/max IEEE-754-2019 semantics + nondeterministic zero tie; minimum/maximum nightly-only, -0<+0, confirmed."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/core/src/num/f64.rs", "supported": true, "note": "minimum and maximum both carry #[unstable(feature=float_minimum_maximum,issue=91079)], confirmed verbatim."},
+        {"url": "https://webassembly.github.io/spec/core/exec/numerics.html", "supported": true, "note": "fmin/fmax propagate NaN, order signed zeroes oppositely (neg for fmin, pos for fmax), confirmed verbatim."},
+        {"url": "https://github.com/tc39/test262/blob/main/test/built-ins/Math/min/zeros.js", "supported": true, "note": "Assertions for Math.min(0,-0) etc = -0, '+0 larger than -0' rationale, quoted verbatim."},
+        {"url": "https://github.com/tc39/test262/blob/main/test/built-ins/Math/max/zeros.js", "supported": true, "note": "Assertions for Math.max(0,-0) etc = +0, quoted verbatim."},
+        {"url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/min", "supported": true, "note": "Returns NaN if any parameter is/converts to NaN, quoted verbatim."}
+      ]
+    },
+    {
+      "slug": "treat-rust-toolchain-toml-as-part-of-the-law-the-solver-links-the-toolchain-s-own-log2-acos-cos-and-sin",
+      "verdict": "confirmed",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "ComplexField gating and the .log2()/.acos()/.cos() calls are confirmed directly in parry/glamx source; the solver_step to BVH-optimizer call-graph is carried only by the lane's scratch wasm build, not by source alone.",
+      "evidence_url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/compiler-builtins/compiler-builtins/src/math/mod.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/reference/expressions/method-call-expr.html", "supported": true, "note": "Inherent methods searched before trait methods per candidate type, confirmed verbatim."},
+        {"url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/partitioning/bvh/bvh_optimize.rs", "supported": true, "note": "ComplexField import gated not(feature=std); .log2() x2 and .round() found verbatim in local source."},
+        {"url": "https://docs.rs/crate/glamx/0.3.1/source/src/eigen3.rs", "supported": true, "note": "ComplexField import gated not(feature=std); r.acos() and phi.cos() found verbatim in local source."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/compiler-builtins/compiler-builtins/src/math/mod.rs", "supported": true, "note": "wasm32-unknown-unknown's target_os=unknown places it in the libm_math-providing set; confirmed via raw curl."},
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f64.html", "supported": true, "note": "sin/cos/other transcendentals carry the unspecified-precision disclaimer, confirmed verbatim."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/compiler-builtins/libm/src/math/hypot.rs", "supported": true, "note": "In-tree copy is its own 2025 CORE-MATH port, can differ from a crates.io libm release, confirmed."}
+      ]
+    },
+    {
+      "slug": "hash-only-indexmap-btreemap-or-sorted-order-a-fixed-hasher-does-not-fix-hashmap-order-across-targets",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "solver/src genuinely holds no HashMap anywhere. rebuild_snapshot sorts contact pairs by collider handle before hashing, exactly as claimed, confirmed by reading the live rapier_law.rs on main.",
+      "evidence_url": "https://docs.rs/indexmap/2.14.2/indexmap/map/struct.IndexMap.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/collections/struct.HashMap.html", "supported": true, "note": "SipHash 1-3 default, subject to change; iter/keys/values arbitrary order, all confirmed verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/hash/struct.RandomState.html", "supported": true, "note": "Two RandomState instances unlikely to agree on a hash for the same value, quoted verbatim."},
+        {"url": "https://docs.rs/crate/hashbrown/0.17.1/source/src/hasher.rs", "supported": true, "note": "DefaultHashBuilder's inner field is literally foldhash::fast::RandomState (behind default-hasher feature)."},
+        {"url": "https://docs.rs/foldhash/0.2.0/foldhash/", "supported": true, "note": "Warns against consistent output across versions/platforms; FixedState trades HashDoS resistance for determinism."},
+        {"url": "https://docs.rs/indexmap/2.14.2/indexmap/map/struct.IndexMap.html", "supported": true, "note": "Order set by insert/remove sequence, independent of hash function, quoted verbatim; swap_remove/shift_remove confirmed."},
+        {"url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/utils/hashmap.rs", "supported": true, "note": "'FxHasher taken from rustc_hash, except that it does not depend on the pointer size' quoted verbatim from source."}
+      ]
+    },
+    {
+      "slug": "gate-toolchain-and-cargo-lock-bumps-on-goldens-plus-a-libm-canary-keep-fixed-point-for-integer-exact-parts",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "libm CHANGELOG.md confirms both cited entries verbatim (0.2.12 CORE-MATH cbrt+fma sign fix; 0.2.16 2025-12-07 fminimum/fmaximum fix). The recipe's two hypot bit values are internally consistent (...85, then +1 ULP = ...86).",
+      "evidence_url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/compiler-builtins/libm/CHANGELOG.md",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/primitive.f64.html", "supported": true, "note": "Transcendentals carry the unspecified-precision disclaimer, confirmed verbatim."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/compiler-builtins/libm/src/math/hypot.rs", "supported": true, "note": "In-tree hypot is a 2025 CORE-MATH port, confirmed verbatim."},
+        {"url": "https://docs.rs/crate/libm/0.2.16/source/src/math/hypot.rs", "supported": true, "note": "Local registry copy is the SPLIT/sq algorithm, structurally distinct from the CORE-MATH port."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/compiler-builtins/libm/CHANGELOG.md", "supported": true, "note": "0.2.12 CORE-MATH cbrt+fma sign fix, and 0.2.16 (2025-12-07) fminimum/fmaximum(-0,NaN) fix, both quoted verbatim."},
+        {"url": "https://blog.rust-lang.org/2026/08/20/Rust-1.98.0/", "supported": true, "note": "'floating-point addition is not associative... ((a+b)+c)+d' quoted verbatim."},
+        {"url": "https://docs.rs/fixed/1.31.0/fixed/", "supported": true, "note": "Delta=1/2^f, FixedI64 64-bit w/ Frac fractional bits, Wrapping/Saturating/Strict confirmed, version not redirected."},
+        {"url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/partitioning/bvh/bvh_optimize.rs", "supported": true, "note": "BVH optimizer's log2-derived cost feeds .round() to choose subtree rebuild count, confirmed verbatim in local source."}
+      ]
+    }
+  ]
+}

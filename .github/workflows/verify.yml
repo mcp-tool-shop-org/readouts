@@ -1,0 +1,46 @@
+name: verify
+
+# The corpus's deterministic floor (verify.py): full-text rowids join to their own
+# entries, `verified` traces to an external verdict, the front door and the README
+# table match the databases, and no relative link is dead. Standard library only.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.db'
+      - '**/*.md'
+      - '**/*.json'
+      - '**/*.py'
+      - '.github/workflows/verify.yml'
+  pull_request:
+    paths:
+      - '**/*.db'
+      - '**/*.md'
+      - '**/*.json'
+      - '**/*.py'
+      - '.github/workflows/verify.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify the corpus
+        env:
+          PYTHONUTF8: '1'
+        run: python verify.py

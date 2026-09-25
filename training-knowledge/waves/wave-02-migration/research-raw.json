@@ -1,0 +1,729 @@
+{
+  "wave": 2,
+  "date": "2026-06-06",
+  "lanes": [
+    {
+      "slug": "llm-finetune",
+      "research": {
+        "techniques": [
+          {
+            "slug": "unsloth-qlora-14b-32b-single-5090-daily-driver",
+            "name": "Unsloth QLoRA daily-driver — 14B (up to 32B) in 32 GB, Windows-native, rank=alpha + paged 8-bit AdamW",
+            "kind": "recipe",
+            "method_family": "qlora-sft",
+            "applicable_to": "llm",
+            "base_model_family": "Qwen3 / any Unsloth 4-bit repo",
+            "base_model_slug": "unsloth/Qwen3-14B-bnb-4bit",
+            "claim": "Unsloth's Blackwell-tuned kernels QLoRA-fine-tune a 14B (8.5 GB) or a 32B (~26 GB, just fits) inside 32 GB on the single 5090, faster and with ~70% less VRAM than FlashAttention-2, via rank=alpha LoRA on all 7 linear modules + use_gradient_checkpointing='unsloth' + paged_adamw_8bit that spills optimizer state to the 64 GB host RAM.",
+            "summary": "The studio's distinct LLM-trainer path that wave-1's QLoRA-NF4 SFT technique (ms-swift-anchored) does NOT cover: Unsloth's FastLanguageModel + get_peft_model with use_gradient_checkpointing='unsloth' (the memory-cheapest mode) and rank=alpha=32 on q/k/v/o/gate/up/down. TrainingArguments per_device_bs=2 x grad_accum=4, optim='paged_adamw_8bit', lr=2e-4, bf16 — mirrors NVIDIA's published 5090 Llama-3.1-8B benchmark. Official Unsloth QLoRA 4-bit VRAM table: 7B=5GB, 8B=6GB, 14B=8.5GB, 32B=26GB (70B too big). For 32B set max_seq_length=2048, per_device_bs=1. This is the merge of six engine-lane copies of the same recipe (attention-kernels, llm-inference, llm-serving, quantization, runtime-foundations, training) into one training-craft technique; the measured-on-rig baseline is the sibling technique unsloth-llm-qlora-measured-baseline-qwen3-4b-native-win.",
+            "evidence_strength": "reproduced-from-source",
+            "status": "recommended",
+            "commercial_use": "yes",
+            "commercial_notes": "A LoRA inherits its base license; Qwen3 = Apache-2.0 (commercial-safe). Unsloth itself Apache-2.0.",
+            "engine_recipe_ref": "training-unsloth-windows-native-qlora-14b-32gb-daily-driver (primary; also: runtime-foundations-unsloth-qlora-14b-wsl2-fine-tune-a-14b-in-32-gb-vram-paged-adamw-8bit, llm-serving-unsloth-qlora-14b-in-32gb-vram-windows-or-wsl2, llm-inference-unsloth-blackwell-qlora-14b-in-32gb-vram, quantization-unsloth-qlora-14b-32gb-blackwell, attention-kernels-recipe-unsloth-qlora-14b-32gb-paged-adamw8bit)",
+            "rig_fit": 3,
+            "studio_fit": 3,
+            "measured_conditions": "RTX 5090 / sm_120 / 32 GB / 64 GB host RAM; cu128 torch base; Unsloth Blackwell kernels; QLoRA 4-bit NF4; rank=alpha=32 all-linear; per_device_bs=2 x grad_accum=4; paged_adamw_8bit; bf16.",
+            "variance_note": "VRAM table is Unsloth's official QLoRA minimums (reproduced-from-source), not a per-seed rig sweep; the measured single-rig confirmation lives in the companion baseline technique (4B @ ~6.1 GB matches the table's 4-8B band).",
+            "best_for": [
+              {
+                "purpose": "Light local LLM fine-tune (instruction/style adapters) on one card",
+                "use_tag": "llm-sft",
+                "fitness": 3,
+                "note": "14B leaves ~23 GB headroom for long context / larger ranks; 32B just fits."
+              }
+            ],
+            "hparams": [
+              {
+                "name": "lora_rank (r)",
+                "value": "32",
+                "note": "Unsloth recommends rank=alpha"
+              },
+              {
+                "name": "lora_alpha",
+                "value": "32"
+              },
+              {
+                "name": "target_modules",
+                "value": "q,k,v,o,gate,up,down",
+                "note": "all 7 linear modules"
+              },
+              {
+                "name": "use_gradient_checkpointing",
+                "value": "unsloth",
+                "note": "the +30% ctx / ~+1.9% time memory-cheapest mode"
+              },
+              {
+                "name": "optim",
+                "value": "paged_adamw_8bit",
+                "note": "pages optimizer state to 64 GB host RAM on OOM spikes — load-bearing for 14B+ in 32 GB"
+              },
+              {
+                "name": "learning_rate",
+                "value": "2e-4"
+              },
+              {
+                "name": "per_device_train_batch_size",
+                "value": "2"
+              },
+              {
+                "name": "gradient_accumulation_steps",
+                "value": "4"
+              },
+              {
+                "name": "max_seq_length",
+                "value": "4096",
+                "note": "drop to 2048 for 32B or if OOM"
+              }
+            ],
+            "sources": [
+              {
+                "title": "Fine-tuning LLMs with Blackwell RTX 50-series and Unsloth",
+                "url": "https://unsloth.ai/docs/blog/fine-tuning-llms-with-blackwell-rtx-50-series-and-unsloth",
+                "kind": "vendor-docs",
+                "authors": "Unsloth AI",
+                "year": "2026",
+                "claim": "Official Blackwell QLoRA support + the per-model-size 4-bit VRAM minimums and the ~70%-less-VRAM benchmark.",
+                "finding_supported": "SUPPORTED"
+              },
+              {
+                "title": "Train an LLM on an NVIDIA Blackwell Desktop with Unsloth and Scale It",
+                "url": "https://developer.nvidia.com/blog/train-an-llm-on-an-nvidia-blackwell-desktop-with-unsloth-and-scale-it/",
+                "kind": "vendor-blog",
+                "authors": "NVIDIA",
+                "year": "2026",
+                "claim": "Published 5090 Llama-3.1-8B rank-32 all-linear benchmark (~2x faster, ~70% less VRAM than FA2) that the per_device_bs=2/grad-accum=4 config mirrors.",
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "slug": "unsloth-llm-qlora-measured-baseline-qwen3-4b-native-win",
+            "name": "Unsloth LLM-QLoRA MEASURED baseline (native-Win 5090, Qwen3-4B) + the xformers/torchvision install-churn fix",
+            "kind": "failure-fix",
+            "method_family": "qlora-sft",
+            "applicable_to": "llm",
+            "base_model_family": "Qwen3",
+            "base_model_slug": "unsloth/Qwen3-4B-bnb-4bit",
+            "claim": "On native Windows (no WSL2), `pip install unsloth unsloth_zoo` transitively pulls xformers 0.0.35 which SILENTLY downgrades torch to a 2.10.0+CPU build (no CUDA) and drags torchvision to 0.25.0; the fix is to install torch+torchvision cu130 FIRST, then bitsandbytes/triton, then unsloth, then uninstall xformers and re-assert the cu130 torch/torchvision — after which Unsloth trains on cuDNN SDPA (the FA2/xformers warning is benign).",
+            "summary": "Adds the MEASURED specifics and earned install gotchas wave-1's method-level QLoRA technique lacks. Stood up + validated end-to-end on native Windows 2026-06-03: torch 2.12.0+cu130, bitsandbytes 0.49.2 (4-bit NF4 verified on sm_120), triton-windows 3.7.0, unsloth 2026.5.10. MEASURED on Qwen3-4B-bnb-4bit (Apache-2.0), r=16/alpha=16 all-linear, max_seq_len=2048, bs2 x grad4, paged_adamw_8bit, bf16, unsloth checkpointing: ~2.28 s/optimizer-step, PEAK process VRAM ~6.1 GB (nvidia-smi 6271 MiB; torch-alloc 3.19 GB) — confirms recipe's 4-8B ~5-6 GB budget band; train loss 7.01->2.90 monotonic over 15 steps; 143.6 MB reloadable adapter; 169 W / 37 C at tiny scale. The native-Win answer to the cu128-based recipe: on torch 2.12 the base is cu130 and the documented install order avoids the churn.",
+            "evidence_strength": "measured-on-rig",
+            "status": "recommended",
+            "commercial_use": "yes",
+            "commercial_notes": "Qwen3 = Apache-2.0; LoRA inherits base license.",
+            "engine_recipe_ref": "training-unsloth-llm-qlora-baseline-native-win-5090-qwen3-4b",
+            "predecessor_slug": "unsloth-qlora-14b-32b-single-5090-daily-driver",
+            "rig_fit": 3,
+            "studio_fit": 3,
+            "num_runs": 1,
+            "seed": "3407",
+            "measured_conditions": "Native Windows (no WSL2), RTX 5090 sm_120, fresh uv venv py3.11; torch 2.12.0+cu130, torchvision 0.27.0+cu130, bitsandbytes 0.49.2, triton-windows 3.7.0.post26, unsloth 2026.5.10, transformers 5.5.0, trl 0.24.0, peft 0.19.1; Qwen3-4B-bnb-4bit, r16/alpha16 all-linear, max_seq_len 2048, bs2 x grad4, paged_adamw_8bit, bf16, gradient_checkpointing='unsloth'. 2026-06-03.",
+            "variance_note": "Single tiny-scale validation run (15 steps); throughput/VRAM are one observation establishing the working env, not a distribution. Real runs push power/VRAM higher.",
+            "failures": [
+              {
+                "symptom": "torch silently becomes a +CPU build, CUDA unavailable after installing unsloth",
+                "cause": "unsloth's dep tree pulls xformers 0.0.35 which downgrades torch (the 'NEVER pip xformers on Blackwell' trap, sprung transitively)",
+                "remediation": "pip uninstall -y xformers; reinstall torch==2.12.0 + torchvision==0.27.0 from the cu130 index; Unsloth does not need xformers on Blackwell",
+                "recipe_field": "install order",
+                "severity": "blocker"
+              },
+              {
+                "symptom": "unsloth import fails: 'torch 2.12 requires torchvision>=0.27.0'",
+                "cause": "xformers had pulled torchvision 0.25.0",
+                "remediation": "pip install torchvision==0.27.0 from the cu130 index (must be the cu130 wheel)",
+                "severity": "blocker"
+              },
+              {
+                "symptom": "warning 'Flash Attention 2 installation seems broken. Using Xformers instead'",
+                "cause": "neither FA2 nor xformers installed on sm_120",
+                "remediation": "ignore — it falls back to torch SDPA (cuDNN on Blackwell) and trains fine (consistent with no-FA3-on-sm120 rule)",
+                "severity": "benign"
+              }
+            ],
+            "sources": [
+              {
+                "title": "Fine-tuning LLMs with Blackwell RTX 50-series and Unsloth",
+                "url": "https://unsloth.ai/docs/blog/fine-tuning-llms-with-blackwell-rtx-50-series-and-unsloth",
+                "kind": "vendor-docs",
+                "authors": "Unsloth AI",
+                "year": "2026",
+                "claim": "Reference recipe the rig measured against; the rig run confirmed the 4-8B VRAM band and added the native-Win install-order fix.",
+                "finding_supported": "PARTIAL"
+              }
+            ]
+          },
+          {
+            "slug": "native-windows-qlora-trl-peft-bnb-liger",
+            "name": "Native-Windows QLoRA without WSL2 — TRL + PEFT + bitsandbytes (prebuilt sm_120) + Liger kernels",
+            "kind": "recipe",
+            "method_family": "qlora-sft",
+            "applicable_to": "llm",
+            "claim": "bitsandbytes now ships prebuilt Windows x86-64 wheels with sm_120 (Blackwell) for CUDA 12.8/12.9/13.0, so a plain `pip install bitsandbytes` gives working 4-bit QLoRA on native Windows with the stock HF stack (transformers/trl/peft/accelerate) plus liger-kernel; paged 8-bit AdamW spills optimizer state to the 64 GB host RAM so a 14B QLoRA fits comfortably in 32 GB.",
+            "summary": "The HF-native (no-Unsloth, no-ms-swift, no-WSL2) QLoRA path — a distinct trainer stack wave-1 does not have a technique for. BitsAndBytesConfig(load_in_4bit, nf4, compute_dtype=bf16, double_quant); SFTConfig(packing=True, gradient_checkpointing, optim='paged_adamw_8bit', bf16); use_liger_kernel=True for the fused-kernel throughput/VRAM win. The big unlock is the prebuilt Windows bnb wheel (no source build needed for sm_120). Pin torch from the cu130 (or cu126) index — cu128 was removed from the matrix.",
+            "evidence_strength": "reproduced-from-source",
+            "status": "runner-up",
+            "commercial_use": "yes",
+            "commercial_notes": "All-Apache/MIT toolchain; LoRA inherits base license.",
+            "engine_recipe_ref": "training-native-windows-qlora-on-the-5090-no-wsl2-trl-peft-bitsandbytes-liger",
+            "rig_fit": 3,
+            "studio_fit": 2,
+            "hparams": [
+              {
+                "name": "bnb_4bit_quant_type",
+                "value": "nf4"
+              },
+              {
+                "name": "bnb_4bit_use_double_quant",
+                "value": "true"
+              },
+              {
+                "name": "bnb_4bit_compute_dtype",
+                "value": "bfloat16"
+              },
+              {
+                "name": "optim",
+                "value": "paged_adamw_8bit"
+              },
+              {
+                "name": "packing",
+                "value": "true",
+                "note": "SFTConfig sample-packing throughput win"
+              },
+              {
+                "name": "use_liger_kernel",
+                "value": "true",
+                "note": "fused Liger kernels cut VRAM + add speed"
+              }
+            ],
+            "sources": [
+              {
+                "title": "bitsandbytes installation (Windows prebuilt wheels, CUDA 12.8/12.9/13.0)",
+                "url": "https://huggingface.co/docs/bitsandbytes/main/en/installation",
+                "kind": "vendor-docs",
+                "authors": "Hugging Face / bitsandbytes",
+                "year": "2026",
+                "claim": "Prebuilt Windows x86-64 wheels include sm_120 (Blackwell) for CUDA 12.8-13.0, enabling 4-bit QLoRA on native Windows without a source build.",
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "slug": "axolotl-wsl2-yaml-qlora-sft-dpo",
+            "name": "Axolotl (WSL2) — reproducible YAML-driven (Q)LoRA / full-SFT / DPO with sample-packing + FSDP/DeepSpeed",
+            "kind": "recipe",
+            "method_family": "trainer-framework",
+            "applicable_to": "llm",
+            "base_model_family": "Qwen3",
+            "base_model_slug": "Qwen/Qwen3-14B",
+            "claim": "Axolotl gives byte-for-byte reproducible YAML-config training (QLoRA/LoRA/full-SFT/DPO/ORPO) with sample_packing for throughput and FSDP+DeepSpeed for the full-param path; it is Linux-first (bnb/flash-attn/deepspeed) so run it in WSL2 on a cu128 torch base — the 5090 issue #2525 was exactly a pre-2.7 torch, fixed by cu128.",
+            "summary": "Config-as-artifact trainer framework absent from wave-1. QLoRA YAML: load_in_4bit, adapter:qlora, lora_r/alpha 32, lora_target_linear, sequence_len 4096, sample_packing:true (the throughput win — packs short samples to fill the sequence), micro_batch_size 2 / grad_accum 4, optimizer paged_adamw_8bit, lr 2e-4, gradient_checkpointing. Launch: accelerate launch -m axolotl.cli.train. DPO via rl:dpo + paired data + rl_beta. Full-param across one card needs fsdp_config with activation_checkpointing + cpu_offload (32 GB cannot hold full 14B optimizer state). Axolotl favors FSDP/DeepSpeed-correct distributed recipes + packing; LLaMA-Factory favors method breadth + a webui.",
+            "evidence_strength": "reproduced-from-source",
+            "status": "situational",
+            "commercial_use": "yes",
+            "commercial_notes": "Axolotl Apache-2.0; verify dataset + base licenses for commercial fine-tunes.",
+            "engine_recipe_ref": "training-axolotl-wsl2-qlora-yaml-flash-attn-cu128",
+            "rig_fit": 2,
+            "studio_fit": 2,
+            "hparams": [
+              {
+                "name": "adapter",
+                "value": "qlora"
+              },
+              {
+                "name": "lora_r",
+                "value": "32"
+              },
+              {
+                "name": "lora_alpha",
+                "value": "32"
+              },
+              {
+                "name": "sample_packing",
+                "value": "true",
+                "note": "the throughput win"
+              },
+              {
+                "name": "optimizer",
+                "value": "paged_adamw_8bit"
+              },
+              {
+                "name": "micro_batch_size",
+                "value": "2"
+              },
+              {
+                "name": "gradient_accumulation_steps",
+                "value": "4"
+              }
+            ],
+            "sources": [
+              {
+                "title": "Axolotl (axolotl-ai-cloud/axolotl)",
+                "url": "https://github.com/axolotl-ai-cloud/axolotl",
+                "kind": "repo",
+                "authors": "Axolotl AI",
+                "year": "2026",
+                "claim": "YAML-driven (Q)LoRA/full-SFT/DPO with sample-packing + FSDP/DeepSpeed; the 5090 fix was a cu128 torch (issue #2525).",
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "slug": "llama-factory-wsl2-yaml-qlora-full-sft",
+            "name": "LLaMA-Factory (WSL2) — broadest-method YAML training: QLoRA 32B / full-SFT 8B / DPO/KTO/PPO",
+            "kind": "recipe",
+            "method_family": "trainer-framework",
+            "applicable_to": "llm",
+            "base_model_family": "Qwen3",
+            "base_model_slug": "Qwen/Qwen3-14B",
+            "claim": "LLaMA-Factory spans SFT+DPO+KTO+PPO across many model families from one YAML (or a webui), running in WSL2 on a cu128 base; a 14B QLoRA fits with quantization_bit:4 + lora all-target, a 32B fits at cutoff_len:2048/bs:1 (~26 GB), and a full-param 8B SFT needs ZeRO-3 + CPU offload to push optimizer state into the 64 GB RAM.",
+            "summary": "The method-breadth trainer (one tool for SFT/DPO/KTO/PPO) absent from wave-1. Install: pip install -e '.[torch,bitsandbytes,vllm]' then verify torch stayed 2.9.0+cu128. QLoRA YAML: finetuning_type:lora, lora_rank/alpha 32, lora_target:all, quantization_bit:4 + quantization_method:bnb, template:qwen, cutoff_len 4096, bs2 x grad4, optim paged_adamw_8bit, lr 2e-4, gradient_checkpointing. Launch llamafactory-cli train. DPO: stage:dpo + pref_beta. Full 8B SFT: finetuning_type:full + ds_z3_offload_config.json (does NOT fit 32 GB without offload). Choose this over Unsloth when you want one tool spanning many methods/families; choose Unsloth for max single-GPU speed/VRAM.",
+            "evidence_strength": "reproduced-from-source",
+            "status": "situational",
+            "commercial_use": "conditional",
+            "commercial_notes": "LLaMA-Factory Apache-2.0, but its bundled demo datasets and many base models carry their own licenses — vet data + base before any commercial fine-tune.",
+            "engine_recipe_ref": "training-llama-factory-wsl2-qlora-yaml-32b-and-full-sft-8b",
+            "rig_fit": 2,
+            "studio_fit": 2,
+            "hparams": [
+              {
+                "name": "finetuning_type",
+                "value": "lora"
+              },
+              {
+                "name": "lora_rank",
+                "value": "32"
+              },
+              {
+                "name": "quantization_bit",
+                "value": "4",
+                "note": "QLoRA NF4 via bnb"
+              },
+              {
+                "name": "lora_target",
+                "value": "all"
+              },
+              {
+                "name": "optim",
+                "value": "paged_adamw_8bit"
+              },
+              {
+                "name": "cutoff_len",
+                "value": "4096",
+                "note": "2048 for a 32B base"
+              }
+            ],
+            "sources": [
+              {
+                "title": "LLaMA-Factory — Installation & Quick Start",
+                "url": "https://llamafactory.readthedocs.io/en/latest/getting_started/installation.html",
+                "kind": "vendor-docs",
+                "authors": "hiyouga / LLaMA-Factory",
+                "year": "2026",
+                "claim": "YAML-driven QLoRA/LoRA/full-SFT + built-in DPO/KTO/PPO across many model families, with ZeRO-3 offload for full-param.",
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "slug": "trl-unsloth-dpo-no-ray-ref-sharing-14b",
+            "name": "TRL + Unsloth DPO/ORPO/KTO — the no-Ray cheapest preference path (PatchDPOTrainer ref-sharing fits 14B)",
+            "kind": "recipe",
+            "method_family": "preference-optimization",
+            "applicable_to": "llm",
+            "base_model_family": "Qwen3",
+            "base_model_slug": "unsloth/Qwen3-14B-bnb-4bit",
+            "claim": "DPO normally holds a policy AND a reference model in memory; Unsloth's PatchDPOTrainer() (called BEFORE importing DPOTrainer) reuses the 4-bit base as the reference (LoRA deltas disabled) so ref_model=None — halving the model memory and letting a 14B DPO run fit in 32 GB native-Windows with NO Ray/vLLM/DeepSpeed.",
+            "summary": "A preference-tuning path distinct from wave-1's ms-swift DPO technique: the Windows-native, cluster-free TRL+Unsloth route with the ref-sharing trick that makes 14B DPO fit. Load 14B in 4-bit, get_peft_model r=32/alpha=32, DPOConfig beta=0.1, lr=5e-6 (an order below SFT — preference stages are gentle), bs1 x grad8, paged_adamw_8bit, bf16. Swap DPOTrainer->ORPOTrainer (no ref at all) or KTOTrainer for unpaired feedback. Best when you have chosen/rejected pairs and want alignment without standing up an RL cluster.",
+            "evidence_strength": "reproduced-from-source",
+            "status": "runner-up",
+            "commercial_use": "yes",
+            "commercial_notes": "Qwen3 Apache-2.0; preference dataset license must be vetted.",
+            "engine_recipe_ref": "training-trl-unsloth-dpo-preference-tuning-no-ray-cheapest-path",
+            "rig_fit": 3,
+            "studio_fit": 2,
+            "hparams": [
+              {
+                "name": "PatchDPOTrainer()",
+                "value": "call before importing DPOTrainer",
+                "note": "halves memory by reusing the base as the ref"
+              },
+              {
+                "name": "ref_model",
+                "value": "None",
+                "note": "frozen base IS the reference (LoRA disabled)"
+              },
+              {
+                "name": "beta",
+                "value": "0.1"
+              },
+              {
+                "name": "learning_rate",
+                "value": "5e-6",
+                "note": "~10x below SFT"
+              },
+              {
+                "name": "optim",
+                "value": "paged_adamw_8bit"
+              }
+            ],
+            "sources": [
+              {
+                "title": "TRL DPOTrainer documentation",
+                "url": "https://huggingface.co/docs/trl/dpo_trainer",
+                "kind": "vendor-docs",
+                "authors": "Hugging Face TRL",
+                "year": "2026",
+                "claim": "DPOTrainer API + reference-model handling that, with Unsloth's PatchDPOTrainer, allows ref_model=None for memory-halved 14B DPO.",
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "slug": "ms-swift-install-windows-native-transformers-backend",
+            "name": "ms-swift install (native Windows, transformers backend) — the trainer to stand up first",
+            "kind": "protocol",
+            "method_family": "trainer-framework",
+            "applicable_to": "llm",
+            "claim": "ms-swift installs native-Windows on the cu128-nightly venv with `pip install -U ms-swift --no-deps` (so it does not clobber the nightly torch) followed by explicit deps without torch; it reuses the same vLLM inference engine for GRPO rollouts; Megatron-SWIFT FP8 is Linux/WSL2-only so stay on the transformers backend for native Windows.",
+            "summary": "The install/setup protocol behind wave-1's ms-swift SFT/DPO/GRPO recipes — wave-1 references the run recipes but has no technique for standing the framework up. --no-deps is load-bearing (avoids a torch downgrade that re-breaks sm_120); if you see 'sm_120 not compatible', the torch got clobbered — reinstall the nightly and re-run ms-swift with --no-deps. Pin a version (e.g. ms-swift==4.2.3) for reproducibility. Sanity: `swift sft --help` and `swift rlhf --help` must print.",
+            "evidence_strength": "reproduced-from-source",
+            "status": "recommended",
+            "commercial_use": "yes",
+            "commercial_notes": "ms-swift Apache-2.0.",
+            "engine_recipe_ref": "training-ms-swift-install-windows-native-the-one-to-run-first-on-this-rig",
+            "rig_fit": 3,
+            "studio_fit": 3,
+            "failures": [
+              {
+                "symptom": "'sm_120 not compatible' after installing ms-swift",
+                "cause": "a dep pulled a stable cu12x torch over the nightly",
+                "remediation": "reinstall the cu128 nightly torch, then `pip install ms-swift --no-deps`",
+                "severity": "blocker"
+              }
+            ],
+            "sources": [
+              {
+                "title": "ms-swift — Quick Start",
+                "url": "https://swift.readthedocs.io/en/latest/GetStarted/Quick-start.html",
+                "kind": "vendor-docs",
+                "authors": "ModelScope / ms-swift",
+                "year": "2026",
+                "claim": "Install + SFT/RLHF entry points; the transformers backend runs native-Windows while Megatron-SWIFT (FP8) is Linux-only.",
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "slug": "llamacpp-lora-export-merge-gguf-train-to-serve-bridge",
+            "name": "llama.cpp LoRA export/merge to GGUF — the train-to-serve bridge (CUDA 12.8 EXACT on Blackwell)",
+            "kind": "recipe",
+            "method_family": "adapter-export",
+            "applicable_to": "llm",
+            "claim": "A fine-tuned LoRA reaches the local studio serving loop two ways: merge in Unsloth (model.save_pretrained_gguf, q4_k_m) for one merged GGUF, or convert the base then run llama-server with --lora adapter.gguf for hot-swappable adapters — but on Blackwell you MUST build llama.cpp with CUDA Toolkit 12.8 EXACTLY (newer toolkits trigger MMQ/MXFP4 'mma with block scale not supported' PTX crashes on sm_120), MMQ on, force-cuBLAS off.",
+            "summary": "The bridge from 'I trained a LoRA' to 'it serves in my local loop' — training-adjacent export craft absent from wave-1. Build: cmake -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=120 -DGGML_CUDA_FORCE_CUBLAS=OFF. Serve a 32B GGUF on-GPU with -ngl 99 -fa + q8_0 KV cache; MoE partial offload to the 64 GB RAM with --n-cpu-moe N (keeps dense/attention on the 5090). cuBLAS is the stable fallback if ggml custom kernels crash on a given model. Belongs in efficiency as the offload/serve-handoff lever for trained adapters.",
+            "evidence_strength": "reproduced-from-source",
+            "status": "recommended",
+            "commercial_use": "yes",
+            "commercial_notes": "llama.cpp MIT; merged-model license follows the base.",
+            "engine_recipe_ref": "training-llamacpp-blackwell-build-and-lora-export-merge",
+            "rig_fit": 3,
+            "studio_fit": 3,
+            "failures": [
+              {
+                "symptom": "'mma with block scale not supported' PTX crash on sm_120",
+                "cause": "built with a CUDA toolkit newer than 12.8",
+                "remediation": "use CUDA Toolkit 12.8 EXACTLY; build MMQ on, force-cuBLAS off; cuBLAS fallback if a model still crashes",
+                "recipe_field": "CUDA toolkit version",
+                "severity": "blocker"
+              }
+            ],
+            "sources": [
+              {
+                "title": "Software Migration Guide for NVIDIA Blackwell RTX GPUs (CUDA 12.8, PyTorch, TensorRT, llama.cpp)",
+                "url": "https://forums.developer.nvidia.com/t/software-migration-guide-for-nvidia-blackwell-rtx-gpus-a-guide-to-cuda-12-8-pytorch-tensorrt-and-llama-cpp/321330",
+                "kind": "vendor-guide",
+                "authors": "NVIDIA",
+                "year": "2026",
+                "claim": "Blackwell llama.cpp must build against CUDA 12.8 exactly; newer toolkits crash MMQ/MXFP4 kernels on sm_120.",
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "slug": "verl-wsl2-single-5090-grpo-lora-colocate",
+            "name": "veRL (WSL2) — single-5090 GRPO with colocated vLLM rollout + FSDP param/optimizer offload",
+            "kind": "recipe",
+            "method_family": "rl-verifiable-reward",
+            "applicable_to": "llm",
+            "base_model_family": "Qwen2.5",
+            "base_model_slug": "Qwen/Qwen2.5-1.5B-Instruct",
+            "claim": "veRL runs single-5090 GRPO inside WSL2 by colocating the vLLM rollout sampler with the FSDP trainer and keeping VRAM survivable via gpu_memory_utilization=0.4 (rollout shares VRAM with FSDP shards), param_offload+optimizer_offload to the 64 GB RAM, LoRA (rank 32) over full-param, and a small train_batch_size — 1.5B is comfortable, 7B is the cramped ceiling on one card.",
+            "summary": "An RL framework absent from wave-1 (which covers GRPO as a preference-method selection note, not as a runnable framework). Install verl[vllm]==0.8.0 on the WSL2 cu128 base (force torch==2.9.0+cu128 first if it resolves wrong). main_ppo with adv_estimator=grpo, lora_rank/alpha 32, fsdp param+optimizer offload, rollout vllm tp=1, gpu_memory_utilization=0.4. The 32 GB levers are explicit. Scale-out: bump n_gpus_per_node and drop offload on rented multi-GPU.",
+            "evidence_strength": "reproduced-from-source",
+            "status": "situational",
+            "commercial_use": "conditional",
+            "commercial_notes": "veRL Apache-2.0; RLVR datasets/base models carry their own licenses — vet before commercial use.",
+            "engine_recipe_ref": "training-verl-wsl2-single-5090-grpo-lora-qwen-1-5b-to-7b",
+            "rig_fit": 2,
+            "studio_fit": 1,
+            "hparams": [
+              {
+                "name": "adv_estimator",
+                "value": "grpo"
+              },
+              {
+                "name": "gpu_memory_utilization",
+                "value": "0.4",
+                "note": "rollout shares VRAM with FSDP shards — too high = OOM during generation"
+              },
+              {
+                "name": "param_offload / optimizer_offload",
+                "value": "True",
+                "note": "push to 64 GB host RAM"
+              },
+              {
+                "name": "lora_rank",
+                "value": "32"
+              },
+              {
+                "name": "tensor_model_parallel_size",
+                "value": "1"
+              }
+            ],
+            "sources": [
+              {
+                "title": "Qwen docs — veRL training",
+                "url": "https://qwen.readthedocs.io/en/latest/training/verl.html",
+                "kind": "vendor-docs",
+                "authors": "Qwen / veRL",
+                "year": "2026",
+                "claim": "veRL GRPO with colocated vLLM rollout + FSDP offload; single-GPU levers (gpu_memory_utilization, param/optimizer offload, LoRA) make it fit one card.",
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "slug": "openrlhf-wsl2-single-5090-grpo-ray-zero3-offload",
+            "name": "OpenRLHF (WSL2) — single-5090 GRPO/PPO via Ray + colocate + ZeRO-3 + adam offload",
+            "kind": "recipe",
+            "method_family": "rl-verifiable-reward",
+            "applicable_to": "llm",
+            "base_model_family": "Qwen2.5",
+            "base_model_slug": "Qwen/Qwen2.5-7B-Instruct",
+            "claim": "OpenRLHF fits 7B GRPO on one 32 GB 5090 in WSL2 with --colocate_all_models (single-GPU placement), --vllm_gpu_memory_utilization 0.4, --zero_stage 3 --adam_offload (optimizer state to the 64 GB RAM), --ref_reward_offload, and micro_batch=1 — its README shows 7B full-RLHF across multiple 24 GB cards, so one 32 GB card suffices with ZeRO-3 + offload.",
+            "summary": "A second RL framework absent from wave-1, with the explicit Ray actor/critic/reward role model. Cleanest path is the NGC container (already cu13-class). Start a local Ray head, then train_ppo_ray with advantage_estimator=group_norm, the colocate + ZeRO-3 + offload survival kit, --flash_attn, optional --lora_rank 32 for LoRA-RL. Choose OpenRLHF over veRL when you want the explicit Ray role model; veRL is the more flexible default.",
+            "evidence_strength": "reproduced-from-source",
+            "status": "situational",
+            "commercial_use": "conditional",
+            "commercial_notes": "OpenRLHF Apache-2.0; datasets/base models carry their own licenses.",
+            "engine_recipe_ref": "training-openrlhf-wsl2-ray-vllm-deepspeed-7b-grpo",
+            "rig_fit": 2,
+            "studio_fit": 1,
+            "hparams": [
+              {
+                "name": "advantage_estimator",
+                "value": "group_norm",
+                "note": "GRPO"
+              },
+              {
+                "name": "colocate_all_models",
+                "value": "on",
+                "note": "single-GPU placement"
+              },
+              {
+                "name": "zero_stage",
+                "value": "3"
+              },
+              {
+                "name": "adam_offload",
+                "value": "on",
+                "note": "optimizer state to 64 GB RAM"
+              },
+              {
+                "name": "vllm_gpu_memory_utilization",
+                "value": "0.4"
+              }
+            ],
+            "sources": [
+              {
+                "title": "OpenRLHF documentation",
+                "url": "https://openrlhf.readthedocs.io/",
+                "kind": "vendor-docs",
+                "authors": "OpenRLHF",
+                "year": "2026",
+                "claim": "Single-GPU 7B RLHF via colocate + ZeRO-3 + adam/ref-reward offload; the 32 GB survival flags.",
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "slug": "skyrl-wsl2-agentic-rl-research",
+            "name": "SkyRL (WSL2) — long-horizon agentic / tool-use RL research (Tinker-compatible single-GPU backend)",
+            "kind": "recipe",
+            "method_family": "rl-agentic",
+            "applicable_to": "llm",
+            "claim": "SkyRL is Ray+vLLM Linux-first (WSL2 only on this rig) and targets long-horizon tool-using agent RL with three layers (skyrl-train trainer, skyrl-gym verifiable-reward task gym, skyrl-agent async multi-turn layer); for single-GPU experiments use the Tinker-compatible skyrl-tx backend rather than the full Ray cluster, and train bf16 because WSL2 hides Blackwell FP8/FP4 tensor cores — and one 32 GB card limits policies to <=4-7B LoRA.",
+            "summary": "A research-tier agentic-RL framework with no wave-1 analog. Install via uv (-e skyrl-train / skyrl-gym / skyrl-agent). Use for long-horizon tool-use agent RL research, not throughput. Carries the standing WSL2 rule: FP8/FP4 hidden under WSL2 — expect no Blackwell FP8 speedup.",
+            "evidence_strength": "reproduced-from-source",
+            "status": "situational",
+            "commercial_use": "conditional",
+            "commercial_notes": "SkyRL Apache-2.0; vet task/reward datasets and base models.",
+            "engine_recipe_ref": "training-skyrl-wsl2-agentic-rl-setup-research-wsl2-only",
+            "rig_fit": 1,
+            "studio_fit": 1,
+            "failures": [
+              {
+                "symptom": "no Blackwell FP8/FP4 speedup; train slower than expected",
+                "cause": "WSL2 hides FP8/FP4 tensor cores (the wave-1/2 rule)",
+                "remediation": "train bf16; do not expect FP8 throughput under WSL2",
+                "severity": "expected-limitation"
+              }
+            ],
+            "sources": [
+              {
+                "title": "SkyRL (NovaSky-AI/SkyRL)",
+                "url": "https://github.com/NovaSky-AI/SkyRL",
+                "kind": "repo",
+                "authors": "NovaSky AI",
+                "year": "2026",
+                "claim": "Three-layer agentic RL (train/gym/agent) on Ray+vLLM; Tinker-compatible skyrl-tx backend for single-GPU.",
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "slug": "open-instruct-wsl2-rlvr-reference-study-adapt",
+            "name": "open-instruct / Tülu RLVR (WSL2) — reference codebase to read, then re-implement single-GPU",
+            "kind": "method-theory",
+            "method_family": "rl-verifiable-reward",
+            "applicable_to": "llm",
+            "claim": "Ai2's open-instruct (RLVR/Tülu) is a Linux+Ray+vLLM reference whose published recipes assume 8 GPUs; on one 5090 the value is to READ how verifiable-reward RL is wired and re-implement the reward in ms-swift's --reward_funcs for an actually-single-GPU run — and to heed that the Apache-2.0 framework ships several non-commercial/ODC Tülu/OLMo datasets and community-licensed base models.",
+            "summary": "A study/adapt reference, not a runnable single-GPU recipe — distinct from wave-1's runnable GRPO selection note. Best used to understand RLVR wiring then lift the verifiable reward into the rig's actually-single-GPU ms-swift GRPO path. Strong license caveat: vet data + base-model license before any commercial fine-tune.",
+            "evidence_strength": "reproduced-from-source",
+            "status": "situational",
+            "commercial_use": "conditional",
+            "commercial_notes": "Framework Apache-2.0 but several Tülu/OLMo recipe datasets are non-commercial/ODC and base models carry community licenses — vet before any commercial fine-tune.",
+            "engine_recipe_ref": "training-open-instruct-wsl2-rlvr-reference-study-adapt-wsl2",
+            "rig_fit": 1,
+            "studio_fit": 1,
+            "sources": [
+              {
+                "title": "open-instruct (allenai/open-instruct)",
+                "url": "https://github.com/allenai/open-instruct",
+                "kind": "repo",
+                "authors": "Allen Institute for AI (Ai2)",
+                "year": "2026",
+                "claim": "RLVR/Tülu reference codebase (8-GPU recipes); Apache-2.0 framework with non-commercial dataset/base-model caveats.",
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "slug": "unsloth-qlora-14b-32b-single-5090-daily-driver",
+            "overall": "confirmed",
+            "note": "All 6 engine_recipe_ref slugs exist in tensor-engine DB. Recipe body (`training-unsloth-windows-native-qlora-14b-32gb-daily-driver`) matches every claimed hparam: r=32, lora_alpha=32, all 7 linear modules, use_gradient_checkpointing='unsloth', paged_adamw_8bit, lr=2e-4, bs=2, grad_accum=4, max_seq=4096 (drop to 2048 for 32B). VRAM figures (14B=8.5GB, 32B=26GB) and the '~70% less VRAM than FlashAttention-2' claim are stated in the recipe body as NVIDIA 5090 benchmark data, not invented. Boundary correct: measured numbers live in the recipes, not restated inline. Lane llm-finetune is correct."
+          },
+          {
+            "slug": "unsloth-llm-qlora-measured-baseline-qwen3-4b-native-win",
+            "overall": "confirmed",
+            "note": "Recipe `training-unsloth-llm-qlora-baseline-native-win-5090-qwen3-4b` is tagged kind=baseline and describes a MEASURED, dated (2026-06-03) native-Windows 5090 run. The xformers/torchvision install-churn claim is faithfully reproduced: recipe documents xformers 0.0.35 transitively downgrading torch to 2.10.0+CPU, the torchvision version mismatch, and the exact fix order. Fall-through to cuDNN SDPA is confirmed. Lane llm-finetune is correct."
+          },
+          {
+            "slug": "native-windows-qlora-trl-peft-bnb-liger",
+            "overall": "confirmed",
+            "note": "Recipe `training-native-windows-qlora-on-the-5090-no-wsl2-trl-peft-bitsandbytes-liger` body confirms: bitsandbytes ships prebuilt sm_120 wheels for CUDA 12.8/12.9/13.0, plain pip install works. All 5 hparams match: bnb_4bit_quant_type='nf4', bnb_4bit_use_double_quant=True, bnb_4bit_compute_dtype=bfloat16, optim='paged_adamw_8bit', packing=True, use_liger_kernel=True. Paged AdamW spilling optimizer state for 14B fit confirmed in recipe. Lane llm-finetune is correct."
+          },
+          {
+            "slug": "axolotl-wsl2-yaml-qlora-sft-dpo",
+            "overall": "confirmed",
+            "note": "Recipe `training-axolotl-wsl2-qlora-yaml-flash-attn-cu128` confirms WSL2-only framing, issue #2525 fix via cu128 torch, and all 6 hparams (adapter=qlora, lora_r=32, lora_alpha=32, sample_packing=true, optimizer=paged_adamw_8bit, micro_batch_size=2, gradient_accumulation_steps=4). sample_packing as 'the throughput win' matches recipe. FSDP+DeepSpeed path for full-SFT confirmed. Lane llm-finetune is correct."
+          },
+          {
+            "slug": "llama-factory-wsl2-yaml-qlora-full-sft",
+            "overall": "confirmed",
+            "note": "Recipe `training-llama-factory-wsl2-qlora-yaml-32b-and-full-sft-8b` confirms: 14B QLoRA fits with quantization_bit=4 + lora all-target; 32B fits at cutoff_len=2048/bs=1 (~26 GB); full-param 8B SFT requires ZeRO-3 + CPU offload into 64 GB RAM. All claimed hparams verified in the YAML snippet: finetuning_type=lora, lora_rank=32, quantization_bit=4, lora_target=all, optim=paged_adamw_8bit, cutoff_len=4096. Lane llm-finetune is correct."
+          },
+          {
+            "slug": "trl-unsloth-dpo-no-ray-ref-sharing-14b",
+            "overall": "confirmed",
+            "note": "Recipe `training-trl-unsloth-dpo-preference-tuning-no-ray-cheapest-path` body shows exactly PatchDPOTrainer() called before DPOTrainer import, ref_model=None, beta=0.1, lr=5e-6, paged_adamw_8bit — matching all claimed hparams. The 'frozen base IS the reference (LoRA disabled), so you do NOT pay for a second full model' mechanism is stated verbatim. 14B DPO on 32 GB native-Windows without Ray/vLLM/DeepSpeed confirmed. Lane llm-finetune is correct."
+          },
+          {
+            "slug": "ms-swift-install-windows-native-transformers-backend",
+            "overall": "confirmed",
+            "note": "Recipe `training-ms-swift-install-windows-native-the-one-to-run-first-on-this-rig` body exactly matches all three sub-claims: (1) pip install -U ms-swift --no-deps to avoid clobbering the nightly torch; (2) vLLM reused for GRPO rollouts; (3) Megatron-SWIFT FP8 is Linux/WSL2-only, stay on transformers backend for native Windows. Lane llm-finetune is correct."
+          },
+          {
+            "slug": "llamacpp-lora-export-merge-gguf-train-to-serve-bridge",
+            "overall": "confirmed",
+            "note": "Recipe `training-llamacpp-blackwell-build-and-lora-export-merge` body confirms: CUDA 12.8 EXACTLY required (newer toolkits trigger MMQ/MXFP4 PTX crashes on sm_120), MMQ on, cuBLAS-force off. Both serve paths confirmed: Unsloth merged GGUF and --lora adapter.gguf for hot-swap. Lane efficiency is acceptable (train-to-serve bridge sits at the efficiency/serving boundary; no dedicated 'serving' lane exists separate from efficiency in the 8-lane schema)."
+          },
+          {
+            "slug": "verl-wsl2-single-5090-grpo-lora-colocate",
+            "overall": "confirmed",
+            "note": "Recipe `training-verl-wsl2-single-5090-grpo-lora-qwen-1-5b-to-7b` provides verbatim launch command confirming all claimed hparams: adv_estimator=grpo, gpu_memory_utilization=0.4, param_offload=True, optimizer_offload=True, lora_rank=32, tensor_model_parallel_size=1. '1.5B is comfortable, 7B is the cramped ceiling' stated verbatim in recipe. WSL2-only framing confirmed. Lane efficiency is correct."
+          },
+          {
+            "slug": "openrlhf-wsl2-single-5090-grpo-ray-zero3-offload",
+            "overall": "confirmed",
+            "note": "Recipe `training-openrlhf-wsl2-ray-vllm-deepspeed-7b-grpo` provides verbatim launch command confirming all 5 claimed hparams: advantage_estimator=group_norm (GRPO), colocate_all_models, vllm_gpu_memory_utilization=0.4, zero_stage=3, adam_offload, ref_reward_offload, micro_batch=1. '7B full RLHF across multiple 24 GB 4090s, so one 32 GB card suffices' logic confirmed verbatim in recipe. Lane efficiency is correct."
+          },
+          {
+            "slug": "skyrl-wsl2-agentic-rl-research",
+            "overall": "confirmed",
+            "note": "Recipe `training-skyrl-wsl2-agentic-rl-setup-research-wsl2-only` confirms all sub-claims: WSL2-only (native Windows not supported); three-layer architecture (skyrl-train, skyrl-gym, skyrl-agent) installed separately; Tinker-compatible skyrl-tx backend for single-GPU experiments; WSL2 hides FP8/FP4 so train bf16; 32 GB limits to <=4-7B LoRA policies. All claims faithful. Lane efficiency is acceptable for an RL training fit-on-one-GPU technique."
+          },
+          {
+            "slug": "open-instruct-wsl2-rlvr-reference-study-adapt",
+            "overall": "confirmed-with-fixes",
+            "note": "All claims are faithful to recipe `training-open-instruct-wsl2-rlvr-reference-study-adapt-wsl2`: 8-GPU assumption, re-implement in ms-swift, Apache-2.0 code with non-commercial/ODC Tülu/OLMo datasets. FIX NEEDED — lane placement: this technique covers RLVR/preference RL methods (SFT + RL), which belongs in the `llm-finetune` lane (described as 'SFT + preference + RL'), not `efficiency` (described as 'Fitting TRAINING on one 32 GB Blackwell GPU — the binding constraint, orthogonal to method choice'). The technique has no efficiency/VRAM hparams — it is a method-theory entry about RL training approach. Move to llm-finetune lane."
+          }
+        ]
+      }
+    }
+  ],
+  "stays": [],
+  "migrated_engine_slugs": [
+    "training-unsloth-windows-native-qlora-14b-32gb-daily-driver",
+    "runtime-foundations-unsloth-qlora-14b-wsl2-fine-tune-a-14b-in-32-gb-vram-paged-adamw-8bit",
+    "llm-serving-unsloth-qlora-14b-in-32gb-vram-windows-or-wsl2",
+    "llm-inference-unsloth-blackwell-qlora-14b-in-32gb-vram",
+    "quantization-unsloth-qlora-14b-32gb-blackwell",
+    "attention-kernels-recipe-unsloth-qlora-14b-32gb-paged-adamw8bit",
+    "training-unsloth-llm-qlora-baseline-native-win-5090-qwen3-4b",
+    "training-native-windows-qlora-on-the-5090-no-wsl2-trl-peft-bitsandbytes-liger",
+    "training-axolotl-wsl2-qlora-yaml-flash-attn-cu128",
+    "training-llama-factory-wsl2-qlora-yaml-32b-and-full-sft-8b",
+    "training-trl-unsloth-dpo-preference-tuning-no-ray-cheapest-path",
+    "training-ms-swift-install-windows-native-the-one-to-run-first-on-this-rig",
+    "training-llamacpp-blackwell-build-and-lora-export-merge",
+    "training-verl-wsl2-single-5090-grpo-lora-qwen-1-5b-to-7b",
+    "training-openrlhf-wsl2-ray-vllm-deepspeed-7b-grpo",
+    "training-skyrl-wsl2-agentic-rl-setup-research-wsl2-only",
+    "training-open-instruct-wsl2-rlvr-reference-study-adapt-wsl2"
+  ],
+  "dropped_as_duplicate": [
+    "runtime-foundations-unsloth-qlora-14b-wsl2-fine-tune-a-14b-in-32-gb-vram-paged-adamw-8bit",
+    "llm-serving-unsloth-qlora-14b-in-32gb-vram-windows-or-wsl2",
+    "llm-inference-unsloth-blackwell-qlora-14b-in-32gb-vram",
+    "quantization-unsloth-qlora-14b-32gb-blackwell",
+    "attention-kernels-recipe-unsloth-qlora-14b-32gb-paged-adamw8bit",
+    "training-kohya-sdxl-lora-proven-blackwell-5090",
+    "training-kohya-sdxl-lora-te-trigger-reg-gating-recipe-5090",
+    "training-kohya-sdxl-lora-te-trigger-reg-gating-baseline-5090",
+    "training-kohya-sdxl-lora-proven-blackwell-5090-baseline-150",
+    "training-chroma-flux-lora-baseswap-cyanotype-recipe-5090",
+    "training-chroma-flux-lora-baseswap-cyanotype-baseline-5090",
+    "training-ms-swift-qlora-sft-7b-32gb-qwen3-lora-single-5090-windows-native",
+    "training-ms-swift-dpo-preference-tuning-single-5090",
+    "training-ms-swift-grpo-single-gpu-vllm-colocate-rl-on-one-5090",
+    "training-single-gpu-full-finetune-that-won-t-fit-in-32-gb-fsdp2-cpuoffload-into-64-gb-ram",
+    "training-unsloth-on-the-5090-run-inside-wsl2-ubuntu-for-the-smooth-path",
+    "training-sdxl-flux-style-lora-on-the-5090-with-kohya-ss-native-windows"
+  ],
+  "notes": "CONTEXT: The candidates list passed in the prompt was empty ([]). I located the actual migration pool in tensor-engine-knowledge/engines.db (table config_recipes, 177 rows). The training-craft pool = the `training` category plus training-shaped recipes scattered across engine lanes (attention-kernels/llm-inference/llm-serving/quantization/runtime-foundations). Inference/serving/quantization-for-serving/diffusion-inference/speech/structured-output/profiling-bench-inference recipes were left in the engine KB (out of scope — not training). KEY DEDUP FINDING: wave-1 is ALREADY a comprehensive migration. Every wave-1 technique carries an `engine_recipe_ref` pointing back at the engine recipe it absorbed, and the measured numbers (1.40 it/s, the 5-config blue-fidelity findings, VRAM peaks, adapter sha256s) are ALREADY folded into wave-1's measured_conditions/variance_note. So all the kohya SDXL recipes (#150/#151 unet-only, #165/#166 TE+trigger, #167/#168 Chroma), the ms-swift SFT/DPO/GRPO recipes (#129/#131/#130), and the FSDP2 full-finetune (#29) are duplicates already represented in wave-1 -> dropped. THE UNSLOTH MERGE (per the rule): the Unsloth QLoRA-14B recipe appeared under SIX engine lanes (#75 training, #94 runtime-foundations, #56 llm-serving, #48 llm-inference, #62 quantization, #71 attention-kernels). Merged into ONE technique (unsloth-qlora-14b-32b-single-5090-daily-driver), keeping #75 (the richest: full VRAM-by-size table + NVIDIA benchmark + 32B guidance) as primary; the other five slugs are listed in its engine_recipe_ref as 'primary + also:...' and dropped. THE REAL WAVE-2 GAP (survivors kept): alternative TRAINER FRAMEWORKS wave-1 never had a technique for, distinct from its single ms-swift/kohya/Unsloth-mention coverage:\n- llm-finetune lane (8 techniques): the merged Unsloth daily-driver recipe + its measured-on-rig baseline (#155, which ADDS measured 6.1 GB + the xformers->CPU-torch install-churn root-cause — kept as a failure-fix that augments, not duplicates, wave-1's method-level QLoRA); native-Windows TRL+PEFT+bnb+Liger QLoRA (#26); Axolotl YAML (#80); LLaMA-Factory YAML (#79); TRL+Unsloth no-Ray DPO with the PatchDPOTrainer ref-sharing trick (#78, distinct from wave-1's ms-swift DPO); ms-swift install protocol (#128, the setup behind wave-1's ms-swift run recipes).\n- efficiency lane (5 techniques): llama.cpp LoRA export/merge train-to-serve bridge (#81); veRL GRPO (#76); OpenRLHF GRPO (#77); SkyRL agentic RL (#132); open-instruct RLVR study-reference (#133). Keyword scan confirmed wave-1 has ZERO techniques for axolotl/llama-factory/openrlhf/skyrl/open-instruct/liger/llama.cpp-export, and only passing mentions (no recipe) of unsloth/verl. OUT-OF-SCOPE (dropped, NOT duplicates — engine/environment setup, explicitly excluded by training-knowledge's charter 'NOT engine setup'): #30 (driver/CUDA toolchain baseline), #74 (blackwell-cu128-torch-base prereq), #82 (wsl2-blackwell-setup base), #127 (rig-base-cu128-nightly shared prereq). These belong in the tensor-engine KB; not added to migrated_engine_slugs and not in dropped_as_duplicate. LANE NOTE: I did not place RL/export survivors in a 'peft-methods' or new 'rl' lane because the 8 sanctioned lanes have no RL lane; they fit best under 'efficiency' (single-32GB-card fit is the binding constraint and the recipes are all offload/colocate efficiency craft) and 'llm-finetune' (the trainer-framework SFT/DPO paths). If the orchestrator prefers, the 5 RL/export items could split into a future 'rl' lane, but per the fixed 8-lane rule they are filed under efficiency here. Some dropped slugs are reconstructed from the engine config_recipe slugs (kohya/Chroma baselines #150/#165/#167 store their measured halves under slightly different slugs than their recipe halves); the orchestrator should treat both the recipe-half and baseline-half slugs of each already-migrated engine recipe as duplicates of the corresponding wave-1 technique."
+}

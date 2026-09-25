@@ -1,0 +1,194 @@
+{
+  "bucket": "concurrency-async",
+  "verifier_note": "Checked all 10 recipes against retrieved pages only (never memory): doc.rust-lang.org/stable (1.98.1 banner confirmed on every std/core page), the Reference, the Nomicon, the Book, docs.rs at the exact pinned versions (rayon 1.12.0, rayon-core 1.13.0, crossbeam-channel 0.5.17, tokio 1.53.1, rapier3d-f64 0.35.3), the raw dimforge/rapier CHANGELOG.md at tag v0.35.3, and two rustc platform-support pages, plus si-rpg-engine's solver/src/lib.rs, rapier_law.rs, Cargo.toml and FLAGS.md via read-only gh api on main. Every one of the 57 checks[] entries was independently recompiled and run through scripts/compile_oracle.py on rustc 1.98.1 (including the wasm32-unknown-unknown target via the real oracle, and the rapier3d_f64-gated host checks against the same =0.35.3+enhanced-determinism dependency the oracle and the solver both pin) — all 57 matched their claimed expect/error_codes/lints/stdout/exit_code exactly, with zero mismatches, including the 6 checks carrying the `no_warnings`/`wasm_no_imports` gates the input was regenerated to restore (re-run explicitly after that correction landed). I also wrote and ran several of my own counter-examples beyond the given checks (an ordering-through-a-variable probe, a no_std atomics-link probe) to independently stress the two most decisive claims. The one systemic weakness: citation precision on secondary/adjacent-version pages. Recipe 7's 'wasm32-wasip1-threads platform support' source is cited for enabling atomics/bulk-memory/mutable-globals AND for '--shared-memory' linking AND a 'thread-spawn' import, but a full-page text scan of that exact rustc page (twice) turns up only the first group plus --import-memory/--export-memory (an LLVM<16 note) — '--shared-memory' and 'thread-spawn' never appear there, even though both are true facts about wasi-threads that I could not source from THIS citation. The same recipe also leans on a rapier.rs user-guide page it explicitly labels 'labelled 0.36' (i.e. not the pinned 0.35.3) as secondary corroboration for its central determinism claim, which the recipe itself flags as unmeasured vendor marketing rather than passing it off as equivalent evidence — good practice, but it is the same secondary-source pattern. No source was unreachable, no API or lint name was stale or misnamed anywhere in the lane, and no check tested a different fact than its prose asserted.",
+  "verdicts": [
+    {
+      "slug": "let-the-compiler-infer-send-and-sync-they-turn-data-races-into-e0277-e0499-not-race-conditions-or-deadlocks",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Send/Sync/Nomicon/Reference/Book quotes match claims verbatim. All 6 checks (3xE0277, E0499, 2 runs) recompiled/ran exactly as specified on rustc 1.98.1. bodies_ptr/colliders_ptr *mut f64 confirmed live in lib.rs via gh api.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/marker/trait.Send.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/marker/trait.Send.html", "supported": true, "note": "Confirms Rc/raw-ptr/NonNull/MutexGuard not Send, Arc is Send, verbatim, 1.98.1."},
+        {"url": "https://doc.rust-lang.org/stable/std/marker/trait.Sync.html", "supported": true, "note": "Confirms T:Sync iff &T:Send; Cell/RefCell/Rc not Sync; atomics/Mutex/RwLock/Arc alternatives."},
+        {"url": "https://doc.rust-lang.org/reference/special-types-and-traits.html", "supported": true, "note": "Confirms auto-trait-by-field, no stable negative impls, Sync required for immutable statics."},
+        {"url": "https://doc.rust-lang.org/nomicon/races.html", "supported": true, "note": "Confirms 'safe' race conditions/deadlocks don't alone violate memory safety, verbatim."},
+        {"url": "https://doc.rust-lang.org/nomicon/send-and-sync.html", "supported": true, "note": "Confirms raw ptrs neither, UnsafeCell not Sync, Rc neither, Carton example, negative_impls nightly."},
+        {"url": "https://doc.rust-lang.org/book/ch16-04-extensible-concurrency-sync-and-send.html", "supported": true, "note": "Confirms composite-Send/Sync inference and manual impl requiring unsafe, verbatim."}
+      ]
+    },
+    {
+      "slug": "borrow-stack-data-in-worker-threads-with-thread-scope-1-63-thread-spawn-needs-move-and-static",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "thread::scope/spawn/Builder docs match verbatim incl. the thread-local-destructor caveat. All 4 checks compiled/ran as specified. static mut BODIES/COLLIDERS(lib.rs)/SOLVER(rapier_law.rs) confirmed via gh api.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/thread/fn.scope.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/thread/fn.spawn.html", "supported": true, "note": "Confirms F:FnOnce+Send+'static, JoinHandle drop detaches, join Err on panic, verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/thread/fn.scope.html", "supported": true, "note": "Confirms 1.63.0, non-'static borrows, auto-join, panic propagation, thread-local-dtor caveat."},
+        {"url": "https://blog.rust-lang.org/2022/08/11/Rust-1.63.0/", "supported": true, "note": "Confirms scoped threads + const Mutex/RwLock/Condvar::new added in 1.63.0, verbatim."},
+        {"url": "https://doc.rust-lang.org/book/ch16-01-threads.html", "supported": true, "note": "Shows E0373 fixed by move; confirms all threads shut down when main returns, verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/thread/struct.Builder.html", "supported": true, "note": "Confirms spawn returns io::Result; spawn_scoped stable since 1.63.0, verbatim."},
+        {"url": "https://doc.rust-lang.org/reference/panic.html", "supported": true, "note": "Confirms unwind/abort strategies; spawn sets up per-thread panic recovery, verbatim."}
+      ]
+    },
+    {
+      "slug": "pick-mutex-rwlock-or-condvar-by-job-and-decide-what-a-poisoned-lock-means-before-a-panic-decides-for-you",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mutex/RwLock/Condvar docs confirm poisoning, writer-only RwLock poisoning, spurious wakeups, non-buffered notify, incl. 'unsafe cannot rely on poisoning'. All 4 checks ran as specified. panic=\"abort\" confirmed in Cargo.toml.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/sync/struct.Mutex.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/sync/struct.Mutex.html", "supported": true, "note": "Confirms poisoning-advisory, relock-unspecified, try_lock WouldBlock, clear_poison 1.77, unsound-poisoning caveat."},
+        {"url": "https://doc.rust-lang.org/stable/std/sync/struct.RwLock.html", "supported": true, "note": "Confirms OS-dependent priority, writer-blocks-readers deadlock example, write-only poisoning."},
+        {"url": "https://doc.rust-lang.org/stable/std/sync/struct.Condvar.html", "supported": true, "note": "Confirms spurious wakeups, wait_while since 1.42.0, non-buffered notify, multi-mutex panic."},
+        {"url": "https://doc.rust-lang.org/stable/std/sync/index.html", "supported": true, "note": "Confirms nonpoison/mpmc/oneshot/poison experimental; stable primitives list, verbatim."},
+        {"url": "https://doc.rust-lang.org/book/ch16-03-shared-state.html", "supported": true, "note": "Confirms Mutex interior mutability, cross-lock-order deadlock risk, atomic for simple counters."},
+        {"url": "https://doc.rust-lang.org/reference/panic.html", "supported": true, "note": "Same page as recipe 2's citation; confirms abort/unwind semantics, verbatim."}
+      ]
+    },
+    {
+      "slug": "hand-results-between-threads-over-mpsc-or-crossbeam-channels-and-sort-by-a-tag-arrival-order-is-scheduling",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "mpsc/Sender/crossbeam-channel/1.67.0-blog docs confirm every claim verbatim (unbounded async, sync_channel incl. 0=rendezvous, Sender:Sync since 1.72). All 3 checks ran/failed exactly as specified, incl. an exact bit-hash sum match.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/sync/mpsc/index.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/sync/mpsc/index.html", "supported": true, "note": "Confirms unbounded async channel, bounded sync_channel, 0=rendezvous, Err on hangup, verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/sync/mpsc/struct.Sender.html", "supported": true, "note": "Confirms all senders must drop for recv to end, send never blocks, Sync since 1.72.0."},
+        {"url": "https://blog.rust-lang.org/2023/01/26/Rust-1.67.0/", "supported": true, "note": "Confirms mpsc rebuilt on crossbeam-channel with no API change, verbatim."},
+        {"url": "https://docs.rs/crossbeam-channel/0.5.17/crossbeam_channel/", "supported": true, "note": "Confirms bounded/unbounded/zero-cap, clonable, select!, after/tick/never, at v0.5.17."},
+        {"url": "https://doc.rust-lang.org/book/ch16-02-message-passing.html", "supported": true, "note": "Confirms channel closes when either half drops; multi-producer order is nondeterministic."},
+        {"url": "https://doc.rust-lang.org/stable/std/sync/index.html", "supported": true, "note": "Same citation as recipe 3; confirms experimental-modules list, verbatim."}
+      ]
+    },
+    {
+      "slug": "publish-data-across-threads-with-a-release-store-and-an-acquire-load-keep-relaxed-for-counters",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Ordering/atomic/Nomicon/lint docs confirm the C++20 model and lint scope verbatim. All 6 checks compiled/ran incl. runtime-panic-via-variable and the wasm32 compare_exchange case (wasm_no_imports gate holds).",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/sync/atomic/enum.Ordering.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/sync/atomic/enum.Ordering.html", "supported": true, "note": "Confirms C++20 model, Release/Acquire pairing, Relaxed/SeqCst semantics, per-op applicability."},
+        {"url": "https://doc.rust-lang.org/stable/std/sync/atomic/index.html", "supported": true, "note": "Confirms C++20 model, data-race UB definition, target_has_atomic, experimental Atomic<T>."},
+        {"url": "https://doc.rust-lang.org/nomicon/atomics.html", "supported": true, "note": "Confirms Acquire/Release pairing, Relaxed counters, SeqCst-when-unsure, x86-vs-ARM advice."},
+        {"url": "https://doc.rust-lang.org/rustc/lints/listing/deny-by-default.html", "supported": true, "note": "Confirms invalid_atomic_ordering's exact rejected cases and runtime-panic rationale, verbatim."}
+      ]
+    },
+    {
+      "slug": "make-parallel-float-reductions-bit-reproducible-fixed-chunks-per-chunk-partials-combined-in-index-order",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "rayon docs confirm sum/reduce/fold nondeterminism, par_chunks, verbatim. rapier3d-f64 0.35.3 source quoted verbatim: 'Chunks are collected in order...deterministic'; num_threads=1 w/o parallel. Both checks ran with exact bit-hashes.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_pipeline/solve.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/rayon/1.12.0/rayon/iter/trait.ParallelIterator.html", "supported": true, "note": "Confirms sum/reduce nondeterminism for non-associative ops, fold's nondeterministic breaks, v1.12.0."},
+        {"url": "https://docs.rs/rayon/1.12.0/rayon/fn.join.html", "supported": true, "note": "Confirms work-stealing over a fixed pool, CPU-bound assumption, verbatim, v1.12.0."},
+        {"url": "https://docs.rs/rayon/1.12.0/rayon/iter/trait.IndexedParallelIterator.html", "supported": true, "note": "Confirms fold_chunks sequential-fold-per-chunk, with_min/max_len, verbatim, v1.12.0."},
+        {"url": "https://docs.rs/rayon/1.12.0/rayon/slice/trait.ParallelSlice.html", "supported": true, "note": "Confirms par_chunks non-overlapping at-most-chunk_size semantics, verbatim, v1.12.0."},
+        {"url": "https://docs.rs/rayon-core/1.13.0/rayon_core/", "supported": true, "note": "Confirms wasm32 fallback behaves as RAYON_NUM_THREADS=1, spawn may not run, v1.13.0."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_pipeline/solve.rs", "supported": true, "note": "Exact quote: par_chunks(256) + 'Chunks are collected in order...deterministic'; num_threads=1."}
+      ]
+    },
+    {
+      "slug": "keep-the-wasm-law-single-threaded-no-threads-on-wasm32-unknown-unknown-rapier3d-f64-s-parallel-left-off",
+      "verdict": "corrected",
+      "currency": "plausible",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "All 8 checks compiled/ran as specified, incl. wasm_no_imports. Raw CHANGELOG.md confirms 'bitwise identical for any thread-pool size' verbatim. One source (wasip1-threads page) overclaims: no '--shared-memory'/'thread-spawn' text there.",
+      "evidence_url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md",
+      "corrections": {"claim": "The 'wasm32-wasip1-threads' source claims its page states '--shared-memory' linking and a 'thread-spawn' import; a full-page scan (twice) shows only atomics/bulk-memory/mutable-globals + Tier2/experimental + --import/--export-memory. True of wasi-threads generally, not sourced on this page."},
+      "sources": [
+        {"url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html", "supported": true, "note": "Confirms many std APIs error, thread::spawn panics, feature-set rebuild needs nightly build-std."},
+        {"url": "https://doc.rust-lang.org/rustc/platform-support/wasm32-wasip1-threads.html", "supported": false, "note": "Confirms atomics/bulk-memory/mutable-globals+experimental, but never '--shared-memory' or 'thread-spawn'."},
+        {"url": "https://rustwasm.github.io/docs/wasm-bindgen/examples/raytrace.html", "supported": true, "note": "Confirms +atomics,+bulk-memory,+mutable-globals + build-std recipe; main thread can't block."},
+        {"url": "https://github.com/rust-lang/rust/issues/145101", "supported": true, "note": "2025-08-08 report building wasm32-unknown-unknown with +atomics + -Zbuild-std=std,panic_abort, nightly."},
+        {"url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md", "supported": true, "note": "Raw file confirms verbatim: 'can now be combined with parallel...bitwise identical for any thread-pool size'."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/features", "supported": true, "note": "Confirms 5 default features incl. alloc; parallel/enhanced-determinism/unsync-callbacks deps, v0.35.3."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/lib.rs", "supported": true, "note": "Confirms sole compile_error! guards simd8+enhanced-determinism; rayon re-export cfg gate, verbatim."},
+        {"url": "https://rapier.rs/docs/user_guides/rust/determinism", "supported": true, "note": "Confirms simd8 incompatible, parallel compatible w/ thread-count-independent results; page labelled 0.36."},
+        {"url": "https://docs.rs/rayon-core/1.13.0/rayon_core/", "supported": true, "note": "Same citation as recipe 6; confirms wasm32 single-threaded fallback, verbatim."},
+        {"url": "https://doc.rust-lang.org/cargo/reference/features.html", "supported": true, "note": "Confirms feature unification (union of enabled features across the graph), verbatim."},
+        {"url": "https://doc.rust-lang.org/cargo/commands/cargo-tree.html", "supported": true, "note": "Confirms -e features and -i invert flags and their combined use, verbatim."}
+      ]
+    },
+    {
+      "slug": "serialize-native-calls-into-the-law-static-needs-sync-static-mut-skips-the-check-a-mutex-restores-it",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Reference/Mutex/LazyLock/OnceLock docs confirm static-Sync exemption, poisoning, once-init verbatim. All 9 checks incl. no_warnings/wasm_no_imports gates passed. static mut fields + 'world is ours alone' quote confirmed via gh api.",
+      "evidence_url": "https://doc.rust-lang.org/reference/items/static-items.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/reference/items/static-items.html", "supported": true, "note": "Confirms static must be Sync, static mut exempt, unsafe required for mut-static access, verbatim."},
+        {"url": "https://doc.rust-lang.org/reference/special-types-and-traits.html", "supported": true, "note": "Same citation as recipe 1; confirms Sync required for immutable statics, verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/sync/struct.Mutex.html", "supported": true, "note": "Same citation as recipe 3; confirms const since 1.63.0, Sync when T:Send, poisoning, verbatim."},
+        {"url": "https://blog.rust-lang.org/2022/08/11/Rust-1.63.0/", "supported": true, "note": "Same citation as recipe 2; confirms const Mutex::new since 1.63.0, verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/sync/struct.LazyLock.html", "supported": true, "note": "Confirms 1.80.0 stable, usable in statics, unrecoverable poisoning on initializer panic."},
+        {"url": "https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html", "supported": true, "note": "Confirms 1.70.0 stable, only one initializer runs under a race, set returns Err(value)."},
+        {"url": "https://blog.rust-lang.org/2024/07/25/Rust-1.80.0/", "supported": true, "note": "Confirms LazyCell/LazyLock stabilized; LazyCell lacks Sync, fits thread_local!, verbatim."}
+      ]
+    },
+    {
+      "slug": "treat-a-future-as-an-inert-pinned-state-machine-nothing-runs-until-polled-and-dropping-it-cancels-it",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "Future/Pin/pin!/Waker docs confirm inert-until-polled, !Unpin state machines verbatim. All 5 checks compiled/ran as specified. Exports step/solver_load/solver_step/solver_clear_warmstart confirmed synchronous in the repo.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/future/trait.Future.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/std/future/trait.Future.html", "supported": true, "note": "Confirms inert-until-polled, poll signature, offload-long-work advice, post-Ready-panic caveat."},
+        {"url": "https://doc.rust-lang.org/reference/expressions/block-expr.html", "supported": true, "note": "Confirms async block -> anonymous Future-impl type, closure-like captures, since Rust 2018."},
+        {"url": "https://doc.rust-lang.org/book/ch17-01-futures-and-syntax.html", "supported": true, "note": "Confirms futures lazy, compiler warns on unused future, Rust ships no runtime, verbatim."},
+        {"url": "https://doc.rust-lang.org/book/ch17-05-traits-for-async.html", "supported": true, "note": "Confirms self-referential state machine + E0277 'cannot be unpinned' + pin! fix, verbatim."},
+        {"url": "https://doc.rust-lang.org/stable/std/pin/index.html", "supported": true, "note": "Confirms pinning = fixed address until drop; async-fn state machines are the key example."},
+        {"url": "https://doc.rust-lang.org/stable/std/pin/macro.pin.html", "supported": true, "note": "Confirms pin! stable since 1.68.0, no heap allocation, block_on polling-loop example."},
+        {"url": "https://doc.rust-lang.org/stable/std/task/struct.Waker.html", "supported": true, "note": "Confirms Waker::noop stable since 1.85.0, does nothing, discards notifications, verbatim."},
+        {"url": "https://docs.rs/tokio/1.53.1/tokio/macro.select.html", "supported": true, "note": "Confirms select! cancels losing branches; defines cancellation-safety as drop+recreate no-op."}
+      ]
+    },
+    {
+      "slug": "spawn-only-send-static-futures-no-std-mutexguard-or-rc-across-await-cpu-bound-work-to-spawn-blocking",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "tokio/MutexGuard/1.85-blog docs confirm Send+'static spawn, !Send MutexGuard, async-closure capture-borrow verbatim. All 10 checks incl. 2 no_warnings gates compiled/ran as specified, incl. the subtle drop(g)-still-!Send case.",
+      "evidence_url": "https://docs.rs/tokio/1.53.1/tokio/task/fn.spawn.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/tokio/1.53.1/tokio/task/fn.spawn.html", "supported": true, "note": "Confirms F:Future+Send+'static bound and rationale; Rc-across-await failing example, v1.53.1."},
+        {"url": "https://docs.rs/tokio/1.53.1/tokio/task/struct.JoinHandle.html", "supported": true, "note": "Confirms drop detaches, abort cancels, spawn_blocking tasks can't be aborted, v1.53.1."},
+        {"url": "https://docs.rs/tokio/1.53.1/tokio/task/fn.spawn_blocking.html", "supported": true, "note": "Confirms dedicated blocking thread, not abortable, rayon suggested for CPU-bound work."},
+        {"url": "https://docs.rs/tokio/1.53.1/tokio/index.html", "supported": true, "note": "Confirms cooperative scheduling only switches at .await; recommends spawn_blocking."},
+        {"url": "https://docs.rs/tokio/1.53.1/tokio/sync/struct.Mutex.html", "supported": true, "note": "Confirms std Mutex often preferred for plain data; async Mutex's point is holding across .await."},
+        {"url": "https://doc.rust-lang.org/stable/std/sync/struct.MutexGuard.html", "supported": true, "note": "Confirms MutexGuard !Send, POSIX pthread same-thread-unlock rationale, verbatim."},
+        {"url": "https://blog.rust-lang.org/2025/02/20/Rust-1.85.0/", "supported": true, "note": "Confirms async closures stabilized, captures-borrowing futures, AsyncFn/Mut/Once in prelude (direct quote)."},
+        {"url": "https://doc.rust-lang.org/reference/expressions/closure-expr.html", "supported": true, "note": "Confirms calling an async closure builds a Future (no work), available since Rust 2018."}
+      ]
+    }
+  ]
+}

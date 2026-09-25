@@ -1,0 +1,355 @@
+{
+  "bucket": "prompt-craft-1",
+  "verifier_note": "Architecture claims held up unusually well: SDXL 768+1280=2048 + bigG pooled, CLIP's <20 effective length, FLUX's CLIP-pooled/T5-per-token split, Qwen-Image's 1024/512/34, guidance distillation and the negative-prompt timing steps (4/5/10/11) all verified against paper text, model cards and ComfyUI/diffusers source. The folklore is concentrated and specific: 6 of 35 rest on community repetition with no traceable mechanism (abstract-vs-concrete CLIP brittleness, T5 'narrative dilutes', T5 word-count ceilings, Chroma comma-vs-period, and both halves of the quality-tag placebo story), and 4 more carry invented numbers inside otherwise sound mechanism (NAG's +2.1 CLIP / -18% FID is really +0.6 / -4%; the 91% Z-Image padding figure; weight bands 1.05-1.3/>1.4; Pascal-vs-Turing). Three citations point at papers that say something else or nothing: 'Karthik et al.' does not exist, the Semantic Gravity Wells arXiv ID is an LLM instruction-following paper not a diffusion one, and the seed recipe inverts its own two sources, both of which measured cross-prompt transfer and found seed quality DOES carry. Two commercial-licence traps: FLUX.1-dev is non-commercial, and InstantID/IP-Adapter-FaceID inherit InsightFace antelopev2's non-commercial research-only restriction despite these recipes being flagged commercial_use=yes.",
+  "verdicts": [
+    {
+      "slug": "clip-break-starts-fresh-77-token-chunk-weighting",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism. Weighting split verified verbatim + in source (comfy lerps to empty-prompt embedding, A1111 scales); 4 norm modes real. But BREAK is A1111-only: zero hits in ComfyUI core. Weight bands are folklore.",
+      "evidence_url": "https://github.com/BlenderNeko/ComfyUI_ADV_CLIP_emb",
+      "corrections": {
+        "claim": "BREAK starts a fresh 77-token chunk in A1111 (and Forge); it is NOT native to ComfyUI -- core ComfyUI has no BREAK parser, so you must chain one CLIPTextEncode per block through ConditioningConcat or install a custom node (comfyui-clip-with-break, ComfyUI-ppm). ComfyUI does chunk automatically at 75 content tokens. Weighting genuinely differs by UI: A1111 scales the token embedding vector by the weight (lerp from the zero vector); ComfyUI lerps the embedding between the prompt and an empty prompt, implemented in comfy/sd1_clip.py ClipTokenWeightEncoder as z[i][j] = (z[i][j] - z_empty[j]) * weight + z_empty[j]. AdvancedCLIPTextEncode offers both interpretations plus normalization none/mean/length/length+mean. The specific bands (1.05-1.3 up, 0.7-0.9 down, >1.4 'fries') are unsourced practitioner numbers with no measurement behind them."
+      }
+    },
+    {
+      "slug": "clip-even-within-77-tokens-clip-s-effective",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Measured. Long-CLIP (arXiv:2403.15378) verbatim: 'the actual effective length is even less than 20'. Recipe correctly flags it as a retrieval R@1 result extrapolated to conditioning.",
+      "evidence_url": "https://arxiv.org/abs/2403.15378",
+      "corrections": {}
+    },
+    {
+      "slug": "clip-sdxl-runs-two-clip-encoders-parallel-concatenates",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism. SDXL paper verbatim: 'we concatenate the penultimate text encoder outputs along the channel-axis'. Configs confirm 768+1280=2048, pooled 1280 from bigG. But A1111 'AND' is composable diffusion, not a dual-encoder split.",
+      "evidence_url": "https://arxiv.org/abs/2307.01952",
+      "corrections": {
+        "claim": "SDXL runs CLIP ViT-L (hidden 768) and OpenCLIP ViT-bigG (hidden 1280) in parallel, concatenating penultimate per-token outputs channel-wise to 2048d, plus bigG's 1280d pooled embedding as global conditioning -- all verified against the SDXL paper and the shipped text_encoder configs (both max_position_embeddings 77). CORRECTION: A1111's 'AND' syntax is composable diffusion (separate full conditionings combined during sampling, per modules/prompt_parser.py), NOT a way to address encoder 1 vs encoder 2. The only real dual-encoder split is ComfyUI's CLIPTextEncodeSDXL node, which exposes distinct text_g (bigG) and text_l (CLIP-L) fields."
+      }
+    },
+    {
+      "slug": "depict-clip-encodes-concrete-visual-words-robustly-but",
+      "verdict": "refuted",
+      "verified": 0,
+      "status": "avoid",
+      "verify_note": "Folklore. No 'Karthik et al.' CLIP-brittleness paper exists. The real one (Tran & Rossetto 2025, arXiv:2511.04247) finds brittleness in 'trivial surface edits such as punctuation and case' -- not abstract vs concrete.",
+      "evidence_url": "https://arxiv.org/abs/2511.04247",
+      "corrections": {}
+    },
+    {
+      "slug": "depict-describe-what-visible-what-true-forced-by",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism, miscited. Gricean reporting bias in web captions is real and measured -- but by Kamath et al. 2026 (arXiv:2602.23351), not Onoe. No Onoe reporting-bias paper locatable.",
+      "evidence_url": "https://arxiv.org/abs/2602.23351",
+      "corrections": {
+        "claim": "Web captions follow Gricean pragmatics -- humans omit the visually obvious and report the noteworthy or inferred -- so caption corpora systematically under-represent plain visible attributes. The correct citation is Kamath, Hessel, Chandu, Hwang, Chang & Krishna, 'Scale Can't Overcome Pragmatics: The Impact of Reporting Bias on Vision-Language Reasoning' (arXiv:2602.23351), which measures that reporting bias leaves spatial, temporal, negation and counting reasoning under-represented despite web-scale corpora, and that scaling data/model/languages does not fix it. Drop the 'Onoe-style' attribution; no Onoe reporting-bias paper supports this."
+      }
+    },
+    {
+      "slug": "depict-t5-xxl-flux-chroma-gives-token-level",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism. Split confirmed in ComfyUI source: FluxClipModel.encode_token_weights returns (t5_out, l_pooled). But FLUX has no U-Net and no separate cross-attention -- it is a DiT with joint MMDiT attention.",
+      "evidence_url": "https://arxiv.org/html/2507.09595v1",
+      "corrections": {
+        "claim": "In FLUX, CLIP-L contributes only a pooled 768d vector (MLP-embedded to 3072d, used for scale/shift modulation alongside the timestep) while T5-XXL supplies the per-token features (4096d, projected to 3072d) that carry prompt semantics -- confirmed directly in ComfyUI's comfy/text_encoders/flux.py, where FluxClipModel.encode_token_weights returns (t5_out, l_pooled). CORRECTION: FLUX is a rectified-flow DiT (19 joint double-stream + 38 single-stream blocks), not a U-Net, and it has no separate cross-attention module -- text and image tokens participate in joint attention. The advice (write fluent but purely depictable prose) is unaffected, but the T5-encodes-grief-as-a-vague-nudge story is an inference, not a measured finding."
+      }
+    },
+    {
+      "slug": "face-clip-s-effective-attention-dies-around-token",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Measured. Long-CLIP's sub-20 effective length verified verbatim; both SDXL encoders carry max_position_embeddings 77 (shipped configs), and the bigG pooled path is a single global vector, so the front-loading advice follows.",
+      "evidence_url": "https://arxiv.org/abs/2403.15378",
+      "corrections": {}
+    },
+    {
+      "slug": "face-identity-does-come-from-text-encoder-face",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism confirmed verbatim (CLIP features 'predominantly capture broad, ambiguous semantic information'; antelopev2; decoupled cross-attention). LICENCE TRAP: those weights are non-commercial.",
+      "evidence_url": "https://huggingface.co/InstantX/InstantID/discussions/2",
+      "corrections": {
+        "claim": "Identity does not come from the text encoder -- InstantID states verbatim that CLIP's 'encoded features predominantly capture broad, ambiguous semantic information like composition, style, and colors', and injects an InsightFace antelopev2 face embedding through a decoupled cross-attention path borrowed from IP-Adapter. Mechanism confirmed. COMMERCIAL LICENCE CORRECTION: commercial_use must be 'no', not 'yes'. InstantID's *code* is Apache-2.0, but the InsightFace antelopev2 face-recognition weights it depends on are licensed for non-commercial research only, and that restriction propagates to IP-Adapter-FaceID and to anything trained on InsightFace embeddings. A commercial-licence-first studio needs a separate InsightFace commercial licence or a differently-licensed identity encoder before shipping this path."
+      }
+    },
+    {
+      "slug": "face-sdxl-feeds-two-77-token-clip-encoders",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism. [B,77,2048] concat + bigG pooled verified against the SDXL paper ('concatenate the penultimate text encoder outputs along the channel-axis') and the shipped 768/1280 configs, both capped at 77 positions.",
+      "evidence_url": "https://arxiv.org/abs/2307.01952",
+      "corrections": {}
+    },
+    {
+      "slug": "llm-both-qwen-encoders-natively-bilingual-cn-en",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism, misattributed. 'Excellent Multilingual Text Rendering' is ComfyUI's docs, not the Qwen card; languages are EN/CN/KR/JP with no Italian. Qwen-Image's encoder is Qwen2.5-VL-7B (multilingual, not bilingual).",
+      "evidence_url": "https://docs.comfy.org/tutorials/image/qwen/qwen-image",
+      "corrections": {
+        "claim": "Qwen-Image's text encoder is Qwen2.5-VL-7B -- a multilingual VLM, not a 'bilingual' one; the HF card declares language: [en, zh] and never uses the phrase 'Excellent Multilingual Text Rendering'. That phrase is ComfyUI's tutorial page, and it lists four languages (English, Chinese, Korean, Japanese) -- Italian is not among them and appears in no card, README, blog or tech report. Z-Image is the model with a sourced bilingual claim: its paper says verbatim 'we employ the lightweight Qwen3-4B as the text encoder, leveraging its bilingual proficiency'. The quote-your-on-image-text-verbatim advice is sound practice supported by LongText-Bench/ChineseWord/TextCraft results in arXiv:2508.02324, but 'the encoder tokenizes it as literal glyphs the DiT then draws' is an unsourced mechanism story. Both models are Apache-2.0, commercial use permitted; note the Aug-2025 Qwen-Image checkpoint is superseded by Qwen-Image-2512."
+      }
+    },
+    {
+      "slug": "llm-padding-behavior-differs-qwen-image-pads-uniform",
+      "verdict": "refuted",
+      "verified": 0,
+      "status": "avoid",
+      "verify_note": "Folklore. filter_padding is not a Z-Image parameter -- zero hits in Tongyi-MAI/Z-Image, diffusers and DiffSynth; it is a third-party ComfyUI node option. 91% is that doc's invented illustration. Qwen-Image also strips padding.",
+      "evidence_url": "https://github.com/Tongyi-MAI/Z-Image",
+      "corrections": {}
+    },
+    {
+      "slug": "llm-qwen-image-s-real-token-budget-huge",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism, verified in diffusers source and by running the tokenizer: tokenizer_max_length=1024, __call__ default 512, system span exactly 34 tokens. FLUX 512 / schnell 256 confirmed in BFL's cli.py.",
+      "evidence_url": "https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/qwenimage/pipeline_qwenimage.py",
+      "corrections": {
+        "claim": "Confirmed as stated, with two refinements worth carrying: the trailing 5 template tokens (<|im_end|>\\n<|im_start|>assistant\\n) are NOT stripped, so at the 512 default you get roughly 507 positions of real user prompt; and encode_prompt's own default is 1024 while only __call__ defaults to 512. Qwen-Image-Edit uses prompt_template_encode_start_idx=64, not 34. The schnell 256 cap lives in Black Forest Labs' own repo (src/flux/cli.py: max_length=256 if name == 'flux-schnell' else 512), not in diffusers, which defaults both FLUX variants to 512."
+      }
+    },
+    {
+      "slug": "llm-z-image-wraps-prompts-chat-template-can",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Template string and the Prompt Enhancer quote verified verbatim. But enable_thinking=True emits NO <think> tokens (False injects the empty pair), it is hard-coded, and Z-Image takes hidden_states[-2] in one forward pass -- nothing reasons.",
+      "evidence_url": "https://arxiv.org/html/2511.22699v5",
+      "corrections": {
+        "claim": "Z-Image wraps prompts in '<|im_start|>user\\n{}<|im_end|>\\n<|im_start|>assistant\\n' (verified against the chat template shipped in Tongyi-MAI/Z-Image-Turbo), and the paper's Prompt Enhancer sentence is verbatim: 'we propose equipping Z-Image with a Prompt Enhancer (PE), powered by system prompt and a pretrained VLM, to improve its reasoning and knowledge capabilities.' CORRECTION: Z-Image does NOT 'run a <think> reasoning block'. enable_thinking is hard-coded True in both diffusers and the official pipeline (not a user-facing default), and True emits no <think> tokens at all -- it is False that injects an empty '<think>\\n\\n</think>\\n\\n' pair. More decisively, Z-Image takes hidden_states[-2] from a single encoder forward pass with no generation loop, so no reasoning can occur in the encoder under any setting. This strengthens rather than weakens the design implication: the PE genuinely is the only reasoning path."
+      }
+    },
+    {
+      "slug": "neg-cfg-distilled-turbo-models-ignore-negative-prompts-because",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism. FLUX.1-dev card: 'Trained using guidance distillation', guidance_scale=3.5; schnell's example runs guidance_scale=0.0. At w=1 the (eps_cond - eps_uncond) term vanishes by arithmetic. Note FLUX.1-dev is NON-COMMERCIAL.",
+      "evidence_url": "https://huggingface.co/black-forest-labs/FLUX.1-dev",
+      "corrections": {}
+    },
+    {
+      "slug": "neg-cfg-nag-normalized-attention-guidance-restores-real-negative",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism exact (extrapolate, L1 ratio clipped at tau, alpha-blend back). Node is now BUILT-IN to ComfyUI. But the quality numbers are inflated ~3.5x: real Table 1 is CLIP +0.6 and FID -1.01 (-4%), not +2.1 and -18%.",
+      "evidence_url": "https://arxiv.org/html/2505.21179v1",
+      "corrections": {
+        "claim": "NAG (Chen et al. 2025, arXiv:2505.21179) is training-free and mechanically correct as described: extrapolate in attention space (Z_tilde = Z+ + phi*(Z+ - Z-)), apply a point-wise L1 norm ratio clipped at tau, then alpha-blend back toward Z+. MEASURED-CLAIM CORRECTION: on Flux-Schnell at 4 steps, Table 1 reports CLIP 31.4 -> 32.0 (+0.6) and FID 25.47 -> 24.46 (-1.01, about -4%), not '+2.1 CLIP and -18% FID'. Table 5 defaults are phi=4, tau=2.5, alpha=0.25 for DiT models and phi=2, tau=2.5, alpha=0.5 for UNet; there is no documented guidance_scale=0 requirement. Validated on SANA-Sprint, Flux-Schnell, Flux-Dev, SD3.5-Large-Turbo, NitroSD-Realism, DMD2-SDXL, SDXL-Lightning and Wan2.1-T2V-14B (SDXL-Turbo itself is not in the list). NODE UPDATE: NAG is no longer a custom node -- it ships in ComfyUI core as NAGuidance (comfy_extras/nodes_nag.py) with defaults nag_scale 5.0, nag_alpha 0.5, nag_tau 1.5."
+      }
+    },
+    {
+      "slug": "neg-content-distilled-turbo-models-flux-dev-flux-schnell",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism. Guidance distillation confirmed on the FLUX.1-dev card (3.5 as a conditioning embed) and schnell (guidance_scale 0.0). The Forge greys-out-at-CFG-1 detail was not independently verified.",
+      "evidence_url": "https://huggingface.co/black-forest-labs/FLUX.1-schnell",
+      "corrections": {}
+    },
+    {
+      "slug": "neg-content-negative-prompt-concept-move-away-from-sentence",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism sound (CFG uncond-branch replacement; write 'hat' not 'no hat'). But arXiv:2601.08070 is an LLM instruction-following paper about avoiding forbidden WORDS in text -- not diffusion. The 87.5% is real but from the wrong domain.",
+      "evidence_url": "https://arxiv.org/abs/2601.08070",
+      "corrections": {
+        "claim": "A negative prompt is a concept to move away from, not a sentence containing a negation -- write 'hat', never 'no hat'. The mechanism is sound: CFG (Ho & Salimans 2022, arXiv:2207.12598) extrapolates between conditional and unconditional predictions, and every mainstream implementation substitutes the negative embedding for the unconditional branch, so the sampler is pushed down the gradient of whatever the negative text encodes; CLIP has no robust logical negation, so 'no hat' still encodes 'hat'. CITATION CORRECTION: arXiv:2601.08070 'Semantic Gravity Wells: Why Negative Constraints Backfire' (Shailesh Rana) studies LARGE LANGUAGE MODELS failing to follow instructions to avoid specific words in text generation. It is not a diffusion or image-generation paper. Its 87.5% priming-failure figure is real but describes token priming in LLM instruction-following, so it cannot be cited as evidence about image negative prompts. Keep the rule; drop the citation."
+      }
+    },
+    {
+      "slug": "neg-content-negatives-bite-late-sampling-only-after-positive",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Measured, and every number checks out. Ban et al. arXiv:2406.02965: positives attend 'within the first four steps'; 'Peak at the 5th step' (nouns); 'plateau around the 10th step' (adjectives); 'Beyond step 11 ... appears ineffective'.",
+      "evidence_url": "https://arxiv.org/html/2406.02965v1",
+      "corrections": {}
+    },
+    {
+      "slug": "neg-folklore-even-sd1-5-negative-embeddings-anime-trained",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Official docs. EasyNegative's card confirms Counterfeit training and warns verbatim: 'It can be used with other models, but the effectiveness is not certain.' CreativeML Open RAIL-M. The 8-vector figure is not on the card.",
+      "evidence_url": "https://civitai.com/models/7808/easynegative",
+      "corrections": {}
+    },
+    {
+      "slug": "neg-folklore-negative-prompt-literally-cfg-unconditional-term-replaced",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism. Ho & Salimans, 'Classifier-Free Diffusion Guidance' (arXiv:2207.12598) confirmed. The paper never discusses negative prompts; the recipe correctly frames uncond substitution as the community swap.",
+      "evidence_url": "https://arxiv.org/abs/2207.12598",
+      "corrections": {}
+    },
+    {
+      "slug": "neg-folklore-quality-word-negatives-worst-quality-low-quality",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Half official docs, half folklore. Animagine XL 4.0 does document masterpiece/best/low/worst quality, so the booru story is real. The 'placebo elsewhere' half has no controlled ablation -- consensus only.",
+      "evidence_url": "https://huggingface.co/cagliostrolab/animagine-xl-4.0",
+      "corrections": {
+        "claim": "Quality-word tags are a documented booru-finetune vocabulary: Animagine XL 4.0's card lists masterpiece / best quality / low quality / worst quality (v4 recommends 'masterpiece, high score, great score, absurdres'), and Pony Diffusion V6 XL documents 'score_9, score_8_up, score_7_up, ...'. That half is official-docs confirmed. FOLKLORE FLAG on the other half: no controlled ablation exists showing these tokens are inert ('placebo') on base SDXL, FLUX, Chroma, Qwen-Image or painterly bases -- this is practitioner consensus with a plausible mechanism (the vocabulary was not in those models' caption distributions), never a measurement. Base SDXL was also aesthetic-score filtered, so 'zero effect' is not established. The design implication stands on caution, not evidence: verify by ablation on your own checkpoint before spending tokens. Also note Pony's own card says it 'does not need other quality modifiers like hd, masterpiece' -- the vocabulary differs per finetune, so 'anime base' is not a single rule."
+      }
+    },
+    {
+      "slug": "seed-decide-before-rewriting-prompt-missing-element-check-cfg",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism. CFG confirmed (arXiv:2207.12598); under/over-guidance are the standard quality-vs-diversity trade-off. FLUX's distilled guidance-embedding caveat verified on the FLUX.1-dev card.",
+      "evidence_url": "https://arxiv.org/abs/2207.12598",
+      "corrections": {}
+    },
+    {
+      "slug": "seed-decide-once-prompt-right-run-batch-n-seeds",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Official docs. Diffusers' 'Improve image quality with deterministic generation' documents this two-phase flow -- a list of Generators, one seed each, then refine the winner. The 8-16 batch size is the studio's own.",
+      "evidence_url": "https://huggingface.co/docs/diffusers/v0.26.3/en/using-diffusers/reusing_seeds",
+      "corrections": {}
+    },
+    {
+      "slug": "seed-decide-whether-defect-even-seed-fixable-depends-text",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism half confirmed (CLIP is bag-of-words CROSS-modally; causal mask + EOT-only supervision). But 'invariant to the seed, re-rolling never fixes a binding miss' is contradicted by arXiv:2411.18810: 41.0% vs 28.3% across five seeds.",
+      "evidence_url": "https://arxiv.org/abs/2411.18810",
+      "corrections": {
+        "claim": "SDXL's CLIP conditioning behaves bag-of-words CROSS-modally (the precise finding -- CLIP is aware of attribute-object bindings within a single modality; the failure is cross-modal alignment), driven by causal masking and contrastive supervision on the [EOT] embedding only, so attribute mis-binding and neglect are real encoder-level limits. CORRECTION: they are NOT invariant to the seed. 'All Seeds Are Not Equal' (arXiv:2411.18810, TMLR 2025) measured five candidate seeds on numerical composition with SD 2.1 and got 41.0%, 31.9%, 31.0%, 29.0%, 28.3% -- the seed changes compositional success by ~13 points. Re-rolling therefore CAN fix a binding miss; it is just an inefficient and unreliable tool compared with structural fixes (regional prompting, fewer competing attributes, reorder, reweight). The right rule is 'do not rely on re-rolling alone', not 'never re-roll'."
+      }
+    },
+    {
+      "slug": "seed-folklore-exact-reproducibility-requires-whole-stack-match-just",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Substance confirmed -- diffusers states reproducibility is 'not guaranteed even with an identical seed', and cross-arch FMA divergence is documented. But Pascal-vs-Turing is forum lore and xformers is version-dated.",
+      "evidence_url": "https://huggingface.co/docs/diffusers/using-diffusers/reusing_seeds",
+      "corrections": {
+        "claim": "Exact reproducibility requires the whole stack -- model, sampler, steps, CFG, resolution, scheduler, node graph -- plus matching hardware and library versions; diffusers' own reproducibility page states you 'can try to limit randomness, but it is not guaranteed even with an identical seed'. Cross-GPU-architecture divergence is genuine and stems from differing floating-point unit behaviour (FMA, rounding modes) plus run-time compilation for a specific target. TWO REFINEMENTS: the specific 'Pascal vs Turing deviate a lot' claim is forum lore with no primary source -- state the general cross-architecture rule instead; and the xformers determinism claim is version-dated (versions below 0.0.20 were non-deterministic, 0.0.19+ is deterministic within a session), so pin the version rather than treating xformers as permanently non-deterministic. Also worth adding: setting the RNG source to CPU is what made A1111 SDXL output match Stability's reference."
+      }
+    },
+    {
+      "slug": "seed-folklore-good-seed-does-survive-resolution-change-changing",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism sound -- resolution is the latent noise tensor's shape, so the RNG fills a different array. But A1111's wiki says seed resize makes ancestral samplers 'a little worse at this than the rest', not that they 'explicitly fail'.",
+      "evidence_url": "https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Features",
+      "corrections": {
+        "claim": "A good seed does not survive a resolution change: resolution is the shape of the latent noise tensor, so the same seed fills a differently-shaped array and produces fundamentally different noise. Lock resolution before seed-sweeping. CORRECTION: A1111's seed-resize feature is weaker than 'explicitly fails' with ancestral samplers -- the wiki says 'With seed resizing you specify the resolution of the original image, and the model will very likely produce something looking very similar to it, even at a different resolution' and only that 'Ancestral samplers are a little worse at this than the rest.' Degraded, not broken. The practical advice (re-sweep at final resolution, or upscale via img2img/hires-fix) is unchanged."
+      }
+    },
+    {
+      "slug": "seed-roles-cfg-controls-how-hard-prompt-steers-trajectory",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism. eps_uncond + w*(eps_cond - eps_uncond) is Ho & Salimans' classifier-free guidance, and the bland-at-low-w / oversaturated-at-high-w trade-off is the paper's central result.",
+      "evidence_url": "https://arxiv.org/abs/2207.12598",
+      "corrections": {}
+    },
+    {
+      "slug": "seed-roles-sampler-determines-path-from-seed-s-noise",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Mechanism, one error. k-diffusion confirms ancestral samplers add noise each step -- but that noise sampler is SEEDED from the same seed, so at fixed seed and step count Euler a is fully reproducible.",
+      "evidence_url": "https://github.com/crowsonkb/k-diffusion/blob/master/k_diffusion/sampling.py",
+      "corrections": {
+        "claim": "The sampler chooses the integration path from the seed's noise to the image. Ancestral/SDE samplers (euler_ancestral, dpmpp_sde) genuinely do inject fresh noise at every step -- k-diffusion's sample_euler_ancestral ends each step with x = x + d*dt + noise_sampler(...) * s_noise * sigma_up -- so the output changes with step count and never converges as steps increase, unlike deterministic samplers (euler, dpmpp_2m, ddim, all present in ComfyUI's sampler list). CORRECTION: ancestral samplers do NOT 'partly override the seed's determinism'. That per-step noise is drawn from a stream seeded by the same seed (noise_sampler = default_noise_sampler(x, seed=seed)), so at a fixed seed AND fixed step count an ancestral sampler is fully reproducible run-to-run. The real caution is narrower: ancestral output is not stable ACROSS step counts, so A/B a prompt edit only with both seed and steps locked, or use a deterministic sampler."
+      }
+    },
+    {
+      "slug": "seed-roles-seeds-do-vary-quality-but-quality-largely",
+      "verdict": "refuted",
+      "verified": 0,
+      "status": "avoid",
+      "verify_note": "Every number verified exactly -- and the headline still inverts both sources. Good Seed found 'a high degree of overlap' across two prompt sets; All Seeds got 38.3% vs 17.5% on UNSEEN categories.",
+      "evidence_url": "https://arxiv.org/html/2405.14828v1",
+      "corrections": {}
+    },
+    {
+      "slug": "struct-clip-s-effective-attention-span-20-tokens",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Measured. Long-CLIP (arXiv:2403.15378) states the effective length is under 20 tokens against a hard 77-token cap, attributed to short training captions leaving later positional embeddings undertrained. Front-loading follows directly.",
+      "evidence_url": "https://arxiv.org/abs/2403.15378",
+      "corrections": {}
+    },
+    {
+      "slug": "struct-masterpiece-best-quality-very-aesthetic-work-only",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Booru half is official-docs confirmed (Pony V6 XL 'score_9, score_8_up, score_7_up...'; Animagine XL 4.0 masterpiece/best quality). The 'folklore filler on base SDXL/FLUX/Qwen' half has no ablation -- it is unmeasured, however plausible.",
+      "evidence_url": "https://civitai.com/models/257749/pony-diffusion-v6-xl",
+      "corrections": {
+        "claim": "Quality-tier tags are documented conditioning on specific booru-tag anime finetunes -- Pony Diffusion V6 XL's official template is 'score_9, score_8_up, score_7_up, score_6_up, score_5_up, score_4_up, ...' and Animagine XL 4.0 documents masterpiece / best quality / worst quality. That half is confirmed from official model cards, and the per-model vocabulary genuinely differs (Pony's own card says it does NOT need 'masterpiece'). FOLKLORE FLAG: 'on base SDXL, FLUX, Chroma, Qwen-Image, Z-Image they are folklore filler' is unmeasured -- no controlled ablation was found showing these tokens are inert on those bases, and base SDXL was trained on aesthetic-score-filtered LAION, so 'masterpiece' plausibly carries some learned aesthetic direction. Keep the actionable rule (name concrete style descriptors instead of quality words, and do not spend CLIP's first 20 tokens on them) but stop asserting zero effect as fact."
+      }
+    },
+    {
+      "slug": "struct-t5-based-diffusion-models-flux-chroma-do",
+      "verdict": "unfindable",
+      "verified": 0,
+      "status": "directional",
+      "verify_note": "Folklore. The nearest real source, 'Scaling Down Text Encoders of T2I Diffusion Models' (arXiv:2503.19897), hypothesises T5 redundancy for encoder DISTILLATION. Nothing shows abstract tokens dilute conditioning.",
+      "evidence_url": "https://arxiv.org/abs/2503.19897",
+      "corrections": {}
+    },
+    {
+      "slug": "t5-longer-prose-helps-t5-only-up-concrete",
+      "verdict": "unfindable",
+      "verified": 0,
+      "status": "directional",
+      "verify_note": "Folklore. No source found for '~30-80 words core', '~70-90 dense visual words' or the '60-150 word range'. Black Forest Labs publishes no word-count guidance; the community Chroma guide states only the 512-token cap. Invented numbers.",
+      "evidence_url": null,
+      "corrections": {}
+    },
+    {
+      "slug": "t5-t5-punctuation-semantic-commas-vs-periods-change",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Chroma half confirmed (Apache-2.0, de-distilled from schnell, true CFG + working negative). But the punctuation rule is a COMMUNITY guide stated as experience with no ablation -- the official Chroma1-HD card says nothing about punctuation.",
+      "evidence_url": "https://github.com/maybleMyers/chromaforge/blob/main/levzzz_chroma_guide.md",
+      "corrections": {
+        "claim": "The Chroma capability half is confirmed: Chroma is a de-distilled fork of FLUX.1-schnell, Apache-2.0 (commercial use permitted, unlike FLUX.1-dev's Non-Commercial License), and it restores true CFG plus a working negative prompt -- the Chroma1-HD card's own example runs guidance_scale=3.0 with a full negative prompt. Current releases are Chroma1-HD and Chroma1-Base. SOURCING CORRECTION: the punctuation rule is NOT official Chroma/lodestone documentation. The official Chroma1-HD model card contains no guidance about punctuation at all. It traces to a third-party community guide (levzzz's guide in maybleMyers/chromaforge), which states verbatim 'Tags can be separated with commas, however that influences the style into cartoon/anime, so for realistic images they should be separated using periods' -- presented as experience, with no ablation or experiment cited. Treat it as a cheap thing to A/B on your own plates, not as a mechanism. The 'T5 parses real grammar so sentence structure binds attributes' rationale is a plausible inference, not a measured result."
+      }
+    },
+    {
+      "slug": "t5-weighting-emphasis-syntax-token-1-3-token",
+      "verdict": "refuted",
+      "verified": 0,
+      "status": "avoid",
+      "verify_note": "Mechanism, and the source disproves it. ComfyUI DOES reweight T5: FluxClipModel calls t5xxl.encode_token_weights, T5XXLModel extends SDClipModel, and ClipTokenWeightEncoder applies the same empty-embedding lerp used for CLIP.",
+      "evidence_url": "https://github.com/comfyanonymous/ComfyUI/blob/master/comfy/sd1_clip.py",
+      "corrections": {}
+    }
+  ]
+}

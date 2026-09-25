@@ -1,0 +1,486 @@
+{
+  "laneSlug": "integer-time",
+  "title": "Integer musical time: ticks, tempo maps, samples",
+  "tier": "si-jam-sessions",
+  "recipes": [
+    {
+      "name": "Compute tick-to-microseconds with u128 intermediate and floor",
+      "what": "SMF stores tempo as u24 microseconds-per-quarter and tick deltas as u28; the law evaluates the exact rational tick×tempo÷PPQ in u128 and floors once per segment.",
+      "how": "Inside an extern \"C\" function, write `let us = ((tick as u128 * tempo as u128) / ppq as u128) as u64;`. The single integer division is the floor.",
+      "rust_version": "1.98.1, edition 2024",
+      "gotchas": "Dividing before multiplying truncates early and loses tempo resolution; u64 intermediates overflow at max tick × max tempo.",
+      "engine_note": "Bears on the likely second integer timeline in samples: the wasm cdylib must convert ticks to exact microseconds without floating point.",
+      "checks": [
+        {
+          "label": "tick to microseconds via u128 on wasm",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "expect": "runs",
+          "wasm_exports": [
+            "tick_to_us"
+          ],
+          "wasm_call": {
+            "export": "tick_to_us",
+            "args": []
+          },
+          "stdout": "500000",
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn tick_to_us() -> u64 {\n    let tick: u64 = 480;\n    let tempo: u64 = 500000;\n    let ppq: u64 = 480;\n    let t = tick as u128 * tempo as u128;\n    (t / ppq as u128) as u64\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 src/primitive.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "SMF tempo is stored as a u24 microseconds per quarter, and tick deltas are stored as a u28.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "Primitive Type u128",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "u128 is a 128-bit unsigned integer type with a maximum value of 2^128 − 1, sufficient to hold the product of a u64 tick count and a u24 tempo without overflow.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "compute-tick-to-microseconds-with-u128-intermediate-and-floor"
+    },
+    {
+      "name": "Compute tick-to-samples through tempo map with u128",
+      "what": "Samples are derived from ticks by the exact rational tick×tempo×sample_rate÷(PPQ×1_000_000), computed in u128 and floored once.",
+      "how": "Compute `let num = tick as u128 * tempo as u128 * sample_rate as u128; let den = ppq as u128 * 1_000_000u128; let samples = (num / den) as u64;` inside the exported function.",
+      "rust_version": "1.98.1, edition 2024",
+      "gotchas": "Reordering to divide early introduces rounding errors; the full numerator must stay in u128 until the final division.",
+      "engine_note": "Bears on the likely separately pinned renderer: sample positions must be exact integers computed from the tempo map inside the wasm law.",
+      "checks": [
+        {
+          "label": "tick to samples via u128 on wasm",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "expect": "runs",
+          "wasm_exports": [
+            "tick_to_samples"
+          ],
+          "wasm_call": {
+            "export": "tick_to_samples",
+            "args": []
+          },
+          "stdout": "24000",
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn tick_to_samples() -> u64 {\n    let tick: u64 = 480;\n    let tempo: u64 = 500000;\n    let ppq: u64 = 480;\n    let sample_rate: u64 = 48000;\n    let num = tick as u128 * tempo as u128 * sample_rate as u128;\n    let den = ppq as u128 * 1_000_000u128;\n    (num / den) as u64\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 src/primitive.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "SMF tempo is stored as a u24 microseconds per quarter, and tick deltas are stored as a u28.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "Primitive Type u128",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "u128 is a 128-bit unsigned integer type with a maximum value of 2^128 − 1, sufficient to hold the product of a u64 tick count, a u24 tempo, and a u32 sample rate without overflow.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "compute-tick-to-samples-through-tempo-map-with-u128"
+    },
+    {
+      "name": "Choose PPQ divisible by 3 and 5 for exact tuplets",
+      "what": "PPQ values 480, 960 and 3840 are divisible by 3 and 5, yielding exact integer tick deltas for triplets and quintuplets, but not for septuplets.",
+      "how": "Select a PPQ that is a multiple of the desired tuplet ratio; verify exactness with `ppq % ratio == 0`.",
+      "rust_version": "1.98.1, edition 2024",
+      "gotchas": "3840 is not divisible by 7, so a septuplet grid must be approximated or handled by a higher-level tuplet track.",
+      "engine_note": "Bears on the fixed PPQ lock item: the chosen PPQ must be high enough and factorable so that common tuplets are exact integers.",
+      "checks": [
+        {
+          "label": "PPQ divisibility for tuplets",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "expect": "runs",
+          "stdout": "480 0 0 4\n960 0 0 1\n3840 0 0 4\n",
+          "source": "fn main() {\n    for ppq in [480u64, 960, 3840] {\n        println!(\"{} {} {} {}\", ppq, ppq % 3, ppq % 5, ppq % 7);\n    }\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 src/primitive.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Timing::Metrical stores ticks per beat (PPQ) as a u15 restricted integer.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "Primitive Type u64",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u64.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "u64::checked_rem computes self % rhs, returning None only when rhs is zero.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "choose-ppq-divisible-by-3-and-5-for-exact-tuplets"
+    },
+    {
+      "name": "Calculate bar and beat from tick under SMF time signatures",
+      "what": "SMF FF 58 stores numerator and a power-of-two denominator; bar/beat arithmetic uses ticks_per_beat = PPQ × 4 ÷ 2^denom and ticks_per_bar = ticks_per_beat × num.",
+      "how": "Parse the four TimeSignature bytes; compute `beat_unit = 1u32 << denom_exp; ticks_per_beat = (ppq * 4) / beat_unit;` then derive bar, beat and tick-in-beat with `/` and `%`.",
+      "rust_version": "1.98.1, edition 2024",
+      "gotchas": "The denominator byte is the exponent, not the written denominator; e.g., 4/4 uses denom_exp = 2.",
+      "engine_note": "Bears on the integer tick timeline: the law must locate events in bars and beats for display and looping without floating point.",
+      "checks": [
+        {
+          "label": "bar beat from tick under 4-4 time",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "expect": "runs",
+          "stdout": "1 0 0\n",
+          "source": "fn bar_beat(tick: u64, ppq: u32, num: u8, denom_exp: u8) -> (u64, u64, u64) {\n    let beat_unit = 1u32 << denom_exp;\n    let ticks_per_beat = (ppq as u64 * 4) / beat_unit as u64;\n    let ticks_per_bar = ticks_per_beat * num as u64;\n    let bar = tick / ticks_per_bar;\n    let rem = tick % ticks_per_bar;\n    let beat = rem / ticks_per_beat;\n    let tick_in_beat = rem % ticks_per_beat;\n    (bar, beat, tick_in_beat)\n}\nfn main() {\n    let (b, be, t) = bar_beat(1920, 480, 4, 2);\n    println!(\"{} {} {}\", b, be, t);\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 src/event.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/event.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "MetaMessage::TimeSignature stores four u8 values: numerator, denominator power of two, MIDI clocks per click, and 32nd notes per quarter.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "midly 0.5.3 src/primitive.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Timing::Metrical(u15) stores the number of ticks per beat (PPQ) as a 15-bit integer.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "calculate-bar-and-beat-from-tick-under-smf-time-signatures"
+    },
+    {
+      "name": "Refuse on overflow with checked arithmetic",
+      "what": "The law uses checked_mul and checked_add so that any overflow in time calculations returns a refusal instead of wrapping or panicking.",
+      "how": "Chain `tick.checked_mul(tempo)?.checked_add(carry)?` and propagate None as a refusal event to the host.",
+      "rust_version": "1.98.1, edition 2024",
+      "gotchas": "Unchecked `*` panics in debug and wraps in release by default; strict_mul always panics, which is unsuitable for a law that must refuse gracefully.",
+      "engine_note": "Bears on deterministic replay: an overflow must produce a defined refusal in the action log, not a wrap or trap.",
+      "checks": [
+        {
+          "label": "checked_mul returns None on overflow",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "expect": "runs",
+          "stdout": "refused\n",
+          "source": "fn main() {\n    match u64::MAX.checked_mul(2) {\n        Some(_) => println!(\"unexpected\"),\n        None => println!(\"refused\"),\n    }\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Primitive Type u64",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u64.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "u64::checked_mul computes self * rhs, returning None if overflow occurred.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "Operator expressions",
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Integer operators will panic when they overflow when compiled in debug mode.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "refuse-on-overflow-with-checked-arithmetic"
+    },
+    {
+      "name": "Enable overflow-checks in release or rely on checked ops",
+      "what": "Inference: The release profile disables overflow-checks by default, so unchecked operators wrap; the law should either set overflow-checks = true or use exclusively checked methods.",
+      "how": "Add `overflow-checks = true` under `[profile.release]` in Cargo.toml, or prefer `checked_` methods explicitly.",
+      "rust_version": "1.98.1, edition 2024",
+      "gotchas": "Relying on the default release profile makes `+` and `*` silently wrap, corrupting musical position.",
+      "engine_note": "Bears on the deterministic replay and hash: silent wrap in release would desynchronise the score from the action log.",
+      "checks": [],
+      "sources": [
+        {
+          "title": "Profiles",
+          "url": "https://doc.rust-lang.org/stable/cargo/reference/profiles.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "The overflow-checks setting controls the -C overflow-checks flag, and when overflow-checks are enabled, a panic will occur on overflow.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "Operator expressions",
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Integer operators will panic when they overflow when compiled in debug mode, and the -C overflow-checks compiler flag can be used to control this more directly.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "enable-overflow-checks-in-release-or-rely-on-checked-ops"
+    },
+    {
+      "name": "Reserve Wrapping arithmetic for hash state only",
+      "what": "Wrapping<u64> provides modular arithmetic for hashing and checksums, but must never be used for tick or sample counts because it silently wraps on underflow.",
+      "how": "Use `Wrapping(hash)` for the state hash; use `checked_add` or exact integer ops for the timeline.",
+      "rust_version": "1.98.1, edition 2024",
+      "gotchas": "Accidentally using Wrapping for deltas makes `zero - one` jump to u32::MAX, destroying bar/beat alignment.",
+      "engine_note": "Bears on the state hash: the law hashes its state with wrapping arithmetic, but the musical timeline must never wrap.",
+      "checks": [
+        {
+          "label": "Wrapping sub wraps around",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "expect": "runs",
+          "stdout": "4294967295\n",
+          "source": "use std::num::Wrapping;\nfn main() {\n    let z = Wrapping(0u32);\n    let o = Wrapping(1u32);\n    println!(\"{}\", (z - o).0);\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Struct std::num::Wrapping",
+          "url": "https://doc.rust-lang.org/stable/std/num/struct.Wrapping.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Wrapping<T> provides intentionally-wrapped arithmetic on T.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "Operator expressions",
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Integer operators will panic when they overflow when compiled in debug mode.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "reserve-wrapping-arithmetic-for-hash-state-only"
+    },
+    {
+      "name": "Use u128 intermediates on wasm32-unknown-unknown",
+      "what": "u128 compiles and runs on wasm32-unknown-unknown via compiler-builtins, so the law can safely use u128 for tempo-map intermediates.",
+      "how": "Cast operands to u128 inside the wasm-exported function; the compiler lowers the math to wasm i64/i32 operations.",
+      "rust_version": "1.98.1, edition 2024",
+      "gotchas": "u128 is not in the wasm C ABI, so extern \"C\" functions must not pass or return u128 directly; use u64 and reconstruct internally.",
+      "engine_note": "Bears on the wasm32-unknown-unknown cdylib target: u128 is available in core for exact integer time math.",
+      "checks": [
+        {
+          "label": "u128 math compiles and runs on wasm32",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [],
+          "expect": "runs",
+          "wasm_exports": [
+            "u128_demo"
+          ],
+          "wasm_call": {
+            "export": "u128_demo",
+            "args": []
+          },
+          "stdout": "1",
+          "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn u128_demo() -> u64 {\n    let prod = u64::MAX as u128 * 2u128;\n    (prod >> 64) as u64\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Primitive Type u128",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "u128 is a 128-bit unsigned integer type.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "wasm32-unknown-unknown",
+          "url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "The wasm32-unknown-unknown target has full support for the core and alloc crates.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "use-u128-intermediates-on-wasm32-unknown-unknown"
+    },
+    {
+      "name": "Exclude f64 seconds from the law time path",
+      "what": "f64 cannot represent every u64 value exactly, so microseconds and samples are kept as integers; midly’s second_f32 exists only for SMPTE display.",
+      "how": "Store tempo as u24 microseconds-per-quarter and onsets as u64 ticks or samples; never convert through `as f64`.",
+      "rust_version": "1.98.1, edition 2024",
+      "gotchas": "A single `tick as f64 * tempo as f64 / ppq as f64` introduces rounding that shifts note onsets by whole samples.",
+      "engine_note": "Bears on the no-floating-point rule: the law’s state and time path must contain no f64 values.",
+      "checks": [
+        {
+          "label": "f64 loses precision for large u64",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "expect": "runs",
+          "stdout": "9007199254740993 9007199254740992\n",
+          "source": "fn main() {\n    let us: u64 = 9_007_199_254_740_993u64;\n    let f = us as f64;\n    let back = f as u64;\n    println!(\"{} {}\", us, back);\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 src/primitive.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "SmpteTime provides a second_f32 method that returns an f32 representation of seconds.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "Primitive Type u128",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "u128 is a 128-bit unsigned integer type.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "exclude-f64-seconds-from-the-law-time-path"
+    },
+    {
+      "name": "Carry division remainders across tempo segments",
+      "what": "Floor division is not associative across segment sums: floor(a/c)+floor(b/c) can be less than floor((a+b)/c); the law carries remainders to keep cumulative time exact.",
+      "how": "For each segment compute `quot = tick * tempo / PPQ` and `rem = (tick * tempo) % PPQ`; add `rem` to the next segment’s numerator before division.",
+      "rust_version": "1.98.1, edition 2024",
+      "gotchas": "Flooring each segment independently drops fractional ticks that accumulate into audible micro-timing drift across tempo changes.",
+      "engine_note": "Bears on the integer tempo map: crossing a tempo boundary must not lose fractional ticks between the score and the sample timeline.",
+      "checks": [
+        {
+          "label": "floor division remainder carry fixes drift",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "expect": "runs",
+          "stdout": "3 2\n3\n",
+          "source": "fn main() {\n    let a = 5u64;\n    let b = 5u64;\n    let c = 3u64;\n    println!(\"{} {}\", (a + b) / c, a / c + b / c);\n    let carried = a / c + b / c + (a % c + b % c) / c;\n    println!(\"{}\", carried);\n}",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Primitive Type u64",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u64.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "u64::checked_rem computes self % rhs, returning None if rhs is zero.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "Primitive Type u128",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "u128 is a 128-bit unsigned integer type.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "carry-division-remainders-across-tempo-segments"
+    }
+  ]
+}

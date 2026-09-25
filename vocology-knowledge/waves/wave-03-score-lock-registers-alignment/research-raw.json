@@ -1,0 +1,221 @@
+{
+  "wave": 3,
+  "date": "2026-09-06",
+  "title": "Wave 3 — STUDY-001 reopen: score-lock / registers / lyric-alignment",
+  "domain_scope": "svs-vs-song-generator, vocology-source-filter, lyric-to-note-alignment",
+  "agent_count": 3,
+  "consumer": "ai-jam-sessions",
+  "adjacent": "vocal-synth-engine",
+  "protocol": "research-grounded-advisor-protocol",
+  "verifier_note": "STUDY-011 ingest from STUDY-001 Verifier-verified packs. Omitted already-in-DB: VocalRender arXiv:2607.27768; TechSinger arXiv:2502.12572; YuE arXiv:2503.08638 (ACCEPT 30); DiffRhythm 2 arXiv:2510.22950. Omitted unverified: Sundberg DOI 10.1016/j.jvoice.2006.01.003 paywall. Do not set verified=1 beyond prior ACCEPT 23/30/50.",
+  "lanes": [
+    {
+      "laneSlug": "svs-vs-song-generator",
+      "title": "SVS vs lyrics-to-song routes (STUDY-001 score-lock reopen)",
+      "findings": [
+        {
+          "n": 1,
+          "authors": "Qian et al.",
+          "year": 2026,
+          "title": "SoulX-Singer: Towards High-Quality Zero-Shot Singing Voice Synthesis",
+          "id": "arXiv:2602.07803",
+          "url": "https://arxiv.org/abs/2602.07803",
+          "finding": "Score-control mode takes MIDI + lyrics only; MIDI timing constraints lower WER vs melody-only F0 mode under lyric rewrite.",
+          "implication": "Score-native MIDI+lyrics path; deepen wave-03 score-lock axis."
+        },
+        {
+          "n": 2,
+          "authors": "Du, Deng, Guo et al.",
+          "year": 2025,
+          "title": "DiTSinger: Scaling Singing Voice Synthesis with Diffusion Transformer and Implicit Alignment",
+          "id": "arXiv:2510.09016",
+          "url": "https://arxiv.org/abs/2510.09016",
+          "finding": "DiT SVS conditioned on pitch, phonemes, word durations, slur; still score-bound (implicit alignment does not drop MIDI).",
+          "implication": "Implicit alignment stays score-bound; not a free song generator."
+        },
+        {
+          "n": 3,
+          "authors": "Lei, Xu, Lin et al.",
+          "year": 2025,
+          "title": "LeVo: High-Quality Song Generation with Multi-Preference Alignment",
+          "id": "arXiv:2506.07520",
+          "url": "https://arxiv.org/abs/2506.07520",
+          "finding": "Lyrics (+ optional text/audio prompts) → mixed song; BPM/structure labels, not note-level MIDI lock.",
+          "implication": "Generator off score-lock ACCEPT lane."
+        },
+        {
+          "n": 4,
+          "authors": "Liu, Ding, Zhang et al.",
+          "year": 2025,
+          "title": "SongGen: A Single Stage Auto-regressive Transformer for Text-to-Song Generation",
+          "id": "arXiv:2502.13128",
+          "url": "https://arxiv.org/abs/2502.13128",
+          "finding": "Single-stage text-to-song (lyrics + descriptions ± voice clip); no MIDI note hard constraint.",
+          "implication": "Generator without note MIDI lock."
+        }
+      ]
+    },
+    {
+      "laneSlug": "vocology-source-filter",
+      "title": "Registers / singer formant surfaces (STUDY-001 Practitioner)",
+      "findings": [
+        {
+          "n": 5,
+          "authors": "openvpi",
+          "year": 2026,
+          "title": "DiffSinger Best Practices",
+          "id": "DiffSinger BestPractices",
+          "url": "https://github.com/openvpi/DiffSinger/blob/main/docs/BestPractices.md",
+          "finding": "Acoustic inputs are fixed to phoneme seq + phoneme duration + F0; narrow variance knobs are energy, breathiness, voicing, tension — no named register or singer-formant control.",
+          "implication": "Do not invent register enums on DiffSinger."
+        },
+        {
+          "n": 6,
+          "authors": "stakira/OpenUtau",
+          "year": 2026,
+          "title": "OpenUtau default expressions (USTx.cs)",
+          "id": "OpenUtau USTx",
+          "url": "https://raw.githubusercontent.com/stakira/OpenUtau/master/OpenUtau.Core/Format/USTx.cs",
+          "finding": "Editor surface maps gender/g (−100…100, formant shift), breath/B, breathiness curve, tension curve, voicing curve — production path for DiffSinger/resampler timbre, still not a register enum.",
+          "implication": "Breathiness/tension/gender on hard F0; no register enum."
+        },
+        {
+          "n": 7,
+          "authors": "edwardbrowncross",
+          "year": 2026,
+          "title": "Cantor Digitalis (Web Audio) README",
+          "id": "Cantor Digitalis",
+          "url": "https://github.com/edwardbrowncross/cantor-digitalis",
+          "finding": "Perceptual API exposes isFalsetto (M1/M2), tenseness, breathiness, vocalTractSize, and synth-level F1–F6 formant centers — register is an explicit boolean, not an F0 label.",
+          "implication": "Only parametric surfaces expose isFalsetto + formants."
+        },
+        {
+          "n": 8,
+          "authors": "Feugère / d’Alessandro / Doval / Perrotin (port)",
+          "year": 2017,
+          "title": "Cantor Digitalis tech notes",
+          "id": "Cantor tech notes",
+          "url": "https://raw.githubusercontent.com/edwardbrowncross/cantor-digitalis/main/cantor_digitalis.md",
+          "finding": "Docs state the singing formant is produced by grouping F3–F5, with hypo-pharynx anti-resonance ~2.5–3.5 kHz — formant cluster is a tract setting, not painted EQ.",
+          "implication": "Singer formant is tract setting (F3–F5 cluster)."
+        },
+        {
+          "n": 9,
+          "authors": "mmorise",
+          "year": 2025,
+          "title": "WORLD README",
+          "id": "WORLD",
+          "url": "https://github.com/mmorise/World",
+          "finding": "Public API is F0 + spectral envelope (CheapTrick) + aperiodicity (D4C) → synthesize; no register or singer-formant parameter names — envelope is opaque.",
+          "implication": "mgc/BAP/LF0 ≠ formant/register APIs."
+        },
+        {
+          "n": 10,
+          "authors": "nnsvs / r9y9",
+          "year": 2022,
+          "title": "nnsvs.gen class reference",
+          "id": "nnsvs.gen",
+          "url": "https://nnsvs.github.io/_modules/nnsvs/gen.html",
+          "finding": "Score-locked path predicts/post-processes mgc, lf0, vuv, bap; relative_f0 ties LF0 to MIDI score pitch; vibrato_scale and phone V/UV flags exist — source-filter streams, not named formant/register knobs.",
+          "implication": "Opaque streams under score lock."
+        },
+        {
+          "n": 11,
+          "authors": "mcp-tool-shop-org",
+          "year": 2026,
+          "title": "vocal-synth-engine README",
+          "id": "vocal-synth-engine",
+          "url": "https://github.com/mcp-tool-shop-org/vocal-synth-engine",
+          "finding": "Additive + spectral envelope + noise; cockpit/API exposes per-note breathiness, timbre, vibrato, portamento and XY timbre×breathiness — no documented singer-formant or falsetto/register field on VocalScore.",
+          "implication": "Generators/cockpit off register ACCEPT knobs."
+        },
+        {
+          "n": 12,
+          "authors": "ACE-Step",
+          "year": 2026,
+          "title": "ACE-Step 1.5 Inference API",
+          "id": "ACE-Step 1.5 INFERENCE",
+          "url": "https://github.com/ace-step/ACE-Step-1.5/blob/main/docs/en/INFERENCE.md",
+          "finding": "GenerationParams metadata is caption/lyrics + bpm / keyscale / timesignature / duration — no note MIDI, no register, no formant; song-generator surface opposite the SVS craft axis.",
+          "implication": "Song-gen surface opposite score-lock."
+        }
+      ]
+    },
+    {
+      "laneSlug": "lyric-to-note-alignment",
+      "title": "Lyric alignment analogs (STUDY-001 Analogist; Sundberg omitted)",
+      "findings": [
+        {
+          "n": 13,
+          "authors": "LLVM Project",
+          "year": 2024,
+          "title": "Source Level Debugging with LLVM",
+          "id": "LLVM SourceLevelDebugging",
+          "url": "https://llvm.org/docs/SourceLevelDebugging.html",
+          "finding": "Analog: source AST objects map onto instruction ranges via debug metadata. Holds for discrete lyric/score tokens ↔ audio-frame spans under score-lock; limit: no continuous-time melisma or expressive lag.",
+          "implication": "Discrete lyric/score spans under score-lock."
+        },
+        {
+          "n": 14,
+          "authors": "Agrawal",
+          "year": 2022,
+          "title": "Towards Context-Aware Neural Performance-Score Synchronisation",
+          "id": "arXiv:2206.00454",
+          "url": "https://arxiv.org/abs/2206.00454",
+          "finding": "Analog: Needleman–Wunsch Time Warping / DTW map performance ↔ score with warps and jumps. Holds for monotonic lyric↔timeline alignment; limit: classic NW/DTW assume structural agreement.",
+          "implication": "NW/DTW only under structural agreement."
+        },
+        {
+          "n": 15,
+          "authors": "Mills et al. / IETF",
+          "year": 2010,
+          "title": "RFC 5905 NTPv4",
+          "id": "RFC 5905",
+          "url": "https://datatracker.ietf.org/doc/html/rfc5905",
+          "finding": "Analog: two clocks share a reference; undisciplined skew accumulates. Holds for jam startSec vs Seed Audio [start:end] as dual timelines.",
+          "implication": "Dual clocks: jam startSec vs seed [start:end]."
+        },
+        {
+          "n": 16,
+          "authors": "Waltemate et al.",
+          "year": 2016,
+          "title": "Impact of Latency on Perceptual Judgments… in VR",
+          "id": "Waltemate 2016",
+          "url": "https://ls7-gv.cs.tu-dortmund.de/publications/2016-latency.pdf",
+          "finding": "Analog: HCI simultaneity / agency thresholds; delays above ~75 ms worsen felt sync. Holds for practice-companion UX of lyric lock; limit: perceptual threshold ≠ phoneme-boundary / MFA error.",
+          "implication": "~75 ms UX threshold for lyric lock feel."
+        },
+        {
+          "n": 17,
+          "authors": "Hauck",
+          "year": 2020,
+          "title": "When are initial consonants articulated in choral performance?",
+          "id": "Hauck 2020",
+          "url": "https://musicperformanceresearch.org/wp-content/uploads/2020/12/MPR-0145-Hauck-copyedited_FINAL.pdf",
+          "finding": "Analog: music pedagogy — initial consonants nearly always anticipated; vowel on the beat; lengthenability + surroundings matter. Holds strongly for lyric-to-note craft.",
+          "implication": "Vowel-on-beat; consonants anticipate."
+        },
+        {
+          "n": 18,
+          "authors": "McAuliffe et al.",
+          "year": 2024,
+          "title": "Montreal Forced Aligner user guide",
+          "id": "MFA user guide",
+          "url": "https://montreal-forced-aligner.readthedocs.io/en/stable/user_guide/index.html",
+          "finding": "Analog: speech forced alignment (Kaldi GMM/HMM orthography→phones). Does not transfer cleanly to singing — speech pipeline applied to sung duration variance.",
+          "implication": "Leave MFA speech→singing caveats unverified as transfer."
+        },
+        {
+          "n": 19,
+          "authors": "Lamport",
+          "year": 2002,
+          "title": "Specifying Systems (TLA)",
+          "id": "TLA Specifying Systems",
+          "url": "https://lamport.azurewebsites.net/tla/book-01-11-10.pdf",
+          "finding": "Analog: verification — Spec = Init ∧ □[Next]; stuttering steps are unobservable. Partial hold: expressive microtiming as stuttering around a score Spec; limit: discrete state machines, no continuous F0.",
+          "implication": "Partial: stuttering ≠ continuous F0 continuum."
+        }
+      ]
+    }
+  ]
+}

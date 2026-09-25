@@ -1,0 +1,273 @@
+{
+  "kb": "training-knowledge",
+  "noun": "techniques",
+  "what": "Verified knowledge base of portable TRAINING CRAFT — methods, recipes, hyperparameter values, dataset & eval know-how — for training LoRAs / fine-tunes on the single RTX 5090 (Blackwell / Windows / WSL2) rig. The how-to-train layer between the weights (model-knowledge) and the software (tensor-engine-knowledge).",
+  "decisive_axis": "single-RTX-5090 training viability + reproducibility (fits 32 GB, commercial-clean output, complete replay provenance) — which method/recipe/data/eval you feed the engine and why, not which weights or which software.",
+  "waves": 16,
+  "generated": "2026-09-25",
+  "totals": {
+    "techniques": 204,
+    "verified": 101,
+    "sources": 432,
+    "domains": 13
+  },
+  "query": {
+    "db": "training.db (views v_recommended, v_best_for; FTS techniques_fts)",
+    "loadout": "ai-loadout resolve --project ./training-knowledge",
+    "per_domain": "readout-<slug>.html"
+  },
+  "reports": {
+    "dispatches": "waves.html",
+    "receipt": "verification.html"
+  },
+  "domains": [
+    {
+      "slug": "peft-methods",
+      "name": "PEFT methods & adapter theory",
+      "description": "Cross-cutting parameter-efficient fine-tuning theory both domains share — LoRA/QLoRA/DoRA/LoRA+/rsLoRA, diffusion LyCORIS (LoKr/LoHa/LoCon), LLM PiSSA/GaLore + merging. Rank vs alpha as a coupled scaling pair. Weights->model-knowledge; library-as-software->tensor-engine.",
+      "count": 37,
+      "verified": 6,
+      "top_pick": {
+        "name": "LoRA: rank and alpha as a coupled scaling pair (alpha/rank = effective-LR multiplier)",
+        "commercial_use": "yes"
+      },
+      "readout": "readout-peft-methods.html"
+    },
+    {
+      "slug": "diffusion-sdxl-lora",
+      "name": "SDXL style-LoRA recipes (priority)",
+      "description": "The studio #1 workload: full hyperparameter recipes for SDXL-family style LoRAs (kohya/ComfyUI as engine references only). rank+alpha, optimizer<->LR, booru-tag captioning + style-tag pruning, regularization, 1024px bucketing, repeats/epochs, min-SNR-gamma, per-rank quality signature.",
+      "count": 19,
+      "verified": 19,
+      "top_pick": {
+        "name": "AdamW8bit SDXL LoRA — MEASURED (no VRAM saving for LoRA; ~4% faster than fp32)",
+        "commercial_use": "yes"
+      },
+      "readout": "readout-diffusion-sdxl-lora.html"
+    },
+    {
+      "slug": "diffusion-flux-lora",
+      "name": "Flux-family style-LoRA recipes",
+      "description": "A SEPARATE recipe space from SDXL (flow-matching, not DDPM). Commercial-safe Apache-2.0 bases only (FLUX.2 [klein], Chroma1-HD); FLUX.1-dev/FLUX.2-dev are non-commercial and must not be a training base here. Higher rank, NL captions, frozen T5, fp8 base, no prior-preservation by default.",
+      "count": 14,
+      "verified": 14,
+      "top_pick": {
+        "name": "Chroma discrete_flow_shift sweep (1/3/6) — MEASURED (footprint-neutral; shift 6 marginally best fidelity; weakest lever)",
+        "commercial_use": "yes"
+      },
+      "readout": "readout-diffusion-flux-lora.html"
+    },
+    {
+      "slug": "dataset-caption",
+      "name": "Dataset construction & caption craft",
+      "description": "The inputs that drive outcome more than hyperparameters: curation/dedup, caption format keyed to base model, style-vs-subject pruning, regularization sets, real:synthetic discipline, and Datasheets-style license/provenance (commercial-clean gate). Captioner weights->model-knowledge; pipeline tooling->tensor-engine.",
+      "count": 17,
+      "verified": 11,
+      "top_pick": {
+        "name": "Augmentation safety policy (flip / random-crop / color) for style sets",
+        "commercial_use": "yes"
+      },
+      "readout": "readout-dataset-caption.html"
+    },
+    {
+      "slug": "llm-finetune",
+      "name": "Local LLM fine-tuning (SFT + preference + RL)",
+      "description": "24-34B at Q-quant on one 32 GB GPU: QLoRA-NF4 SFT + chat templates, then the preference/RL family selected by the DATA you have — DPO/ORPO/KTO/SimPO and GRPO/RLVR. Light reverse-KL/on-policy distillation lives here too.",
+      "count": 19,
+      "verified": 15,
+      "top_pick": {
+        "name": "DPO (LoRA) preference tuning (stage 2) — paired data, needs ref model",
+        "commercial_use": "conditional"
+      },
+      "readout": "readout-llm-finetune.html"
+    },
+    {
+      "slug": "efficiency",
+      "name": "Single-GPU efficiency & training-VRAM technique",
+      "description": "Fitting TRAINING on one 32 GB Blackwell GPU — the binding constraint, orthogonal to method choice. The training-VRAM arithmetic (optimizer-state + gradient + activation sizing) and the decision heuristics; paged/8-bit optimizers, gradient checkpointing/accumulation, FSDP2 CPU-offload, NF4 vs fp8 training. Measured peaks->tensor-engine; inference placement->docker-knowledge.",
+      "count": 12,
+      "verified": 5,
+      "top_pick": {
+        "name": "gradient_checkpointing is mandatory for lycoris.kohya LoRA on 32 GB (MEASURED 27.7 -> 14.5 GB)",
+        "commercial_use": "yes"
+      },
+      "readout": "readout-efficiency.html"
+    },
+    {
+      "slug": "evaluation",
+      "name": "Training evaluation & validation methodology",
+      "description": "How to attest a trained adapter with receipts. Diffusion STYLE eval (CMMD/HPSv2/PickScore/LPIPS + ai-eyes A/B, not DreamBooth subject metrics); LLM eval via pinned lm-eval-harness + a bias-controlled DIFFERENT-FAMILY judge. Never a bare FID/CLIP scalar. Eval tool-as-software->tensor-engine.",
+      "count": 44,
+      "verified": 11,
+      "top_pick": {
+        "name": "Diffusion style-fidelity eval panel — MEASURED (CLIP-sim + CMMD, n=20) on the wave-4 SDXL LoRAs",
+        "commercial_use": "yes"
+      },
+      "readout": "readout-evaluation.html"
+    },
+    {
+      "slug": "debugging",
+      "name": "Failure modes & debugging",
+      "description": "The symptom->cause->fix taxonomy that closes the recipe->result->fix loop, portable across engines: overfit/replication, frying/saturation, style-bleed, NaN/loss-spike, catastrophic forgetting, OOM-on-32GB, reward-hacking. Each maps back to the recipe field that causes and cures it. Engine-version crash receipts->tensor-engine.",
+      "count": 4,
+      "verified": 4,
+      "top_pick": {
+        "name": "Catastrophic forgetting: LoRA as the regularizer, plus the rank/effective-LR/replay levers",
+        "commercial_use": "yes"
+      },
+      "readout": "readout-debugging.html"
+    },
+    {
+      "slug": "diffusion-qwen-lora",
+      "name": "Diffusion Qwen Lora",
+      "description": "auto-created from wave lane",
+      "count": 5,
+      "verified": 5,
+      "top_pick": {
+        "name": "Clean (on-canon) dataset = no late embedding-cloud collapse — 3rd cross-run confirmation; pick the ship checkpoint by geometry, not CLIP-sim",
+        "commercial_use": "yes"
+      },
+      "readout": "readout-diffusion-qwen-lora.html"
+    },
+    {
+      "slug": "still-current",
+      "name": "Still Current",
+      "description": "auto-created from wave lane",
+      "count": 22,
+      "verified": 0,
+      "top_pick": {
+        "name": "Calendar Versioning (CalVer)",
+        "commercial_use": "check"
+      },
+      "readout": "readout-still-current.html"
+    },
+    {
+      "slug": "trl-grpo-mechanics",
+      "name": "Trl Grpo Mechanics",
+      "description": "auto-created from wave lane",
+      "count": 4,
+      "verified": 4,
+      "top_pick": {
+        "name": "clip_ratio is identically zero at the default num_iterations=1",
+        "commercial_use": "yes"
+      },
+      "readout": "readout-trl-grpo-mechanics.html"
+    },
+    {
+      "slug": "rl-measurement-methodology",
+      "name": "Rl Measurement Methodology",
+      "description": "auto-created from wave lane",
+      "count": 4,
+      "verified": 4,
+      "top_pick": {
+        "name": "Generations per item, not items, is usually the cheap lever on eval power",
+        "commercial_use": "yes"
+      },
+      "readout": "readout-rl-measurement-methodology.html"
+    },
+    {
+      "slug": "rlvr-sharpening-and-latent-capability",
+      "name": "Rlvr Sharpening And Latent Capability",
+      "description": "auto-created from wave lane",
+      "count": 3,
+      "verified": 3,
+      "top_pick": {
+        "name": "An RLVR pass-rate lift is not licensed to be called new capability",
+        "commercial_use": "yes"
+      },
+      "readout": "readout-rlvr-sharpening-and-latent-capability.html"
+    }
+  ],
+  "install_first": [
+    {
+      "name": "AdamW8bit SDXL LoRA — MEASURED (no VRAM saving for LoRA; ~4% faster than fp32)",
+      "domain": "SDXL style-LoRA recipes (priority)",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "Checkpoint selection — MEASURED: best != last (peak ~600, plateau 450-900; <=150 undertrains)",
+      "domain": "SDXL style-LoRA recipes (priority)",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "Chroma discrete_flow_shift sweep (1/3/6) — MEASURED (footprint-neutral; shift 6 marginally best fidelity; weakest lever)",
+      "domain": "Flux-family style-LoRA recipes",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "Chroma LoRA eval/inference on the rig — kohya samplers give NOISE; use flux_minimal_inference fp8 + REAL CFG (the scriptable path)",
+      "domain": "Flux-family style-LoRA recipes",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "Chroma LoRA rank/dim sweep (8/16/32) — MEASURED on the 5090 (size linear; higher rank binds the saturated palette more completely — unlike SDXL)",
+      "domain": "Flux-family style-LoRA recipes",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "Chroma1-HD base-swap style-LoRA (kohya flux_train_network --model_type chroma) — measured on the 5090",
+      "domain": "Flux-family style-LoRA recipes",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "Clean (on-canon) dataset = no late embedding-cloud collapse — 3rd cross-run confirmation; pick the ship checkpoint by geometry, not CLIP-sim",
+      "domain": "Diffusion Qwen Lora",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "clip_ratio is identically zero at the default num_iterations=1",
+      "domain": "Trl Grpo Mechanics",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "Diffusion style-fidelity eval panel — MEASURED (CLIP-sim + CMMD, n=20) on the wave-4 SDXL LoRAs",
+      "domain": "Training evaluation & validation methodology",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "DPO (LoRA) preference tuning (stage 2) — paired data, needs ref model",
+      "domain": "Local LLM fine-tuning (SFT + preference + RL)",
+      "commercial_use": "conditional"
+    },
+    {
+      "name": "fp8_base is REQUIRED for Chroma LoRA on 32 GB — bf16 + live T5 spills the card (MEASURED 31974 MiB / 34 s/it)",
+      "domain": "Flux-family style-LoRA recipes",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "Generations per item, not items, is usually the cheap lever on eval power",
+      "domain": "Rl Measurement Methodology",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "gradient_checkpointing is mandatory for lycoris.kohya LoRA on 32 GB (MEASURED 27.7 -> 14.5 GB)",
+      "domain": "Single-GPU efficiency & training-VRAM technique",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "min_snr_gamma 5 — MEASURED fidelity win for SDXL style-LoRA (+0.049 CLIP-sim, ~2.3 SEM)",
+      "domain": "SDXL style-LoRA recipes (priority)",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "Multi-concept repeat-balancing — MEASURED: distinct triggers protect own-fidelity; imbalance shows as cross-bleed, not collapse",
+      "domain": "SDXL style-LoRA recipes (priority)",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "Network-type choice for SDXL style — MEASURED 3-way (DoRA +52% time / LoKr 6 MB)",
+      "domain": "SDXL style-LoRA recipes (priority)",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "noise_offset 0.1 breaks the SDXL #165 blue-ceiling — MEASURED (+0.049 CLIP-sim, ~2.3 SEM); ztsnr neutral-to-worse on eps-pred SDXL",
+      "domain": "SDXL style-LoRA recipes (priority)",
+      "commercial_use": "yes"
+    },
+    {
+      "name": "Pooled eval statistics measure the item mix as well as the behaviour",
+      "domain": "Rl Measurement Methodology",
+      "commercial_use": "yes"
+    }
+  ]
+}

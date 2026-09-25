@@ -1,0 +1,1136 @@
+{
+  "bucket": "errors-panics",
+  "title": "Errors, panics & arithmetic safety",
+  "tier": "essentials",
+  "count": 10,
+  "recipes": [
+    {
+      "slug": "give-a-library-one-error-enum-per-failure-mode-and-let-convert-wrapped-causes-through-from",
+      "name": "Give a library one error enum per failure mode and let `?` convert wrapped causes through `From`",
+      "what": "`?` on `Err(e)` returns `Err(From::from(e))` from the enclosing function, so an error enum plus one `From` impl per wrapped cause turns each fallible call into a single `?`; since 1.81 the `Error` trait is also in `core::error`, so the same impl serves `#![no_std]` code.",
+      "how": "Write `enum LoadError { Parse(ParseIntError), TooManyBodies { n: u32, max: u32 } }`: one variant per condition a caller can act on, carrying the data it needs. Implement `Display` (concise, lowercase, no trailing punctuation), `Error` with `source()` returning the wrapped cause, and `impl From<ParseIntError> for LoadError`; then `s.parse::<u32>()?` converts on its own. A reporter walks the chain: `let mut cur = e.source(); while let Some(c) = cur { ...; cur = c.source(); }`. Where an `Option` meets a `Result` function, name the refusal as you convert: `handles[i].ok_or(Refusal::Carried { body: i })?` (the combinators themselves are the types-patterns lane's). In `#![no_std]` write `impl core::error::Error for T`; the compiler accepts that impl wherever `dyn std::error::Error` is asked for (check 1).",
+      "rust_version": "any; `Error::source` 1.30+; `core::error::Error` 1.81+",
+      "gotchas": "A missing `From` impl is E0277 (\"`?` couldn't convert the error to `LoadError`\"). `?` never converts between `Option` and `Result`, so a bare `None` carries no reason until `ok_or` names one. Put the wrapped error in `source()` or in the `Display` text, not both, or a chain report prints it twice. Do not use `()` as an error type: it implements neither `Error` nor `Display`, its `Debug` says nothing, and downstream crates cannot write a meaningful `From<()>`. `Error::description` (deprecated 1.42) and `Error::cause` (deprecated 1.33) are dead: implement `Display` and `source()`.",
+      "engine_note": "The solver has no error type yet: every refusal in rapier_law.rs (`signature`, `build_world`, `canon_quat`, `write_body`, `integrate`, `rebuild_snapshot`, `ensure`) is an `Option` or a `bool` that collapses into an export's `0`. A fieldless `Refusal` enum returned through `?` is the internal type the export recipe in this lane builds on; being `core`-only, it costs nothing on `wasm32-unknown-unknown`.",
+      "checks": [
+        {
+          "label": "`?` converts ParseIntError via From; source() chain walks; core impl serves dyn std Error",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "Some(7)\nworld has 65 bodies, the solver holds 64\nbody count is not an integer <- invalid digit found in string",
+          "source": "use std::error::Error;\nuse std::fmt;\nuse std::num::ParseIntError;\n\n#[derive(Debug)]\nenum LoadError {\n    Parse(ParseIntError),\n    TooManyBodies { n: u32, max: u32 },\n}\n\nimpl fmt::Display for LoadError {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        match self {\n            LoadError::Parse(_) => write!(f, \"body count is not an integer\"),\n            LoadError::TooManyBodies { n, max } => {\n                write!(f, \"world has {n} bodies, the solver holds {max}\")\n            }\n        }\n    }\n}\n\n// Implemented through core::error; used below as &dyn std::error::Error: one trait.\nimpl core::error::Error for LoadError {\n    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {\n        match self {\n            LoadError::Parse(e) => Some(e),\n            LoadError::TooManyBodies { .. } => None,\n        }\n    }\n}\n\nimpl From<ParseIntError> for LoadError {\n    fn from(e: ParseIntError) -> Self {\n        LoadError::Parse(e)\n    }\n}\n\nconst MAX_BODIES: u32 = 64;\n\nfn body_count(s: &str) -> Result<u32, LoadError> {\n    let n = s.parse::<u32>()?; // Err(e) leaves as Err(LoadError::from(e))\n    if n > MAX_BODIES {\n        return Err(LoadError::TooManyBodies { n, max: MAX_BODIES });\n    }\n    Ok(n)\n}\n\nfn report(e: &dyn Error) -> String {\n    let mut out = e.to_string();\n    let mut cur = e.source();\n    while let Some(cause) = cur {\n        out.push_str(\" <- \");\n        out.push_str(&cause.to_string());\n        cur = cause.source();\n    }\n    out\n}\n\nfn main() {\n    println!(\"{:?}\", body_count(\"7\").ok());\n    println!(\"{}\", report(&body_count(\"65\").unwrap_err()));\n    println!(\"{}\", report(&body_count(\"x7\").unwrap_err()));\n}\n"
+        },
+        {
+          "label": "without a From impl, `?` stops with E0277 \"couldn't convert the error\"",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "`?` couldn't convert the error to `LoadError`"
+          ],
+          "source": "use std::num::ParseIntError;\n\n#[derive(Debug)]\nenum LoadError {\n    Parse(ParseIntError),\n}\n\nfn body_count(s: &str) -> Result<u32, LoadError> {\n    let n = s.parse::<u32>()?; // no From<ParseIntError> for LoadError\n    Ok(n)\n}\n\nfn main() {\n    let _ = body_count(\"7\");\n}\n"
+        },
+        {
+          "label": "ok_or turns a missing Option value into a named refusal that carries its data",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "Ok(3)\nErr(Carried { body: 1 })",
+          "source": "#[derive(Debug)]\nenum Refusal {\n    Carried { body: usize },\n}\n\nfn handle_of(handles: &[Option<u32>], i: usize) -> Result<u32, Refusal> {\n    let h = handles[i].ok_or(Refusal::Carried { body: i })?;\n    Ok(h)\n}\n\nfn main() {\n    println!(\"{:?}\", handle_of(&[Some(3), None], 0));\n    println!(\"{:?}\", handle_of(&[Some(3), None], 1));\n}\n"
+        },
+        {
+          "label": "core::error::Error with source() works in a no_std wasm32v1-none module",
+          "edition": "2024",
+          "target": "wasm32v1-none",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "2",
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "chain_depth",
+            "args": []
+          },
+          "source": "#![no_std]\nuse core::fmt;\n\n#[derive(Debug)]\nstruct ZeroQuaternion;\n\nimpl fmt::Display for ZeroQuaternion {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        f.write_str(\"quaternion has zero length\")\n    }\n}\n\n#[derive(Debug)]\nstruct BodyRefused(ZeroQuaternion);\n\nimpl fmt::Display for BodyRefused {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        f.write_str(\"body refused\")\n    }\n}\n\nimpl core::error::Error for ZeroQuaternion {}\n\nimpl core::error::Error for BodyRefused {\n    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {\n        Some(&self.0)\n    }\n}\n\nfn depth(e: &dyn core::error::Error) -> u32 {\n    let mut n = 1;\n    let mut cur = e.source();\n    while let Some(c) = cur {\n        n += 1;\n        cur = c.source();\n    }\n    n\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn chain_depth() -> u32 {\n    depth(&BodyRefused(ZeroQuaternion))\n}\n\n#[panic_handler]\nfn panic(_: &core::panic::PanicInfo) -> ! {\n    loop {}\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference: Operator expressions (the question mark operator)",
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "For `Result<T, E>`, `?` evaluates `Ok(val)` to `val` and turns `Err(e)` into an early `return Err(From::from(e))`; for `Option`, `None` returns `None`."
+        },
+        {
+          "title": "core::error::Error (core docs, 1.98.1)",
+          "url": "https://doc.rust-lang.org/stable/core/error/trait.Error.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`core::error::Error` is available since 1.81.0; `source` (1.30.0) returns the lower-level cause; a wrapped error should be returned by `source()` or rendered by `Display`, not both; `description` is deprecated since 1.42.0 and `cause` since 1.33.0."
+        },
+        {
+          "title": "Announcing Rust 1.81.0",
+          "url": "https://blog.rust-lang.org/2024/09/05/Rust-1.81.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "1.81 stabilizes the `Error` trait in `core`, allowing its use in `#![no_std]` libraries."
+        },
+        {
+          "title": "The Rust Programming Language, 9.2 Recoverable Errors with Result",
+          "url": "https://doc.rust-lang.org/stable/book/ch09-02-recoverable-errors-with-result.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Errors passed through `?` go through `From::from`; `?` cannot mix `Result` and `Option`, and `ok` / `ok_or` do the conversion explicitly."
+        },
+        {
+          "title": "Rust API Guidelines: Interoperability (C-GOOD-ERR)",
+          "url": "https://rust-lang.github.io/api-guidelines/interoperability.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Public error types implement `std::error::Error`; `()` should never be an error type; error messages are lowercase without trailing punctuation."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "derive-library-error-enums-with-thiserror-2-use-anyhow-or-box-dyn-error-send-sync-only-in-binaries",
+      "name": "Derive library error enums with thiserror 2; use anyhow or `Box<dyn Error + Send + Sync>` only in binaries",
+      "what": "thiserror generates the `Display`, `Error::source` and `From` impls you would write by hand and stays out of your public API; anyhow gives application code one opaque error type with `.context()` layers and a cause-chain printer.",
+      "how": "Library: `#[derive(Debug, thiserror::Error)]` with one `#[error(\"...{n}...\")]` per variant (fields interpolate as `{n}`, `{0}`, `{n:?}`); `#[from]` on a variant whose only field is the cause generates `From` and implies `#[source]`; a field named `source` is the source automatically; `#[error(transparent)]` forwards `Display` and `source` to an inner error. Application or tool: return `anyhow::Result<T>`, add `.context(\"what was being attempted\")`, check with `ensure!`, print `{:#}` for `outer: cause` on one line. Without either dependency, `Box<dyn Error + Send + Sync + 'static>` takes any `E: Error + Send + Sync` through `?` and a `&str` or `String` through `.into()`.",
+      "rust_version": "thiserror 2.0.21, anyhow 1.0.104 (the oracle's pins)",
+      "gotchas": "A `#[from]` variant may hold no field besides the source (and possibly a backtrace). `anyhow::Error::new` requires `Send + Sync + 'static`; the error is one word wide. `{:?}` on an anyhow error prints a `Caused by:` block and includes a backtrace when one was captured, so never compare it byte for byte in a test. A plain `Box<dyn Error>` is not `Send`: returning it from `thread::spawn` is E0277 (\"`dyn std::error::Error` cannot be sent between threads safely\"). A library that returns `anyhow::Error` leaves its callers only `downcast_ref` to recover a type; that is where the thiserror/anyhow line falls.",
+      "engine_note": "Neither crate belongs in `solver/`: its loading and stepping exports report outcomes as `u32` 1/0 and the crate links only `rapier3d-f64`, so any new dependency there is a change to review against the pinned digest in `fixtures/solver.sha256`. thiserror fits a future native crate around the law (a host binding, a scene loader); anyhow fits Rust-side tools.",
+      "checks": [
+        {
+          "label": "thiserror derive: #[error] Display, #[from] gives From + source, ok_or refusal",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "thiserror",
+            "serde_json"
+          ],
+          "expect": "runs",
+          "stdout": "Some(3)\nworld has 65 bodies, the solver holds 64 | source: None\nscene has no integer `bodies` field | source: None\nscene file is not valid JSON | has source: true",
+          "source": "use std::error::Error as _;\n\n#[derive(Debug, thiserror::Error)]\nenum SceneError {\n    #[error(\"world has {n} bodies, the solver holds {max}\")]\n    TooManyBodies { n: u64, max: u64 },\n    #[error(\"scene has no integer `bodies` field\")]\n    MissingCount,\n    #[error(\"scene file is not valid JSON\")]\n    Json(#[from] serde_json::Error),\n}\n\nfn load(text: &str) -> Result<u64, SceneError> {\n    let v: serde_json::Value = serde_json::from_str(text)?;\n    let n = v[\"bodies\"].as_u64().ok_or(SceneError::MissingCount)?;\n    if n > 64 {\n        return Err(SceneError::TooManyBodies { n, max: 64 });\n    }\n    Ok(n)\n}\n\nfn main() {\n    println!(\"{:?}\", load(r#\"{\"bodies\": 3}\"#).ok());\n    let e = load(r#\"{\"bodies\": 65}\"#).unwrap_err();\n    println!(\"{e} | source: {:?}\", e.source().map(|s| s.to_string()));\n    let e = load(\"{}\").unwrap_err();\n    println!(\"{e} | source: {:?}\", e.source().map(|s| s.to_string()));\n    let e = load(\"{\").unwrap_err();\n    println!(\"{e} | has source: {}\", e.source().is_some());\n}\n"
+        },
+        {
+          "label": "anyhow: {} prints the context, {:#} joins causes with ': ', downcast finds the cause",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "anyhow"
+          ],
+          "expect": "runs",
+          "stdout": "body count is not an integer\nbody count is not an integer: invalid digit found in string\ntrue\nworld has 65 bodies, the solver holds 64",
+          "source": "use anyhow::{ensure, Context, Result};\n\nfn body_count(s: &str) -> Result<u32> {\n    let n: u32 = s.parse().context(\"body count is not an integer\")?;\n    ensure!(n <= 64, \"world has {n} bodies, the solver holds 64\");\n    Ok(n)\n}\n\nfn main() {\n    let e = body_count(\"x7\").unwrap_err();\n    println!(\"{e}\");\n    println!(\"{e:#}\");\n    println!(\"{}\", e.downcast_ref::<std::num::ParseIntError>().is_some());\n    println!(\"{:#}\", body_count(\"65\").unwrap_err());\n}\n"
+        },
+        {
+          "label": "Box<dyn Error> without Send cannot come back from thread::spawn (E0277)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "`dyn std::error::Error` cannot be sent between threads safely"
+          ],
+          "source": "use std::error::Error;\n\nfn work() -> Result<u32, Box<dyn Error>> {\n    Err(\"no world loaded\".into())\n}\n\nfn main() {\n    let h = std::thread::spawn(|| work());\n    println!(\"{}\", h.join().unwrap().is_err());\n}\n"
+        },
+        {
+          "label": "Box<dyn Error + Send + Sync> takes ParseIntError via ? and a String via into, across threads",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "world has 65 bodies, the solver holds 64\ninvalid digit found in string",
+          "source": "use std::error::Error;\n\ntype BoxError = Box<dyn Error + Send + Sync + 'static>;\n\nfn body_count(s: &str) -> Result<u32, BoxError> {\n    let n: u32 = s.parse()?; // ParseIntError: Error + Send + Sync\n    if n > 64 {\n        return Err(format!(\"world has {n} bodies, the solver holds 64\").into());\n    }\n    Ok(n)\n}\n\nfn main() {\n    let h = std::thread::spawn(|| body_count(\"65\"));\n    println!(\"{}\", h.join().unwrap().unwrap_err());\n    println!(\"{}\", body_count(\"x7\").unwrap_err());\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "thiserror 2.0.21 (docs.rs)",
+          "url": "https://docs.rs/thiserror/2.0.21/thiserror/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`#[error(\"...\")]` generates `Display` with `{var}`/`{0}`/`{var:?}` interpolation; `source()` returns the `#[source]` field or a field named `source`; `#[from]` generates `From` and always implies `#[source]`, and its variant may hold no other field beyond the source (and possibly a backtrace); `#[error(transparent)]` forwards `source` and `Display`."
+        },
+        {
+          "title": "thiserror README at tag 2.0.21",
+          "url": "https://raw.githubusercontent.com/dtolnay/thiserror/2.0.21/README.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Thiserror deliberately does not appear in your public API, switching between hand-written impls and thiserror is not a breaking change, and it is the choice when you design dedicated error types for callers while anyhow is for when you do not care which error type is returned."
+        },
+        {
+          "title": "anyhow 1.0.104 (docs.rs, crate root)",
+          "url": "https://docs.rs/anyhow/1.0.104/anyhow/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "anyhow is a trait-object-based error type for applications: return `anyhow::Result<T>`, attach `.context()` / `.with_context()`, and use `anyhow!`, `bail!` and `ensure!`."
+        },
+        {
+          "title": "anyhow 1.0.104: struct Error",
+          "url": "https://docs.rs/anyhow/1.0.104/anyhow/struct.Error.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`{}` prints only the outermost error or context, `{:#}` appends the causes, `{:?}` prints a `Caused by:` list plus any captured backtrace and is what `fn main` prints; `Error::new` requires `Send + Sync + 'static`; the error is a narrow pointer, one word in size."
+        },
+        {
+          "title": "std::boxed::Box (std docs, 1.98.1)",
+          "url": "https://doc.rust-lang.org/stable/std/boxed/struct.Box.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`Box<dyn Error + Send + Sync>` implements `From<E>` for `E: Error + Send + Sync`, and `From<&str>` and `From<String>`, so `?` and `.into()` build it."
+        },
+        {
+          "title": "Rust API Guidelines: Interoperability (C-GOOD-ERR)",
+          "url": "https://rust-lang.github.io/api-guidelines/interoperability.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Error types should be `Send` and `Sync`: without `Send` an error cannot be returned by a thread spawned with `thread::spawn`, without `Sync` it cannot be shared through `Arc`."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "return-result-e-debug-from-main-an-err-is-printed-as-error-err-and-the-process-exits-1",
+      "name": "Return `Result<(), E: Debug>` from `main`: an `Err` is printed as `Error: {err:?}` and the process exits 1",
+      "what": "`main` may return any `Termination` type; for `Result<T, E>` with `E: Debug`, `Err(e)` is Debug-printed to stderr as `Error: ...` and reported as `ExitCode::FAILURE` (status 1 on this host), and `ExitCode::from(n)` sets an exact status.",
+      "how": "Tools: `fn main() -> anyhow::Result<()>` or `-> Result<(), Box<dyn Error + Send + Sync>>`, with `?` all the way up. Because `main` prints with `{:?}`, give the error a readable `Debug` (anyhow's `Debug` is its `Caused by:` report) or print the `Display` yourself and return an `ExitCode`. Use `fn main() -> ExitCode` with fixed values when a script or CI step branches on the status (for example 2 = input refused).",
+      "rust_version": "`Termination` 1.61+",
+      "gotchas": "The printed form is `Debug`, not `Display`: a derived `Debug` prints `TooManyBodies { n: 65, max: 64 }`. An error type without `Debug` cannot be returned from `main` (E0277, \"doesn't implement `Debug`\"). Under the default unwind strategy an uncaught panic exits with status 101 (measured by the checks of the `expect` recipe), not 1, so a harness can tell a refusal from a crash.",
+      "engine_note": "",
+      "checks": [
+        {
+          "label": "main returning Err: stdout keeps what was printed, the process exits with status 1",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "loading",
+          "exit_code": 1,
+          "source": "#[derive(Debug)]\nenum SceneError {\n    TooManyBodies { n: u32, max: u32 },\n}\n\nfn main() -> Result<(), SceneError> {\n    println!(\"loading\");\n    Err(SceneError::TooManyBodies { n: 65, max: 64 })\n}\n"
+        },
+        {
+          "label": "main returning ExitCode::from(2) exits with exactly 2",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "input refused",
+          "exit_code": 2,
+          "source": "use std::process::ExitCode;\n\nfn main() -> ExitCode {\n    let refused = true;\n    if refused {\n        println!(\"input refused\");\n        return ExitCode::from(2);\n    }\n    ExitCode::SUCCESS\n}\n"
+        },
+        {
+          "label": "an error type without Debug cannot be returned from main (E0277)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "doesn't implement `Debug`"
+          ],
+          "source": "struct Opaque;\n\nfn main() -> Result<(), Opaque> {\n    Ok(())\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "std::process::Termination (std docs, 1.98.1)",
+          "url": "https://doc.rust-lang.org/stable/std/process/trait.Termination.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`main` may return any `Termination` type (stable 1.61.0); for `Result<T, E>` with `T: Termination, E: Debug`, `Err(err)` is printed with Debug formatting to stderr as `Error: {err:?}` and `ExitCode::FAILURE` is returned."
+        },
+        {
+          "title": "The Rust Programming Language, 9.2 Recoverable Errors with Result",
+          "url": "https://doc.rust-lang.org/stable/book/ch09-02-recoverable-errors-with-result.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "When `main` returns `Result<(), E>`, the executable exits with 0 on `Ok(())` and with a nonzero value on `Err`; `main` may return any type implementing `std::process::Termination`."
+        },
+        {
+          "title": "anyhow 1.0.104: struct Error",
+          "url": "https://docs.rs/anyhow/1.0.104/anyhow/struct.Error.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The `{:?}` representation, with its `Caused by:` list, is what you get by default when an anyhow error is returned from `fn main`."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "use-expect-with-a-should-message-only-for-invariants-the-compiler-can-t-see-return-result-for-input",
+      "name": "Use `expect` with a 'should' message only for invariants the compiler can't see; return `Result` for input",
+      "what": "A panic is for a broken invariant or contract (a bug) and a `Result` for an anticipated failure; `expect(\"... should ...\")` records why a value is guaranteed, while bare `unwrap()` panics with no reason attached.",
+      "how": "Default to returning `Result` from anything that can fail on its inputs. Keep `unwrap`/`expect` for tests, prototypes and facts established elsewhere in the code, and phrase the message as a precondition, `.expect(\"a plan should exist for every kinematic body with a handle\")`, the style the std docs recommend over describing the failure. `Result::expect` appends the error's `Debug` (`msg: ParseIntError { kind: InvalidDigit }`); `Option::unwrap` says only \"called `Option::unwrap()` on a `None` value\". Document a function's panicking contract in its docs.",
+      "rust_version": "any",
+      "gotchas": "In the wasm build an `expect` message reaches no one: `println!` does nothing on `wasm32-unknown-unknown`, the module has no import to print through, and the panic is an abort, so the text serves native runs only. Data that arrives through an export is input: refuse it, never `expect` it. Every `unwrap` left in an export path is a latent trap.",
+      "engine_note": "`integrate` in rapier_law.rs holds the solver's only explicit panic site: `plans.iter().find(|plan| plan.index == i).unwrap()` (line 561 at `e5fbcb9`). The invariant holds (every kinematic body with a handle either pushes a plan or makes `integrate` return `false` first), so give it a precondition message, or remove the lookup by recording each plan's position when it is pushed; under `panic = \"abort\"` in wasm a failure is a trap either way.",
+      "checks": [
+        {
+          "label": "expect's precondition message is the panic payload (exit 101 under unwind)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "hook: a plan should exist for every kinematic body with a handle",
+          "exit_code": 101,
+          "source": "fn main() {\n    std::panic::set_hook(Box::new(|info| {\n        println!(\"hook: {}\", info.payload_as_str().unwrap_or(\"<non-string payload>\"));\n    }));\n    let plan_bodies: Vec<usize> = vec![0, 2];\n    let body = 1;\n    let plan = plan_bodies\n        .iter()\n        .position(|&index| index == body)\n        .expect(\"a plan should exist for every kinematic body with a handle\");\n    println!(\"plan {plan}\");\n}\n"
+        },
+        {
+          "label": "Option::unwrap panics with a generic message that names no reason",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "hook: called `Option::unwrap()` on a `None` value",
+          "exit_code": 101,
+          "source": "fn main() {\n    std::panic::set_hook(Box::new(|info| {\n        println!(\"hook: {}\", info.payload_as_str().unwrap_or(\"<non-string payload>\"));\n    }));\n    let plan_bodies: Vec<usize> = vec![0, 2];\n    let plan = plan_bodies.iter().position(|&index| index == 1).unwrap();\n    println!(\"plan {plan}\");\n}\n"
+        },
+        {
+          "label": "Result::expect appends the error's Debug to the message",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "hook: the scene's body count should be an integer: ParseIntError { kind: InvalidDigit }",
+          "exit_code": 101,
+          "source": "fn main() {\n    std::panic::set_hook(Box::new(|info| {\n        println!(\"hook: {}\", info.payload_as_str().unwrap_or(\"<non-string payload>\"));\n    }));\n    let text = std::hint::black_box(\"7x\");\n    let n: u32 = text.parse().expect(\"the scene's body count should be an integer\");\n    println!(\"{n}\");\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Programming Language, 9.3 To panic! or Not to panic!",
+          "url": "https://doc.rust-lang.org/stable/book/ch09-03-to-panic-or-not-to-panic.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Panic when an assumption, guarantee, contract or invariant is broken; returning `Result` is a good default for functions that might fail; `unwrap`/`expect` suit examples, prototypes and tests, and `expect` is acceptable with a documented reason when other logic guarantees `Ok`."
+        },
+        {
+          "title": "std::error module docs (1.98.1)",
+          "url": "https://doc.rust-lang.org/stable/std/error/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Rust has a panic system for bugs and an error system (`Result`, `Error`, `?`, `Termination`) for anticipated failures; `expect` messages are best written in the 'expect as precondition' style built around the word 'should'."
+        },
+        {
+          "title": "rustc book: wasm32-unknown-unknown",
+          "url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "On `wasm32-unknown-unknown` many parts of std do not work: `println!` does nothing and `std::fs` always returns errors."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "make-refusals-impossible-to-drop-silently-result-is-must-use-option-and-bool-are-not",
+      "name": "Make refusals impossible to drop silently: `Result` is `#[must_use]`, `Option<()>` and `bool` are not",
+      "what": "Discarding a `Result` in an expression statement fires `unused_must_use`, but a refusal returned as `Option<()>`, `bool` or a bare integer compiles with no warning unless the function itself is `#[must_use]`.",
+      "how": "Return internal refusals as `Result<(), Refusal>` with an inhabited `Refusal` enum, or put `#[must_use = \"a false return is a refusal and must reach the export\"]` on each function that reports status through `bool` or `u32`. Promote the lint to an error in CI with `-D unused_must_use`. Discard on purpose with `let _ = f();`, the idiom the Reference names.",
+      "rust_version": "any",
+      "gotchas": "The function-based check looks only at an expression statement whose expression is the call: wrapping the call, as in `Some(f())` or `(f(),)`, suppresses it (Reference). `Result<(), E>` with an uninhabited `E` such as `Infallible` is exempt (Reference; check 2). `#[must_use]` on a function in a trait impl does nothing; put it on the trait's declaration.",
+      "engine_note": "Today every caller of `rebuild_snapshot`, `integrate`, `write_body` and `ensure` in rapier_law.rs checks the returned `bool` (`rebuild_snapshot`'s callers since `6a33297`), but nothing makes the next caller check: `rebuild_snapshot(loaded, &mut solver.snapshot);` would compile silently and leave a half-built snapshot (the function clears `out` before it can refuse). `#[must_use]` on those four, or a `Result<(), Refusal>` return, turns that into a warning.",
+      "checks": [
+        {
+          "label": "a dropped Result fires unused_must_use (warn by default)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compiles",
+          "lints": [
+            "unused_must_use"
+          ],
+          "stderr_contains": [
+            "unused `Result` that must be used"
+          ],
+          "source": "#[derive(Debug)]\nenum Refusal {\n    BadQuaternion,\n}\n\nfn rebuild_snapshot(ok: bool) -> Result<(), Refusal> {\n    if ok { Ok(()) } else { Err(Refusal::BadQuaternion) }\n}\n\nfn main() {\n    rebuild_snapshot(false);\n}\n"
+        },
+        {
+          "label": "a dropped Option<()>, bool, u32 or Result<(), Infallible> compiles with no warning at all",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "fn canon_quat_ok(n: f64) -> Option<()> {\n    if n > 0.0 { Some(()) } else { None }\n}\n\nfn write_body(x: f64) -> bool {\n    !x.is_nan()\n}\n\nfn solver_load(ok: bool) -> u32 {\n    ok as u32\n}\n\nfn never_fails() -> Result<(), std::convert::Infallible> {\n    Ok(())\n}\n\nfn main() {\n    canon_quat_ok(0.0);   // a refusal as Option<()>, dropped: no warning\n    write_body(f64::NAN); // a refusal as bool, dropped: no warning\n    solver_load(false);   // a 0 status as u32, dropped: no warning\n    never_fails();        // uninhabited error type: exempt from the lint\n}\n"
+        },
+        {
+          "label": "#[must_use = \"...\"] on a bool-returning fn makes the dropped status warn with the message",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compiles",
+          "lints": [
+            "unused_must_use"
+          ],
+          "stderr_contains": [
+            "unused return value of `rebuild_snapshot` that must be used",
+            "a false return is a refusal and must reach the export"
+          ],
+          "source": "#[must_use = \"a false return is a refusal and must reach the export\"]\nfn rebuild_snapshot(ok: bool) -> bool {\n    ok\n}\n\nfn main() {\n    rebuild_snapshot(false);\n}\n"
+        },
+        {
+          "label": "-D unused_must_use turns a dropped Result into a build error",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-D",
+            "unused_must_use"
+          ],
+          "expect": "compile_fail",
+          "stderr_contains": [
+            "unused `Result` that must be used"
+          ],
+          "source": "#[derive(Debug)]\nstruct Refusal;\n\nfn integrate(ok: bool) -> Result<(), Refusal> {\n    if ok { Ok(()) } else { Err(Refusal) }\n}\n\nfn main() {\n    integrate(false);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference: Diagnostic attributes (must_use)",
+          "url": "https://doc.rust-lang.org/stable/reference/attributes/diagnostics.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "`must_use` on a type fires `unused_must_use` when an expression statement has that type, on a function when an expression statement is a call to it; `Result<(), E>` with uninhabited `E` is exempt; wrapping a call suppresses the function-based check; `#[must_use]` on a trait-impl function has no effect; `let _ = f();` is the idiom for a deliberate discard."
+        },
+        {
+          "title": "std::result module docs (1.98.1)",
+          "url": "https://doc.rust-lang.org/stable/std/result/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`Result` is annotated `#[must_use]`, so the compiler warns (via the `unused_must_use` lint) when a `Result` value is ignored."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "know-what-panic-abort-changes-the-hook-still-runs-then-no-unwinding-no-drop-nothing-to-catch",
+      "name": "Know what `panic = \"abort\"` changes: the hook still runs, then no unwinding, no `Drop`, nothing to catch",
+      "what": "Under the abort strategy a panic calls the panic hook and then ends the process: destructors do not run and `catch_unwind`, which catches only unwinding panics, gets nothing; `wasm32-unknown-unknown` compiles with `-C panic=abort` by default and its abort is a trap.",
+      "how": "Read a target's strategy with `rustc --print cfg --target <triple>` (1.98.1: `panic=\"abort\"` on `wasm32-unknown-unknown` and `wasm32v1-none`, `panic=\"unwind\"` on the x86_64 Windows host) or `cfg!(panic = \"abort\")` in code. Use `catch_unwind` only at a boundary that must survive a bug under `unwind`, and wrap captured `&mut` state in `AssertUnwindSafe` knowingly. Report expected failures with `Result`; the std docs say `catch_unwind` is not a general try/catch.",
+      "rust_version": "any; `-C panic=immediate-abort` is listed in the rustc book but 1.98.1 rejects it on stable (\"requires `-Zunstable-options` and a nightly compiler\", measured)",
+      "gotchas": "`cargo test` and benches ignore the profile's `panic` setting because the test harness requires unwind, so a `#[should_panic]` test passes natively while the same panic aborts in the release artifact. On this Windows host an abort ends the process through `__fastfail` with status 0xC0000409 (3221226505), not 101. The `catch_unwind` closure must be `UnwindSafe`: capturing `&mut` is E0277 (\"may not be safely transferred across an unwind boundary\"). Dropping the `Err` payload of `catch_unwind` can itself panic, and catching a foreign exception has unspecified behaviour.",
+      "engine_note": "`solver/Cargo.toml` sets `panic = \"abort\"`, which restates the `wasm32-unknown-unknown` default. In that build std's abort is `core::intrinsics::abort()`, which node reports as `WebAssembly.RuntimeError: unreachable` (measured on a 1.98.1 module; the JS API maps a trap to `RuntimeError`). No `Drop` runs, so a panic partway through `solver_step` can leave `SOLVER` and the `static mut` buffers half-written, and the instance still answers later calls (measured), so the JS side must treat any trap as fatal and re-instantiate (depth: wasm-raw-abi). A native build of the law for a Godot or Unreal host under this profile would end the editor process on any panic.",
+      "checks": [
+        {
+          "label": "unwind (host default): hook runs, Drop runs during unwinding, catch_unwind returns Err",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "hook ran\ndrop ran\ncaught: true",
+          "source": "struct Guard;\n\nimpl Drop for Guard {\n    fn drop(&mut self) {\n        println!(\"drop ran\");\n    }\n}\n\nfn main() {\n    std::panic::set_hook(Box::new(|_| println!(\"hook ran\")));\n    let r = std::panic::catch_unwind(|| {\n        let _g = Guard;\n        panic!(\"boom\");\n    });\n    println!(\"caught: {}\", r.is_err());\n}\n"
+        },
+        {
+          "label": "-C panic=abort, Windows host: hook runs, then no Drop, no catch; status 0xC0000409",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "panic=abort"
+          ],
+          "expect": "runs",
+          "stdout": "hook ran",
+          "exit_code": 3221226505,
+          "source": "struct Guard;\n\nimpl Drop for Guard {\n    fn drop(&mut self) {\n        println!(\"drop ran\");\n    }\n}\n\nfn main() {\n    std::panic::set_hook(Box::new(|_| println!(\"hook ran\")));\n    let r = std::panic::catch_unwind(|| {\n        let _g = Guard;\n        panic!(\"boom\");\n    });\n    println!(\"caught: {}\", r.is_err());\n}\n"
+        },
+        {
+          "label": "cfg!(panic = \"abort\") is true under -C panic=abort",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "panic=abort"
+          ],
+          "expect": "runs",
+          "stdout": "abort",
+          "source": "fn main() {\n    let strategy = if cfg!(panic = \"abort\") { \"abort\" } else { \"unwind\" };\n    println!(\"{strategy}\");\n}\n"
+        },
+        {
+          "label": "wasm32-unknown-unknown is abort with no -C panic flag; the module imports nothing",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_exports": [
+            "memory",
+            "strategy_is_abort",
+            "get"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "strategy_is_abort",
+            "args": []
+          },
+          "source": "static mut BODIES: [f64; 4] = [0.0; 4];\n\n#[no_mangle]\npub extern \"C\" fn strategy_is_abort() -> u32 {\n    cfg!(panic = \"abort\") as u32\n}\n\n#[no_mangle]\npub extern \"C\" fn get(i: u32) -> f64 {\n    let bodies = unsafe { &*core::ptr::addr_of!(BODIES) };\n    bodies[i as usize] // an out-of-range i panics; under abort that is a trap\n}\n"
+        },
+        {
+          "label": "catch_unwind requires UnwindSafe: capturing &mut is E0277",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "may not be safely transferred across an unwind boundary"
+          ],
+          "source": "fn main() {\n    let mut steps = 0u32;\n    let r = std::panic::catch_unwind(|| {\n        steps += 1;\n    });\n    println!(\"{} {}\", r.is_ok(), steps);\n}\n"
+        },
+        {
+          "label": "AssertUnwindSafe is the explicit opt-in that compiles",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "true 1",
+          "source": "use std::panic::{catch_unwind, AssertUnwindSafe};\n\nfn main() {\n    let mut steps = 0u32;\n    let r = catch_unwind(AssertUnwindSafe(|| {\n        steps += 1;\n    }));\n    println!(\"{} {}\", r.is_ok(), steps);\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference: Panic",
+          "url": "https://doc.rust-lang.org/stable/reference/panic.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "The panic strategy is chosen with `-C panic`; `unwind` unwinds the stack and is potentially recoverable, `abort` aborts the process and is non-recoverable; while unwinding, live values' `Drop` impls run."
+        },
+        {
+          "title": "std::panic::catch_unwind (std docs, 1.98.1)",
+          "url": "https://doc.rust-lang.org/stable/std/panic/fn.catch_unwind.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`catch_unwind` requires `F: FnOnce() -> R + UnwindSafe`, catches only unwinding panics and not those that abort the process, runs a custom panic hook before the panic is caught, is not recommended as a general try/catch, may panic again when its `Err` payload is dropped, and has unspecified behaviour for foreign exceptions."
+        },
+        {
+          "title": "std::process::abort (std docs, 1.98.1)",
+          "url": "https://doc.rust-lang.org/stable/std/process/fn.abort.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "An abort runs no destructors on any thread's stack; with `panic=\"abort\"`, `panic!` behaves like `abort` except that `panic!` still calls the panic hook."
+        },
+        {
+          "title": "rustc book: wasm32-unknown-unknown",
+          "url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "By default the `wasm32-unknown-unknown` target is compiled with `-Cpanic=abort`; `-Cpanic=unwind` needs a nightly rebuild of std."
+        },
+        {
+          "title": "The Cargo Book: Profiles",
+          "url": "https://doc.rust-lang.org/stable/cargo/reference/profiles.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Tests, benchmarks, build scripts and proc macros ignore the `panic` setting because the rustc test harness requires `unwind`; the release profile's default is `panic = 'unwind'`, where the actual value depends on the target."
+        },
+        {
+          "title": "rustc book: Codegen options (-C panic)",
+          "url": "https://doc.rust-lang.org/stable/rustc/codegen-options/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`-C panic` takes `abort`, `immediate-abort` or `unwind`; if not specified the default depends on the target, and if any crate uses `abort` the final binary must use `abort`."
+        },
+        {
+          "title": "rust-lang/rust at tag 1.98.1: library/std/src/sys/pal/windows/mod.rs",
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/std/src/sys/pal/windows/mod.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "On Windows, std's `abort_internal` uses `__fastfail` (`int 0x29` with `FAST_FAIL_FATAL_APP_EXIT` on x86/x86_64), terminating the process without running in-process exception handlers on Windows 8 and later."
+        },
+        {
+          "title": "rust-lang/rust at tag 1.98.1: library/std/src/sys/pal/unsupported/common.rs",
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/std/src/sys/pal/unsupported/common.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "The unsupported-platform `abort_internal`, which the wasm platform module re-exports, is `core::intrinsics::abort()`."
+        },
+        {
+          "title": "rust-lang/rust at tag 1.98.1: library/std/src/sys/pal/wasm/mod.rs",
+          "url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/std/src/sys/pal/wasm/mod.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "The wasm/web platform module (not emscripten or WASI) includes `../unsupported/common.rs` and re-exports its items."
+        },
+        {
+          "title": "core::intrinsics::abort (core docs, 1.98.1)",
+          "url": "https://doc.rust-lang.org/stable/core/intrinsics/fn.abort.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The current implementation of `intrinsics::abort` invokes an invalid instruction on most platforms; the precise behaviour is not guaranteed."
+        },
+        {
+          "title": "WebAssembly JavaScript Interface (W3C spec)",
+          "url": "https://webassembly.github.io/spec/js-api/",
+          "year": 2026,
+          "kind": "spec",
+          "identifier": "",
+          "claim": "When an exported function's invocation returns an error (a trap), the caller throws an exception that should be a WebAssembly `RuntimeError`."
+        },
+        {
+          "title": "The Rust Programming Language, 9.1 Unrecoverable Errors with panic!",
+          "url": "https://doc.rust-lang.org/stable/book/ch09-01-unrecoverable-errors-with-panic.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Unwinding walks back up the stack cleaning up each function's data; `panic = 'abort'` in `[profile.release]` ends the program without cleaning up and can make the binary smaller."
+        }
+      ],
+      "background_sources": [
+        {
+          "title": "Microsoft Learn: __fastfail",
+          "url": "https://learn.microsoft.com/en-us/cpp/intrinsics/fastfail",
+          "year": 2019,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "User-mode fast-fail requests appear as a non-continuable exception with code 0xC0000409 and run no exception handlers; native support began in Windows 8.",
+          "retrieved": true
+        }
+      ]
+    },
+    {
+      "slug": "under-overflow-checks-false-negation-abs-and-shifts-wrap-and-indexing-still-panic",
+      "name": "Under `overflow-checks = false`, `+ - *`, negation, `abs` and shifts wrap; `/ %` and indexing still panic",
+      "what": "With overflow checks off (Cargo's release default and the solver's profile) arithmetic overflow wraps in two's complement and an oversized shift amount is masked, but division by zero, `MIN / -1`, `MIN % -1` and out-of-bounds indexing panic in every build.",
+      "how": "Know the switches: `-C overflow-checks` defaults to follow `-C debug-assertions`, which is on only at opt-level 0, so plain `rustc` and `cargo test` panic where `-O` and `cargo build --release` wrap. Overflow and panics the compiler can evaluate at build time stop the build even with checks off: `arithmetic_overflow` and `unconditional_panic` are deny-by-default. Guard widths and mask sizes at compile time with `const _: () = assert!(MAX_BODIES <= 64, \"...\");`.",
+      "rust_version": "any",
+      "gotchas": "Treat wrapped overflow as a bug the release build hides: the Reference calls it erroneous, and the test build panics on it. RFC 560's text says shift amounts are \"unconditionally masked\"; rustc 1.98.1 panics on `1u64 << 64` with checks on (check 3) and returns 1 with them off (check 1), which is what the current Reference's overflow list implies. `-C overflow-checks=off` does not remove bounds checks: indexing is a separate panic (check 4).",
+      "engine_note": "`signature()` in rapier_law.rs sets `driven |= 1u64 << i` and `carried |= 1u64 << i` for `i < n_bodies <= MAX_BODIES = 64`, so the largest shift is 63. If MAX_BODIES ever passes 64, the shift by 64 is masked to a shift by 0 under this profile (check 1: `1u64 << 64 == 1`), and body 64 would silently share body 0's bit instead of being refused; `const _: () = assert!(MAX_BODIES <= 64);` next to the constant pins it. Bounds checks stay on regardless: `step()` refuses `n_bodies > MAX_BODIES` before it indexes, so a bad count returns 0 instead of trapping inside `field()`.",
+      "checks": [
+        {
+          "label": "-C overflow-checks=off: u8 add, shift by 64, i32::MIN.abs() and -MIN all wrap",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=off"
+          ],
+          "expect": "runs",
+          "stdout": "0 1 -2147483648 -2147483648",
+          "source": "use std::hint::black_box;\n\nfn main() {\n    let a: u8 = black_box(255);\n    let shift: u32 = black_box(64);\n    let m: i32 = black_box(i32::MIN);\n    println!(\"{} {} {} {}\", a + 1, 1u64 << shift, m.abs(), -m);\n}\n"
+        },
+        {
+          "label": "-O alone (debug-assertions off, so overflow checks off) wraps the same way",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-O"
+          ],
+          "expect": "runs",
+          "stdout": "0 1 -2147483648 -2147483648",
+          "source": "use std::hint::black_box;\n\nfn main() {\n    let a: u8 = black_box(255);\n    let shift: u32 = black_box(64);\n    let m: i32 = black_box(i32::MIN);\n    println!(\"{} {} {} {}\", a + 1, 1u64 << shift, m.abs(), -m);\n}\n"
+        },
+        {
+          "label": "-C overflow-checks=on: the same add, shift by 64, abs(MIN) and -MIN each panic",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=on"
+          ],
+          "expect": "runs",
+          "stdout": "true true true true",
+          "source": "use std::hint::black_box;\nuse std::panic::catch_unwind;\n\nfn main() {\n    std::panic::set_hook(Box::new(|_| {}));\n    let a: u8 = black_box(255);\n    let shift: u32 = black_box(64);\n    let m: i32 = black_box(i32::MIN);\n    println!(\n        \"{} {} {} {}\",\n        catch_unwind(|| a + 1).is_err(),\n        catch_unwind(|| 1u64 << shift).is_err(),\n        catch_unwind(|| m.abs()).is_err(),\n        catch_unwind(|| -m).is_err()\n    );\n}\n"
+        },
+        {
+          "label": "checks off + -O: MIN / -1, MIN % -1, / 0 and a bad index still panic while u8 add wraps",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=off",
+            "-O"
+          ],
+          "expect": "runs",
+          "stdout": "MIN / -1 panics: true\nMIN % -1 panics: true\n7 / 0 panics: true\nbodies[4] of 4 panics: true\n255u8 + 1 = 0",
+          "source": "use std::hint::black_box;\nuse std::panic::catch_unwind;\n\nfn main() {\n    std::panic::set_hook(Box::new(|_| {}));\n    let m: i32 = black_box(i32::MIN);\n    let neg1: i32 = black_box(-1);\n    let zero: u32 = black_box(0);\n    let bodies = [0.0f64; 4];\n    let i: usize = black_box(4);\n    println!(\"MIN / -1 panics: {}\", catch_unwind(|| m / neg1).is_err());\n    println!(\"MIN % -1 panics: {}\", catch_unwind(|| m % neg1).is_err());\n    println!(\"7 / 0 panics: {}\", catch_unwind(|| black_box(7u32) / zero).is_err());\n    println!(\"bodies[4] of 4 panics: {}\", catch_unwind(|| bodies[i]).is_err());\n    println!(\"255u8 + 1 = {}\", black_box(255u8) + 1);\n}\n"
+        },
+        {
+          "label": "constant overflow is a deny-by-default arithmetic_overflow error even with checks off",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=off",
+            "-O"
+          ],
+          "expect": "compile_fail",
+          "lints": [
+            "arithmetic_overflow"
+          ],
+          "stderr_contains": [
+            "this arithmetic operation will overflow"
+          ],
+          "source": "fn main() {\n    let x: u8 = 255 + 1;\n    let bit = 1u64 << 64;\n    println!(\"{x} {bit}\");\n}\n"
+        },
+        {
+          "label": "constant MIN / -1 and a constant bad index are deny-by-default unconditional_panic errors",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=off",
+            "-O"
+          ],
+          "expect": "compile_fail",
+          "lints": [
+            "unconditional_panic"
+          ],
+          "stderr_contains": [
+            "this operation will panic at runtime"
+          ],
+          "source": "fn main() {\n    let q = i32::MIN / -1;\n    let bodies = [0.0f64; 4];\n    let x = bodies[4];\n    println!(\"{q} {x}\");\n}\n"
+        },
+        {
+          "label": "a const assertion refuses MAX_BODIES = 65 at compile time (E0080)",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0080"
+          ],
+          "stderr_contains": [
+            "body masks are u64: one bit per body"
+          ],
+          "source": "const MAX_BODIES: usize = 65;\n\n// `driven` and `carried` are u64 masks with one bit per body.\nconst _: () = assert!(MAX_BODIES <= 64, \"body masks are u64: one bit per body\");\n\nfn main() {}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "The Rust Reference: Behavior not considered unsafe (Integer overflow)",
+          "url": "https://doc.rust-lang.org/stable/reference/behavior-not-considered-unsafe.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Arithmetic overflow is a programmer error; with debug assertions enabled implementations must panic on it, other builds may panic or silently wrap, and implicit wrapping must follow two's complement conventions."
+        },
+        {
+          "title": "The Rust Reference: Operator expressions (Overflow)",
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Overflow covers `+ * -` out of range, unary `-` on the most negative value, `/` and `%` with MIN and -1 (checked even when `-C overflow-checks` is disabled, for legacy reasons), and `<<`/`>>` by at least the bit width."
+        },
+        {
+          "title": "rustc book: Codegen options (-C overflow-checks, -C debug-assertions)",
+          "url": "https://doc.rust-lang.org/stable/rustc/codegen-options/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "When overflow checks are enabled a panic occurs on overflow; if not specified they are enabled exactly when debug-assertions are, and debug-assertions are enabled automatically only at opt-level 0."
+        },
+        {
+          "title": "The Cargo Book: Profiles",
+          "url": "https://doc.rust-lang.org/stable/cargo/reference/profiles.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The dev profile defaults to `overflow-checks = true` and the release profile to `overflow-checks = false`; the `test` profile inherits from `dev`."
+        },
+        {
+          "title": "i32 (std docs, 1.98.1): strict_div",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.i32.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`MIN / -1` on a signed type is the only overflowing division, and plain `MIN / -1` panics in both debug and release builds."
+        }
+      ],
+      "background_sources": [
+        {
+          "title": "RFC 560: Integer overflow",
+          "url": "https://rust-lang.github.io/rfcs/0560-integer-overflow.html",
+          "year": 2014,
+          "kind": "rfc",
+          "identifier": "RFC 560",
+          "claim": "Made overflow a program error that panics when checking is enabled and wraps in two's complement otherwise; its shift wording (amount unconditionally masked) no longer matches rustc, which panics on oversized shifts when checks are on.",
+          "retrieved": true
+        }
+      ]
+    },
+    {
+      "slug": "say-the-overflow-intent-in-the-call-checked-wrapping-saturating-overflowing-strict-1-91",
+      "name": "Say the overflow intent in the call: `checked_`, `wrapping_`, `saturating_`, `overflowing_`, `strict_` (1.91+)",
+      "what": "The method families behave the same under every profile: `checked_*` returns `None`, `wrapping_*` wraps, `saturating_*` clamps, `overflowing_*` returns `(value, overflowed)`, and `strict_*` (stable since 1.91.0) always panics on overflow, whether or not overflow checks are enabled.",
+      "how": "Hashes meant to wrap: `h.wrapping_mul(0x100000001b3).wrapping_add(x)`. Sizes that feed a limit: `rows.saturating_mul(cols)` then compare, or `a.checked_mul(b).ok_or(Refusal::TooLarge)?`. Shifts by a run-time amount: `1u64.checked_shl(i)` (`None` at `i >= 64`). An arithmetic invariant that must hold in release: `strict_add`, `strict_mul`, `strict_shl`, `strict_abs`, `strict_neg`. `std::num::Wrapping<T>` makes every operator on a value wrap.",
+      "rust_version": "`checked_`/`wrapping_`/`saturating_`/`overflowing_`: any; `strict_*`: 1.91+ (also const)",
+      "gotchas": "Plain operators in a hash are a profile-dependent bug: the same `h * P + x` panics under the test profile and wraps in release (checks 3-5). `wrapping_shl` reduces the amount modulo the bit width (`rhs % Self::BITS`); it does not shift to zero. A `strict_*` panic is a trap under `panic = \"abort\"` in wasm, so inside exports prefer `checked_*` feeding a refusal. `strict_div` exists for symmetry: plain `MIN / -1` already panics in release.",
+      "engine_note": "`mix_u64` in rapier_law.rs is `h.wrapping_mul(0x100000001b3).wrapping_add(x)`: the hash wraps by design and gives the same bits under `cargo test` (overflow checks on) as in the pinned wasm (off); written with `*` and `+` it would panic natively (check 5). `(rows as usize).saturating_mul(cols as usize)` in `signature()` is the clamp-then-refuse idiom. Native tests of these pure functions therefore see the release arithmetic.",
+      "checks": [
+        {
+          "label": "checked/wrapping/saturating/overflowing at the edge, shl by 64, Wrapping<u8>",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "None 4 255 (4, true)\nNone 1 -2147483648\nNone 0 4",
+          "source": "use std::num::Wrapping;\n\nfn main() {\n    let x: u8 = 250;\n    println!(\"{:?} {} {} {:?}\", x.checked_add(10), x.wrapping_add(10), x.saturating_add(10), x.overflowing_add(10));\n    println!(\"{:?} {} {}\", 1u64.checked_shl(64), 1u64.wrapping_shl(64), i32::MIN.wrapping_abs());\n    println!(\"{:?} {} {}\", i32::MIN.checked_div(-1), 7u32.saturating_sub(9), (Wrapping(x) + Wrapping(10)).0);\n}\n"
+        },
+        {
+          "label": "strict_add panics even with -C overflow-checks=off (stable 1.91)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=off"
+          ],
+          "expect": "runs",
+          "stdout": "before",
+          "exit_code": 101,
+          "source": "use std::hint::black_box;\n\nfn main() {\n    let n: u32 = black_box(u32::MAX);\n    println!(\"before\");\n    let total = n.strict_add(1);\n    println!(\"{total}\");\n}\n"
+        },
+        {
+          "label": "an FNV-style mix written with wrapping_ ops: this value with overflow checks on",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=on"
+          ],
+          "expect": "runs",
+          "stdout": "c05512186c0f2fb7",
+          "source": "use std::hint::black_box;\n\nfn mix_u64(h: u64, x: u64) -> u64 {\n    h.wrapping_mul(0x100000001b3).wrapping_add(x)\n}\n\nfn main() {\n    let mut h = black_box(0xcbf29ce484222325u64);\n    for v in [1.5f64, -0.0, 64.0] {\n        h = mix_u64(h, v.to_bits());\n    }\n    println!(\"{h:016x}\");\n}\n"
+        },
+        {
+          "label": "the same wrapping_ mix gives the identical value with overflow checks off",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=off",
+            "-O"
+          ],
+          "expect": "runs",
+          "stdout": "c05512186c0f2fb7",
+          "source": "use std::hint::black_box;\n\nfn mix_u64(h: u64, x: u64) -> u64 {\n    h.wrapping_mul(0x100000001b3).wrapping_add(x)\n}\n\nfn main() {\n    let mut h = black_box(0xcbf29ce484222325u64);\n    for v in [1.5f64, -0.0, 64.0] {\n        h = mix_u64(h, v.to_bits());\n    }\n    println!(\"{h:016x}\");\n}\n"
+        },
+        {
+          "label": "the mix written with plain * and + panics with overflow checks on",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-C",
+            "overflow-checks=on"
+          ],
+          "expect": "runs",
+          "exit_code": 101,
+          "source": "use std::hint::black_box;\n\nfn mix_u64(h: u64, x: u64) -> u64 {\n    h * 0x100000001b3 + x\n}\n\nfn main() {\n    let h = mix_u64(black_box(0xcbf29ce484222325u64), 1.5f64.to_bits());\n    println!(\"{h:016x}\");\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "u32 (std docs, 1.98.1)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u32.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`strict_add`, `strict_sub`, `strict_mul` and `strict_div` are stable since 1.91.0 (const 1.91.0) and always panic on overflow regardless of whether overflow checks are enabled; `checked_add` returns `None` on overflow."
+        },
+        {
+          "title": "i32 (std docs, 1.98.1)",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.i32.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`strict_neg`, `strict_abs` and `strict_shl` are stable since 1.91.0 and always panic on overflow; `wrapping_shl` computes `self << (rhs % Self::BITS)` instead of panicking."
+        },
+        {
+          "title": "Announcing Rust 1.91.0",
+          "url": "https://blog.rust-lang.org/2025/10/30/Rust-1.91.0/",
+          "year": 2025,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "1.91.0 stabilized `{integer}::strict_add/sub/mul/div/div_euclid/rem/rem_euclid/neg/shl/shr/pow`, `i{N}::strict_add_unsigned/sub_unsigned/abs` and `u{N}::strict_add_signed/sub_signed`."
+        },
+        {
+          "title": "The Rust Reference: Behavior not considered unsafe (Integer overflow)",
+          "url": "https://doc.rust-lang.org/stable/reference/behavior-not-considered-unsafe.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "The integral types provide inherent methods such as `wrapping_add` for intentional wrapping, and `Wrapping<T>` gives every standard arithmetic operation wrapping semantics."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "guard-invariants-the-shipped-build-keeps-with-assert-debug-assert-vanishes-without-debug-assertions",
+      "name": "Guard invariants the shipped build keeps with `assert!`; `debug_assert!` vanishes without debug-assertions",
+      "what": "`assert!` is checked in every build and cannot be disabled; `debug_assert!` runs only when `cfg(debug_assertions)` is on, which by default means opt-level 0, and Cargo's release profile turns it off.",
+      "how": "`assert!(cond, \"... should ...\")` for a precondition whose violation would corrupt state; `debug_assert!` only for expensive consistency checks you accept losing in release; `-C debug-assertions=on` (or `debug-assertions = true` in a profile) brings them back in an optimized build. Code behind `#[cfg(debug_assertions)]` or `cfg!(debug_assertions)` must only observe, never change state.",
+      "rust_version": "any",
+      "gotchas": "The std docs allow replacing `assert!` with `debug_assert!` only after profiling and only in safe code: unsafe code may rely on `assert!` to uphold invariants. `debug-assertions` and `overflow-checks` are separate switches; overflow checks merely default to follow debug-assertions. Format arguments of an `assert!` message are evaluated only when the assertion fails.",
+      "engine_note": "The solver's release profile does not set `debug-assertions`, so the pinned wasm takes Cargo's release default (off): any `debug_assert!` added to lib.rs or rapier_law.rs exists in native `cargo test` and not in the shipped module. An invariant the golden hash depends on (a unit quaternion, a non-NaN pose) must be an `assert!` or, at the export, a refusal, and state written under `cfg!(debug_assertions)` would make native runs and the wasm disagree.",
+      "checks": [
+        {
+          "label": "-O: debug_assertions is off and a failing debug_assert! is skipped",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-O"
+          ],
+          "expect": "runs",
+          "stdout": "debug_assertions: false\nkept running",
+          "source": "fn main() {\n    println!(\"debug_assertions: {}\", cfg!(debug_assertions));\n    let quat_len: f64 = std::hint::black_box(0.0);\n    debug_assert!(quat_len > 0.0, \"quaternion should be non-zero\");\n    println!(\"kept running\");\n}\n"
+        },
+        {
+          "label": "opt-level 0 (rustc default): the same debug_assert! panics",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "debug_assertions: true",
+          "exit_code": 101,
+          "source": "fn main() {\n    println!(\"debug_assertions: {}\", cfg!(debug_assertions));\n    let quat_len: f64 = std::hint::black_box(0.0);\n    debug_assert!(quat_len > 0.0, \"quaternion should be non-zero\");\n    println!(\"kept running\");\n}\n"
+        },
+        {
+          "label": "-O -C debug-assertions=on: debug_assert! fires in an optimized build",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-O",
+            "-C",
+            "debug-assertions=on"
+          ],
+          "expect": "runs",
+          "stdout": "debug_assertions: true",
+          "exit_code": 101,
+          "source": "fn main() {\n    println!(\"debug_assertions: {}\", cfg!(debug_assertions));\n    let quat_len: f64 = std::hint::black_box(0.0);\n    debug_assert!(quat_len > 0.0, \"quaternion should be non-zero\");\n    println!(\"kept running\");\n}\n"
+        },
+        {
+          "label": "-O: assert! still fires with debug-assertions off",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "rustc_flags": [
+            "-O"
+          ],
+          "expect": "runs",
+          "stdout": "debug_assertions: false",
+          "exit_code": 101,
+          "source": "fn main() {\n    println!(\"debug_assertions: {}\", cfg!(debug_assertions));\n    let quat_len: f64 = std::hint::black_box(0.0);\n    assert!(quat_len > 0.0, \"quaternion should be non-zero\");\n    println!(\"kept running\");\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "std::debug_assert! (std docs, 1.98.1)",
+          "url": "https://doc.rust-lang.org/stable/std/macro.debug_assert.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`debug_assert!` is enabled only in non-optimized builds by default; an optimized build skips it unless `-C debug-assertions` is passed; replacing `assert!` with it is encouraged only after profiling and only in safe code."
+        },
+        {
+          "title": "std::assert! (std docs, 1.98.1)",
+          "url": "https://doc.rust-lang.org/stable/std/macro.assert.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Assertions are always checked in both debug and release builds and cannot be disabled; unsafe code may rely on `assert!` to enforce run-time invariants; message arguments are evaluated only if the assertion fails."
+        },
+        {
+          "title": "rustc book: Codegen options (-C debug-assertions)",
+          "url": "https://doc.rust-lang.org/stable/rustc/codegen-options/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "`-C debug-assertions` turns `cfg(debug_assertions)` on or off; if not specified it is enabled only at opt-level 0."
+        },
+        {
+          "title": "The Cargo Book: Profiles",
+          "url": "https://doc.rust-lang.org/stable/cargo/reference/profiles.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The `debug-assertions` setting controls `-C debug-assertions`, which enables `debug_assert!`; it defaults to true for `dev` and false for `release`."
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "slug": "keep-panics-out-of-extern-c-exports-refuse-through-an-internal-result-chain-mapped-to-a-u32-status",
+      "name": "Keep panics out of `extern \"C\"` exports: refuse through an internal `Result` chain mapped to a `u32` status",
+      "what": "Since 1.81 a panic that unwinds out of an `extern \"C\"` function aborts the process, and `catch_unwind` in the caller cannot stop it; so an export never panics: the code behind it returns `Result<(), Refusal>` through `?`, and one `match` at the boundary produces the status code.",
+      "how": "`fn step_inner(..) -> Result<(), Refusal>` with `if n > MAX { return Err(Refusal::TooManyBodies) }` and `canon_quat(..).ok_or(Refusal::BadQuaternion)?`; the export is `#[no_mangle] pub extern \"C\" fn solver_step(..) -> u32 { match step_inner(..) { Ok(()) => 1, Err(_) => 0 } }` (spelled `#[unsafe(no_mangle)]` in edition 2024). Native tests call `step_inner` and assert which `Refusal` came back. If a native host build must survive a bug, build it with `panic = \"unwind\"` and wrap each export body in `catch_unwind`; `extern \"C-unwind\"` is for letting a panic cross on purpose (depth: unsafe-ffi).",
+      "rust_version": "1.81+ (abort on an unwind out of `extern \"C\"`); `\"C-unwind\"` since 1.71",
+      "gotchas": "With `panic = \"unwind\"`, whether destructors up to the ABI boundary run before the abort is unspecified; nothing beyond the boundary runs (check 1: the caller's guard never drops). On this Windows host the status is 0xC0000409 and stderr reads \"panic in a function that cannot unwind\" (measured). A bare 0 carries no reason: keep the `Refusal` inside Rust, and if a host ever needs it, a separate export returning the last refusal code (a suggestion) keeps every existing 1/0 contract intact.",
+      "engine_note": "The dispatched cleanup item is already fixed: `rebuild_snapshot` did `continue` on a failed `canon_quat` at `c64f67a`, and `6a33297` changed it to `return false` and made `ensure` check the result; `e5fbcb9` and current `origin/main` keep that. The one `continue` left in `rebuild_snapshot` skips carried bodies (`handles[i]` is `None`), which leave the solver by design. What remains is the shape: `ensure -> signature / build_world / rebuild_snapshot` and `solver_step -> integrate -> write_body` pass `bool`s and `Option`s that a future caller can drop without a warning. A `Result<(), Refusal>` chain with `?` keeps every export's 1/0 ABI unchanged and makes 'refuse, never skip' something the compiler checks.",
+      "checks": [
+        {
+          "label": "Windows host: a panic escaping extern \"C\" aborts (0xC0000409) even inside catch_unwind",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "exit_code": 3221226505,
+          "source": "struct Guard;\n\nimpl Drop for Guard {\n    fn drop(&mut self) {\n        println!(\"caller's drop ran\");\n    }\n}\n\nextern \"C\" fn load(n_bodies: u32) -> u32 {\n    if n_bodies > 64 {\n        panic!(\"too many bodies\");\n    }\n    1\n}\n\nfn main() {\n    let _g = Guard;\n    let r = std::panic::catch_unwind(|| load(std::hint::black_box(65)));\n    println!(\"caught: {}\", r.is_err());\n}\n"
+        },
+        {
+          "label": "contrast: the same fn as extern \"C-unwind\" lets catch_unwind catch it",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "caught: true\ncaller's drop ran",
+          "source": "struct Guard;\n\nimpl Drop for Guard {\n    fn drop(&mut self) {\n        println!(\"caller's drop ran\");\n    }\n}\n\nextern \"C-unwind\" fn load(n_bodies: u32) -> u32 {\n    if n_bodies > 64 {\n        panic!(\"too many bodies\");\n    }\n    1\n}\n\nfn main() {\n    let _g = Guard;\n    let r = std::panic::catch_unwind(|| load(std::hint::black_box(65)));\n    println!(\"caught: {}\", r.is_err());\n}\n"
+        },
+        {
+          "label": "wasm export over a Result chain: 65 bodies -> status 0",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "0",
+          "wasm_exports": [
+            "solver_step"
+          ],
+          "wasm_call": {
+            "export": "solver_step",
+            "args": [
+              65,
+              1.0
+            ]
+          },
+          "source": "#[derive(Debug, Clone, Copy, PartialEq)]\nenum Refusal {\n    TooManyBodies,\n    BadQuaternion,\n}\n\nconst MAX_BODIES: u32 = 64;\n\nfn canon_quat(x: f64, y: f64, z: f64, w: f64) -> Option<(f64, f64, f64, f64)> {\n    if x.is_nan() || y.is_nan() || z.is_nan() || w.is_nan() {\n        return None;\n    }\n    let n = (x * x + y * y + z * z + w * w).sqrt();\n    if !(n > 0.0) {\n        return None;\n    }\n    Some((x / n, y / n, z / n, w / n))\n}\n\nfn step_inner(n_bodies: u32, qw: f64) -> Result<(), Refusal> {\n    if n_bodies > MAX_BODIES {\n        return Err(Refusal::TooManyBodies);\n    }\n    let _q = canon_quat(0.0, 0.0, 0.0, qw).ok_or(Refusal::BadQuaternion)?;\n    Ok(())\n}\n\n#[no_mangle]\npub extern \"C\" fn solver_step(n_bodies: u32, qw: f64) -> u32 {\n    match step_inner(n_bodies, qw) {\n        Ok(()) => 1,\n        Err(_) => 0,\n    }\n}\n"
+        },
+        {
+          "label": "wasm export over a Result chain: zero quaternion -> status 0",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "0",
+          "wasm_call": {
+            "export": "solver_step",
+            "args": [
+              3,
+              0.0
+            ]
+          },
+          "source": "#[derive(Debug, Clone, Copy, PartialEq)]\nenum Refusal {\n    TooManyBodies,\n    BadQuaternion,\n}\n\nconst MAX_BODIES: u32 = 64;\n\nfn canon_quat(x: f64, y: f64, z: f64, w: f64) -> Option<(f64, f64, f64, f64)> {\n    if x.is_nan() || y.is_nan() || z.is_nan() || w.is_nan() {\n        return None;\n    }\n    let n = (x * x + y * y + z * z + w * w).sqrt();\n    if !(n > 0.0) {\n        return None;\n    }\n    Some((x / n, y / n, z / n, w / n))\n}\n\nfn step_inner(n_bodies: u32, qw: f64) -> Result<(), Refusal> {\n    if n_bodies > MAX_BODIES {\n        return Err(Refusal::TooManyBodies);\n    }\n    let _q = canon_quat(0.0, 0.0, 0.0, qw).ok_or(Refusal::BadQuaternion)?;\n    Ok(())\n}\n\n#[no_mangle]\npub extern \"C\" fn solver_step(n_bodies: u32, qw: f64) -> u32 {\n    match step_inner(n_bodies, qw) {\n        Ok(()) => 1,\n        Err(_) => 0,\n    }\n}\n"
+        },
+        {
+          "label": "wasm export over a Result chain: valid input -> status 1",
+          "edition": "2021",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_call": {
+            "export": "solver_step",
+            "args": [
+              3,
+              1.0
+            ]
+          },
+          "source": "#[derive(Debug, Clone, Copy, PartialEq)]\nenum Refusal {\n    TooManyBodies,\n    BadQuaternion,\n}\n\nconst MAX_BODIES: u32 = 64;\n\nfn canon_quat(x: f64, y: f64, z: f64, w: f64) -> Option<(f64, f64, f64, f64)> {\n    if x.is_nan() || y.is_nan() || z.is_nan() || w.is_nan() {\n        return None;\n    }\n    let n = (x * x + y * y + z * z + w * w).sqrt();\n    if !(n > 0.0) {\n        return None;\n    }\n    Some((x / n, y / n, z / n, w / n))\n}\n\nfn step_inner(n_bodies: u32, qw: f64) -> Result<(), Refusal> {\n    if n_bodies > MAX_BODIES {\n        return Err(Refusal::TooManyBodies);\n    }\n    let _q = canon_quat(0.0, 0.0, 0.0, qw).ok_or(Refusal::BadQuaternion)?;\n    Ok(())\n}\n\n#[no_mangle]\npub extern \"C\" fn solver_step(n_bodies: u32, qw: f64) -> u32 {\n    match step_inner(n_bodies, qw) {\n        Ok(()) => 1,\n        Err(_) => 0,\n    }\n}\n"
+        },
+        {
+          "label": "natively the same chain names which refusal fired",
+          "edition": "2021",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "Err(TooManyBodies)\nErr(BadQuaternion)\nOk(())",
+          "source": "#[derive(Debug, Clone, Copy, PartialEq)]\nenum Refusal {\n    TooManyBodies,\n    BadQuaternion,\n}\n\nconst MAX_BODIES: u32 = 64;\n\nfn canon_quat(x: f64, y: f64, z: f64, w: f64) -> Option<(f64, f64, f64, f64)> {\n    if x.is_nan() || y.is_nan() || z.is_nan() || w.is_nan() {\n        return None;\n    }\n    let n = (x * x + y * y + z * z + w * w).sqrt();\n    if !(n > 0.0) {\n        return None;\n    }\n    Some((x / n, y / n, z / n, w / n))\n}\n\nfn step_inner(n_bodies: u32, qw: f64) -> Result<(), Refusal> {\n    if n_bodies > MAX_BODIES {\n        return Err(Refusal::TooManyBodies);\n    }\n    let _q = canon_quat(0.0, 0.0, 0.0, qw).ok_or(Refusal::BadQuaternion)?;\n    Ok(())\n}\n\nfn main() {\n    println!(\"{:?}\", step_inner(65, 1.0));\n    println!(\"{:?}\", step_inner(3, 0.0));\n    println!(\"{:?}\", step_inner(3, 1.0));\n}\n"
+        }
+      ],
+      "sources": [
+        {
+          "title": "Announcing Rust 1.81.0",
+          "url": "https://blog.rust-lang.org/2024/09/05/Rust-1.81.0/",
+          "year": 2024,
+          "kind": "release-notes",
+          "identifier": "",
+          "claim": "As of 1.81 the non-unwind ABIs such as `\"C\"` abort on uncaught unwinds, completing the transition begun in 1.71, which added `\"C-unwind\"` and the other `-unwind` ABIs for when unwinding across the boundary is expected."
+        },
+        {
+          "title": "The Rust Reference: Functions (Unwinding)",
+          "url": "https://doc.rust-lang.org/stable/reference/items/functions.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Under `panic=unwind` a panic reaching a non-unwinding ABI boundary such as `extern \"C\"` aborts, under `panic=abort` it aborts without unwinding, and `extern \"C-unwind\"` unwinds; whether destructors up to the boundary run before such an abort is unspecified; `extern` without an ABI string means `\"C\"`."
+        },
+        {
+          "title": "std::panic::catch_unwind (std docs, 1.98.1)",
+          "url": "https://doc.rust-lang.org/stable/std/panic/fn.catch_unwind.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Rust functions called from foreign code that cannot unwind should be `extern \"C\"`, which ensures a panic is caught and the process aborted; `catch_unwind` is for more graceful handling."
+        },
+        {
+          "title": "The Rust Programming Language, 9.2 Recoverable Errors with Result",
+          "url": "https://doc.rust-lang.org/stable/book/ch09-02-recoverable-errors-with-result.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "`?` propagates errors through `From`, and `ok_or` converts an `Option` into a `Result` so `?` can be used on it in a function returning `Result`."
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

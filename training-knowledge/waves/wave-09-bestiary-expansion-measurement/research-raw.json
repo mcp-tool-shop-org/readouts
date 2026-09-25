@@ -1,0 +1,176 @@
+{
+  "wave": 9,
+  "date": "2026-06-17",
+  "lanes": [
+    {
+      "slug": "diffusion-qwen-lora",
+      "research": {
+        "techniques": [
+          {
+            "slug": "qwen-shape-anchor-i2i-silhouette-hard-classes",
+            "name": "Shape-anchored img2img for silhouette-hard creature classes — the base silhouette prior overrides text even with the style LoRA loaded",
+            "kind": "failure-fix",
+            "method_family": "dataset",
+            "applicable_to": "diffusion",
+            "base_model_family": "Qwen-Image",
+            "base_model_slug": "qwen-image",
+            "predecessor_slug": "qwen-image-style-lora-uint3-ara-measured-5090",
+            "claim": "MEASURED on the 5090 (tallow_fen_style_v3 bestiary build + production, 2026-06-17): for creature classes whose canonical silhouette has NO limbs/head/face, Qwen-Image's base silhouette prior overrides the positive text prompt EVEN WITH the trained style LoRA at strength 1.5 — bare txt2img grows limbs/snouts/skulls. Rust Boil (a limbless swollen dome) scored 0/24 on-canon across txt2img attempts; Mire Maw (a leaning cone) 2/32; Peat Dredge grew a front snout/trunk. FIX = shape-anchored img2img: build a crude PIL silhouette mock from master-palette colour blocks, then run it through NO-LoRA Qwen img2img at denoise 0.6-0.75; the mock imposes the silhouette txt2img cannot hold (Boil geometry 8/8 at d0.6-0.7 after 24 txt2img failures / 6 distinct face-and-limb attractors). The SAME three classes that needed i2i to build the dataset need i2i (or low inference strength) to PRODUCE: the LoRA supplies correct material/surface/painterly style, but the base prior wins on gross shape. The face prior is hydraulic — it erupts at focal points, crowns, and dark-water reflections; give it no dark void to colonize.",
+            "summary": "Discovered while filling dataset v3's new classes and confirmed again at production/turnaround time. Silhouette-hard = the canonical form lacks the anatomy the base model expects (no limbs / no head / no face). The fix is geometry-first: a denoise-0.6-0.75 img2img pass over a flat colour-block mock anchors the outline, then the LoRA (or a later restylize pass) paints the surface. Classifies the bestiary into two production lanes: silhouette-easy (Pall/Brood/old classes = bare-trigger txt2img @1.5) and silhouette-hard (Boil/Dredge/Maw = shape-anchored i2i / turnaround).",
+            "design_implication": "Before generating a new creature class, predict whether its silhouette is 'hard' (limbless/headless/faceless). If so, do NOT budget bare txt2img — author a PIL silhouette mock and run shape-anchored img2img (denoise 0.6-0.75, no-LoRA for the anchor, then restylize). Route silhouette-hard classes to the i2i/turnaround production lane permanently. Never name a creature feature that is itself a strong base-prior attractor (a named jaw/face) in a positive prompt — it polymorphizes the whole body.",
+            "evidence_strength": "measured-on-rig",
+            "seed": "varied per wave",
+            "num_runs": 1,
+            "variance_note": "Boil: 24 txt2img failures then 8/8 i2i geometry across a denoise(0.6-0.78) x seed sweep, all looked-at. Maw: 2/32 txt2img then closed via mock-v3 (textured cone + sparse broken-snag crown). Single dataset+production run; the per-class counts are within-run, every image opened.",
+            "tuning_budget": "per silhouette-hard class: 1 PIL mock (1-3 revisions) + a denoise x seed i2i sweep (~8-24 images), looked-at",
+            "search_method": "PIL silhouette mock -> no-LoRA Qwen img2img denoise/seed sweep -> looked-at + SigLIP2 canon probe; reroll on attractor eruption",
+            "measured_conditions": "RTX 5090 32GB; Qwen-Image fp8 native graph (UNETLoader qwen_image_fp8 + qwen_2.5_vl_7b TE + ModelSamplingAuraFlow shift 3.1), euler/simple 22 steps cfg 3.5 1024px; tallow_fen_style_v3 @1.5 for production, no-LoRA for the dataset anchor; 2026-06-17.",
+            "engine_recipe_ref": "",
+            "commercial_use": "yes",
+            "commercial_notes": "Studio-synthetic from authored canon; Qwen-Image Apache-2.0.",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [
+              { "name": "anchor_denoise", "value": "0.6-0.75", "required": true, "note": "no-LoRA img2img over the PIL mock; below ~0.55 the mock colours show through, above ~0.8 the base prior re-grows anatomy" },
+              { "name": "mock_construction", "value": "flat master-palette colour blocks (PIL)", "required": true, "note": "Maw needed a TEXTURED cone + SPARSE broken-snag crown; a dense crown / heavy tangle re-admits apex faces" },
+              { "name": "production_lane", "value": "i2i / turnaround for silhouette-hard classes", "note": "Boil/Dredge/Maw; Pall/Brood/old classes stay bare-trigger txt2img @1.5" }
+            ],
+            "failures": [
+              { "symptom": "a limbless/headless/faceless creature grows limbs, a snout, or a skull under bare txt2img even with the style LoRA at 1.5", "cause": "the base diffusion silhouette/anatomy prior is stronger than the positive prompt for out-of-distribution body plans; the style LoRA changes surface, not gross shape", "remediation": "shape-anchored img2img over a PIL silhouette mock (denoise 0.6-0.75); route the class to the i2i/turnaround lane", "recipe_field": "production_lane", "severity": "quality" },
+              { "symptom": "faces erupt specifically at crowns, focal points, and dark-water reflections", "cause": "the face prior is hydraulic — it fills high-salience voids", "remediation": "give the composition no dark focal void; sparse crowns over dense; reroll on eruption", "recipe_field": "composition", "severity": "quality" }
+            ],
+            "evals": [
+              { "eval_kind": "diffusion-canon", "metric": "SigLIP2 contrastive canon probes (good-vs-Forbidden-line)", "harness": "_probe_tallow_canon_v3.py (ai-eyes engine)", "judge_model_family": "siglip2-so400m", "result": "Boil/Maw drift caught on the face/limb axis; i2i-anchored outputs pass; verifier confirmed by looked-at", "threshold": "per-class majority", "accepted": 1, "note": "verifier family differs from the Qwen generator" }
+            ],
+            "datasets": [ { "slug": "tallow-fen-bestiary-v3-pkg", "role": "training", "note": "the 3 silhouette-hard classes filled via this lane" } ],
+            "best_for": [ { "purpose": "generating limbless/headless/faceless creature classes on a strong-prior base", "fitness": 5, "use_tag": "shape-control" } ],
+            "sources": [
+              { "kind": "receipt", "title": "tallow-fen bestiary v3 dataset + shape-anchor i2i waves (mocks + sweeps + records)", "authors": "studio (rig-measured)", "year": 2026, "identifier": "E:/AI/training/_shape_mock*.py + _i2i_dataset_wave.py", "url": "https://github.com/mcp-tool-shop-org/style-dataset-lab/pull/27", "claim": "Boil 0/24 txt2img -> 8/8 i2i geometry; Maw closed via sparse-crown mock", "finding_supported": "the whole finding" }
+            ]
+          },
+          {
+            "slug": "clean-dataset-no-late-embedding-collapse-3run",
+            "name": "Clean (on-canon) dataset = no late embedding-cloud collapse — 3rd cross-run confirmation; pick the ship checkpoint by geometry, not CLIP-sim",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "diffusion",
+            "base_model_family": "Qwen-Image",
+            "base_model_slug": "qwen-image",
+            "predecessor_slug": "qwen-image-style-lora-uint3-ara-measured-5090",
+            "claim": "MEASURED across three single-lever retrains on the IDENTICAL pinned recipe (only the dataset changed): a clean on-canon dataset shows NO late embedding-cloud collapse, while off-canon exemplars drive one. v1 (2 off-canon widows in one class) collapsed late (anisotropy 8.2->12.5 by step 2000 + effdim drop). v2 (re-curated) recovered. v3 (bestiary, 8 classes, every class clean): anisotropy peaks 13.27@1500 then RECOVERS to 11.55@2000, effdim steady ~6.9, loss monotone to 0.096. Ship checkpoint selected by CMMD + embedding-cloud geometry = 1750 @1.5 (NOT step-2000; raw CLIP-sim alone shipped the v1 overfit). Per-class A/B (SigLIP2 external verifier + full looked-at pass): new classes on-canon under bare trigger, OLD classes hold (widow faceless / hound / tithe), no-trigger gating stays photoreal with the LoRA loaded.",
+            "summary": "The cross-run hypothesis from wave-08 (off-canon exemplars drive late collapse) now has a third data point, and the first at multi-class scale (8 classes, 99 records). vector-caliper baseline #3 archives the trajectory. The practical rule is checkpoint-selection discipline: geometry (effdim/anisotropy) + distribution (CMMD) + eyes, never similarity alone.",
+            "design_implication": "Keep the recipe pinned and treat the dataset as the single lever between LoRA versions — it makes trajectory differences attributable. Capture per-checkpoint embedding-cloud geometry every run and pick the ship checkpoint by CMMD + geometry + looked-at. A clean dataset is also a training-stability lever, not only a quality lever.",
+            "evidence_strength": "measured-on-rig",
+            "seed": "pinned recipe",
+            "num_runs": 3,
+            "variance_note": "Three within-recipe runs (v1/v2/v3), 8 checkpoints each; the collapse/no-collapse outcome is qualitative and consistent (1 collapse with off-canon data, 2 clean without).",
+            "tuning_budget": "checkpoint trajectory captured per run (8 points); no extra tuning",
+            "search_method": "single pinned recipe; checkpoint chosen post-hoc by CMMD + cloud geometry + looked-at",
+            "measured_conditions": "RTX 5090 32GB; AI-Toolkit uint3+ARA + qfloat8-TE; dataset_tallow_fen_v3 (80 train); CLIP ViT-B/32 cloud metrics; 2026-06-17.",
+            "engine_recipe_ref": "",
+            "commercial_use": "yes",
+            "commercial_notes": "Method finding; base-agnostic.",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [
+              { "name": "ship_checkpoint", "value": "1750 of 2000", "note": "CMMD-min 0.0963 + healthy geometry; aniso recovers after a 1500 peak" },
+              { "name": "selection_metric", "value": "CMMD + embedding-cloud geometry + looked-at", "required": true, "note": "never CLIP-sim alone (the step-2000 trap)" },
+              { "name": "single_lever", "value": "dataset only; recipe byte-identical to v1/v2", "required": true }
+            ],
+            "failures": [],
+            "evals": [
+              { "eval_kind": "diffusion-style", "metric": "CMMD + embedding-cloud geometry per checkpoint", "harness": "_caliper_capture_v3.py", "judge_model_family": "clip-vit-b32", "result": "aniso 10.1->12.5->...->13.27@1500->11.55@2000; effdim steady ~6.6-7.1; ship 1750", "threshold": "min CMMD + geometry health", "accepted": 1 },
+              { "eval_kind": "diffusion-canon", "metric": "SigLIP2 contrastive canon probes + looked-at A/B", "harness": "_probe_tallow_canon_v3.py + _run_ab_v3.ps1", "judge_model_family": "siglip2-so400m", "result": "Pall/Brood clean bare-trigger; old classes hold; gating clean", "threshold": "per-class majority + eyes", "accepted": 1 }
+            ],
+            "datasets": [ { "slug": "tallow-fen-bestiary-v3-pkg", "role": "training" } ],
+            "best_for": [ { "purpose": "LoRA checkpoint selection + training-stability via dataset hygiene", "fitness": 5, "use_tag": "checkpoint-selection" } ],
+            "sources": [
+              { "kind": "receipt", "title": "vector-caliper baselines v1/v2/v3 (cross-run trajectory)", "authors": "studio (rig-measured)", "year": 2026, "identifier": "E:/AI/vector-caliper/baselines/qwen-lora-tallow-fen-v3.json", "url": "https://github.com/mcp-tool-shop-org/tool-shop-studio", "claim": "3-run trajectory: 1 late collapse (off-canon) vs 2 clean", "finding_supported": "the whole finding" }
+            ]
+          },
+          {
+            "slug": "trellis-turnaround-winged-headed-mesh-fragility",
+            "name": "TRELLIS turnaround fragility for winged+headed creatures — fix it at the concept stage, not with restylize denoise",
+            "kind": "failure-fix",
+            "method_family": "dataset",
+            "applicable_to": "diffusion",
+            "base_model_family": "Qwen-Image",
+            "base_model_slug": "qwen-image",
+            "claim": "MEASURED on the 5090 (Fen Pall turnaround, 2026-06-17): a winged+headed creature whose concept shows thin wings on bone struts produces a strutty, skull-prone TRELLIS.2 mesh — its side/rear 8-direction views erupt into skull / exposed-ribcage / gargoyle-face under the restylize img2img pass (denoise 0.55), even with the v3 LoRA. SigLIP2 scored the stylized-skull frames HIGHEST (a stylized skull matches the concept's palette/style), so the external verifier under-penalizes a face on an otherwise-correct silhouette — the human looked-at pass carried the canon-veto. Low-denoise reroll could NOT repair it (the drift is mesh-level geometry, not restylize freedom). The fix is upstream at the CONCEPT stage: generate the turnaround concept with a fuller CONTINUOUS amber membrane (bone struts hidden beneath it) + a large round featureless head-bulb + the drift attractors (skull, face, eye sockets, skeleton, exposed ribs, spindly limbs, clawed hands) in the concept-stage NEGATIVE. Two concepts were meshed: a fuller-continuous-membrane one (won, 8/8 clean — featureless head holds on every angle) and a folded/perched-pose one (rejected — meshed solid but over-corrected, losing the winged identity to a hooded mossy blob whose rear view degenerated to a mossy cairn).",
+            "summary": "Generalizes the shape-control finding into 3D: for the mesh-turnaround lane, the silhouette must be solved in the CONCEPT before TRELLIS, because no downstream restylize denoise repairs mesh-level geometry. Limbless/heap forms (Rust Boil dome, Wick Brood fused heap) turned around clean with no special handling (Boil 8/8 — a limbless dome carried clean through mesh into 3D; Brood 8/8 after rerolling 2 single-organism drifts). The winged+headed form is the fragile case and the one that needs the concept-stage discipline.",
+            "design_implication": "For TRELLIS turnarounds of winged/limbed/headed creatures, author the concept for a SOLID, continuous silhouette (membranes filled, struts hidden, head round and featureless) and put the base-prior attractors in the concept-stage negative. Do NOT use a folded/perched pose to force solidity — it kills the creature's identity. Trust eyes over SigLIP2 for focal-feature (face/skull) drift; SigLIP2 weights global palette and will rank a stylized skull high.",
+            "evidence_strength": "measured-on-rig",
+            "seed": "8850-8855 (concept pool); 7000-7001 (reroll)",
+            "num_runs": 1,
+            "variance_note": "Pall: original turnaround ~5/8 with skull drift on left/front_right/back_left; concept-stage re-mesh of 2 of 6 candidates -> winner 8/8, looser folded candidate rejected. Brood 8/8 (2 rerolls), Boil 8/8 (3 rerolls). Every frame and every reroll candidate looked-at.",
+            "tuning_budget": "1 concept pool (6) + 2 TRELLIS meshes + 2 restylize sets + targeted low-denoise rerolls; ~1 GPU hour",
+            "search_method": "concept pool with attractors negated -> TRELLIS.2 mesh -> 8-dir -> Qwen restylize @1.5 -> SigLIP2 gate + looked-at -> low-denoise reroll on weak frames -> contact sheet",
+            "measured_conditions": "RTX 5090 32GB; TRELLIS.2-4B (trellis2-env), ptype 1024_cascade; Qwen-Image restylize + tallow_fen_style_v3 @1.5, denoise 0.55 (reroll 0.38-0.54); SigLIP2-so400m gate; 2026-06-17.",
+            "engine_recipe_ref": "",
+            "commercial_use": "yes",
+            "commercial_notes": "TRELLIS.2 MIT; Qwen Apache-2.0.",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "hparams": [
+              { "name": "concept_membrane", "value": "thick CONTINUOUS membrane, struts hidden", "required": true, "note": "thin wings-on-struts -> strutty skeletal mesh from side/rear" },
+              { "name": "concept_negative", "value": "skull, face, eyes, eye sockets, skeleton, exposed ribs, spindly limbs, clawed hands", "required": true, "note": "kill the base-prior attractors at the concept stage so the MESH INPUT is clean" },
+              { "name": "pose", "value": "natural solid pose, NOT folded/perched", "note": "a folded pose over-corrects and kills the winged identity" },
+              { "name": "restylize_denoise", "value": "0.55 (reroll 0.38-0.46 to suppress prior)", "note": "cannot fix mesh-level geometry; only surface" }
+            ],
+            "failures": [
+              { "symptom": "side/rear turnaround frames of a winged+headed creature show a skull, exposed ribcage, or gargoyle face", "cause": "thin wings-on-bone-struts concept -> strutty skull-prone TRELLIS mesh; restylize re-grows anatomy in the ambiguous side/rear silhouette", "remediation": "re-mesh from a concept with a fuller continuous membrane + round featureless head + attractors in the concept-stage negative", "recipe_field": "concept", "severity": "quality" },
+              { "symptom": "SigLIP2 ranks a stylized-skull frame higher than an under-stylized correct frame", "cause": "the embedding weights global palette/style; a stylized skull matches the concept, a local face drift is under-penalized", "remediation": "gate picks, EYES confirm; the human looked-at pass holds the canon-veto on focal-feature drift", "recipe_field": "verifier", "severity": "correctness" }
+            ],
+            "evals": [
+              { "eval_kind": "diffusion-canon", "metric": "SigLIP2 cross-view similarity vs concept + full looked-at", "harness": "_p2_gate_siglip.py + _p2_reroll.py", "judge_model_family": "siglip2-so400m", "result": "Pall re-mesh v4 mean 0.905 (no false-high skull outliers after eyes cleared drift); Brood/Boil 8/8", "threshold": "per-frame eyes + SigLIP corroboration", "accepted": 1, "note": "documented SigLIP2 limitation: under-penalizes a face on a correct silhouette" }
+            ],
+            "datasets": [],
+            "best_for": [ { "purpose": "TRELLIS mesh turnarounds of winged/limbed/headed creatures", "fitness": 5, "use_tag": "turnaround" } ],
+            "sources": [
+              { "kind": "receipt", "title": "tallow-fen v3 turnarounds (concepts + meshes + restylize + reroll + contact sheets)", "authors": "studio (rig-measured)", "year": 2026, "identifier": "E:/AI/training/p2_turnaround_v3/", "url": "https://github.com/mcp-tool-shop-org/tool-shop-studio", "claim": "Pall 8/8 after concept-stage re-mesh; Brood 8/8; Boil 8/8 limbless dome into 3D", "finding_supported": "the whole finding" }
+            ]
+          }
+        ],
+        "datasets": [
+          {
+            "slug": "tallow-fen-bestiary-v3-pkg",
+            "name": "Tallow Fen bestiary v3 package (tp-20260617-132101-7bba)",
+            "base_model_target": "qwen-image",
+            "modality": "image",
+            "image_count": 99,
+            "caption_format": "txt sidecar, trigger-first natural-language prose",
+            "caption_strategy": "flux-natural-language (sdlab): 'tallow_fen style, a concept, <curation explanation as content-only prose>' — style vocabulary never in captions",
+            "pruning_rule": "every new class >=7 clean on-canon exemplars, ZERO off-canon (looked-at pass on every image); named-feature props (Dredge jaw) retired from dataset waves; wreck-background borderlines excluded",
+            "reg_image_count": 0,
+            "reg_source": "none — separation via in-style neutral objects",
+            "real_synthetic_ratio": "0:100 (studio-synthetic from authored canon; 3 silhouette-hard classes via shape-anchored i2i)",
+            "motivation": "scale the house style LoRA from 3 to 8 creature classes while keeping content/style separation and zero off-canon leakage",
+            "collection_process": "sdlab generate (Qwen-native) + shape-anchored i2i for silhouette-hard classes; every image looked-at; curate -> canon-bind (criteria_scores populated) -> snapshot -> split (subject-isolated 80/10/9, no leakage) -> export -> manifest tm-20260617-132040 -> package",
+            "intended_uses": "Qwen-Image style-LoRA training (tallow_fen_style_v3)",
+            "license": "studio-owned synthetic; Apache-2.0 generating base",
+            "maintained": "yes",
+            "train_eval_overlap_checked": 1,
+            "sources": [
+              { "kind": "receipt", "title": "sdlab v3 export/manifest/package chain", "authors": "studio", "year": 2026, "identifier": "tp-20260617-132101-7bba", "url": "https://github.com/mcp-tool-shop-org/style-dataset-lab/pull/27", "claim": "zero subject leakage across splits; eligibility = approved + canon-bound; 8 classes", "finding_supported": "dataset integrity" }
+            ]
+          }
+        ],
+        "failures": [
+          { "symptom": "newly-approved records silently dropped from the training snapshot (snapshot pulled only the old records)", "cause": "records with empty criteria_scores produce 0 canon-bind assertions and are skipped from the snapshot with no error", "remediation": "populate honest per-dimension criteria_scores before canon-bind (style_consistency lower for i2i-softened images); verify snapshot record count equals approved count", "recipe_field": "canon_bind", "severity": "correctness",
+            "sources": [ { "kind": "receipt", "title": "_populate_scores.mjs backfill (40 records -> bind 40/40)", "authors": "studio", "year": 2026, "identifier": "E:/AI/training/_populate_scores.mjs", "url": "https://github.com/mcp-tool-shop-org/style-dataset-lab/pull/27", "claim": "empty criteria_scores -> silent snapshot skip", "finding_supported": "the failure" } ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          { "slug": "qwen-shape-anchor-i2i-silhouette-hard-classes", "overall": "confirmed", "currency": "measured 2026-06-17", "note": "oracle = rig + SigLIP2 probes + full looked-at; Boil 0/24 txt2img -> 8/8 i2i; same 3 classes need i2i to dataset AND to produce" },
+          { "slug": "clean-dataset-no-late-embedding-collapse-3run", "overall": "confirmed", "currency": "measured 2026-06-17", "note": "3rd within-recipe run; v3 aniso recovers 13.27@1500->11.55@2000, effdim steady; ship 1750 by CMMD+geometry; vector-caliper baseline #3" },
+          { "slug": "trellis-turnaround-winged-headed-mesh-fragility", "overall": "confirmed", "currency": "measured 2026-06-17", "note": "Pall re-mesh -> 8/8; folded-pose candidate rejected; Brood/Boil 8/8; SigLIP2 under-penalizes face-on-correct-silhouette (eyes carry the veto)" }
+        ]
+      }
+    }
+  ]
+}

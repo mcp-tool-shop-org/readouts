@@ -1,0 +1,224 @@
+{
+  "bucket": "render-combat",
+  "verifier_note": "Verified against the current official docs, which as of 2026-09-10 serve Godot 4.7 (docs.godotengine.org/en/stable = the 4.7 branch); the pack reads as written against roughly 4.2-4.4. The decisive renderer claim survives falsification: the official feature-comparison table confirms 2D HDR Viewport and MSAA 2D are Forward+/Mobile only with Compatibility supporting neither, and that Compatibility is the only web path - so no 2D feature is attributed to a renderer that lacks it. What fails is version and provenance: 'glow blends before tonemapping as of 4.4 on all three renderers' is actually 4.6 (PR #110671) and Compatibility already did it, godot#86098 is read backwards (the reporter had HDR 2D on; the root cause was the Mobile renderer's dynamic range), and four recipes carry live Godot-3 contamination.",
+  "verdicts": [
+    {
+      "slug": "2d-normal-maps-via-canvastexture-so-painterly-sprites-catch-light-like-reliefs",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7 docs: CanvasTexture diffuse/normal/specular, the 'increase the Height property' advice and X+Y+Z+ handedness are all verbatim. But no raw/non-sRGB import option exists.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/tutorials/2d/2d_lights_and_shadows.html",
+      "corrections": {
+        "claim": "Normal maps are not imported as a 'raw (non-sRGB)' texture - Godot 4 has no such import option. Use Compress > Normal Map (Detect/Enable, which forces RGTC); DirectX-style maps are fixed with Process > Normal Map Invert Y."
+      }
+    },
+    {
+      "slug": "2d-shadows-lightoccluder2d-scoped-with-light-cull-masks-for-legibility",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: shadow_enabled/shadow_color, filter None|PCF5|PCF13, LightOccluder2D + OccluderPolygon2D, light_mask and range_item_cull_mask all confirmed. Two mask claims are wrong.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_light2d.html",
+      "corrections": {
+        "claim": "DirectionalLight2D does not support light cull masks at all - this is documented behaviour, not a flaky bug: 'It will always light up 2D nodes, regardless of the 2D node's CanvasItem.light_mask.' godot#101714 was closed the same day as a duplicate of #48757, which is an OPEN enhancement (i.e. never implemented), so cite #48757 instead. Separately, shadow_item_cull_mask only selects which occluders CAST for that light (matched against LightOccluder2D.occluder_light_mask); it does not select which layers receive shadow."
+      }
+    },
+    {
+      "slug": "ambient-darkness-with-canvasmodulate-as-the-mood-floor",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: 'the final lighting color in areas that are not reached by any 2D light' is near-verbatim, and only one CanvasModulate can tint a canvas. The scope and the tie-break rule are wrong.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_canvasmodulate.html",
+      "corrections": {
+        "claim": "The unit is the CANVAS, not the scene: 'Only one can be used to tint a canvas, but CanvasLayers can be used to render things independently' - so one per CanvasLayer is legitimate. The 'only the last one in tree order is active' tie-break is not documented anywhere; do not rely on it. The docs describe the node as applying a tint / base ambient colour and never state the multiply operation the recipe builds its authoring advice on."
+      }
+    },
+    {
+      "slug": "animatedsprite2d-vs-animationplayer-animationtree-pick-per-need-drive-combat-with-multi-track-sync",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: SpriteFrames, Animation.TYPE_METHOD (=5) 'Method tracks call functions with given arguments per key', Sprite2D hframes/vframes/frame, AnimationNodeStateMachine + parameters/playback all confirmed.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_animationmixer.html",
+      "corrections": {
+        "claim": "'AnimationTree must have .active = true or nothing plays' is Godot-3 residue: active is inherited from AnimationMixer and DEFAULTS TO TRUE in Godot 4 (it defaulted to false in Godot 3), so nothing needs setting. Also set_method_call_mode / get_method_call_mode - the 'Call Method' track API the recipe leans on - are deprecated in favour of AnimationMixer.callback_mode_method."
+      }
+    },
+    {
+      "slug": "bevy-ecs-system-order-multi-track-sync-analog",
+      "verdict": "unfindable",
+      "verified": 0,
+      "status": "directional",
+      "verify_note": "No Godot engine claim, and the record's own source is absent: 'how' reads 'See source URL' with no URL present, and STUDY-002 is not locatable. Bevy's .before/.after/.chain do exist (checked Bevy 0.19.1).",
+      "evidence_url": "https://docs.rs/bevy/latest/bevy/ecs/schedule/trait.IntoScheduleConfigs.html"
+    },
+    {
+      "slug": "glow-bloom-via-worldenvironment-canvas-background-with-a-controlled-hdr-threshold",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: WorldEnvironment one-per-scene, BG_CANVAS=3, glow_enabled, glow_hdr_threshold, glow_intensity/strength/bloom all confirmed. The version and issue attributions are wrong.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_environment.html",
+      "corrections": {
+        "claim": "Glow-before-tonemapping landed in 4.6 (PR #110671), not 4.4, and not uniformly: 'Mobile and Forward+ now apply glow before the tonemap function, just like the Compatibility renderer, for all blend modes except for soft light' - Compatibility already did it. 4.6 also changed the default blend mode to Screen (glow_blend_mode now defaults to 1). godot#86098 is read backwards: the reporter had HDR 2D ON and the root cause is the Mobile renderer's limited dynamic range; the issue is closed. The 4.6 threshold control was not removed or shuffled - a dev3-only default change (1.0 -> 0.0) was reverted before 4.6-stable. Missing requirement: the docs state glow_hdr_threshold 'needs to be decreased below 1.0 when using glow in 2D, as 2D rendering is performed in SDR'. Glow itself is supported on all three renderers."
+      }
+    },
+    {
+      "slug": "import-settings-for-high-fidelity-painterly-sprites-linear-filter-mipmaps-lossless-not-pixel-art-nearest",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: Lossless is the documented 2D default, VRAM Compressed 'should be avoided for 2D', mipmaps cost 'roughly 33%' (verbatim), Reimport is required, project-setting path exact. The Filter claim is stale.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/importing_images.html",
+      "corrections": {
+        "claim": "GODOT-3-STALE: the Import dock has no Filter option in Godot 4. 'Since Godot 4.0, texture filter and repeat modes are set in the CanvasItem properties in 2D (with a project setting acting as a default).' Set CanvasItem.texture_filter per node, or rendering/textures/canvas_textures/default_texture_filter (default 1 = Linear) globally - not the Import tab. Also 'TextureAtlas' is not a Godot 4 class; the class is AtlasTexture."
+      }
+    },
+    {
+      "slug": "pick-the-renderer-deliberately-forward-for-hdr-2d-glow-on-a-desktop-painterly-game",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7 feature table confirms the core claim: 2D HDR Viewport and MSAA 2D are Mobile+Forward+ only and Compatibility supports neither; web is Compatibility-only. Version claims are wrong.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/tutorials/rendering/renderers.html",
+      "corrections": {
+        "claim": "Glow-before-tonemapping is 4.6 (PR #110671), not 4.4, and it did not change all three renderers: Compatibility already applied glow before tonemapping, and the PR moved Mobile and Forward+ to match it, excluding soft light. 4.6 did not remove the 2D glow threshold UI - a dev-only default change was reverted before stable. 'hint_color' is the Godot 3 name and does not exist in Godot 4; only source_color does. Everything else checks out exactly, including rendering/renderer/rendering_method = 'forward_plus' with values forward_plus / mobile / gl_compatibility, and the source_color rule: 'required in the Forward+ and Mobile renderers, and in canvas_item shaders when HDR 2D is enabled... the texture will appear washed out.'"
+      }
+    },
+    {
+      "slug": "pointlight2d-directionallight2d-the-split-light2d-and-how-to-drive-it",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: the migration table lists Light2D -> PointLight2D and Light2D is now an abstract base. texture/texture_scale/offset, 'changing the offset does not cause shadows to move', Add/Sub/Mix, height and range_z all verbatim.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_pointlight2d.html"
+    },
+    {
+      "slug": "unity-mecanim-faq-dual-animation-paths-analog",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Checked against current Unity docs (no Godot claim here, and no source URL in the record). The dual-path premise holds; the stated limit does not.",
+      "evidence_url": "https://docs.unity3d.com/Manual/Animations.html",
+      "corrections": {
+        "claim": "Unity does not deprecate the legacy Animation component. Its docs call it 'Legacy', 'available for backwards compatibility with old Unity projects', and 'still available because it is easier to use and provides better performance for simpler animations.' The honest contrast is legacy-but-retained, not deprecated - which makes the recipe's 'Godot keeps both current' distinction weaker than stated."
+      }
+    },
+    {
+      "slug": "y-sort-the-modern-way-y-sort-enabled-property-not-the-removed-ysort-node",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: migration guide reads 'YSort | Node2D or Control | CanvasItem has a new Y Sort Enabled property in 4.0'; class_ysort 404s on /stable, 200s on /3.6. z_index gotcha verbatim: nodes sort only if on the same z_index.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_canvasitem.html"
+    },
+    {
+      "slug": "abilities-stats-and-parts-as-custom-resources-data-driven-tres-the-crew-authors",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: class_name + extends Resource + @export is the documented pattern, typed export arrays confirmed, and ResourceSaver.save(res, path) is the correct 4.x arg order (3.x was save(path, res)) - recipe passes that test.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_resource.html",
+      "corrections": {
+        "claim": "duplicate() is a SHALLOW copy by default: 'nested Array, Dictionary, and Resource properties are not duplicated and are shared with the original resource.' So .duplicate() on a BattlerStats does NOT isolate a nested StatusResource or any Array/Dictionary field - use duplicate(true) or duplicate_deep(). The parameter is named 'deep' in current stable (it was 'subresources' through 4.4). The recipe also omits resource_local_to_scene, the engine's built-in per-instance alternative, and the editor entry point is the 'Create Resource GUI'."
+      }
+    },
+    {
+      "slug": "action-point-ap-economy-as-plain-integer-state-on-the-battler",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: @export, signal .emit() and plain int state are all valid 4.x. The recipe's one external factual claim is half false - verified by cloning and grepping the addon.",
+      "evidence_url": "https://github.com/OctoD/godot-gameplay-systems",
+      "corrections": {
+        "claim": "Godot Gameplay Systems does NOT ship action-point nodes. Its turn_based module is four files (TurnBasedGame, TurnSubscriber, a turn_manager autoload, plugin.gd) implementing turn ROTATION ordered by an exported priority: int - no action economy at all; a full-clone grep for action-point / action_points returns zero source hits. Turn-based: yes. Action points: no. The addon README also warns that a GDExtension rewrite is in progress and the old API will change."
+      }
+    },
+    {
+      "slug": "deterministic-damage-effect-resolver-subtraction-floor-model-no-rng-hit-chance",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: randi()/randf() and RandomNumberGenerator.seed exist; docs confirm 'A given seed will give a reproducible sequence.' Determinism follows from documented semantics. The damage formulas are uncited design choice, not engine claims.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_randomnumbergenerator.html"
+    },
+    {
+      "slug": "enemy-ai-as-a-sandboxed-battlerai-returning-an-action-utility-scoring-deterministic",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: Curve.sample() is the correct 4.x name (Godot 3's interpolate() is gone from the class ref) and AStarGrid2D exists. The cited GDQuest pattern is Godot 3 and its signature is fabricated.",
+      "evidence_url": "https://github.com/gdquest-demos/godot-2d-jrpg-combat",
+      "corrections": {
+        "claim": "The GDQuest BattlerAI sandboxing pattern exists only in the GODOT 3 repo godot-2d-jrpg-combat (project.godot config_version=4, export var / setget), and the signature given is not real. The actual API is choose() -> Dictionary, with virtuals _choose(), _choose_action(_info: Dictionary) -> ActionData and _choose_targets(...) - not choose_action(state) -> Action, and the return type is ActionData (a Resource), not Action. GDQuest's Godot 4 material (godot-open-rpg) has no BattlerAI at all: it uses class_name CombatAI extends Node with select_action(source: Battler) -> void."
+      }
+    },
+    {
+      "slug": "headless-unit-tests-for-the-deterministic-combat-core-gut-or-gdunit4",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Verified against the GUT and gdUnit4 repos/docs in the Godot 4.7 era: GUT 9.x = Godot 4.x, extends GutTest, assert_eq/assert_true, -s gut_cmdln.gd, -gdir and -gexit are all real; gdUnit4 mocking/spies AND flaky-test handling both confirmed.",
+      "evidence_url": "https://gut.readthedocs.io/en/latest/Command-Line.html",
+      "corrections": {
+        "claim": "'GUT 9.x for Godot 4.x' is too coarse to pin a CI job: the line is matched per Godot minor - 9.7.1 (2026-07-10, current) -> 4.7.x, 9.6.1 -> 4.6.x, 9.5.0 -> 4.5.x, 9.4.0 -> 4.3-4.4.x, 9.0.1 -> 4.0.x. Every documented GUT example also includes -d and --path, which the recipe omits; GUT's own runner places --headless AFTER the script path rather than before; and -gexit is redundant under --headless because GUT auto-exits when headless."
+      }
+    },
+    {
+      "slug": "herobench-long-horizon-grid-rpg-planning",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Retrieved arXiv:2508.12782 (2025): 'a grid of 70 locations', 'Combat in HeroBench is turn-based', '208 unique items, including gear and crafting components' - matches every axis. The record has no source URL; its 'how' is a placeholder.",
+      "evidence_url": "https://arxiv.org/abs/2508.12782"
+    },
+    {
+      "slug": "initiative-turn-order-queue-with-an-interleaved-re-sortable-order",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: sort_custom(func: Callable) - 'should return true if the first element should be moved before the second one' - exact match, and the Godot 3 sort_custom(obj, method-name) form is gone (checked vs 3.6 docs).",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_array.html"
+    },
+    {
+      "slug": "node-based-combat-state-machine-combatstate-child-nodes-a-tiny-combatstatemachine",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: the &-quote StringName literal is documented verbatim and 'Comparing them is extremely fast compared to regular Strings' confirms the cheaper-comparison claim. Typed signal params and @export NodePath are valid 4.x.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_stringname.html"
+    },
+    {
+      "slug": "per-part-called-shot-targeting-hooks-parts-as-a-sub-grid-of-hp-armor-on-each-battler",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: class_name PartResource extends Resource, @export of StringName/int/Dictionary and typed Array[PartResource] are all confirmed. The duplicate() advice does not do what the recipe needs it to.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_resource.html",
+      "corrections": {
+        "claim": "dropped_part.duplicate() is a SHALLOW copy by default, and 'nested Array, Dictionary, and Resource properties are not duplicated and are shared with the original resource' - so the PartResource's own stat_mods: Dictionary would STILL be shared between the two battlers, which is exactly the mutating-shared-part bug the recipe is trying to prevent. Use duplicate(true) or duplicate_deep()."
+      }
+    },
+    {
+      "slug": "sequence-turns-with-await-on-signals-coroutines-not-yield-a-signal-bus-for-ui-decoupling",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot 4.7: await-on-signal, the autoload signal bus and Signal.emit()/.connect() are all confirmed, and animation_finished(anim_name: StringName) does pass the name. The interruption claim is refuted by the docs.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_animationmixer.html",
+      "corrections": {
+        "claim": "'animation_finished fires even on interruption' is FALSE. The signal belongs to AnimationMixer, and every documented statement about it is a negative: 'This signal is not emitted if an animation is looping' and 'Seeking to the end of the animation doesn't emit AnimationMixer.animation_finished'; stop() documents no emission at all. Safe form: emitted when a non-looping animation reaches its end - which is precisely why the recipe's own await-deadlock gotcha bites. Second fix: a function becomes a coroutine only when it awaits a SIGNAL OR A COROUTINE - 'If you use await with an expression that isn't a signal nor a coroutine, the value will be returned immediately and the function won't give the control back to the caller.' Third, minor: yield was not deleted, it is a reserved keyword ('Previously used for coroutines. Kept as keyword for transition') - non-functional, so the practical advice stands."
+      }
+    },
+    {
+      "slug": "starbench-turn-based-rpg-agent-bench",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Retrieved arXiv:2510.18483 (Oct 2025), 'StarBench: A Turn-Based RPG Benchmark for Agentic Multimodal Decision-Making'. Action space a_t=(c,m,t) is real; 'separates strategy from UI grounding' is an accurate paraphrase, not a quote.",
+      "evidence_url": "https://arxiv.org/abs/2510.18483"
+    }
+  ]
+}

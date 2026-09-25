@@ -1,0 +1,1017 @@
+{
+  "laneSlug": "memory-layout",
+  "title": "Memory, smart pointers & layout",
+  "tier": "advanced",
+  "recipes": [
+    {
+      "name": "Put ABI buffers in flat arrays or #[repr(C)]: default repr(Rust) promises no field order or size",
+      "what": "Rust fixes the layout of arrays (element n at byte n*size_of::<T>()), of #[repr(C)] types (declaration order, C padding) and of #[repr(transparent)] types (the layout and ABI of their one non-zero-sized field); the default representation promises only aligned, non-overlapping fields, and its order and size may differ between compilations.",
+      "how": "For memory another language reads (JS Float64Array views over wasm memory, a snapshot byte format, a C header) use a flat [f64; N] addressed by stride constants, or a #[repr(C)] struct of primitives. Pin the layout at compile time with `const _: () = assert!(size_of::<T>() == N);` (size_of is a const fn) and `core::mem::offset_of!(T, field)` (stable since 1.77). Order repr(C) fields by descending alignment to avoid padding: #[repr(C)] { u8, u32, u16 } is 12 bytes at offsets 0/4/8. To read a field of a #[repr(packed)] struct, copy it (`{ w.value }`) or take `&raw const w.value` and call read_unaligned(); a reference to it is refused with E0793.",
+      "rust_version": "any; offset_of! 1.77+",
+      "gotchas": "The repr(Rust) twin of { u8, u32, u16 } measures 8 bytes on rustc 1.98.1 because the compiler reordered it; that is an observation, and the Reference says the default representation makes no other layout guarantees. Primitive alignment is platform-specific (the Reference: f64 is only 4-aligned on many 32-bit platforms; u128 alignment varies), so measure on the shipped target: on wasm32-unknown-unknown align_of::<f64>() is 8. A reference to a packed field is a hard error (E0793) because a misaligned reference is undefined behaviour even if it is never dereferenced.",
+      "engine_note": "lib.rs exposes `static mut BODIES: [f64; MAX_BODIES * BODY_STRIDE]` (64 x 17) and COLLIDERS (64 x 10), rapier_law.rs HEIGHTS ([f64; 256]); build.mjs indexes a Float64Array at `bodies_ptr() / 8 + i * 17 + slot`. That is the guaranteed case: array element n sits at n*8 bytes, and the wasm check below returns 800 (f64 8-aligned, the static's address a multiple of 8). Keep the ABI as flat arrays or #[repr(C)]; a plain `struct Body { .. }` would give JS no fixed offsets. The coupling no compiler checks is the stride: build.mjs hard-codes 17 and 10 while Rust owns BODY_STRIDE and COLLIDER_STRIDE, so exporting the strides or generating the JS constants would turn a stride change into a loud failure.",
+      "checks": [
+        {
+          "label": "Arrays and repr(C) have fixed offsets; the repr(Rust) size is whatever 1.98.1 chose",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "repr(C) size 12 align 4\nrepr(C) offsets a=0 b=4 c=8\nrepr(Rust) size 8 (unspecified)\ntransparent size 8 align 8\nelement offset 376\narray size 8704 align 8",
+          "source": "#![allow(dead_code)]\nuse std::mem::{align_of, offset_of, size_of};\n\n#[repr(C)]\nstruct CRec { a: u8, b: u32, c: u16 }\n\nstruct RustRec { a: u8, b: u32, c: u16 } // default repr(Rust)\n\n#[repr(transparent)]\nstruct Meters(f64);\n\nconst MAX_BODIES: usize = 64;\nconst BODY_STRIDE: usize = 17;\n// Compile-time layout pins: a wrong number is a build error, not a runtime surprise.\nconst _: () = assert!(size_of::<[f64; MAX_BODIES * BODY_STRIDE]>() == MAX_BODIES * BODY_STRIDE * 8);\nconst _: () = assert!(offset_of!(CRec, b) == 4);\n\nfn main() {\n    println!(\"repr(C) size {} align {}\", size_of::<CRec>(), align_of::<CRec>());\n    println!(\"repr(C) offsets a={} b={} c={}\", offset_of!(CRec, a), offset_of!(CRec, b), offset_of!(CRec, c));\n    println!(\"repr(Rust) size {} (unspecified)\", size_of::<RustRec>());\n    println!(\"transparent size {} align {}\", size_of::<Meters>(), align_of::<Meters>());\n    let arr = [0.0f64; MAX_BODIES * BODY_STRIDE];\n    let base = arr.as_ptr() as usize;\n    let at = &arr[2 * BODY_STRIDE + 13] as *const f64 as usize; // body 2, slot 13\n    println!(\"element offset {}\", at - base);\n    println!(\"array size {} align {}\", size_of::<[f64; MAX_BODIES * BODY_STRIDE]>(), align_of::<[f64; MAX_BODIES * BODY_STRIDE]>());\n}\n"
+        },
+        {
+          "label": "A reference to a #[repr(packed)] field is refused with E0793",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0793"
+          ],
+          "stderr_contains": [
+            "reference to field of packed struct is unaligned",
+            "creating a misaligned reference is undefined behavior"
+          ],
+          "source": "#[repr(C, packed)]\npub struct Wire { tag: u8, value: f64 }\n\npub fn value_ref(w: &Wire) -> &f64 {\n    &w.value\n}\n"
+        },
+        {
+          "label": "Copying a packed field, or &raw const plus read_unaligned, compiles and reads it",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "9 1 2.5 2.5",
+          "source": "#[repr(C, packed)]\npub struct Wire { tag: u8, value: f64 }\n\nfn main() {\n    let w = Wire { tag: 1, value: 2.5 };\n    let copy = w.value;                     // a copy, not a reference\n    let raw = &raw const w.value;           // a raw pointer, then an unaligned read\n    let read = unsafe { raw.read_unaligned() };\n    println!(\"{} {} {} {}\", std::mem::size_of::<Wire>(), { w.tag }, copy, read);\n}\n"
+        },
+        {
+          "label": "On wasm32-unknown-unknown f64 is 8-aligned and a static [f64; N] starts 8-aligned",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "wasm_exports": [
+            "memory",
+            "bodies_ptr",
+            "layout_probe"
+          ],
+          "wasm_call": {
+            "export": "layout_probe",
+            "args": []
+          },
+          "stdout": "800",
+          "source": "const MAX_BODIES: usize = 64;\nconst BODY_STRIDE: usize = 17;\nstatic mut BODIES: [f64; MAX_BODIES * BODY_STRIDE] = [0.0; MAX_BODIES * BODY_STRIDE];\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn bodies_ptr() -> *mut f64 {\n    (&raw mut BODIES).cast::<f64>()\n}\n\n/// 100 * align_of::<f64>() + (address of BODIES mod 8): 800 means 8-byte aligned f64 and an aligned buffer.\n#[unsafe(no_mangle)]\npub extern \"C\" fn layout_probe() -> u32 {\n    let addr = bodies_ptr() as usize;\n    (100 * core::mem::align_of::<f64>() + addr % 8) as u32\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Reference: Type layout",
+          "url": "https://doc.rust-lang.org/stable/reference/type-layout.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Arrays place element n at n*size_of::<T>(); repr(C) lays fields out in declaration order with C padding; repr(transparent) has the layout and ABI of its one non-ZST field; the default representation makes no other layout guarantees; primitive alignment is platform-specific.",
+          "retrieved": true
+        },
+        {
+          "title": "std::mem::size_of",
+          "url": "https://doc.rust-lang.org/stable/std/mem/fn.size_of.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "[T; n] has size n*size_of::<T>(); the size of a type is in general not stable across compilations; size_of is const since 1.24.",
+          "retrieved": true
+        },
+        {
+          "title": "std::mem::offset_of!",
+          "url": "https://doc.rust-lang.org/stable/std/mem/macro.offset_of.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "offset_of! is stable since 1.77.0 and warns that two compilations of the same program may produce different layouts unless an explicit repr is used.",
+          "retrieved": true
+        },
+        {
+          "title": "Rust error codes index: E0793",
+          "url": "https://doc.rust-lang.org/stable/error_codes/E0793.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Taking a reference to an insufficiently aligned field of a packed struct is an error; copy the field or use a raw pointer with read_unaligned.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rustonomicon: Alternative representations",
+          "url": "https://doc.rust-lang.org/nomicon/other-reprs.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "repr(C) gives C's field order, size and alignment and is what FFI and layout-dependent reinterpretation need; repr(packed) should not be used lightly.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Count on Option's niche only for std-listed types; give boundary enums #[repr(u8)] and explicit values",
+      "what": "Option<T> has exactly the size, alignment and call ABI of T when T is &U, &mut U, Box<U>, a fn pointer, a NonZero integer, NonNull<U>, or a #[repr(transparent)] wrapper of one of these; types in which every bit pattern is valid (u32, f64) have no niche, so Option<u32> is 8 bytes and Option<f64> is 16.",
+      "how": "Use NonZeroU32 (NonZero<u32>) for ids that are never 0, and Option<&T> / Option<Box<T>> instead of nullable raw pointers: all free under the guarantee. Give a fieldless enum that crosses a boundary #[repr(u8)] and explicit discriminants; the Reference makes it the size of u8 with discriminants 0..=255, and a value of 300 is rejected by the deny-by-default overflowing_literals lint. Decode incoming numbers with match or a TryFrom impl that returns Err for anything else.",
+      "rust_version": "any",
+      "gotchas": "Niche filling outside the std list is the compiler's choice, not a promise: slotmap's key is a repr(Rust) struct { idx: u32, version: NonZeroU32 } and Option<DefaultKey> measures 8 bytes on 1.98.1, but std guarantees that only for the listed types. An explicit repr on an enum WITH fields turns niche filling off: enum { Nothing, Some(&u16) } is 8 bytes plain and 16 bytes with #[repr(u8)] (Rustonomicon; measured). Option<MaybeUninit<bool>> is 2 bytes because MaybeUninit has no invalid values.",
+      "engine_note": "rapier_law.rs keeps `handles: Vec<Option<RigidBodyHandle>>`; RigidBodyHandle is #[repr(transparent)] over rapier's Index { index: u32, generation: u32 }, which has no invalid bit pattern, so each slot costs 12 bytes (measured), harmless at 64 bodies. The body mode travels as the f64 in slot DRIVEN (16) and is tested with == 1.0 / 2.0 / 3.0; if it becomes a Rust enum, #[repr(u8)] plus a TryFrom<f64> keeps a stray 7.0 from JS an error instead of an invalid value.",
+      "checks": [
+        {
+          "label": "Guaranteed niches keep Option the size of T; u32 and f64 have none; repr(u8) blocks the niche",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "&f64 8 Option<&f64> 8\nBox<f64> 8 Option<Box<f64>> 8\nNonZeroU32 4 Option<NonZeroU32> 4\nNonNull<f64> 8 Option<NonNull<f64>> 8\nu32 4 Option<u32> 8\nf64 8 Option<f64> 16\nMode 1 as u8 3\nPlain 8 Tagged 16",
+          "source": "use std::mem::size_of;\nuse std::num::NonZeroU32;\nuse std::ptr::NonNull;\n\n#[allow(dead_code)]\n#[repr(u8)]\n#[derive(Clone, Copy)]\nenum Mode { Free = 0, Driven = 1, Lifted = 2, Carried = 3 }\n\n#[allow(dead_code)]\nenum Plain<'a> { Nothing, Some(&'a u16) }\n\n#[allow(dead_code)]\n#[repr(u8)]\nenum Tagged<'a> { Nothing, Some(&'a u16) }\n\nfn main() {\n    // guaranteed by std::option \"Representation\"\n    println!(\"&f64 {} Option<&f64> {}\", size_of::<&f64>(), size_of::<Option<&f64>>());\n    println!(\"Box<f64> {} Option<Box<f64>> {}\", size_of::<Box<f64>>(), size_of::<Option<Box<f64>>>());\n    println!(\"NonZeroU32 {} Option<NonZeroU32> {}\", size_of::<NonZeroU32>(), size_of::<Option<NonZeroU32>>());\n    println!(\"NonNull<f64> {} Option<NonNull<f64>> {}\", size_of::<NonNull<f64>>(), size_of::<Option<NonNull<f64>>>());\n    // no niche: every bit pattern of u32 and f64 is valid\n    println!(\"u32 {} Option<u32> {}\", size_of::<u32>(), size_of::<Option<u32>>());\n    println!(\"f64 {} Option<f64> {}\", size_of::<f64>(), size_of::<Option<f64>>());\n    // repr(u8) fieldless enum: exactly one byte, discriminants fixed\n    println!(\"Mode {} as u8 {}\", size_of::<Mode>(), Mode::Carried as u8);\n    // explicit repr on an enum with fields turns niche filling off\n    println!(\"Plain {} Tagged {}\", size_of::<Plain>(), size_of::<Tagged>());\n}\n"
+        },
+        {
+          "label": "Option<RigidBodyHandle> is 12 bytes (no niche); Option<slotmap DefaultKey> is 8 on 1.98.1",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "deps": [
+            "rapier3d_f64",
+            "slotmap"
+          ],
+          "stdout": "RigidBodyHandle 8 Option<RigidBodyHandle> 12\nDefaultKey 8 Option<DefaultKey> 8",
+          "source": "use std::mem::size_of;\nuse rapier3d_f64::prelude::RigidBodyHandle;\nuse slotmap::DefaultKey;\n\nfn main() {\n    println!(\"RigidBodyHandle {} Option<RigidBodyHandle> {}\", size_of::<RigidBodyHandle>(), size_of::<Option<RigidBodyHandle>>());\n    println!(\"DefaultKey {} Option<DefaultKey> {}\", size_of::<DefaultKey>(), size_of::<Option<DefaultKey>>());\n}\n"
+        },
+        {
+          "label": "A #[repr(u8)] discriminant of 300 is rejected by the overflowing_literals lint",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "lints": [
+            "overflowing_literals"
+          ],
+          "stderr_contains": [
+            "literal out of range for `u8`"
+          ],
+          "source": "#[repr(u8)]\npub enum Mode { Free = 0, Driven = 1, Wide = 300 }\n"
+        },
+        {
+          "label": "A TryFrom<f64> decoder maps 3.0 to a variant and rejects 7.0",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "Ok(Carried) Err(7.0) 2",
+          "source": "#[derive(Debug, Clone, Copy, PartialEq)]\n#[repr(u8)]\nenum Mode { Free = 0, Driven = 1, Lifted = 2, Carried = 3 }\n\nimpl TryFrom<f64> for Mode {\n    type Error = f64;\n    fn try_from(x: f64) -> Result<Self, f64> {\n        match x {\n            0.0 => Ok(Mode::Free),\n            1.0 => Ok(Mode::Driven),\n            2.0 => Ok(Mode::Lifted),\n            3.0 => Ok(Mode::Carried),\n            other => Err(other),\n        }\n    }\n}\n\nfn main() {\n    println!(\"{:?} {:?} {}\", Mode::try_from(3.0), Mode::try_from(7.0), Mode::Lifted as u8);\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "std::option: Representation",
+          "url": "https://doc.rust-lang.org/stable/std/option/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Lists the types (Box<U>, &U, &mut U, fn, NonZero*, NonNull<U>, repr(transparent) wrappers) for which Option<T> is guaranteed the same size, alignment and call ABI as T.",
+          "retrieved": true
+        },
+        {
+          "title": "std::num::NonZero",
+          "url": "https://doc.rust-lang.org/stable/std/num/struct.NonZero.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "NonZero<T> has the layout and bit validity of T except that zero is invalid, so Option<NonZero<u32>> is the same size as u32.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Type layout (primitive representations)",
+          "url": "https://doc.rust-lang.org/stable/reference/type-layout.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "A field-less enum with repr(u8) has the size and alignment of u8 and discriminants 0..=255; an enum with fields and a primitive repr is a repr(C) union of repr(C) structs led by the tag.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rustonomicon: Alternative representations",
+          "url": "https://doc.rust-lang.org/nomicon/other-reprs.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Adding an explicit repr(u*), repr(i*) or repr(C) to an enum with fields suppresses the null-pointer optimization.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: RigidBodyHandle",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.RigidBodyHandle.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "RigidBodyHandle is a #[repr(transparent)] wrapper of Index whose into_raw_parts() gives (index, generation).",
+          "retrieved": true
+        },
+        {
+          "title": "slotmap 1.1.1: src/lib.rs",
+          "url": "https://docs.rs/crate/slotmap/1.1.1/source/src/lib.rs",
+          "year": 2025,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "KeyData is a plain struct { idx: u32, version: NonZeroU32 }; key order is documented as unspecified.",
+          "retrieved": true
+        },
+        {
+          "title": "std::mem::MaybeUninit",
+          "url": "https://doc.rust-lang.org/stable/std/mem/union.MaybeUninit.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Option<bool> is 1 byte but Option<MaybeUninit<bool>> is 2, because any bit pattern is valid for MaybeUninit.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Budget pointer widths: Box<T> is one word, Box<[T]> and &dyn Trait carry metadata, ZSTs take no space",
+      "what": "Box<T> for sized T is guaranteed to be one pointer, ABI-compatible with C's T*; pointers to dynamically sized types ([T], str, dyn Trait) also carry a length or a vtable pointer and are two words today; zero-sized types occupy no memory, and a Vec of a ZST never allocates and reports capacity usize::MAX.",
+      "how": "Keep fixed-size data inline, on the stack or in a static; the Book: stack data must have a known, fixed size, while data whose size is unknown at compile time or can change goes on the heap. Box::new moves a value to the heap. vec.into_boxed_slice() discards excess capacity and yields a Box<[T]>: a fixed-length heap buffer with no capacity field, so it cannot grow and its allocation stays put for the box's life. Vec<T> is a (pointer, capacity, length) triplet (field order unspecified) that never stores elements inline on the stack. Use unit structs and PhantomData as markers and Map<K, ()> as a set: stores of a ZST compile to nothing.",
+      "rust_version": "any",
+      "gotchas": "The Reference hedges on DST pointer width: all pointers to DSTs are 'currently' twice the size of usize, 'though you should not rely on this'; assert it in a const only for the target you ship. Unsafe code must special-case ZSTs: pointer offsets are no-ops and allocators require a non-zero size (Rustonomicon), and a Box of a ZST holds a dangling but aligned pointer.",
+      "engine_note": "The ABI buffers (BODIES and COLLIDERS in lib.rs, HEIGHTS in rapier_law.rs) are statics, neither stack nor heap: all references and raw pointers to a static refer to the same allocation, so their addresses never change. The heap holds the Rapier world, SOLVER.snapshot and the per-quantum scratch Vecs in integrate(). If an ABI buffer ever needs a length chosen at load time, a Box<[f64]> made once with into_boxed_slice keeps the fixed address that a growing Vec lacks.",
+      "checks": [
+        {
+          "label": "Box<T> 1 word; Box<[T]>, &[T], &str, &dyn 2; Vec 3; ZSTs 0; Vec<ZST> capacity usize::MAX",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "Box<f64> 1 Box<[f64; 4]> 1 &f64 1\nBox<[f64]> 2 &[f64] 2 &str 2 &dyn Debug 2\nVec<f64> 3\n() 0 Marker 0 PhantomData<f64> 0 [f64; 0] 0\nVec<Marker> capacity is usize::MAX: true\nboxed len 3 back to vec capacity 3",
+          "source": "use std::fmt::Debug;\nuse std::marker::PhantomData;\nuse std::mem::size_of;\n\nstruct Marker; // a zero-sized type\n\nfn main() {\n    let w = size_of::<usize>();\n    // thin: one word\n    println!(\"Box<f64> {} Box<[f64; 4]> {} &f64 {}\", size_of::<Box<f64>>() / w, size_of::<Box<[f64; 4]>>() / w, size_of::<&f64>() / w);\n    // wide: pointer + metadata (length or vtable)\n    println!(\"Box<[f64]> {} &[f64] {} &str {} &dyn Debug {}\", size_of::<Box<[f64]>>() / w, size_of::<&[f64]>() / w, size_of::<&str>() / w, size_of::<&dyn Debug>() / w);\n    // Vec is (pointer, capacity, length)\n    println!(\"Vec<f64> {}\", size_of::<Vec<f64>>() / w);\n    // zero-sized types\n    println!(\"() {} Marker {} PhantomData<f64> {} [f64; 0] {}\", size_of::<()>(), size_of::<Marker>(), size_of::<PhantomData<f64>>(), size_of::<[f64; 0]>());\n    let units: Vec<Marker> = Vec::with_capacity(10);\n    println!(\"Vec<Marker> capacity is usize::MAX: {}\", units.capacity() == usize::MAX);\n    // into_boxed_slice drops the excess capacity: a fixed-length heap buffer\n    let mut v: Vec<f64> = Vec::with_capacity(10);\n    v.extend([1.0, 2.0, 3.0]);\n    let fixed: Box<[f64]> = v.into_boxed_slice();\n    println!(\"boxed len {} back to vec capacity {}\", fixed.len(), fixed.into_vec().capacity());\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "std::boxed: Memory layout",
+          "url": "https://doc.rust-lang.org/stable/std/boxed/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "For T: Sized, Box<T> is guaranteed to be a single pointer, ABI-compatible with C's T*; creating a Box moves a value from the stack to the heap; a Box of a ZST needs a non-null aligned pointer.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Dynamically sized types",
+          "url": "https://doc.rust-lang.org/stable/reference/dynamically-sized-types.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Slices, str and trait objects are DSTs; pointers to them store metadata (element count, byte length or vtable pointer).",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Type layout (pointers and references)",
+          "url": "https://doc.rust-lang.org/stable/reference/type-layout.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Pointers to sized types have usize's size; pointers to DSTs are currently twice usize, but the page says not to rely on it.",
+          "retrieved": true
+        },
+        {
+          "title": "std::vec::Vec: Guarantees",
+          "url": "https://doc.rust-lang.org/stable/std/vec/struct.Vec.html#guarantees",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Vec is and always will be a (pointer, capacity, length) triplet, never stores elements on the stack, reports capacity usize::MAX for ZSTs, and into_boxed_slice discards excess capacity.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rustonomicon: Exotically sized types",
+          "url": "https://doc.rust-lang.org/nomicon/exotic-sizes.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "A pointer to a DST is a wide pointer; ZSTs occupy no space and their loads and stores become no-ops, but unsafe code must handle them (pointer offsets are no-ops, allocators need non-zero sizes).",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, ch. 4.1: The Stack and the Heap",
+          "url": "https://doc.rust-lang.org/stable/book/ch04-01-what-is-ownership.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Stack data must have a known, fixed size; data of unknown or changing size goes on the heap, reached through a pointer the allocator returns.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Static items",
+          "url": "https://doc.rust-lang.org/stable/reference/items/static-items.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "All references and raw pointers to a static refer to the same allocation.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Predict destructors: fields drop in declaration order, locals in reverse, statics and forgotten values never",
+      "what": "A struct's fields drop in declaration order and a scope's locals in reverse order of declaration; an assignment drops the old value before the new one moves in; statics are never dropped; mem::forget and ManuallyDrop skip a destructor safely, because Rust does not promise that destructors run; memory that is not yet initialised must be held as MaybeUninit<T>.",
+      "how": "Get the drop order you need by ordering fields: ManuallyDrop's docs recommend reordering declarations over ManuallyDrop, which needs unsafe code to drop. Use ManuallyDrop<T> (same layout and bit validity as T) when ownership passes to foreign code, in preference to mem::forget. To fill an array piecewise: `let mut a: [MaybeUninit<T>; N] = [const { MaybeUninit::uninit() }; N];`, write every slot exactly once, then `mem::transmute::<_, [T; N]>(a)`; MaybeUninit<T> has T's size, alignment and ABI.",
+      "rust_version": "any",
+      "gotchas": "`MaybeUninit::uninit().assume_init()` for bool (or any type with invalid bit patterns) is undefined behaviour, and rustc 1.98.1 only warns, through the warn-by-default invalid_value lint ('does not permit being left uninitialized'), so deny warnings in CI. Dropping a MaybeUninit does nothing: a panic midway through a fill leaks, it never double-drops. Calling ManuallyDrop::drop twice is UB. Rc cycles and process::exit also skip destructors, so no soundness argument may rest on Drop running.",
+      "engine_note": "`static mut SOLVER` in rapier_law.rs is a static, so it is never dropped: its snapshot buffer and loaded Rapier world live as long as the wasm instance. The one release point is replacement: `solver.loaded = Some(loaded)` in ensure() drops the previous Loaded (fields in declaration order, the PhysicsWorld first) before the new one moves in. A T2 solver_restore that rebuilds the world inherits that same drop point.",
+      "checks": [
+        {
+          "label": "Assignment drops the old value; fields in order; locals reversed; static/forget/ManuallyDrop never",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "drop old value\nstatic at static\nend of main\ndrop new value\ndrop field first\ndrop field second\ndrop local b\ndrop local a",
+          "source": "#![allow(dead_code, unused_assignments)]\nuse std::mem::{self, ManuallyDrop};\n\nstruct Loud(&'static str);\nimpl Drop for Loud {\n    fn drop(&mut self) {\n        println!(\"drop {}\", self.0);\n    }\n}\n\nstruct World {\n    first: Loud,\n    second: Loud,\n}\n\nstatic FOREVER: Loud = Loud(\"static\");\n\nfn main() {\n    let _a = Loud(\"local a\");\n    let _b = Loud(\"local b\");\n    let _w = World { first: Loud(\"field first\"), second: Loud(\"field second\") };\n    mem::forget(Loud(\"forgotten\"));\n    let _m = ManuallyDrop::new(Loud(\"manual\"));\n    let mut slot = Loud(\"old value\");\n    slot = Loud(\"new value\"); // assignment drops the old value first\n    println!(\"static at {}\", FOREVER.0);\n    println!(\"end of main\");\n    let _ = &slot;\n}\n"
+        },
+        {
+          "label": "assume_init on an uninitialised bool compiles, flagged only by the invalid_value warning",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "lints": [
+            "invalid_value"
+          ],
+          "stderr_contains": [
+            "does not permit being left uninitialized"
+          ],
+          "source": "use std::mem::MaybeUninit;\n\npub fn make_flag() -> bool {\n    unsafe { MaybeUninit::uninit().assume_init() }\n}\n"
+        },
+        {
+          "label": "The MaybeUninit array idiom: write each slot once, then transmute to [T; N]",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "[0.0, 0.5, 1.0, 1.5]\n8 2",
+          "source": "use std::mem::{self, MaybeUninit};\n\nfn main() {\n    // An array of MaybeUninit needs no initialisation; each slot is written exactly once.\n    let mut slots: [MaybeUninit<f64>; 4] = [const { MaybeUninit::uninit() }; 4];\n    for (i, slot) in slots.iter_mut().enumerate() {\n        slot.write(i as f64 * 0.5);\n    }\n    // Every element is initialised: reinterpret as the initialised array.\n    let values: [f64; 4] = unsafe { mem::transmute::<[MaybeUninit<f64>; 4], [f64; 4]>(slots) };\n    println!(\"{:?}\", values);\n    println!(\"{} {}\", mem::size_of::<MaybeUninit<f64>>(), mem::size_of::<Option<MaybeUninit<bool>>>());\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Reference: Destructors",
+          "url": "https://doc.rust-lang.org/stable/reference/destructors.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Struct fields drop in declaration order; locals drop in reverse order of declaration; preventing a destructor via mem::forget or ManuallyDrop is safe.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Static items",
+          "url": "https://doc.rust-lang.org/stable/reference/items/static-items.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Static items do not call drop at the end of the program.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Operator expressions (assignment)",
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Assignment first drops the value at the assigned place (unless uninitialised), then moves or copies the new value in.",
+          "retrieved": true
+        },
+        {
+          "title": "std::mem::ManuallyDrop",
+          "url": "https://doc.rust-lang.org/stable/std/mem/struct.ManuallyDrop.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "ManuallyDrop<T> has T's layout and bit validity; controlling drop order with it needs unsafe, so reordering fields is preferred; dropping twice can be UB.",
+          "retrieved": true
+        },
+        {
+          "title": "std::mem::forget",
+          "url": "https://doc.rust-lang.org/stable/std/mem/fn.forget.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "forget is safe because Rust's safety guarantees do not include destructors always running; ManuallyDrop is usually preferred.",
+          "retrieved": true
+        },
+        {
+          "title": "std::mem::MaybeUninit",
+          "url": "https://doc.rust-lang.org/stable/std/mem/union.MaybeUninit.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "An uninitialised bool is UB; the documented element-by-element array idiom writes each MaybeUninit slot then transmutes; MaybeUninit<T> has T's size, alignment and ABI.",
+          "retrieved": true
+        },
+        {
+          "title": "The rustc book: Warn-by-default lints (invalid_value)",
+          "url": "https://doc.rust-lang.org/stable/rustc/lints/listing/warn-by-default.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "invalid_value is warn-by-default and detects improper uses of mem::zeroed, mem::uninitialized, transmute and MaybeUninit::assume_init.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Point Rc/Arc edges one way (strong down, Weak back) or a strong cycle leaks and its destructors never run",
+      "what": "Rc and Arc drop their value when the last strong handle goes, so a cycle of strong handles never reaches zero: no destructor runs and nothing warns, because leaks are memory-safe in Rust. Weak (Rc::downgrade / Arc::downgrade) does not own, and upgrade() returns None once the value is gone.",
+      "how": "Shape shared ownership as a tree: parent to child as Rc/Arc, child to parent as Weak, upgrade() at the point of use. Rc's count is non-atomic and Rc is not Send (moving one into thread::spawn is E0277); Arc's count is atomic and Arc<T> is Send + Sync as long as T is, because Arc makes shared ownership thread-safe but adds no thread safety to the data, so mutation behind it needs Mutex, RwLock or atomics. Write Rc::clone(&x) / Arc::clone(&x) to show a count bump rather than a deep copy. For simulation state prefer a single owner (a Vec or an arena) plus Copy indices, and keep Rc/Arc for immutable shared leaves such as collision shapes.",
+      "rust_version": "any",
+      "gotchas": "A leaked cycle is silent: in the check, strong_count stays 1 and no drop line prints after both handles are dropped. Clone shares, rebuilding does not: constructing the same shape twice makes two allocations (Arc::ptr_eq is false). Preferring arenas over Rc graphs for simulation state is this lane's inference (no cycles, state addressed by position), not a sentence from a source.",
+      "engine_note": "rapier_law.rs builds a fresh parry SharedShape (`pub struct SharedShape(pub Arc<dyn Shape>)`) on every character_shape() call in integrate(): once per non-lifted driven body for move_shape and once per plan for the impulse pass, so each quantum makes one or two new Arc allocations per driven body. Building it once per body in build_world and keeping it in Loaded would make each later use a count bump (a clone shares the allocation, per the check). The shape's numbers are identical, so results should not move; confirm with the golden hash.",
+      "checks": [
+        {
+          "label": "A strong Rc cycle outlives its handles; a Weak back-edge lets the parent drop",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "after dropping the cycle: strong 1 alive true\nchild sees parent: true\ndrop tree parent\nchild sees parent after drop: false\ndrop tree child",
+          "source": "use std::cell::RefCell;\nuse std::rc::{Rc, Weak};\n\nstruct Node {\n    name: &'static str,\n    next: RefCell<Option<Rc<Node>>>,   // strong edge\n    parent: RefCell<Weak<Node>>,       // weak back-edge\n}\nimpl Drop for Node {\n    fn drop(&mut self) {\n        println!(\"drop {}\", self.name);\n    }\n}\nfn node(name: &'static str) -> Rc<Node> {\n    Rc::new(Node { name, next: RefCell::new(None), parent: RefCell::new(Weak::new()) })\n}\n\nfn main() {\n    // A cycle of strong edges: a -> b -> a.\n    let a = node(\"cycle a\");\n    let b = node(\"cycle b\");\n    *a.next.borrow_mut() = Some(Rc::clone(&b));\n    *b.next.borrow_mut() = Some(Rc::clone(&a));\n    let probe = Rc::downgrade(&a);\n    drop(a);\n    drop(b);\n    println!(\"after dropping the cycle: strong {} alive {}\", probe.strong_count(), probe.upgrade().is_some());\n\n    // A tree: parent owns child strongly, child points back weakly.\n    let parent = node(\"tree parent\");\n    let child = node(\"tree child\");\n    *parent.next.borrow_mut() = Some(Rc::clone(&child));\n    *child.parent.borrow_mut() = Rc::downgrade(&parent);\n    println!(\"child sees parent: {}\", child.parent.borrow().upgrade().is_some());\n    drop(parent);\n    println!(\"child sees parent after drop: {}\", child.parent.borrow().upgrade().is_some());\n}\n"
+        },
+        {
+          "label": "Moving an Rc into thread::spawn is refused: Rc is not Send (E0277)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "cannot be sent between threads safely"
+          ],
+          "source": "use std::rc::Rc;\nuse std::thread;\n\npub fn share() {\n    let state = Rc::new(vec![0.0f64; 4]);\n    let handle = thread::spawn(move || state.len());\n    handle.join().unwrap();\n}\n"
+        },
+        {
+          "label": "parry SharedShape: clone bumps the Arc count, rebuilding allocates anew; it is two words wide",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "deps": [
+            "parry3d_f64"
+          ],
+          "stdout": "strong count after clone: 2\nclone shares the allocation: true\nrebuilt shape shares it: false\nSharedShape width in words: 2",
+          "source": "use parry3d_f64::shape::SharedShape;\nuse std::sync::Arc;\n\nfn main() {\n    let a = SharedShape::cuboid(0.5, 1.0, 0.5);\n    let b = a.clone(); // bumps the count; the shape data is shared\n    println!(\"strong count after clone: {}\", Arc::strong_count(&a.0));\n    println!(\"clone shares the allocation: {}\", Arc::ptr_eq(&a.0, &b.0));\n    let c = SharedShape::cuboid(0.5, 1.0, 0.5); // same numbers, a new heap allocation\n    println!(\"rebuilt shape shares it: {}\", Arc::ptr_eq(&a.0, &c.0));\n    println!(\"SharedShape width in words: {}\", std::mem::size_of::<SharedShape>() / std::mem::size_of::<usize>());\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "std::rc",
+          "url": "https://doc.rust-lang.org/stable/std/rc/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Rc is non-atomic and not Send; a cycle between Rc pointers is never deallocated, so Weak is used to break cycles (children point to parents weakly); Weak::upgrade returns None once the value is dropped.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, ch. 15.6: Reference Cycles Can Leak Memory",
+          "url": "https://doc.rust-lang.org/stable/book/ch15-06-reference-cycles.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "Preventing memory leaks is not one of Rust's guarantees; an Rc/RefCell cycle keeps both counts above zero so neither value is dropped; Rc::downgrade gives a non-owning Weak.",
+          "retrieved": true
+        },
+        {
+          "title": "std::sync::Arc",
+          "url": "https://doc.rust-lang.org/stable/std/sync/struct.Arc.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Arc is an atomically reference-counted pointer; clone points to the same allocation; Arc<T> implements Send and Sync as long as T does, and it makes shared ownership thread-safe without adding thread safety to its data (Arc<RefCell<T>> is the example).",
+          "retrieved": true
+        },
+        {
+          "title": "parry3d-f64 0.30.2: SharedShape",
+          "url": "https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.SharedShape.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "SharedShape is a reference-counted shape, `pub struct SharedShape(pub Arc<dyn Shape>)`; cloning only increments a reference count.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Mutate through & only via UnsafeCell-based types; a &T-to-&mut T cast is UB even where the lint is silent",
+      "what": "UnsafeCell<T> is the only allowed way to mutate data behind a shared reference, and Cell, RefCell, OnceCell, LazyCell and the thread-safe cells and atomics are built on it; mutating through a &T any other way, including a &T -> *mut T -> &mut T cast, is undefined behaviour.",
+      "how": "Pick by thread and write pattern: Cell<T> (values moved or copied in and out, no borrow tracking); RefCell<T> (borrows checked at run time: a second borrow_mut panics with 'RefCell already borrowed', try_borrow_mut returns Err instead); OnceCell<T> and LazyCell<T, F> (written once). For statics and threads use the Sync counterparts: Mutex / RwLock, OnceLock<T> (1.70) and LazyLock<T, F> (1.80; initialises on first access and is poisoned if the initialiser panics). A static must be Sync, so RefCell, LazyCell and bare UnsafeCell statics fail with E0277. When a library hands you only &T and you must write, get a &mut path from the owner or rebuild the data; never cast.",
+      "rust_version": "OnceCell/OnceLock 1.70+; LazyCell/LazyLock 1.80+",
+      "gotchas": "The deny-by-default invalid_reference_casting lint rejects `&mut *(ptr::from_ref(x) as *mut T)` written as one expression ('casting `&T` to `&mut T` is undefined behavior, even if the reference is unused'), but it matches a pattern: the same cast with the pointer parked in a Vec<*mut T> and dereferenced later compiles with no diagnostic at all. UnsafeCell lifts only the immutability of shared references: there is no legal way to obtain aliasing &mut, even with UnsafeCell, and it does nothing against data races. RefCell turns a borrow bug into a run-time panic, not a compile error.",
+      "engine_note": "rapier_law.rs solver_clear_warmstart() collects `core::ptr::from_ref(pair) as *mut ContactPair` for each &ContactPair that `narrow_phase.contact_pairs()` yields, then writes the manifold points through `&mut *ptr`. rapier3d-f64 0.35.3 offers no &mut path: every NarrowPhase accessor (contact_pairs, contact_pair, contact_graph) takes &self and returns shared references, and ContactPair's manifolds and solver_clusters are plain Vec<ContactManifold>, not cells. rustc denies this cast when it is written inline and accepts it once the pointer goes through a Vec (the first two checks), so the export compiles cleanly but sits outside what the std docs and the lint text permit. T2's solver_restore must write warm-start impulses into the same points: build it, and the clear, on a sound path (rebuild the world from the bytes, or a &mut accessor in a pinned rapier patch) rather than on this cast. What Miri's aliasing models say about it is the unsafe-ffi lane's question.",
+      "checks": [
+        {
+          "label": "The engine's &ContactPair-to-&mut cast, written inline, is denied by invalid_reference_casting",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "lints": [
+            "invalid_reference_casting"
+          ],
+          "stderr_contains": [
+            "casting `&T` to `&mut T` is undefined behavior, even if the reference is unused"
+          ],
+          "source": "pub struct Pair {\n    pub manifolds: Vec<f64>,\n}\n\n/// The engine's cast written in one expression: &Pair -> *mut Pair -> &mut Pair.\npub fn clear(pairs: &[Pair]) {\n    for pair in pairs {\n        let p = unsafe { &mut *(core::ptr::from_ref(pair) as *mut Pair) };\n        for m in p.manifolds.iter_mut() {\n            *m = 0.0;\n        }\n    }\n}\n"
+        },
+        {
+          "label": "The same cast with the pointers parked in a Vec compiles with no diagnostic at all",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "pub struct Pair {\n    pub manifolds: Vec<f64>,\n}\n\n/// The same cast, shaped like solver_clear_warmstart: pointers parked in a Vec first.\npub fn clear(pairs: &[Pair]) -> u32 {\n    let mut ptrs: Vec<*mut Pair> = Vec::new();\n    for pair in pairs {\n        ptrs.push(core::ptr::from_ref(pair) as *mut Pair);\n    }\n    let mut n = 0;\n    for ptr in ptrs {\n        let p = unsafe { &mut *ptr };\n        for m in p.manifolds.iter_mut() {\n            *m = 0.0;\n            n += 1;\n        }\n    }\n    n\n}\n"
+        },
+        {
+          "label": "Cell mutates through &; RefCell's try_borrow_mut errs and a second borrow_mut panics (exit 101)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "exit_code": 101,
+          "stdout": "cell 1\ntry_borrow_mut while borrowed is_err: true",
+          "source": "use std::cell::{Cell, RefCell};\n\nfn main() {\n    let steps = Cell::new(0u32);\n    let shared = &steps;\n    shared.set(shared.get() + 1); // mutation through a shared reference, no borrow to track\n    println!(\"cell {}\", steps.get());\n\n    let cache = RefCell::new(vec![1.0f64, 2.0]);\n    let first = cache.borrow_mut();\n    println!(\"try_borrow_mut while borrowed is_err: {}\", cache.try_borrow_mut().is_err());\n    let second = cache.borrow_mut(); // a second exclusive borrow: panics at run time\n    println!(\"not reached {} {}\", first.len(), second.len());\n}\n"
+        },
+        {
+          "label": "LazyLock and OnceLock work as statics; LazyCell and OnceCell initialise once in a local",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "before first access\nbuilding table\ntable[2] = 45\ntable len = 5\nfirst set ok: true\nsecond set ok: false\nseed = 42\nlocal ready\ncomputing local\n1.414 1.414\ninit once\ninit once",
+          "source": "use std::cell::{LazyCell, OnceCell};\nuse std::sync::{LazyLock, OnceLock};\n\n// Thread-safe: allowed in a static. The closure runs once, on first access.\nstatic SLOPE_TABLE: LazyLock<Vec<f64>> = LazyLock::new(|| {\n    println!(\"building table\");\n    (0..=4).map(|d| d as f64 * 22.5).collect()\n});\n\n// OnceLock: set once from a value computed elsewhere.\nstatic SEED: OnceLock<u64> = OnceLock::new();\n\nfn main() {\n    println!(\"before first access\");\n    println!(\"table[2] = {}\", SLOPE_TABLE[2]);\n    println!(\"table len = {}\", SLOPE_TABLE.len()); // no second \"building table\"\n\n    println!(\"first set ok: {}\", SEED.set(42).is_ok());\n    println!(\"second set ok: {}\", SEED.set(7).is_ok());\n    println!(\"seed = {}\", SEED.get().unwrap());\n\n    // Single-threaded twins: no Sync, so not for statics, fine for locals.\n    let lazy = LazyCell::new(|| {\n        println!(\"computing local\");\n        2.0f64.sqrt()\n    });\n    let once: OnceCell<&str> = OnceCell::new();\n    println!(\"local ready\");\n    println!(\"{:.3} {:.3}\", *lazy, *lazy);\n    println!(\"{}\", once.get_or_init(|| \"init once\"));\n    println!(\"{}\", once.get_or_init(|| \"ignored\"));\n}\n"
+        },
+        {
+          "label": "RefCell, LazyCell and UnsafeCell statics are refused as not Sync (E0277)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "`RefCell<u32>` cannot be shared between threads safely",
+            "`UnsafeCell<cell::lazy::State<f64",
+            "`UnsafeCell<u32>` cannot be shared between threads safely"
+          ],
+          "source": "use std::cell::{LazyCell, RefCell, UnsafeCell};\n\npub static COUNTER: RefCell<u32> = RefCell::new(0);\npub static TABLE: LazyCell<f64> = LazyCell::new(|| 2.0f64.sqrt());\npub static RAW: UnsafeCell<u32> = UnsafeCell::new(0);\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "The Rust Reference: Interior mutability",
+          "url": "https://doc.rust-lang.org/stable/reference/interior-mutability.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "UnsafeCell<T> is the only allowed way to disable the requirement that data behind a shared reference is not mutated; RefCell uses run-time borrow checks.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Reference: Behavior considered undefined",
+          "url": "https://doc.rust-lang.org/stable/reference/behavior-considered-undefined.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Bytes pointed to by a shared reference, transitively through references and Boxes, are immutable unless they are part of an UnsafeCell; mutating them is undefined behaviour.",
+          "retrieved": true
+        },
+        {
+          "title": "std::cell::UnsafeCell",
+          "url": "https://doc.rust-lang.org/stable/std/cell/struct.UnsafeCell.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Mutating data behind a &T, e.g. by transmuting a &T into a &mut T, is UB; UnsafeCell opts out of that; there is no legal way to obtain aliasing &mut even with UnsafeCell; Cell and RefCell use UnsafeCell internally.",
+          "retrieved": true
+        },
+        {
+          "title": "std::cell",
+          "url": "https://doc.rust-lang.org/stable/std/cell/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Cell, RefCell and OnceCell are single-threaded and not Sync; RefCell borrows are tracked at run time and a violating borrow panics; Mutex, RwLock, OnceLock and atomics are the multi-threaded tools.",
+          "retrieved": true
+        },
+        {
+          "title": "std::cell::RefCell",
+          "url": "https://doc.rust-lang.org/stable/std/cell/struct.RefCell.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "borrow_mut panics if the value is currently borrowed; try_borrow_mut returns Err(BorrowMutError) instead.",
+          "retrieved": true
+        },
+        {
+          "title": "The rustc book: Deny-by-default lints (invalid_reference_casting)",
+          "url": "https://doc.rust-lang.org/stable/rustc/lints/listing/deny-by-default.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "invalid_reference_casting is deny-by-default; casting &T to &mut T without interior mutability is UB, and UnsafeCell is the only way to obtain aliasable data considered mutable.",
+          "retrieved": true
+        },
+        {
+          "title": "Announcing Rust 1.80.0",
+          "url": "https://blog.rust-lang.org/2024/07/25/Rust-1.80.0/",
+          "year": 2024,
+          "kind": "blog",
+          "identifier": "",
+          "claim": "LazyCell and LazyLock are stable in 1.80.0; OnceCell and OnceLock were stabilized in 1.70; LazyLock suits statics, LazyCell is not Sync.",
+          "retrieved": true
+        },
+        {
+          "title": "std::sync::LazyLock",
+          "url": "https://doc.rust-lang.org/stable/std/sync/struct.LazyLock.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "LazyLock (since 1.80.0) is a thread-safe LazyCell usable in statics; a panicking initialiser poisons it.",
+          "retrieved": true
+        },
+        {
+          "title": "std::sync::OnceLock",
+          "url": "https://doc.rust-lang.org/stable/std/sync/struct.OnceLock.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "OnceLock (since 1.70.0) is a thread-safe OnceCell usable in statics; LazyLock is the simpler choice unless the initialiser needs inputs.",
+          "retrieved": true
+        },
+        {
+          "title": "The Rust Programming Language, ch. 15.5: RefCell<T> and the Interior Mutability Pattern",
+          "url": "https://doc.rust-lang.org/stable/book/ch15-05-interior-mutability.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "RefCell enforces borrowing rules at run time and panics on violation (the chapter's output shows 'RefCell already borrowed'); it is for single-threaded use.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: NarrowPhase",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.NarrowPhase.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "contact_pairs, contact_pair and contact_graph take &self and return shared references; no public method returns a mutable ContactPair.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: ContactPair",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/geometry/struct.ContactPair.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "ContactPair's manifolds and solver_clusters fields are plain Vec<ContactManifold>, with no cell type.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Return Cow when a function usually passes its input through and only sometimes rewrites it",
+      "what": "Cow (clone-on-write) holds either borrowed data or its owned form; to_mut() clones only on the first write, so the common no-change path allocates nothing, which is the pattern std itself uses in String::from_utf8_lossy.",
+      "how": "Start from Cow::Borrowed(input), call out.to_mut() at the first element that needs changing (it clones the whole slice once; later writes reuse the owned copy) and return the Cow; callers read through Deref or take ownership with into_owned(). Cow<'a, B> needs B: ToOwned + ?Sized, so it works for [T] (owned as Vec<T>) and str (owned as String).",
+      "rust_version": "any",
+      "gotchas": "to_mut() on a borrowed Cow copies the whole slice even to change one element, so a function that nearly always writes should return Vec<T>. Only a match on Cow::Borrowed / Cow::Owned tells you which case you got; Deref hides it. A returned Cow borrows its input and cannot outlive it.",
+      "engine_note": "rapier_law.rs canonicalises signed zero one value at a time (canon() inside push_f64 and write_body), which needs no Cow. The pattern fits a whole-buffer canonicalising or validating pass that usually finds nothing to change, like the check's signed-zero canonicaliser.",
+      "checks": [
+        {
+          "label": "A signed-zero canonicaliser borrows clean input and clones only dirty input; from_utf8_lossy too",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "borrowed [1.0, 0.0, 2.5]\nowned [1.0, 0.0, 0.0]\ntrue\nborrowed owned",
+          "source": "use std::borrow::Cow;\n\n/// +0.0 for both signed zeros. Borrows when nothing needs changing.\nfn canon_zeros(xs: &[f64]) -> Cow<'_, [f64]> {\n    let mut out = Cow::Borrowed(xs);\n    for i in 0..xs.len() {\n        if xs[i] == 0.0 && xs[i].is_sign_negative() {\n            out.to_mut()[i] = 0.0; // first write clones the whole slice, later writes reuse it\n        }\n    }\n    out\n}\n\nfn kind<T: ?Sized + ToOwned>(c: &Cow<'_, T>) -> &'static str {\n    match c {\n        Cow::Borrowed(_) => \"borrowed\",\n        Cow::Owned(_) => \"owned\",\n    }\n}\n\nfn main() {\n    let clean = [1.0, 0.0, 2.5];\n    let dirty = [1.0, -0.0, -0.0];\n    let a = canon_zeros(&clean);\n    let b = canon_zeros(&dirty);\n    println!(\"{} {:?}\", kind(&a), a);\n    println!(\"{} {:?}\", kind(&b), b);\n    println!(\"{}\", b.iter().all(|x| !x.is_sign_negative()));\n    // std returns Cow too: lossy UTF-8 only allocates when it must replace bytes.\n    println!(\"{} {}\", kind(&String::from_utf8_lossy(b\"quantum\")), kind(&String::from_utf8_lossy(b\"q\\xFFm\")));\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "std::borrow::Cow",
+          "url": "https://doc.rust-lang.org/stable/std/borrow/enum.Cow.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Cow is a clone-on-write smart pointer that gives immutable access to borrowed data and clones lazily when mutation or ownership is required; to_mut clones only if not already owned; B must be ToOwned + ?Sized.",
+          "retrieved": true
+        },
+        {
+          "title": "std::string::String::from_utf8_lossy",
+          "url": "https://doc.rust-lang.org/stable/std/string/struct.String.html#method.from_utf8_lossy",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "from_utf8_lossy returns Cow<str>: valid UTF-8 needs no new allocation, while replacing invalid sequences requires a String.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Store indices or offsets instead of self-references; use Pin only where an API such as Future::poll needs it",
+      "what": "A struct cannot safely hold a reference into its own fields, because moving it would leave the pointer at the old address, and the borrow checker refuses to build one (E0505, E0515). Pin guarantees that a !Unpin value stays at one address until it is dropped; most types are Unpin, and for them Pin adds nothing.",
+      "how": "Replace a self-pointer with an index or byte offset into the owned buffer (`last: usize` into `samples: Vec<f64>`): it survives every move, clone and serialisation. Reach for Pin only when an API demands it (Future::poll takes `self: Pin<&mut Self>`) or when writing an address-sensitive type, which opts out of Unpin with a PhantomPinned field. Pin on the stack with std::pin::pin! (stable 1.68; no heap allocation, and the pin cannot escape its block) or on the heap with Box::pin.",
+      "rust_version": "pin! 1.68+",
+      "gotchas": "Pin::new accepts only Unpin targets; for a !Unpin value it fails with E0277 ('`PhantomPinned` cannot be unpinned'), and rustc suggests pin! or Box::pin. A pinned value's memory must stay valid until its drop runs, so it cannot be overwritten without dropping it first. Pin alone does not make a self-referential struct writable in safe code: the std::pin example keeps its self-pointer as a NonNull, a raw pointer.",
+      "engine_note": "Nothing in the solver needs Pin: world state sits in `static mut SOLVER`, bodies are named by Rapier handles (indices), body records by position in BODIES, and the snapshot is a byte string. That is what lets T2's solver_restore rebuild a world from bytes: every cross-reference is an index that means the same thing after the rebuild, which a stored address would not.",
+      "checks": [
+        {
+          "label": "A struct holding a reference into its own Vec cannot be built (E0505, E0515)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0505",
+            "E0515"
+          ],
+          "source": "pub struct Track<'a> {\n    samples: Vec<f64>,\n    last: &'a f64, // meant to point into `samples`\n}\n\npub fn build<'a>() -> Track<'a> {\n    let samples = vec![1.0, 2.0, 3.0];\n    let last = &samples[2];\n    Track { samples, last }\n}\n"
+        },
+        {
+          "label": "Pin::new refuses a !Unpin (PhantomPinned) value with E0277",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0277"
+          ],
+          "stderr_contains": [
+            "`PhantomPinned` cannot be unpinned",
+            "consider using the `pin!` macro"
+          ],
+          "source": "use std::marker::PhantomPinned;\nuse std::pin::Pin;\n\npub struct AddressSensitive {\n    pub data: [f64; 4],\n    _pin: PhantomPinned,\n}\n\npub fn pin_it(x: &mut AddressSensitive) -> Pin<&mut AddressSensitive> {\n    Pin::new(x)\n}\n"
+        },
+        {
+          "label": "pin! pins a !Unpin value on the stack; an index into an owned Vec survives moves",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "unpin via Pin::new: 2\nstack-pinned via pin!: 0.5\nindex after moves: 3",
+          "source": "use std::marker::PhantomPinned;\nuse std::pin::{pin, Pin};\n\nstruct AddressSensitive {\n    data: [f64; 4],\n    _pin: PhantomPinned,\n}\n\n// The index-based alternative: a \"reference\" to its own element that survives moves.\nstruct Track {\n    samples: Vec<f64>,\n    last: usize, // an index into `samples`, not a pointer\n}\n\nfn main() {\n    // Unpin types: Pin::new is safe and adds no restriction.\n    let mut plain = [1.0f64, 2.0];\n    let p: Pin<&mut [f64; 2]> = Pin::new(&mut plain);\n    println!(\"unpin via Pin::new: {}\", p[1]);\n\n    // A !Unpin value can still be pinned on the stack with pin!.\n    let pinned: Pin<&mut AddressSensitive> = pin!(AddressSensitive { data: [0.5; 4], _pin: PhantomPinned });\n    println!(\"stack-pinned via pin!: {}\", pinned.data[3]);\n\n    // The index survives every move of the struct, including into a Vec that later grows.\n    let t = Track { samples: vec![1.0, 2.0, 3.0], last: 2 };\n    let mut tracks = Vec::with_capacity(1);\n    tracks.push(t);\n    tracks.push(Track { samples: vec![9.0], last: 0 }); // may reallocate `tracks`\n    let first = &tracks[0];\n    println!(\"index after moves: {}\", first.samples[first.last]);\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "std::pin",
+          "url": "https://doc.rust-lang.org/stable/std/pin/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A pinned value stays at the same address until its drop runs; self-referential types need this because a move leaves the internal pointer at the old address; Unpin types are unaffected by Pin; PhantomPinned opts out of Unpin.",
+          "retrieved": true
+        },
+        {
+          "title": "std::pin::pin!",
+          "url": "https://doc.rust-lang.org/stable/std/pin/macro.pin.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "pin! (stable since 1.68.0) pins a value locally without a heap allocation, unlike Box::pin, and the resulting Pin<&mut T> cannot escape its block.",
+          "retrieved": true
+        },
+        {
+          "title": "std::future::Future",
+          "url": "https://doc.rust-lang.org/stable/std/future/trait.Future.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The required method is `fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output>`.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Keep entities in a generational arena keyed by (index, generation); insertion order hands out the ids",
+      "what": "A generational arena (slotmap, Rapier's RigidBodySet and ColliderSet) stores values in a Vec and returns a Copy key of slot index plus version, so a removed key stays invalid even after its slot is reused; which index a value gets is decided by insertion order and the free list, and in Rapier the generation is one counter for the whole arena.",
+      "how": "Give each kind of entity its own key type (slotmap's new_key_type!; a key used on the wrong map is safe but unspecified), store keys rather than references, and resolve with get(), which returns None for a stale key. Where state is hashed or restored, insert in a fixed order and sort by an explicit tuple such as Rapier's into_raw_parts() -> (index, generation). Use typed-arena when values of one type all live until the arena drops (allocation is typically a Vec push, and values may form cycles), and a bump allocator such as bumpalo for phase-oriented scratch freed all at once (its Drop impls are not run).",
+      "rust_version": "slotmap 1.1.1; rapier3d-f64 0.35.3",
+      "gotchas": "slotmap keys implement Ord, but its docs say key order is unspecified and as_ffi() promises nothing about the value, so never order hashed output by slotmap key. In rapier3d-f64 0.35.3 every removal bumps one arena-wide generation and pushes the freed index onto a LIFO free list: after one removal the reused slot returns as (2, 1) and even a never-used slot starts at generation 1, so ids depend on removal history, not only on what exists. slotmap versions can wrap after 2^31 reuses of one slot.",
+      "engine_note": "rapier_law.rs build_world inserts the fixed colliders first, then the heightfield, then each non-carried body, so a record index i is not its RigidBodyHandle index; hence `handles: Vec<Option<RigidBodyHandle>>`. rebuild_snapshot sorts contact pairs by `(collider1.into_raw_parts(), collider2.into_raw_parts())` and writes each index and generation into the hashed bytes, so the hash depends on insertion order (the subject of T3's insertion-order test) and on generations. Today every world is built fresh and nothing is removed, so every generation is 0; once any path removes a body or collider, the generations of everything inserted later shift, and T2's rebuild from bytes would reproduce the snapshot only by replaying the same removals.",
+      "checks": [
+        {
+          "label": "slotmap: a removed key stays invalid after its slot is reused",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "deps": [
+            "slotmap"
+          ],
+          "stdout": "stale key get: None\nstale key contains: false\nstale == new: false\nlive: crate a barrel len 2",
+          "source": "use slotmap::{new_key_type, SlotMap};\n\nnew_key_type! { struct BodyKey; }\n\nfn main() {\n    let mut bodies: SlotMap<BodyKey, &str> = SlotMap::with_key();\n    let crate_a = bodies.insert(\"crate a\");\n    let crate_b = bodies.insert(\"crate b\");\n    bodies.remove(crate_b);\n    let barrel = bodies.insert(\"barrel\"); // may reuse crate_b's slot\n    println!(\"stale key get: {:?}\", bodies.get(crate_b));\n    println!(\"stale key contains: {}\", bodies.contains_key(crate_b));\n    println!(\"stale == new: {}\", crate_b == barrel);\n    println!(\"live: {} {} len {}\", bodies[crate_a], bodies[barrel], bodies.len());\n}\n"
+        },
+        {
+          "label": "Rapier handles follow insertion order; a removal reuses the index under an arena-wide generation",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "deps": [
+            "rapier3d_f64"
+          ],
+          "stdout": "statics first: body (2, 0) collider (2, 0)\nbody first: body (0, 0) collider (0, 0)\nreinserted: body (2, 1)\nstale handle resolves: false\nfresh index after a removal: body (3, 1)",
+          "source": "use rapier3d_f64::prelude::*;\n\nfn fixed_box(x: f64) -> (RigidBody, Collider) {\n    (RigidBodyBuilder::fixed().translation(Vector::new(x, 0.0, 0.0)).build(),\n     ColliderBuilder::cuboid(1.0, 0.1, 1.0).build())\n}\nfn dynamic_box() -> (RigidBody, Collider) {\n    (RigidBodyBuilder::dynamic().translation(Vector::new(0.0, 2.0, 0.0)).build(),\n     ColliderBuilder::cuboid(0.5, 0.5, 0.5).build())\n}\n\nfn main() {\n    // The engine's order: static geometry first, then the moving bodies.\n    let mut w1 = PhysicsWorld::new();\n    for x in [0.0, 5.0] {\n        let (b, c) = fixed_box(x);\n        w1.insert(b, c);\n    }\n    let (b, c) = dynamic_box();\n    let (h1, c1) = w1.insert(b, c);\n    println!(\"statics first: body {:?} collider {:?}\", h1.into_raw_parts(), c1.into_raw_parts());\n\n    // Same content, other order: the moving body gets index 0.\n    let mut w2 = PhysicsWorld::new();\n    let (b, c) = dynamic_box();\n    let (h2, c2) = w2.insert(b, c);\n    for x in [0.0, 5.0] {\n        let (b, c) = fixed_box(x);\n        w2.insert(b, c);\n    }\n    println!(\"body first: body {:?} collider {:?}\", h2.into_raw_parts(), c2.into_raw_parts());\n\n    // Removal frees the index; the next insertion reuses it under a new generation.\n    w1.remove_body(h1);\n    let (b, c) = dynamic_box();\n    let (h3, _) = w1.insert(b, c);\n    println!(\"reinserted: body {:?}\", h3.into_raw_parts());\n    println!(\"stale handle resolves: {}\", w1.bodies.get(h1).is_some());\n    // The generation counter is arena-wide: a never-used index now starts at 1.\n    let (b, c) = dynamic_box();\n    let (h4, _) = w1.insert(b, c);\n    println!(\"fresh index after a removal: body {:?}\", h4.into_raw_parts());\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "slotmap 1.1.1: crate documentation",
+          "url": "https://docs.rs/slotmap/1.1.1/slotmap/",
+          "year": 2025,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "SlotMap gives persistent unique keys with O(1) insert, remove and access for things like game entities; keys are versioned so a removed key stays removed even when its storage is reused; versions can wrap after 2^31 reuses; a key from another map is safe but unspecified.",
+          "retrieved": true
+        },
+        {
+          "title": "slotmap 1.1.1: src/lib.rs",
+          "url": "https://docs.rs/crate/slotmap/1.1.1/source/src/lib.rs",
+          "year": 2025,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "KeyData implements Ord but the order of keys is unspecified; as_ffi() makes no guarantee about its value beyond round-tripping.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: src/data/arena.rs",
+          "url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/data/arena.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "The arena keeps one generation counter, increments it on every remove, makes the freed index the free-list head, and gives new indices the current generation.",
+          "retrieved": true
+        },
+        {
+          "title": "rapier3d-f64 0.35.3: RigidBodyHandle",
+          "url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.RigidBodyHandle.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A RigidBodyHandle wraps an arena Index and converts to and from its (index, generation) components.",
+          "retrieved": true
+        },
+        {
+          "title": "typed-arena 2.0.2",
+          "url": "https://docs.rs/typed-arena/2.0.2/typed_arena/",
+          "year": 2023,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "A fast but limited arena for one type: objects are destroyed all at once when the arena is, allocation is typically a vector push, and allocated objects can safely form cycles.",
+          "retrieved": true
+        },
+        {
+          "title": "bumpalo 3.20.3",
+          "url": "https://docs.rs/bumpalo/3.20.3/bumpalo/",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Bump allocation suits phase-oriented allocations freed together by resetting the bump pointer; allocated objects' Drop implementations are not invoked.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    },
+    {
+      "name": "Re-read a Vec's pointer after any call that can grow it: growth reallocates and kills raw pointers into it",
+      "what": "A Vec (re)allocates when a push finds len == capacity, and after a successful realloc any access through the old pointer is undefined behaviour even if the block stayed in place; within capacity push never reallocates, clear() keeps the buffer, and Vec::new() allocates nothing until the first push.",
+      "how": "Hand out a buffer's pointer and length from calls made after the last mutation (read ptr, then len, then copy) and never cache them across calls. Size up front (Vec::with_capacity(n) requests exactly n elements) and reuse with clear() so steady-state steps never touch the allocator. Where the borrow checker can see it, a &v[i] held across v.push is refused (E0502); raw pointers get no such check. To observe allocation, register a counting #[global_allocator]: a static whose type implements GlobalAlloc, allowed once per crate graph (cdylib and staticlib otherwise use System). It must not unwind, and the optimiser may remove allocations, so count what the optimised build does.",
+      "rust_version": "any (GlobalAlloc and #[global_allocator] since 1.28)",
+      "gotchas": "Vec promises no growth strategy, so never predict capacities. Whether a grown block moves is the allocator's choice: GlobalAlloc's provided realloc allocates a new block, copies and frees the old one, so under such an allocator growth always moves (the check). Code that works because an allocator happened to grow in place is still UB. Emptying a Vec and refilling it to the same length incurs no allocator calls. The wasm allocator and memory.grow belong to wave 3.",
+      "engine_note": "rapier_law.rs keeps the snapshot in `static mut SOLVER`'s `snapshot: Vec<u8>`; rebuild_snapshot() clears and refills it every quantum, so capacity persists and the buffer moves only when a quantum's snapshot is longer than every earlier one (more contact pairs or points). snapshot_ptr() and snapshot_len() are valid only until the next solver_* call; build.mjs's snapshotBytes() reads both after the call and copies with .slice(), which is right. The same rule binds T2's restore_ptr(): if the input buffer is a Vec sized to len, JS must take the pointer after the sizing call, never before.",
+      "checks": [
+        {
+          "label": "Counting allocator: none for Vec::new or within capacity; growth calls it and moves the buffer",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "no_warnings": true,
+          "stdout": "Vec::new called the allocator: false\npush within capacity called the allocator: false\npointer stable within capacity: true\npush at capacity called the allocator: true\ngrowth moved the buffer: true\nclear + refill called the allocator: false\nclear kept the buffer: true",
+          "source": "use std::alloc::{GlobalAlloc, Layout, System};\nuse std::sync::atomic::{AtomicUsize, Ordering::Relaxed};\n\n/// Counts every allocator call. `realloc` does what GlobalAlloc's provided default\n/// does (allocate a new block, copy, free the old one), so a grown buffer always moves.\nstruct Counting;\nstatic CALLS: AtomicUsize = AtomicUsize::new(0);\n\nunsafe impl GlobalAlloc for Counting {\n    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {\n        CALLS.fetch_add(1, Relaxed);\n        unsafe { System.alloc(layout) }\n    }\n    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {\n        CALLS.fetch_add(1, Relaxed);\n        unsafe { System.dealloc(ptr, layout) }\n    }\n    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {\n        CALLS.fetch_add(1, Relaxed);\n        let new_layout = unsafe { Layout::from_size_align_unchecked(new_size, layout.align()) };\n        let new_ptr = unsafe { System.alloc(new_layout) };\n        if !new_ptr.is_null() {\n            unsafe {\n                std::ptr::copy_nonoverlapping(ptr, new_ptr, layout.size().min(new_size));\n                System.dealloc(ptr, layout);\n            }\n        }\n        new_ptr\n    }\n}\n\n#[global_allocator]\nstatic GLOBAL: Counting = Counting;\n\nfn calls() -> usize {\n    CALLS.load(Relaxed)\n}\n\nfn main() {\n    let c0 = calls();\n    let mut snapshot: Vec<u8> = Vec::new();\n    let c1 = calls();\n\n    snapshot.push(0);\n    let p0 = snapshot.as_ptr();\n    let c2 = calls();\n    while snapshot.len() < snapshot.capacity() {\n        snapshot.push(1);\n    }\n    let c3 = calls();\n    let p1 = snapshot.as_ptr();\n\n    snapshot.push(2); // len == capacity: this push must (re)allocate\n    let c4 = calls();\n    let p2 = snapshot.as_ptr();\n\n    let (len, cap) = (snapshot.len(), snapshot.capacity());\n    snapshot.clear(); // len 0, same buffer\n    while snapshot.len() < len {\n        snapshot.push(3);\n    }\n    let c5 = calls();\n    let p3 = snapshot.as_ptr();\n\n    println!(\"Vec::new called the allocator: {}\", c1 != c0);\n    println!(\"push within capacity called the allocator: {}\", c3 != c2);\n    println!(\"pointer stable within capacity: {}\", p0 == p1);\n    println!(\"push at capacity called the allocator: {}\", c4 != c3);\n    println!(\"growth moved the buffer: {}\", p2 != p1);\n    println!(\"clear + refill called the allocator: {}\", c5 != c4);\n    println!(\"clear kept the buffer: {}\", p3 == p2 && snapshot.capacity() == cap);\n}\n"
+        },
+        {
+          "label": "Holding &v[0] across v.push is refused by the borrow checker (E0502)",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compile_fail",
+          "error_codes": [
+            "E0502"
+          ],
+          "source": "pub fn first_after_growth(snapshot: &mut Vec<u8>) -> u8 {\n    let first = &snapshot[0];\n    snapshot.push(9); // may reallocate: the borrow checker refuses while `first` lives\n    *first\n}\n"
+        },
+        {
+          "label": "The same pattern through v.as_ptr() compiles silently: the raw pointer is on you",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "lib",
+          "expect": "compiles",
+          "no_warnings": true,
+          "source": "pub fn first_after_growth(snapshot: &mut Vec<u8>) -> *const u8 {\n    let first = snapshot.as_ptr();\n    snapshot.push(9); // may reallocate: nothing stops the raw pointer from dangling\n    first\n}\n"
+        }
+      ],
+      "currency": null,
+      "verify_note": null,
+      "sources": [
+        {
+          "title": "std::vec::Vec",
+          "url": "https://doc.rust-lang.org/stable/std/vec/struct.Vec.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Vec::new does not allocate until elements are pushed; with_capacity(n) requests exactly n elements; push never (re)allocates if capacity suffices and will when len == capacity; no growth strategy is guaranteed; modifying the vector may reallocate and invalidate pointers from as_ptr; refilling an emptied Vec to the same len should not call the allocator.",
+          "retrieved": true
+        },
+        {
+          "title": "std::alloc::GlobalAlloc",
+          "url": "https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "GlobalAlloc (stable 1.28) is registered with #[global_allocator]; it is UB for a global allocator to unwind; allocations in the source may be elided or moved to the stack by the optimiser.",
+          "retrieved": true
+        },
+        {
+          "title": "std::alloc::GlobalAlloc::realloc",
+          "url": "https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html#method.realloc",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "After realloc returns non-null, any access to the old ptr is undefined behaviour even if the allocation remained in place; the new pointer is the only valid one.",
+          "retrieved": true
+        },
+        {
+          "title": "core::alloc::global source (GlobalAlloc provided methods)",
+          "url": "https://doc.rust-lang.org/stable/src/core/alloc/global.rs.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The provided realloc allocates a new block with alloc, copies min(old, new) bytes and deallocates the old block.",
+          "retrieved": true
+        },
+        {
+          "title": "std::alloc (the #[global_allocator] attribute)",
+          "url": "https://doc.rust-lang.org/stable/std/alloc/index.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "#[global_allocator] may be used once in a crate graph on a static implementing GlobalAlloc; the default allocator is unspecified but cdylibs and staticlibs are guaranteed to use System.",
+          "retrieved": true
+        }
+      ],
+      "background_sources": []
+    }
+  ]
+}

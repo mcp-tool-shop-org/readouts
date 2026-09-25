@@ -1,0 +1,356 @@
+{
+  "laneSlug": "temporal-coherence",
+  "title": "Cross-frame & cross-direction coherence",
+  "recipes": [
+    {
+      "slug": "batch-consistent-conditioning",
+      "name": "Batch-consistent conditioning across frames + directions",
+      "kind": "technique",
+      "engine_family": "comfyui",
+      "applicable_to": "temporal-coherence",
+      "claim": "Fixing the seed, style LoRA/IP-Adapter, and ControlNet across ALL frames and 8 directions (instead of repainting each independently) is the first-line defense against the style/identity flicker that independent per-frame repaint produces.",
+      "summary": "Repaint the whole turnaround/animation as one batch with identical conditioning: same seed, same house LoRA weight, same prompt, per-frame ControlNet from each frame's own depth or normal map. This won't fully eliminate shimmer but removes the gross frame-to-frame style/identity jumps — character silhouette colour, painterly stroke direction, and lighting mood stay consistent. Pair with a deflicker or optical-flow smoothing post-pass for the residual high-frequency flicker that different denoising trajectories still introduce.",
+      "design_implication": "The cheap, always-do baseline before reaching for video temporal modules. Should be the default starting point in every animation repaint workflow; combine with reference-frame propagation (IP-Adapter from key frame) for identity lock on top.",
+      "evidence_strength": "community-reproduced",
+      "license": "technique — no license; base model Qwen-Image-Edit Apache-2.0",
+      "commercial_use": "yes",
+      "commercial_notes": "Conditioning discipline on an Apache-2.0 base. No license friction.",
+      "vram_gb": "16-28",
+      "rig_fit": 5,
+      "studio_fit": 4,
+      "status": "recommended",
+      "failures": [
+        {
+          "symptom": "Residual shimmer on fine texture / hair / armour detail",
+          "cause": "Per-frame diffusion noise trajectory differs despite fixed seed when frames are processed sequentially or in sub-batches",
+          "remediation": "Add optical-flow temporal smoothing or All-In-One-Deflicker post-pass; or switch to AnimateDiff vid2vid which processes full clip jointly",
+          "severity": "quality",
+          "recipe_field": "summary"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "github",
+          "title": "tencent-ailab/IP-Adapter",
+          "authors": "Ye, H.; Zhang, J.; Liu, S.; Han, X.; Yang, W. (Tencent AI Lab)",
+          "year": "2023",
+          "identifier": "arXiv:2308.06721",
+          "url": "https://github.com/tencent-ailab/IP-Adapter",
+          "claim": "IP-Adapter (Apache-2.0) provides decoupled cross-attention image conditioning that can be fixed to a single reference image across an entire batch, propagating appearance identity without retraining the base model."
+        }
+      ]
+    },
+    {
+      "slug": "reference-frame-ip-adapter-propagation",
+      "name": "Reference-frame style propagation via IP-Adapter",
+      "kind": "technique",
+      "engine_family": "comfyui",
+      "applicable_to": "temporal-coherence",
+      "claim": "Repainting one canonical key frame at high quality, then feeding it as the IP-Adapter image-prompt to every subsequent frame, locks style and identity across the full animation more reliably than prompt-only conditioning alone.",
+      "summary": "Select or create a single 'hero frame' (e.g. the south-facing idle frame at peak pose clarity) and repaint it with maximum iteration budget. Use the result as the IP-Adapter reference image for every remaining frame in the walk cycle and all 7 other direction views. The image encoder extracts CLIP-space appearance features that push each subsequent frame toward the same painterly treatment, lighting, and colour palette. Works at inference time with no fine-tuning. Combine with ControlNet depth per frame to prevent structural drift while style is locked to the reference.",
+      "design_implication": "First-line identity anchor for 8-direction turnarounds. The hero frame becomes the canonical style target the rest of the sprite sheet is pulled toward. Limits style entropy without adding training cost.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "Apache-2.0 (tencent-ailab/IP-Adapter code + weights); Apache-2.0 base model (Qwen-Image-Edit-2511)",
+      "commercial_use": "yes",
+      "commercial_notes": "Main IP-Adapter (non-FaceID) is Apache-2.0, confirmed via tencent-ailab/IP-Adapter/LICENSE. FaceID variant is research-only — do not use that variant.",
+      "vram_gb": "12-24",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "base_model_family": "SDXL / SD1.5 (IP-Adapter works on both)",
+      "failures": [
+        {
+          "symptom": "Back-view or profile frames diverge stylistically despite IP-Adapter reference",
+          "cause": "CLIP ViT image encoder sees very different spatial layout for rotated views; style signal weakens at large pose distance from reference",
+          "remediation": "Add secondary reference frames for 90° and 180° views; or use IP-Adapter weight=0.4-0.6 (lower weight = more structural freedom for ControlNet) rather than 1.0",
+          "severity": "quality",
+          "recipe_field": "summary"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "IP-Adapter: Text Compatible Image Prompt Adapter for Text-to-Image Diffusion Models",
+          "authors": "Ye, H.; Zhang, J.; Liu, S.; Han, X.; Yang, W.",
+          "year": "2023",
+          "identifier": "arXiv:2308.06721",
+          "url": "https://arxiv.org/abs/2308.06721",
+          "claim": "IP-Adapter achieves image-conditioned generation via decoupled cross-attention; conditioning on a single reference image propagates appearance (style, colour, identity) to new frames without fine-tuning, shown to generalize across pose and layout variants."
+        }
+      ]
+    },
+    {
+      "slug": "tokenflow-diffusion-feature-propagation",
+      "name": "TokenFlow — propagate diffusion features across frames for edit consistency",
+      "kind": "model",
+      "engine_family": "diffusers",
+      "applicable_to": "temporal-coherence",
+      "claim": "TokenFlow enforces inter-frame consistency directly in the diffusion feature space by propagating self-attention tokens from key frames to non-key frames, eliminating the independent-frame repaint failure mode without any model fine-tuning.",
+      "summary": "TokenFlow (Geyer et al., ICCV 2023 / ICLR 2024) inverts all frames via DDIM, extracts self-attention tokens at each denoising step, computes nearest-neighbour correspondences across frames, and propagates edited tokens from sparse key frames to the rest. The result is an edited video whose feature maps are explicitly consistent across frames — not just statistically similar. Applied to a sprite animation repaint, this means style edits applied to key poses propagate to in-between frames, suppressing the shimmer that appears when each frame is edited independently. Works with any off-the-shelf text-to-image editor; no training or per-video fine-tuning required.",
+      "design_implication": "Best fit for short animation clips (8-32 frames) where you need clean, training-free temporal consistency. More principled than batch-seed-locking alone; complements IP-Adapter reference by enforcing feature-level coherence rather than just semantic appearance. VRAM cost grows with frame count.",
+      "evidence_strength": "peer-reviewed",
+      "license": "CC BY 4.0 (paper); code license — check diffusion-tokenflow repo before commercial use",
+      "commercial_use": "conditional",
+      "commercial_notes": "The arXiv paper is CC BY 4.0. Code at diffusion-tokenflow.github.io / GitHub — verify repo license before shipping. Paper itself does not restrict commercial application of the technique. Flag for legal review if using code directly.",
+      "vram_gb": "16-32",
+      "rig_fit": 4,
+      "studio_fit": 3,
+      "status": "situational",
+      "failures": [
+        {
+          "symptom": "Feature propagation creates ghosting or smearing at motion boundaries",
+          "cause": "Nearest-neighbour token correspondence breaks down at large displacements between key frames and non-key frames",
+          "remediation": "Reduce key-frame spacing; pre-register frames with optical flow before running TokenFlow",
+          "severity": "quality",
+          "recipe_field": "summary"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "TokenFlow: Consistent Diffusion Features for Consistent Video Editing",
+          "authors": "Geyer, M.; Bar-Tal, O.; Bagon, S.; Dekel, T.",
+          "year": "2023",
+          "identifier": "arXiv:2307.10373",
+          "url": "https://arxiv.org/abs/2307.10373",
+          "claim": "Enforcing consistency of inter-frame self-attention features in the diffusion process—rather than post-processing independently edited frames—produces temporally coherent edits without training or fine-tuning."
+        }
+      ]
+    },
+    {
+      "slug": "animatediff-vid2vid-temporal-module",
+      "name": "AnimateDiff temporal module for vid2vid repaint (not generation)",
+      "kind": "model",
+      "engine_family": "comfyui",
+      "applicable_to": "temporal-coherence",
+      "claim": "AnimateDiff motion modules, loaded on top of an SDXL/SD1.5 base in a vid2vid pipeline, process the full animation clip as a joint sequence rather than frame-by-frame, using temporal attention to enforce smooth transitions — the primary tool for eliminating shimmer in repainted walk cycles.",
+      "summary": "AnimateDiff inserts learned temporal attention layers between the spatial UNet blocks; in vid2vid mode these layers attend across the full clip window (default 16-32 frames), driving consistency that no per-frame conditioning trick can match. The motion module learns natural motion priors from video data, so it suppresses the unnatural frame-to-frame jumps that pure image diffusion produces. ComfyUI-AnimateDiff-Evolved (Kosinkadink) exposes a full vid2vid pipeline. Combine ControlNet (depth or tile, one preprocessed map per frame) with AnimateDiff to lock structure while the temporal module smooths appearance. VRAM demand is significant: 16B-class models need 24-40 GB; use chunked inference (context windows) on 32 GB rig.",
+      "design_implication": "The highest-quality temporal consistency path for repainted walk cycles; use when batch-seed-locking still shows unacceptable shimmer. Requires cloud GPU or chunked inference on RTX 5090 for clips longer than ~32 frames. The base checkpoint under AnimateDiff must itself be commercial-safe.",
+      "evidence_strength": "reproduced-from-source",
+      "license": "Apache-2.0 (guoyww/AnimateDiff code + motion module weights)",
+      "commercial_use": "conditional",
+      "commercial_notes": "AnimateDiff code and motion module weights are Apache-2.0 per guoyww/AnimateDiff repo. HOWEVER: the base image checkpoint it runs on top of (e.g. SDXL, SD1.5) must ALSO be commercial-safe — inherits restrictions of the paired checkpoint. Verify each base model separately.",
+      "vram_gb": "24-40",
+      "rig_fit": 4,
+      "studio_fit": 4,
+      "status": "recommended",
+      "engine_recipe_ref": "ComfyUI-AnimateDiff-Evolved (Kosinkadink)",
+      "hparams": [
+        {"name": "context_length", "range": "16-32 frames", "note": "Temporal window; longer = better consistency but more VRAM"},
+        {"name": "context_overlap", "range": "4-8 frames", "note": "Overlap between windows for seamless stitching on long clips"},
+        {"name": "motion_scale", "range": "0.8-1.2", "note": "Lower values for subtle walk cycle; higher for more motion freedom"}
+      ],
+      "failures": [
+        {
+          "symptom": "Window boundary seam visible as brief style pop in long clips",
+          "cause": "Context window stitching at overlap boundary has residual colour/tone mismatch",
+          "remediation": "Increase context_overlap to 8 frames; apply deflicker post-pass at boundary frames",
+          "severity": "quality",
+          "recipe_field": "summary"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "github",
+          "title": "guoyww/AnimateDiff",
+          "authors": "Guo, Y. et al.",
+          "year": "2023",
+          "identifier": "arXiv:2307.04725",
+          "url": "https://github.com/guoyww/AnimateDiff",
+          "claim": "AnimateDiff motion modules (Apache-2.0) inject temporal attention into frozen image diffusion models, enabling coherent clip generation/repaint without requiring full video model retraining."
+        },
+        {
+          "kind": "github",
+          "title": "Kosinkadink/ComfyUI-AnimateDiff-Evolved",
+          "authors": "Kosinkadink (community)",
+          "year": "2023",
+          "identifier": "github:Kosinkadink/ComfyUI-AnimateDiff-Evolved",
+          "url": "https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved",
+          "claim": "ComfyUI-native AnimateDiff implementation exposing full vid2vid pipeline with ControlNet integration, context windowing, and advanced sampling for long-clip temporal consistency."
+        }
+      ]
+    },
+    {
+      "slug": "wan21-vace-vid2vid-repaint",
+      "name": "Wan2.1 VACE video-to-video repaint for temporally coherent animation restyling",
+      "kind": "model",
+      "engine_family": "comfyui",
+      "applicable_to": "temporal-coherence",
+      "claim": "Wan2.1 VACE (Apache-2.0, 14B parameters) processes the source animation video holistically as a video-to-video edit, leveraging native video temporal attention to maintain style and identity across all frames without a separate per-frame conditioning pass.",
+      "summary": "Wan2.1 VACE (Video-Aware Composable Editing) is Alibaba's Apache-2.0 all-in-one video model released May 2025, available as wan2.1_vace_14B_fp16.safetensors. Unlike AnimateDiff (an adapter on a frozen image model), VACE is a native video diffusion model trained from scratch to understand temporal coherence, making its repaint quality and consistency significantly higher on longer clips. In vid2vid mode it takes the sprite animation clip plus a text/image reference and produces a temporally coherent restyled output. Runs in ComfyUI via the VACE-Wan2.1 node pack. Requires ~24-40 GB VRAM for 14B at fp16; use cloud GPU for clips beyond 4 seconds at 720p.",
+      "design_implication": "Best-in-class open commercial option for repaint consistency as of mid-2025, if the VRAM or cloud budget is available. Outperforms AnimateDiff on cross-frame identity stability for longer clips. Becomes the default recommendation when AnimateDiff shimmer is unacceptable and commercial safety is required.",
+      "evidence_strength": "vendor-documented",
+      "license": "Apache-2.0 (Wan-Video/Wan2.1)",
+      "commercial_use": "yes",
+      "commercial_notes": "Wan2.1 VACE weights and code confirmed Apache-2.0 per github.com/Wan-Video/Wan2.1 LICENSE. Full commercial use permitted, including game asset production.",
+      "vram_gb": "24-40",
+      "rig_fit": 4,
+      "studio_fit": 4,
+      "status": "recommended",
+      "hparams": [
+        {"name": "strength", "range": "0.55-0.75", "note": "Lower = more source structure preserved (less flicker risk); higher = more style freedom"},
+        {"name": "steps", "range": "20-30", "note": "Wan2.1 is efficient; 20 steps sufficient for repaint quality at target"},
+        {"name": "resolution", "range": "512x512 or 720p", "note": "720p for final sprite sheets; 512 for iteration speed"}
+      ],
+      "failures": [
+        {
+          "symptom": "Character identity drift at very high strength values (>0.80)",
+          "cause": "Model has sufficient freedom to hallucinate new identity features beyond the structural scaffold",
+          "remediation": "Lower strength to 0.65; add reference image via image-prompt adapter node if available in VACE pipeline",
+          "severity": "critical",
+          "recipe_field": "summary"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "github",
+          "title": "Wan-Video/Wan2.1",
+          "authors": "Wan-AI (Alibaba)",
+          "year": "2025",
+          "identifier": "github:Wan-Video/Wan2.1",
+          "url": "https://github.com/Wan-Video/Wan2.1",
+          "claim": "Wan2.1 VACE is an Apache-2.0 native video diffusion model supporting video-to-video editing with temporal attention trained jointly over entire clips, enabling consistent restyling without per-frame patching."
+        }
+      ]
+    },
+    {
+      "slug": "raft-optical-flow-warp-blend",
+      "name": "RAFT optical flow warp-and-blend for temporal smoothing post-pass",
+      "kind": "technique",
+      "engine_family": "python-script",
+      "applicable_to": "temporal-coherence",
+      "claim": "Computing dense optical flow between consecutive repainted frames with RAFT, then blending each frame with a flow-warped version of its neighbor, reduces high-frequency shimmer that diffusion-model independent-frame noise introduces — a reliable post-pass after any per-frame repaint pipeline.",
+      "summary": "After per-frame repaint (batch-consistent-conditioning or similar), run RAFT on each adjacent frame pair to get a dense flow field. Warp frame N-1 into frame N's coordinate space, then blend the warped frame with frame N at alpha 0.2-0.4 (forward-warped) — this softens noise that varies frame-to-frame while preserving intentional motion. FlowVid (CVPR 2023) formalizes this encode-flow-as-reference approach inside diffusion: warping from the first frame creates a spatial reference that the diffusion model attends to, reducing temporal jumps. Pure warp-blend post-processing is simpler and model-agnostic. RAFT code is BSD-3-Clause; the pretrained weights (downloaded via the official download_models.sh script) do not have a separately stated license — the consensus from GitHub Issue #124 is that the repo LICENSE covers them, but confirm before commercial shipping.",
+      "design_implication": "Cheap post-pass complement to any repaint recipe. Pairs naturally with batch-consistent-conditioning (handles residual shimmer) and with AnimateDiff (handles window-boundary seams). Does not fix large inter-frame style jumps — those need upstream conditioning fixes. RAFT weights license requires verification before commercial shipping.",
+      "evidence_strength": "peer-reviewed",
+      "license": "BSD-3-Clause (code); weights: same repo BSD-3 per maintainer consensus — verify before commercial use",
+      "commercial_use": "conditional",
+      "commercial_notes": "RAFT code is BSD-3-Clause, which permits commercial use with attribution. Pretrained weights have no explicit separate license statement in the repo (confirmed via GitHub Issue #124). Studio should either verify with Princeton or use SEA-RAFT (also BSD-3 per github.com/princeton-vl/SEA-RAFT/blob/main/LICENSE) which has the same code license and similar weight situation. Flag for legal review before shipping a commercial product that bundles the weights.",
+      "vram_gb": "4-8",
+      "rig_fit": 5,
+      "studio_fit": 3,
+      "status": "situational",
+      "failures": [
+        {
+          "symptom": "Warp-blend smears fast-moving limbs",
+          "cause": "Optical flow error at motion boundaries causes misaligned warping that blurs rather than smooths",
+          "remediation": "Mask the blend to background/slow regions only using foreground segmentation; apply full blend only on nearly-static areas",
+          "severity": "quality",
+          "recipe_field": "summary"
+        },
+        {
+          "symptom": "Flow estimation fails on highly stylized painterly output",
+          "cause": "RAFT trained on natural video; extreme stylization changes texture statistics enough to degrade flow accuracy",
+          "remediation": "Run RAFT on original proxy-render frames, not on repainted output, to get clean flow; apply that flow to blend the repaints",
+          "severity": "quality",
+          "recipe_field": "summary"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "RAFT: Recurrent All-Pairs Field Transforms for Optical Flow",
+          "authors": "Teed, Z.; Deng, J.",
+          "year": "2020",
+          "identifier": "arXiv:2003.12039",
+          "url": "https://arxiv.org/abs/2003.12039",
+          "claim": "RAFT estimates dense optical flow between frames (BSD-3-Clause code, Princeton) enabling flow-guided temporal smoothing; subsequent FlowVid work shows encoding this flow as a warp-reference inside diffusion reduces temporal inconsistency."
+        },
+        {
+          "kind": "paper",
+          "title": "FlowVid: Taming Imperfect Optical Flows for Consistent Video-to-Video Synthesis",
+          "authors": "Liang, F.; Wu, B.; Wang, J. et al.",
+          "year": "2023",
+          "identifier": "arXiv:2312.17681",
+          "url": "https://arxiv.org/abs/2312.17681",
+          "claim": "FlowVid encodes optical flow via warping from the first frame and feeds it as a supplementary spatial reference into the diffusion model, producing temporally consistent vid2vid edits while tolerating imperfect flow estimates."
+        }
+      ]
+    },
+    {
+      "slug": "all-in-one-deflicker-post-pass",
+      "name": "All-In-One Deflicker — neural blind deflickering post-pass on repainted frames",
+      "kind": "model",
+      "engine_family": "python-script",
+      "applicable_to": "temporal-coherence",
+      "claim": "Applying the All-In-One Deflicker (CVPR 2023) as a post-pass on a repainted animation sequence removes residual brightness, colour, and texture flicker without requiring optical flow labels — it works blindly from a single flickering video input.",
+      "summary": "All-In-One Deflicker (Lei et al., CVPR 2023, ChenyangLEI/All-In-One-Deflicker) uses neural filtering guided by a 'flawed atlas' (a coarse average of all frames) to detect and suppress per-frame inconsistencies caused by the diffusion model's independent noise trajectories. It handles the shimmer that remains after batch-seed-locking and that optical-flow warp-blend sometimes smears rather than removes. Explicitly supports AI-generated / style-transfer flickering as a target use case alongside old film and timelapse. Provide optional foreground masks for characters to improve focus on the sprite region. ComfyUI has community deflicker nodes (SuperBeasts.AI Deflicker, 2024) for in-graph integration without leaving the node editor.",
+      "design_implication": "Standard closing post-pass for any per-frame repaint pipeline. Run after RAFT warp-blend (or instead of it, since they address slightly different artefacts — deflicker = brightness/colour inconsistency; warp-blend = structural shimmer). Use the segmentation mask input for sprite sheets to focus deflicker on the character and not the transparent background.",
+      "evidence_strength": "peer-reviewed",
+      "license": "No explicit license stated in ChenyangLEI/All-In-One-Deflicker repo — treat as research code",
+      "commercial_use": "conditional",
+      "commercial_notes": "The repo (ChenyangLEI/All-In-One-Deflicker) does not include a LICENSE file per the fetched page. Do NOT use for commercial shipping without author permission or a confirmed license. ComfyUI-SuperBeasts Deflicker nodes are an alternative — check their license separately (runcomfy.com/comfyui-nodes/ComfyUI-SuperBeasts/). For production, use the ComfyUI community nodes which may have clearer licensing.",
+      "vram_gb": "6-12",
+      "rig_fit": 5,
+      "studio_fit": 3,
+      "status": "situational",
+      "failures": [
+        {
+          "symptom": "Over-smoothing that blurs intentional animated texture detail",
+          "cause": "Atlas averaging treats intended frame-to-frame texture variation (e.g. animated water, fire) as flicker to remove",
+          "remediation": "Reduce deflicker strength or apply selectively with per-frame masks that exclude intentionally animated regions",
+          "severity": "quality",
+          "recipe_field": "summary"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "Blind Video Deflickering by Neural Filtering with a Flawed Atlas",
+          "authors": "Lei, C.; Ren, X.; Zhang, Z.; Chen, Q.",
+          "year": "2023",
+          "identifier": "CVPR 2023",
+          "url": "https://github.com/ChenyangLEI/All-In-One-Deflicker",
+          "claim": "Neural filtering against a flawed atlas baseline removes brightness, colour, and texture flicker from single-video inputs, including AI-generated and style-transferred sequences — no optical flow or clean reference required."
+        }
+      ]
+    },
+    {
+      "slug": "cross-direction-identity-limits",
+      "name": "Cross-direction identity coherence — honest limits",
+      "kind": "technique",
+      "engine_family": "comfyui",
+      "applicable_to": "temporal-coherence",
+      "claim": "Perfect style and identity coherence across 8 orthographic sprite views using any current open-weight repaint pipeline is not reliably achievable; the honest ceiling is 'reduced divergence' rather than 'zero divergence', and the studio should plan QA and manual touch-up budget accordingly.",
+      "summary": "The 8-direction turnaround problem is harder than temporal coherence within a single animation: each view is a different image with a different pose, silhouette, and depth layout, so IP-Adapter CLIP features shift substantially between front, 3/4, side, and back. Even with fixed seed + fixed LoRA + IP-Adapter from a single hero frame, the back view will diverge in painterly stroke direction, colour temperature, and fine detail. Current best practice is: hero-frame IP-Adapter (south-facing) anchors the 8-direction batch; manual touch-up or inpainting corrects diverged views; accept 10-20% frame-by-frame variation as the realistic floor. Native 3D-consistent video diffusion models (trained on multi-view data) will eventually close this gap but none meet the commercial-safe + no-anime + available-on-RTX-5090 criteria as of June 2026. FateZero and TokenFlow operate on temporal sequences, not multi-view spatial sequences, so they do not directly solve the direction-coherence problem.",
+      "design_implication": "Set QA expectation at 'reduced divergence, not zero'. Plan 15-30 minutes of manual inpainting/touch-up per character direction set in the production pipeline. Do not promise full auto-coherence across 8 directions to stakeholders.",
+      "evidence_strength": "field-consensus",
+      "license": "N/A — design guidance",
+      "commercial_use": "yes",
+      "commercial_notes": "No model license required — this recipe documents a design constraint, not a model.",
+      "vram_gb": "0",
+      "rig_fit": 5,
+      "studio_fit": 5,
+      "status": "recommended",
+      "failures": [
+        {
+          "symptom": "Back view looks like a different art style from front view despite shared conditioning",
+          "cause": "CLIP space distance between front and back is large; IP-Adapter weight insufficient to overcome the spatial difference; separate depth maps diverge the structural ControlNet path",
+          "remediation": "Create a secondary back-hero frame at the same quality level; use dual IP-Adapter references (one front, one back weighted by angular proximity to each view)",
+          "severity": "critical",
+          "recipe_field": "summary"
+        }
+      ],
+      "sources": [
+        {
+          "kind": "paper",
+          "title": "FateZero: Fusing Attentions for Zero-shot Text-based Video Editing",
+          "authors": "Qi, C.; Cun, X.; Zhang, Y.; Lei, C.; Wang, X.; Shan, Y.; Chen, Q.",
+          "year": "2023",
+          "identifier": "arXiv:2303.09535",
+          "url": "https://arxiv.org/abs/2303.09535",
+          "claim": "FateZero (MIT) achieves temporal consistency via spatial-temporal self-attention across frames in a video sequence — but this mechanism applies to temporal sequences and does not extend directly to multi-view spatial turnarounds, illustrating why temporal-sequence tools cannot fully substitute for a multi-view-consistent 3D model."
+        },
+        {
+          "kind": "paper",
+          "title": "TokenFlow: Consistent Diffusion Features for Consistent Video Editing",
+          "authors": "Geyer, M.; Bar-Tal, O.; Bagon, S.; Dekel, T.",
+          "year": "2023",
+          "identifier": "arXiv:2307.10373",
+          "url": "https://arxiv.org/abs/2307.10373",
+          "claim": "TokenFlow demonstrates that inter-frame feature propagation is the key to consistent video editing — but its propagation relies on temporal correspondences (motion between frames), not multi-view correspondences, confirming the gap between temporal-coherence tools and cross-direction turnaround coherence."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,764 @@
+{
+  "kb": "rust-knowledge",
+  "date": "2026-09-25",
+  "note": "The pinned per-lane prompt. Each research seat receives LANE-BRIEF.md plus its lane object verbatim. Items marked 'verify' are the dispatcher's recollection, not facts: the seat must confirm or correct them from a retrieved page or the compiler.",
+  "waves": [
+    {
+      "wave": 1,
+      "dir": "wave-01-essentials",
+      "tier": "essentials",
+      "title": "Essentials — the Rust a builder must never get wrong"
+    },
+    {
+      "wave": 2,
+      "dir": "wave-02-advanced",
+      "tier": "advanced",
+      "title": "Advanced — the parts of the language that decide design"
+    },
+    {
+      "wave": 3,
+      "dir": "wave-03-si-rpg-engine",
+      "tier": "si-rpg-engine",
+      "title": "si-rpg-engine — how Rust is and will be used in the engine"
+    },
+    {
+      "wave": 4,
+      "dir": "wave-04-si-jam-sessions",
+      "tier": "si-jam-sessions",
+      "title": "si-jam-sessions — Rust for a deterministic music law (P1)",
+      "seats": "generators: Kimi k2.6 via Ollama Cloud (integer-time, host-audio-and-midi, crate-licences), Gemini 3.1 Pro via OpenRouter (midi-notation-ingest; google/gemini-3.1-pro-preview-20260219); verifier Claude Sonnet; compiler oracle set 'jam'"
+    }
+  ],
+  "lanes": [
+    {
+      "slug": "ownership-borrowing",
+      "wave": 1,
+      "title": "Ownership, moves & borrowing",
+      "questions": [
+        "Which borrow-checker errors will a builder hit most, and what is the idiomatic fix for each?",
+        "When does a function signature need explicit lifetimes, and when does elision cover it?"
+      ],
+      "must_cover": [
+        "move vs Copy vs Clone semantics",
+        "the borrowing rule (one &mut xor any number of &) and non-lexical lifetimes",
+        "two-phase borrows (v.push(v.len()))",
+        "reborrowing (&mut *x) and why passing &mut into a function does not move it",
+        "slices &[T] / &str as parameters",
+        "the three lifetime elision rules; returning references; structs holding references",
+        "the common errors with fixes and exact codes: E0382, E0499, E0502, E0505, E0506, E0597, E0716",
+        "moving out of &mut with std::mem::take / replace / swap",
+        "splitting borrows: split_at_mut, disjoint struct fields, edition-2021 disjoint closure captures, slice::get_disjoint_mut (verify version)"
+      ],
+      "exclude": [
+        "variance, subtyping, HRTB (traits-advanced)",
+        "interior mutability (memory-layout)"
+      ],
+      "engine_hooks": [
+        "solver/src/lib.rs `field(bodies, i, slot) -> &mut f64` and `resolve_pair`, which reads both bodies by value before writing, so two &mut into one flat f64 buffer never coexist; when split_at_mut or get_disjoint_mut is the better tool"
+      ]
+    },
+    {
+      "slug": "types-patterns",
+      "wave": 1,
+      "title": "Structs, enums & pattern matching",
+      "questions": [
+        "How do enums and exhaustive matching make illegal states unrepresentable?",
+        "Which pattern features changed recently (let-else, let chains, edition-2024 match ergonomics)?"
+      ],
+      "must_cover": [
+        "struct kinds; impl blocks; associated consts and functions",
+        "enums with data as sum types instead of flag integers",
+        "match exhaustiveness, the `_` arm's risk, #[non_exhaustive]",
+        "binding modes, ref / ref mut, match ergonomics and the edition-2024 reservations (verify exact rules)",
+        "if let, while let, let-else (1.65), let chains (verify: 1.88, edition 2024 only)",
+        "matches!, slice patterns, @ bindings, range patterns",
+        "Option / Result as types and their core combinators (map, and_then, ok_or, ? on Option)",
+        "newtypes for units and ids; type alias vs newtype",
+        "`as` casts (truncation, saturation of float->int since 1.45) vs From / TryFrom for integer conversion"
+      ],
+      "exclude": [
+        "error-type design (errors-panics)",
+        "trait machinery (traits-generics)"
+      ],
+      "engine_hooks": [
+        "the solver carries body mode as a number in f64 slot 16 (`solverMode` 0/1/2/3) and axes as `u8` chars (b'x'); a #[repr(u8)] enum + TryFrom<u32> at the ABI edge keeps the flat buffer while making modes exhaustive inside Rust",
+        "`n_bodies as usize` at the export boundary and why the bounds check before it matters"
+      ]
+    },
+    {
+      "slug": "traits-generics",
+      "wave": 1,
+      "title": "Traits & generics — the working set",
+      "questions": [
+        "What does each standard trait promise, and which derives are wrong for f64 fields?",
+        "When is a generic (static dispatch) better than dyn Trait, and what does it cost?"
+      ],
+      "must_cover": [
+        "defining and implementing traits; default methods; trait bounds and where clauses",
+        "generic functions, structs and impls; monomorphization's cost and benefit",
+        "impl Trait in argument and return position; dyn Trait basics",
+        "contracts: Debug / Display, Clone / Copy, PartialEq / Eq / Hash consistency, PartialOrd / Ord, Default, From / Into / TryFrom, AsRef / Borrow",
+        "Deref is not inheritance",
+        "f64 is PartialOrd only: derive(PartialEq) makes NaN != NaN, derive(Eq / Hash / Ord) is impossible; f64::total_cmp and to_bits as the workarounds",
+        "operator overloading via std::ops (Add, Sub, Mul, Neg, AddAssign) for vector math",
+        "the orphan rule in one sentence and the newtype workaround",
+        "implementing Iterator for your own type"
+      ],
+      "exclude": [
+        "associated types in depth, GATs, dyn compatibility rules, coherence details, auto traits, variance (traits-advanced)"
+      ],
+      "engine_hooks": [
+        "hashing f64 by bits (`mix_f64` in rapier_law.rs) and canonical sorting with total_cmp",
+        "a Vec3 newtype with ops traits vs Rapier's own math types"
+      ]
+    },
+    {
+      "slug": "errors-panics",
+      "wave": 1,
+      "title": "Errors, panics & arithmetic safety",
+      "questions": [
+        "How should a library crate model errors, and when is a panic the right answer?",
+        "What exactly happens on integer overflow and on a panic under the solver's release profile?"
+      ],
+      "must_cover": [
+        "Result + ? with From conversion; designing error enums",
+        "std::error::Error + source(); core::error::Error (verify version)",
+        "thiserror for libraries vs anyhow for applications; Box<dyn Error + Send + Sync>",
+        "main returning Result; unwrap / expect policy; #[must_use]",
+        "panic semantics: unwind vs abort; `panic = \"abort\"`; catch_unwind limits",
+        "a panic unwinding out of an extern \"C\" function aborts (verify: 1.81) — brief, depth in unsafe-ffi",
+        "integer overflow: panics with overflow-checks, wraps without; checked_ / wrapping_ / saturating_ / overflowing_ / strict_ methods (verify strict_ stabilization)",
+        "debug_assert! vs assert!",
+        "status codes across an FFI boundary instead of panics"
+      ],
+      "exclude": [
+        "the unwind ABI in depth (unsafe-ffi)"
+      ],
+      "engine_hooks": [
+        "solver/Cargo.toml release profile `panic = \"abort\"`, `overflow-checks = false`",
+        "exports return u32 1/0 instead of panicking",
+        "the known cleanup item: `rebuild_snapshot` in rapier_law.rs `continue`s on a failed `canon_quat` instead of aborting — express 'refuse, never skip' with an internal -> Option<()> / Result chain wrapped by the export"
+      ]
+    },
+    {
+      "slug": "collections-iterators",
+      "wave": 1,
+      "title": "Collections, iterators & closures",
+      "questions": [
+        "Which standard collections are safe to iterate when order reaches a hash or an output?",
+        "How do iterators, closures and sorting behave, precisely enough to reason about determinism?"
+      ],
+      "must_cover": [
+        "Vec: capacity, with_capacity, reserve, retain, drain; swap_remove changes order",
+        "VecDeque; BTreeMap / BTreeSet ordered and deterministic",
+        "HashMap / HashSet default RandomState: iteration order differs between runs — never let it reach an output or a hash (depth in float-determinism)",
+        "the entry API",
+        "sort (stable) vs sort_unstable: both deterministic for the same input and implementation, but equal elements' order under sort_unstable is unspecified and may change across Rust versions (verify wording in the docs)",
+        "sorting f64 with total_cmp; sort_by_key vs sort_by_cached_key; binary_search; dedup",
+        "iterators: laziness, map / filter / zip / enumerate / chain / windows / chunks_exact, collect into different collections",
+        "sum / fold order and float results",
+        "into_iter vs iter vs iter_mut; arrays IntoIterator by value since edition 2021",
+        "closures: capture modes, Fn / FnMut / FnOnce, move, returning impl Fn",
+        "String / &str / UTF-8 basics: bytes vs chars, format!"
+      ],
+      "exclude": [
+        "hasher choice and deterministic maps in depth (float-determinism)"
+      ],
+      "engine_hooks": [
+        "the solver snapshot sorts contact pairs canonically — which sort to use when keys can tie, and why a toolchain bump could move a golden if equal keys ever occur",
+        "float summation order in iter().sum()"
+      ]
+    },
+    {
+      "slug": "cargo-modules",
+      "wave": 1,
+      "title": "Cargo, crates, modules & editions",
+      "questions": [
+        "What in Cargo.toml, Cargo.lock, rust-toolchain.toml and .cargo/config.toml decides the bytes a build produces?",
+        "How do features, editions and profiles interact across a dependency graph?"
+      ],
+      "must_cover": [
+        "package vs crate vs module; mod / use / pub(crate) / pub(super); file layout",
+        "[lib] crate-type: lib, rlib, cdylib, staticlib",
+        "version requirements: caret default vs exact `=`; Cargo.lock for binaries and cdylibs; --locked / --frozen / --offline",
+        "features are additive and unify across the graph (enabling a feature anywhere turns it on everywhere); default-features = false; optional deps and dep: syntax; `cargo tree -e features -i <crate>`",
+        "profiles: opt-level, lto, codegen-units, panic, overflow-checks, debug-assertions, debug, strip, incremental",
+        "workspaces: shared lock and target; [workspace.dependencies]; [workspace.lints] and [lints]",
+        "editions 2015/2018/2021/2024 are per crate; cargo fix --edition",
+        "rust-version (MSRV) and resolver v3, MSRV-aware (verify: default in edition 2024)",
+        "rust-toolchain.toml: channel, targets, profile, components",
+        ".cargo/config.toml [target.<triple>] rustflags vs [build] rustflags; RUSTFLAGS env REPLACES config rustflags rather than merging (verify precedence from the Cargo book)"
+      ],
+      "exclude": [
+        "build scripts in depth (macros-const)",
+        "CI caching and reproducible bytes (ci-reproducible-builds)"
+      ],
+      "engine_hooks": [
+        "solver/Cargo.toml (cdylib, edition 2021, release profile), solver/rust-toolchain.toml (1.98.1, minimal), solver/.cargo/config.toml rustflags and why build.mjs repeats `-relaxed-simd` in RUSTFLAGS",
+        "`rapier3d-f64 = \"0.35.3\"` is a caret requirement (>=0.35.3, <0.36): the committed Cargo.lock is what pins 0.35.3, so CI must build --locked"
+      ]
+    },
+    {
+      "slug": "testing-tooling",
+      "wave": 1,
+      "title": "Testing, lints & dev tooling",
+      "questions": [
+        "How does a cdylib-only crate get native Rust tests, and how do those tests run for wasm?",
+        "Which lints and tools catch real defects in numeric, unsafe code?"
+      ],
+      "must_cover": [
+        "unit tests (#[cfg(test)] mod tests), integration tests (tests/), doc tests; #[should_panic], #[ignore], filtering, -- --nocapture, cargo test --release",
+        "a crate with only crate-type = [\"cdylib\"] cannot be linked by tests/ or doc tests; adding \"rlib\" fixes it (verify from the Cargo book)",
+        "running tests for wasm32: no built-in runner for wasm32-unknown-unknown; wasm-bindgen-test vs a wasm32-wasip1 build run under a runtime via CARGO_TARGET_<TRIPLE>_RUNNER (verify)",
+        "clippy lint groups; the [lints] table (verify 1.74); float_cmp, cast_possible_truncation, undocumented_unsafe_blocks",
+        "#[expect(lint)] (verify 1.81)",
+        "rustfmt and cargo fmt --check; rustdoc and intra-doc links; rust-analyzer",
+        "cargo-nextest",
+        "proptest: strategies, shrinking, the regressions file",
+        "snapshot tests with insta",
+        "Miri as a UB detector (nightly; cannot run FFI) — intro only",
+        "cargo-deny / cargo-audit; cargo-mutants to prove a test suite goes red"
+      ],
+      "exclude": [
+        "CI workflow setup (ci-reproducible-builds)",
+        "benchmarks (performance)",
+        "Miri's aliasing models (unsafe-ffi)"
+      ],
+      "engine_hooks": [
+        "the solver has no Rust-side tests today; the pure functions (`canon_quat`, `mix_f64`, `js_min` / `js_max`, `canon`) are natural native unit and property tests",
+        "PHASE-2's rule that every harness must go red maps to cargo-mutants on the solver crate"
+      ]
+    },
+    {
+      "slug": "traits-advanced",
+      "wave": 2,
+      "title": "Advanced traits & the type system",
+      "questions": [
+        "What makes a trait dyn-compatible, and what changed recently in trait upcasting and impl-Trait capture?",
+        "Which type-system tools encode invariants at zero runtime cost?"
+      ],
+      "must_cover": [
+        "associated types vs generic parameters; associated consts",
+        "generic associated types (verify 1.65)",
+        "dyn compatibility (formerly object safety — verify the rename) and `where Self: Sized`; vtables and fat pointers",
+        "blanket impls; coherence and the orphan rule in full; overlap",
+        "auto traits Send / Sync / Unpin; marker traits; PhantomData for ownership, variance and drop check",
+        "variance: covariant / contravariant / invariant, with examples",
+        "higher-ranked trait bounds for<'a>",
+        "supertraits and trait-object upcasting coercion (verify 1.86)",
+        "return-position impl Trait in traits and async fn in traits (verify 1.75)",
+        "precise capturing use<..> (verify 1.82) and the edition-2024 change to RPIT lifetime capture",
+        "sealed traits, extension traits, typestate with zero-sized types",
+        "Any and downcasting; ?Sized"
+      ],
+      "exclude": [
+        "lifetime basics (ownership-borrowing)",
+        "unsafe traits (unsafe-ffi)"
+      ],
+      "engine_hooks": [
+        "the solver has two laws behind separate exports (`step` box law, `solver_step` product law): when a Law trait with static dispatch helps and when it is ceremony",
+        "typestate for load-then-step ordering vs the runtime `loaded: Option<...>` check"
+      ]
+    },
+    {
+      "slug": "memory-layout",
+      "wave": 2,
+      "title": "Memory, smart pointers & layout",
+      "questions": [
+        "Which layout guarantees does Rust make, and which does it not?",
+        "Which ownership shapes (Box, Rc, arenas, indices) fit simulation state?"
+      ],
+      "must_cover": [
+        "stack vs heap; Box<T>, Box<[T]>",
+        "Rc / Arc / Weak and cycles",
+        "Cell / RefCell (runtime borrow panics) / OnceCell / OnceLock / LazyCell / LazyLock (verify 1.80)",
+        "UnsafeCell is the only legal source of shared mutation",
+        "Cow",
+        "Drop and drop order (fields in declaration order, locals in reverse); mem::forget; ManuallyDrop; MaybeUninit",
+        "repr(Rust) unspecified field order; repr(C); repr(transparent); repr(u8) enums; alignment and padding; size_of / align_of",
+        "niche optimization (Option<&T>, Option<NonZeroU32>, Option<Box<T>>)",
+        "zero-sized types; DSTs and fat pointers",
+        "Pin: what it guarantees and when it is needed; why self-referential structs are hard (indices / offsets instead)",
+        "arenas and generational indices (slotmap, typed arenas, bump allocation)",
+        "Vec growth reallocates and invalidates raw pointers into it",
+        "#[global_allocator] and GlobalAlloc (intro; the wasm allocator question belongs to wave 3)"
+      ],
+      "exclude": [
+        "aliasing rules and UB (unsafe-ffi)",
+        "the wasm allocator and memory.grow (wasm-raw-abi / binary-and-limits)"
+      ],
+      "engine_hooks": [
+        "the flat `[f64; MAX_BODIES * BODY_STRIDE]` statics as the ABI",
+        "`static mut SOLVER` holds `snapshot: Vec<u8>`: its buffer moves when it grows, so `snapshot_ptr()` must be read after every call (build.mjs does)",
+        "Rapier handles are generational indices; insertion order decides them"
+      ]
+    },
+    {
+      "slug": "unsafe-ffi",
+      "wave": 2,
+      "title": "Unsafe Rust, UB & FFI",
+      "questions": [
+        "What exactly is undefined behaviour in Rust, and how does a builder prove a block of unsafe code sound?",
+        "How must static mut, exports and the C ABI be written under edition 2024?"
+      ],
+      "must_cover": [
+        "the unsafe superpowers; safety vs validity invariants",
+        "the UB catalogue: aliasing violations, dangling / unaligned / null references, invalid values (bool, enum, char), reading uninit memory, data races, unreachable_unchecked, wrong ABI",
+        "raw pointers; &raw const / &raw mut (verify 1.82) vs addr_of!",
+        "static mut and edition 2024's static_mut_refs (deny): rewrites with &raw mut, an UnsafeCell wrapper + unsafe impl Sync, atomics",
+        "unsafe_op_in_unsafe_fn (warn in 2024 — verify)",
+        "unsafe extern blocks and `safe fn` items; unsafe attributes #[unsafe(no_mangle)], #[unsafe(export_name)], #[unsafe(link_section)]",
+        "extern \"C\" vs extern \"C-unwind\"; panics at the boundary",
+        "repr(C) across FFI; CStr / CString and c\"\" literals (verify 1.77); cbindgen / bindgen",
+        "SAFETY comments; clippy undocumented_unsafe_blocks / multiple_unsafe_ops_per_block",
+        "Miri: Stacked Borrows vs Tree Borrows (verify which is default); cargo careful; sanitizers on nightly",
+        "std::ptr read / write / copy_nonoverlapping; strict provenance APIs (verify 1.84)"
+      ],
+      "exclude": [
+        "layout basics (memory-layout)",
+        "wasm export mechanics and allocator (wasm-raw-abi)"
+      ],
+      "engine_hooks": [
+        "lib.rs and rapier_law.rs use `static mut` with `&mut BODIES`, `&COLLIDERS` and `SOLVER.snapshot.as_ptr()`: warned under edition 2021, denied under 2024 — the exact sound rewrite for this single-threaded, non-reentrant wasm module",
+        "`#[no_mangle]` -> `#[unsafe(no_mangle)]` under 2024",
+        "Miri on the pure-Rust law functions natively"
+      ]
+    },
+    {
+      "slug": "concurrency-async",
+      "wave": 2,
+      "title": "Concurrency, parallelism & async",
+      "questions": [
+        "What do Send and Sync guarantee, and which synchronization primitive fits which job?",
+        "Where does parallelism break bit-exact determinism, and where is async appropriate at all?"
+      ],
+      "must_cover": [
+        "Send / Sync meaning and inference",
+        "thread::spawn and JoinHandle; scoped threads (verify 1.63)",
+        "Mutex / RwLock and poisoning; Condvar; mpsc and sync_channel; crossbeam channels",
+        "atomics and memory orderings (Relaxed / Acquire / Release / AcqRel / SeqCst) with the message-passing example",
+        "OnceLock / LazyLock for global initialisation",
+        "rayon: par_iter and work stealing; parallel float reductions are not bit-reproducible across runs or thread counts",
+        "data races vs race conditions; deadlocks",
+        "async/await: futures are lazy state machines; executors (tokio); Pin; Send bounds on spawned futures; spawn_blocking; cancellation by drop",
+        "async closures (verify 1.85)",
+        "threads on wasm32-unknown-unknown: absent by default; atomics + shared memory need target features and a rebuilt std (verify current status)"
+      ],
+      "exclude": [],
+      "engine_hooks": [
+        "rapier3d-f64 is built without `parallel`; whether Rapier documents enhanced-determinism as incompatible with parallel (verify in 0.35.3's Cargo.toml / docs)",
+        "a native host calling the solver must serialize every call on one thread: the static buffers are not Sync"
+      ]
+    },
+    {
+      "slug": "macros-const",
+      "wave": 2,
+      "title": "Macros, const evaluation & build scripts",
+      "questions": [
+        "When does a macro or a build script beat a plain function, and what does each cost?",
+        "What can be computed and asserted at compile time on stable 1.98, including floats?"
+      ],
+      "must_cover": [
+        "macro_rules!: fragment specifiers, repetition, hygiene, $crate, #[macro_export], scoping",
+        "edition-2024 change to the expr fragment (expr_2021) (verify)",
+        "proc macros (derive / attribute / function-like), syn / quote / proc-macro2, and their compile-time cost",
+        "build.rs: cargo::rerun-if-changed, cargo::rustc-cfg, cargo::rustc-check-cfg, and the cargo:: vs cargo: syntax (verify 1.77)",
+        "cfg / cfg_attr; target_arch = \"wasm32\" / target_family = \"wasm\"; check-cfg and the unexpected_cfgs lint (verify 1.80)",
+        "const fn: loops, if / match, &mut in const (verify 1.83), floating-point arithmetic in const fn (verify version)",
+        "const vs static; inline const blocks (verify 1.79)",
+        "const generics: what is stable (min_const_generics) and what is not (generic_const_exprs)",
+        "compile-time assertions: const _: () = assert!(...) for layout / ABI invariants",
+        "include_bytes! / include_str! / env! / concat! / stringify! / compile_error!"
+      ],
+      "exclude": [],
+      "engine_hooks": [
+        "the ABI layout constants (BODY_STRIDE = 17, HX = 13 … DRIVEN = 16, COLLIDER_STRIDE = 10) are duplicated by hand in build.mjs's generated JS; a const assertion plus one generated source of truth removes that drift",
+        "CLIMB_ANGLE and SLIDE_ANGLE are computed at compile time; whether const-evaluated float arithmetic is host-independent IEEE (verify)"
+      ]
+    },
+    {
+      "slug": "performance",
+      "wave": 2,
+      "title": "Performance & profiling",
+      "questions": [
+        "What does each release-profile knob do to speed, size and the pinned bytes?",
+        "How is Rust code measured and profiled on Windows and Linux?"
+      ],
+      "must_cover": [
+        "benchmark first: criterion, divan, std::hint::black_box",
+        "opt-level 3 / s / z, lto fat / thin / off, codegen-units = 1, panic = abort, debug = line-tables-only for profiling",
+        "#[inline], #[inline(always)], #[cold] — when they help",
+        "bounds-check elimination: iterators, chunks_exact, slicing up front, asserting lengths",
+        "allocation avoidance: with_capacity, clear() keeps capacity, reusing per-frame buffers, SmallVec / ArrayVec",
+        "data layout: struct-of-arrays vs array-of-structs, cache lines",
+        "static vs dynamic dispatch in hot loops",
+        "profilers: samply, cargo-flamegraph, perf, Superluminal / VTune on Windows, Tracy via tracy-client",
+        "cargo build --timings; cargo-bloat; cargo-llvm-lines; twiggy for wasm size",
+        "target-cpu=native and why a pinned deterministic artifact must not use it",
+        "PGO / BOLT via cargo-pgo, and why not for a pinned artifact",
+        "SIMD: std::arch intrinsics, portable_simd unstable, auto-vectorization"
+      ],
+      "exclude": [
+        "wasm-specific size and linker flags (wasm-raw-abi)"
+      ],
+      "engine_hooks": [
+        "the solver profile (opt-level 3, lto off, codegen-units 1): which knobs could change the digest without changing results, and which could change results",
+        "profiling the law natively (same crate, host target) vs inside V8"
+      ]
+    },
+    {
+      "slug": "rust-currency",
+      "wave": 2,
+      "title": "What changed in Rust 1.80 → 1.98 and edition 2024",
+      "questions": [
+        "Which language, library, Cargo and target changes since 1.80 would a model trained on older Rust get wrong today?",
+        "What would moving the solver crate from edition 2021 to 2024 change?"
+      ],
+      "must_cover": [
+        "read every release announcement 1.80 through 1.98 on blog.rust-lang.org and the release notes; one recipe per change cluster that matters to engine code, each with a compile check that proves the behaviour under 1.98.1",
+        "the full edition-2024 list from the Edition Guide (RPIT capture, if-let and tail-expression temporary scope, unsafe extern, unsafe attributes, unsafe_op_in_unsafe_fn, static_mut_refs, never-type fallback, expr fragment, gen keyword reserved, Box<[T]> IntoIterator, resolver v3, rustfmt style edition, prelude additions, rustdoc combined doctests …)",
+        "library stabilizations 1.80-1.98 that change how engine code should be written",
+        "Cargo changes 1.80-1.98",
+        "target changes: wasm32-wasi removal and wasm32-wasip1 (verify 1.84), wasm32v1-none (verify 1.84), and when each wasm target feature became default on wasm32-unknown-unknown (measured on 1.98.1: bulk-memory, multivalue, mutable-globals, nontrapping-fptoint, reference-types, sign-ext)",
+        "deprecations, removals and lint-level changes (warn -> deny) in the period"
+      ],
+      "exclude": [
+        "how to write sound static mut replacements in depth (unsafe-ffi) — this lane states what changed; unsafe-ffi states how to write it"
+      ],
+      "engine_hooks": [
+        "the solver is edition 2021 on toolchain 1.98.1: list what `cargo fix --edition` to 2024 would touch in lib.rs / rapier_law.rs and whether any of it could change the wasm bytes",
+        "which of the default-on wasm features matter to determinism (none change float results; relaxed-simd is not default and is disabled explicitly anyway)"
+      ]
+    },
+    {
+      "slug": "wasm-raw-abi",
+      "wave": 3,
+      "title": "Rust → WebAssembly without bindgen",
+      "questions": [
+        "What is the complete contract of a raw extern \"C\" wasm module that JS (and later other hosts) drives through shared linear memory?",
+        "Which build choices change the module's bytes, imports, exports, memory and failure modes?"
+      ],
+      "must_cover": [
+        "wasm32-unknown-unknown facts on 1.98.1: std compiles but OS services are unsupported stubs; the default allocator; no WASI imports",
+        "exports: #[unsafe(no_mangle)] pub extern \"C\" fn in a cdylib; which symbols the linker exports by default (memory, __data_end, __heap_base? — verify with node on a built module)",
+        "panic = abort lowers to the unreachable trap; what a trap looks like to the JS caller; returning status codes instead",
+        "exported vs imported memory (--import-memory); stack size (-z stack-size; verify the default)",
+        "pointer-returning exports over static buffers; alignment of f64 buffers",
+        "JS views over memory.buffer detach when memory grows; re-create views per call (as build.mjs does)",
+        "wasm32v1-none: MVP-only features, no_std + alloc + #[panic_handler] + a #[global_allocator] (verify) — when it is the stricter choice",
+        "checking a target's default features (rustc --print cfg --target ...) and disabling one (-C target-feature=-...)",
+        "inspecting modules: wasm-tools print / validate / objdump, wasmparser, twiggy; what wasm-opt does to bytes and why a pinned artifact is never post-processed unless that step is pinned too",
+        "embedding a law version in the module (an exported const fn or a custom section via #[unsafe(link_section)])"
+      ],
+      "exclude": [
+        "the exact linker args for fixed memory, the allocator that avoids memory.grow, and the relaxed-SIMD / memory.grow opcode encodings — owned by the binary-and-limits lane",
+        "path remapping and reproducible bytes (ci-reproducible-builds)",
+        "float semantics (float-determinism)"
+      ],
+      "engine_hooks": [
+        "the export list in lib.rs / rapier_law.rs and the upcoming `restore_ptr` / `solver_restore` (T2)",
+        "build.mjs's generated module (Uint8Array literal, sync WebAssembly.Instance, Float64Array views per call, snapshotBytes().slice())"
+      ]
+    },
+    {
+      "slug": "float-determinism",
+      "wave": 3,
+      "title": "Floating point & cross-platform determinism",
+      "questions": [
+        "Which floating-point results are bit-identical across CPUs, operating systems and wasm engines, and which are not?",
+        "What must a Rust simulation avoid, pin or canonicalize to keep a hash stable across hosts and toolchain bumps?"
+      ],
+      "must_cover": [
+        "IEEE-754 basic ops (+ - * / sqrt) are correctly rounded and deterministic in Rust and in wasm",
+        "wasm float non-determinism: NaN bit patterns only, plus relaxed SIMD — from the spec",
+        "Rust performs no floating-point contraction: a*b+c never becomes an FMA unless you call mul_add (verify from the Reference / rustc docs); mul_add rounds once and can differ",
+        "transcendentals (sin, cos, exp, ln, powf, atan2, hypot) are not correctly rounded and can differ across platforms and libm versions on native targets; where wasm32-unknown-unknown gets them (verify); the libm crate for platform-independent results",
+        "what rapier3d-f64's `enhanced-determinism` feature actually switches (read its Cargo.toml features and the crates it forwards to: simba / nalgebra / parry `libm` or `libm_force`, SIMD off, hashers — verify at 0.35.3)",
+        "subnormals: Rust sets no FTZ/DAZ; wasm preserves subnormals",
+        "signed zero: 0.0 == -0.0 but bits differ — canonicalize before hashing",
+        "NaN: never equal; propagation; canonicalizing before hashing",
+        "f64::min / max vs IEEE 754-2019 minimum / maximum (verify stabilization) vs JS Math.min / max",
+        "total_cmp for ordering; to_bits for hashing",
+        "const-evaluated floats are computed by the compiler's soft-float (verify that this is host-independent)",
+        "fixed-point alternatives (the `fixed` crate) and when they are worth it",
+        "deterministic collections: HashMap RandomState is per-process random; BTreeMap, IndexMap with a fixed hasher, FxHash, foldhash with a fixed seed; what hashbrown's default hasher is (verify)",
+        "why a toolchain or dependency bump can move results (libm changes, operation reordering in a dependency) and the gate that catches it"
+      ],
+      "exclude": [
+        "relaxed-SIMD opcode encoding and CCD / controller behaviour (binary-and-limits)",
+        "Rapier's step internals (rapier-core)"
+      ],
+      "engine_hooks": [
+        "FLAGS.md's claims (no FMA without relaxed SIMD; subnormals kept) checked against sources",
+        "`canon` / `bad` / `canon_zero` in rapier_law.rs; `js_min` / `js_max` in lib.rs mimic JS signed-zero semantics",
+        "`mix_f64` hashes bits; CLIMB_ANGLE / SLIDE_ANGLE are compile-time floats",
+        "T3 pin 7 refuses Math.sin etc. in JS scene builders — the same concern on the Rust side"
+      ]
+    },
+    {
+      "slug": "rapier-core",
+      "wave": 3,
+      "title": "Rapier 0.35: pipeline, determinism & upgrades",
+      "questions": [
+        "What does one PhysicsPipeline::step do at 0.35.3, and which parameters and sets does it read and write?",
+        "What does Rapier itself promise about determinism, and how should the engine govern a Rapier version bump?"
+      ],
+      "must_cover": [
+        "the 0.35.3 step signature and every argument (gravity, IntegrationParameters, IslandManager, broad phase type, NarrowPhase, RigidBodySet, ColliderSet, ImpulseJointSet, MultibodyJointSet, CCDSolver, hooks, events)",
+        "IntegrationParameters fields that change results: dt, solver iteration counts, warmstart_coefficient, length_unit, contact softness / natural frequency, allowed linear error, prediction distance, max CCD substeps (names exactly as in 0.35.3)",
+        "rigid body types: Dynamic, Fixed, KinematicPositionBased, KinematicVelocityBased; what each does to contacts",
+        "sleeping and RigidBodyActivation parameters (normalized_linear_threshold, angular_threshold, time_until_sleep) — the configuration view; restore-time state belongs to restore-internals",
+        "CollisionPipeline vs PhysicsPipeline; QueryPipeline in 0.35 (how it is built now)",
+        "contact and intersection events: EventHandler, ChannelEventCollector, ActiveEvents, ActiveCollisionTypes",
+        "collision groups vs solver groups; ActiveHooks / PhysicsHooks",
+        "the crate's feature list at 0.35.3 (dim3, f64, parallel, simd-*, serde-serialize, debug-render, profiler, enhanced-determinism …) and which are mutually exclusive",
+        "Rapier's own statement of its determinism guarantee (docs / user guide / changelog) and its conditions",
+        "the CHANGELOG entries from 0.30 to 0.35.3 that changed simulation results, and a bump policy (rerun the T4 course and goldens before any bump)",
+        "the user guide's version notes: which docs pages are current for 0.35 vs older (rapier.rs)"
+      ],
+      "exclude": [
+        "warm-start / activation / broad-phase / serde state for restore — owned by restore-internals",
+        "shapes, meshes, CCD, the character controller — owned by rapier-shapes-kcc and binary-and-limits"
+      ],
+      "engine_hooks": [
+        "rapier_law.rs `build_world` (contact clustering off, warmstart_coefficient = 1.0), `warm_broadphase` and the E3 defect (a hand-updated broad phase discarded pair events; fixed by one CollisionPipeline::step at load + wake_up(true))",
+        "`time_until_sleep = 32 * dt`, sleep counted in quanta"
+      ]
+    },
+    {
+      "slug": "rapier-shapes-kcc",
+      "wave": 3,
+      "title": "Rapier shapes, meshes & the character controller",
+      "questions": [
+        "Which parry shapes and mesh constructors should collision-from-meshes use, and how must meshes be prepared so loading stays deterministic?",
+        "How does the KinematicCharacterController work end to end at 0.35.3 (beyond the limit comparisons owned by binary-and-limits)?"
+      ],
+      "must_cover": [
+        "SharedShape catalogue at parry 0.30.2: ball, cuboid, capsule, cylinder, cone, round shapes, convex polyhedron, compound, trimesh, heightfield (and voxels if present — verify)",
+        "trimesh construction and TriMeshFlags (FIX_INTERNAL_EDGES, MERGE_DUPLICATE_VERTICES, DELETE_DEGENERATE_TRIANGLES, ORIENTED …) and the errors a bad mesh returns",
+        "trimesh is for fixed geometry; dynamic bodies need convex or compound shapes",
+        "convex_hull (None on degenerate input), convex_decomposition / VHACD parameters; why hulls are computed offline and stored in the world file",
+        "heightfields: layout (rows / cols / scale), HeightFieldFlags::FIX_INTERNAL_EDGES, internal-edge ghost collisions",
+        "the controller's API end to end: fields (up, offset, slide, autostep, max_slope_climb_angle, min_slope_slide_angle, snap_to_ground, normal_nudge_factor), move_shape inputs / outputs (EffectiveCharacterMovement: translation, grounded, is_sliding_down_slope), solve_character_collision_impulses for pushing dynamic bodies",
+        "character-vs-character and character-vs-dynamic interaction",
+        "parry queries for sight: ray casts and shape intersections, and their use for line of sight",
+        "glTF-to-collider preparation in Rust (the gltf crate) vs offline preprocessing; the refusals a mesh loader must make (NaN, non-unit quaternions, node scale, out-of-range indices, degenerate or non-manifold triangles, skins / animations in a collision file, undeclared units / up-axis)"
+      ],
+      "exclude": [
+        "CCD determinism and the tunnelling numbers, and the exact limit comparisons (strict / inclusive) of autostep, slopes and snap — owned by binary-and-limits"
+      ],
+      "engine_hooks": [
+        "rapier_law.rs constants STEP_HEIGHT 0.3, STEP_MIN_WIDTH 0.2, CLIMB_ANGLE 45°, SLIDE_ANGLE 50°, SNAP 0.2, SKIN 0.01; `character_shape`; the shape-traversal result that kept the character a box",
+        "heightfield buffer MAX_HEIGHTS 256",
+        "the post-Phase-2 mesh slice: hull point sets stored offline for determinism"
+      ]
+    },
+    {
+      "slug": "sim-architecture",
+      "wave": 3,
+      "title": "Deterministic simulation architecture in Rust",
+      "questions": [
+        "How do Rust simulation and rollback libraries structure state so it can be saved, hashed, restored and replayed bit-exactly?",
+        "Which hashing and encoding choices stay stable across Rust versions, platforms and processes?"
+      ],
+      "must_cover": [
+        "fixed timestep and the accumulator; input-log replay (seed + admitted inputs)",
+        "save / restore / rerun as a completeness test: GGPO's SyncTest and GGRS's SyncTestSession in Rust (verify API); rollback crates (GGRS, backroll — verify status)",
+        "canonical state encoding: explicit to_le_bytes, fixed field order, sorted collections, no padding bytes, a version tag",
+        "hash choices: FNV-1a, xxh3 (xxhash-rust), blake3, and why std's DefaultHasher / SipHash and #[derive(Hash)] output are not a stable persisted hash (verify the std docs' wording)",
+        "stable ids and generational handles; insertion order as part of the record",
+        "deterministic iteration: sort by id before any order-sensitive step",
+        "serde for world files: serde_json float round-trip exactness (the float_roundtrip feature — verify), ryu output",
+        "separating law from presentation: no path from the host back into the hash",
+        "law versioning: golden hashes plus behaviour numbers; bump discipline",
+        "input validation at the boundary (NaN, non-unit quaternions) with explicit refusals",
+        "ECS (bevy_ecs, hecs): what it would buy this engine and what it would cost to determinism"
+      ],
+      "exclude": [
+        "Rapier-specific restore state (restore-internals)",
+        "float semantics (float-determinism)"
+      ],
+      "engine_hooks": [
+        "the tick in JS + law in Rust split; the snapshot bytes (warm-start manifold points sorted by pair)",
+        "T1 bit-pattern trace, T2 restore, T3 insertion-order test, T5 replay bundles",
+        "the reference law vs the product law and the dual goldens"
+      ]
+    },
+    {
+      "slug": "host-embedding",
+      "wave": 3,
+      "title": "Embedding the Rust law in hosts (JS, Godot, Unreal)",
+      "questions": [
+        "What are the concrete ways to run this Rust law inside Godot 4 and Unreal 5, and what does each do to bit-exact agreement with the pinned binary?",
+        "Which WebAssembly runtimes can embed the pinned module natively, and which of their settings matter for determinism?"
+      ],
+      "must_cover": [
+        "option A — one pinned .wasm run by an embedded runtime in every host: wasmtime (Rust API and C API), Wasmer, WAMR, wasm3; the determinism knobs (wasmtime Config::cranelift_nan_canonicalization, relaxed_simd_deterministic, feature toggles, fuel / epoch interruption) — verify names at the current wasmtime",
+        "Godot 4: no built-in wasm runtime (verify); community addons (e.g. godot-wasm — verify what it wraps and its maintenance state); a GDExtension that embeds wasmtime",
+        "option B — compile the crate natively per platform: godot-rust gdext (GDExtension, #[derive(GodotClass)], ExtensionLibrary, API-version compatibility with Godot 4.x — verify current), Unreal via a C ABI (staticlib / cdylib + cbindgen header + a ThirdParty module); what native compilation risks for bit-exactness (std math, target features, a second artifact to pin)",
+        "option C — the component model / WIT (wit-bindgen, wasmtime components; jco for JS) as a typed ABI instead of raw pointers",
+        "threading: every call to the law from one thread; copy costs of the body buffers",
+        "the evidence for each option's maturity (release dates, maintenance, platform coverage, console support), presented as tradeoffs — this lane informs a later decision, it does not make it"
+      ],
+      "exclude": [
+        "the JS glue details (wasm-raw-abi)",
+        "CI (ci-reproducible-builds)"
+      ],
+      "engine_hooks": [
+        "README's stated aspiration: the law inside a host (browser, Godot, Unreal) that draws the picture and sends intents; presentation has no path back into the hash",
+        "the product-alignment study's ordering (Godot, then Unreal)",
+        "build.mjs's JS binding as the reference binding every other host must match"
+      ]
+    },
+    {
+      "slug": "ci-reproducible-builds",
+      "wave": 3,
+      "title": "Rust CI, reproducible binaries & supply chain",
+      "questions": [
+        "What makes a Rust→wasm build byte-reproducible, and what still differs between hosts?",
+        "Which Rust-side CI jobs and gates should si-rpg-engine add, and how are toolchain and dependency bumps governed?"
+      ],
+      "must_cover": [
+        "toolchain pinning in CI: rust-toolchain.toml, rustup's behaviour when a pinned toolchain is missing (verify for current rustup), dtolnay/rust-toolchain vs plain rustup",
+        "cargo caching (Swatinem/rust-cache) and keys",
+        "--locked / --frozen / --offline",
+        "reproducible bytes: --remap-path-prefix (cargo home, crate, repo); why Windows bytes still differ; trim-paths status on stable 1.98 (verify: profile.trim-paths / -Ztrim-paths)",
+        "RUSTFLAGS vs CARGO_ENCODED_RUSTFLAGS vs config rustflags precedence (verify from the Cargo book)",
+        "whether x86_64 and aarch64 Linux hosts produce identical wasm bytes for the same inputs (find evidence; say if none)",
+        "ARM runners for public repos (ubuntu-24.04-arm — verify availability)",
+        "Rust-side gates: cargo test for pure functions, cargo clippy -D warnings, cargo fmt --check, cargo deny check (licenses, advisories, bans, sources), cargo audit",
+        "a feature-unification guard (cargo tree -e features) so parallel / simd features never switch on",
+        "binary size + digest snapshot; wasm lint jobs (the opcode details belong to binary-and-limits)",
+        "Miri job on a pinned nightly for the unsafe code; cargo-fuzz (nightly) for loaders; cargo-mutants",
+        "supply chain: cargo-vet, Cargo.lock review on bumps, a written bump policy",
+        "scheduled jobs under the studio rule: weekly or slower, timeout, concurrency group, opens PRs / issues, never pushes"
+      ],
+      "exclude": [
+        "wasm opcode encoding and fixed-memory link args (binary-and-limits)"
+      ],
+      "engine_hooks": [
+        ".github/workflows/ci.yml pins Rust 1.98.1 and compares the Linux digest",
+        "build.mjs --check and 'only Linux writes the digest'",
+        "T3's ARM lane downloads the x64 artifact instead of rebuilding",
+        "T5's scheduled replay corpus"
+      ]
+    },
+    {
+      "slug": "midi-notation-ingest",
+      "wave": 4,
+      "generator": "google/gemini-3.1-pro-preview",
+      "title": "Score ingest inside a wasm law: SMF, MusicXML, ABC",
+      "questions": [
+        "How does a wasm32-unknown-unknown law (no files, no clocks) parse score bytes (SMF, MusicXML, ABC) into integer events at one PPQ, and refuse what it cannot represent?",
+        "Which crates, versions and features fit, with each licence read from the crate's own files, and how is a canonical re-encoding produced for the hash?"
+      ],
+      "must_cover": [
+        "midly 0.5.3: its features (alloc, std, parallel, strict) and what default-features = false + alloc leaves; Smf::parse from a byte slice; formats 0/1/2; metrical vs SMPTE timing; running status; tempo (FF 51) and time-signature (FF 58) meta events; the FF 01-07 text events; strict vs lenient parsing; what errors look like",
+        "MusicXML in a wasm law: quick-xml 0.42 (pull reader over a byte slice), roxmltree 0.21 (DOM), musicxml 1.1.2 (typed SDK) compared on std/no_std, wasm32 compilation, API and size",
+        "MusicXML timing: <divisions> per quarter mapped to one fixed PPQ with integer math; ties, tuplets (<time-modification>), grace notes, backup/forward; repeats and voltas unrolled or refused",
+        "ABC: abc-parser 0.4.0 — coverage, maintenance status, licence; whether another maintained crate exists",
+        "normalising any source resolution to one PPQ with a declared rounding rule, refusing what cannot be represented exactly, and a canonical re-encoding (byte form) of the admitted score for the hash",
+        "every claim that code can show runs through the oracle, on wasm32 where it concerns the law"
+      ],
+      "exclusions": [
+        "tempo-map time conversion and PPQ arithmetic (integer-time)",
+        "audio/MIDI devices (host-audio-and-midi)",
+        "licence policy (crate-licences)"
+      ],
+      "hooks": [
+        "Provisional lock (unsigned): Rust edition-2024 wasm32-unknown-unknown cdylib, raw C ABI, no files/clocks/threads; integer ticks at one fixed PPQ; pitch, onset, duration, velocity, voice all integers; replay = seed + admitted-action log; audio outside the hash; the host plays committed events through an oscillator. Likely: a second integer timeline in samples via an integer SMF-style tempo map; a separately pinned renderer."
+      ]
+    },
+    {
+      "slug": "integer-time",
+      "wave": 4,
+      "generator": "ollama:kimi-k2.6:cloud",
+      "title": "Integer musical time: ticks, tempo maps, samples",
+      "questions": [
+        "How does the law map ticks to microseconds and to samples through an SMF-style tempo map (microseconds per quarter) with exact integer math and a declared rounding rule?",
+        "Which PPQ, which integer types and which overflow bounds does a long take need, and how do bars and beats work under time-signature changes?"
+      ],
+      "must_cover": [
+        "tick -> microsecond and tick -> sample formulas across tempo segments, with u64/u128 intermediates; floor of the exact rational as the rounding rule and why it is associative across segment boundaries (or where it is not)",
+        "overflow bounds for a long take: hours of audio at 44.1/48/96 kHz, PPQ up to 3840, the slowest and fastest SMF tempo (24-bit microseconds per quarter)",
+        "PPQ trade-offs (480 / 960 / 3840): which tuplets are exact (triplets, quintuplets, septuplets) by divisibility",
+        "bar/beat arithmetic under time-signature changes (SMF FF 58 numerator/denominator power of two)",
+        "checked_ vs wrapping_ vs saturating ops in the law; overflow-checks in a release profile; what a refusal looks like",
+        "u128 on wasm32-unknown-unknown: that it compiles and runs (compiler-builtins), measured through the oracle",
+        "no floating point anywhere in the time path; why an f64 seconds value is not a law value"
+      ],
+      "exclusions": [
+        "parsing score formats (midi-notation-ingest)",
+        "device clocks and drift (host-audio-and-midi)"
+      ],
+      "hooks": [
+        "Provisional lock (unsigned): Rust edition-2024 wasm32-unknown-unknown cdylib, raw C ABI, no files/clocks/threads; integer ticks at one fixed PPQ; pitch, onset, duration, velocity, voice all integers; replay = seed + admitted-action log; audio outside the hash; the host plays committed events through an oscillator. Likely: a second integer timeline in samples via an integer SMF-style tempo map; a separately pinned renderer."
+      ]
+    },
+    {
+      "slug": "host-audio-and-midi",
+      "wave": 4,
+      "generator": "ollama:kimi-k2.6:cloud",
+      "title": "Native audio and MIDI host",
+      "questions": [
+        "How does a native Windows host play the law's committed events through cpal with no allocation or locking on the audio callback?",
+        "How are midir input timestamps mapped onto the law's sample clock, and how is drift between the device clock and the law clock handled?"
+      ],
+      "must_cover": [
+        "cpal 0.18.2 on WASAPI: shared vs exclusive mode (what cpal exposes), buffer-size control (BufferSize), sample formats, StreamConfig; OutputCallbackInfo / StreamInstant timestamps and latency reporting; the error callback (xruns, device loss)",
+        "an oscillator voice rendered from committed events: an SPSC queue (rtrb 0.4 vs ringbuf 0.5) from the host thread to the callback; no allocation, locking or blocking on the callback; assert_no_alloc 1.1.2 to prove it",
+        "midir 0.11: input callback timestamps (units and epoch), port enumeration, the WinMM backend on Windows",
+        "mapping a MIDI input timestamp onto the law's sample clock; device-clock vs law-clock drift and how a host re-anchors",
+        "compile-only checks on the host (no audio or MIDI device in the oracle); behaviour claims labelled docs/source"
+      ],
+      "exclusions": [
+        "browser AudioWorklet (a separate web study)",
+        "renderer determinism (P2)",
+        "score parsing (midi-notation-ingest)"
+      ],
+      "hooks": [
+        "Provisional lock (unsigned): Rust edition-2024 wasm32-unknown-unknown cdylib, raw C ABI, no files/clocks/threads; integer ticks at one fixed PPQ; pitch, onset, duration, velocity, voice all integers; replay = seed + admitted-action log; audio outside the hash; the host plays committed events through an oscillator. Likely: a second integer timeline in samples via an integer SMF-style tempo map; a separately pinned renderer."
+      ]
+    },
+    {
+      "slug": "crate-licences",
+      "wave": 4,
+      "generator": "ollama:kimi-k2.6:cloud",
+      "title": "Crate licences for a shipped MIT/Apache product",
+      "questions": [
+        "Which licences reach a shipped wasm law and a shipped native host built from this stack, read from each crate's own files?",
+        "What licence allowlist should cargo-deny enforce for an MIT/Apache product, and how are weak copyleft (MPL-2.0), attribution and NOTICE handled?"
+      ],
+      "must_cover": [
+        "the measured licence table of this wave's dependency set (supplied), per target (wasm32 law vs native host), with which dependencies actually reach a shipped binary (normal vs build/proc-macro vs dev)",
+        "licences outside MIT/Apache-2.0 in the set: e.g. Unlicense (midly), BSD-1-Clause (assert_no_alloc), Apache-2.0-only (cpal), Unicode-3.0 and others found in the table; what each requires of a shipped product",
+        "cargo-deny's [licenses] configuration (allow, exceptions, confidence-threshold, clarify) and what it checks; cargo-about's attribution output",
+        "MPL-2.0: file-level copyleft and what it means for a statically linked Rust binary",
+        "Apache-2.0 NOTICE files: when a shipped binary must reproduce them"
+      ],
+      "exclusions": [
+        "song/content licensing (not a Rust question)",
+        "the audio and parser APIs themselves (other lanes)"
+      ],
+      "hooks": [
+        "Provisional lock (unsigned): Rust edition-2024 wasm32-unknown-unknown cdylib, raw C ABI, no files/clocks/threads; integer ticks at one fixed PPQ; pitch, onset, duration, velocity, voice all integers; replay = seed + admitted-action log; audio outside the hash; the host plays committed events through an oscillator. Likely: a second integer timeline in samples via an integer SMF-style tempo map; a separately pinned renderer."
+      ]
+    }
+  ],
+  "request_lanes": [
+    {
+      "slug": "restore-internals",
+      "wave": 3,
+      "title": "Rapier state for restore (T2)",
+      "source": "coordinator questions 1-4 (si-rpg-engine docs/rust-kb-requests.md)",
+      "seat": "dedicated Opus research seat"
+    },
+    {
+      "slug": "binary-and-limits",
+      "wave": 3,
+      "title": "Binary lint, CCD and controller limits (T3/T4)",
+      "source": "coordinator questions 5-8 (si-rpg-engine docs/rust-kb-requests.md)",
+      "seat": "dedicated Opus research seat"
+    }
+  ]
+}

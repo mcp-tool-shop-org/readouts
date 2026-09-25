@@ -1,0 +1,173 @@
+{
+  "bucket": "binary-and-limits",
+  "verifier_note": "Verified against rustc 1.98.1, rapier3d-f64 0.35.3, parry3d-f64 0.30.2 and dlmalloc 0.2.13 read on disk; si-rpg-engine's live GitHub state (main, open PR #44 'slice-t3-platforms' stacked on open PR #43, and the T3/T4 dispatch docs); and every external source (WebAssembly 3.0 spec, relaxed-simd proposal, LLD docs, rustc/Cargo book, Rust Reference, Wasmtime docs, rapier CHANGELOG/user guide, docs.rs). Ran all 19 checks embedded in this lane through compile_oracle.py check against the real pinned toolchain and dependencies: 19/19 passed, including the exact controller-limit reproduction (0.29-0.31 climbed, 0.311/0.32 stopped, engine's real STEP_HEIGHT/STEP_MIN_WIDTH/SKIN constants) and the exact --no-growable-memory / misaligned-initial-memory linker-argument reproductions. Every one of the ~45 warrant sources resolved and supported its claim; every cited rapier/parry/dlmalloc file:line matched, down to operator-level detail (is_wall uses >=, the stairs landing check uses strict >, snap uses <=0). Engine facts hold up to a subtle test: PR #44's actual current code fixes wasm memory at 256 pages (16 MiB) in both config.toml and build.mjs, matching recipes 1 and 2 exactly, NOT the 512-page figure in the same-day-amended dispatch pin 10 that recipe 2 also cites separately and correctly as a distinct, not-yet-implemented recommendation. Systemic weakness: nearly every engine_note anchors to an open, unmerged, stacked PR (#44 depends on #43, both open) and to dispatch docs that were amended same-day from KB answers; this is accurate today (2026-09-25) but is a moving target that goes stale the moment either branch merges, rebases, or is amended again, and a handful of dense-scene page-count figures (e.g. 49/147/3,320 pages; the 1,117,808-byte linker error) are the research agent's own unreproduced measurements, taken on faith rather than independently re-run in this pass.",
+  "verdicts": [
+    {
+      "slug": "fix-wasm32-memory-with-c-link-arg-no-growable-memory-or-equal-page-aligned-initial-memory-max-memory",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle ran all 6 checks (incl. the two link failures) against rustc 1.98.1/wasm32: 6/6 passed. LLD docs match verbatim; PR#44 branch code sets exactly 256 pages (16 MiB) in config.toml+build.mjs.",
+      "evidence_url": "https://lld.llvm.org/WebAssembly.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://lld.llvm.org/WebAssembly.html", "supported": true, "note": "Verbatim: initial-memory default=stack+static+heap, max-memory default=unlimited, no-growable-memory sets max=initial."},
+        {"url": "https://doc.rust-lang.org/stable/rustc/codegen-options/index.html", "supported": true, "note": "Confirmed: -C link-arg appends and may repeat; target-feature sets the default feature set per +/-."},
+        {"url": "https://doc.rust-lang.org/cargo/reference/build-scripts.html", "supported": true, "note": "Verbatim: rustc-link-arg-cdylib passes -C link-arg=FLAG for cdylib only; rustc-cdylib-link-arg is its alias."},
+        {"url": "https://doc.rust-lang.org/stable/core/arch/wasm32/fn.memory_grow.html", "supported": true, "note": "Confirmed: returns previous page count on success, usize::MAX on failure; stable since 1.33.0."},
+        {"url": "https://webassembly.github.io/spec/core/exec/modules.html", "supported": true, "note": "Spec confirms growth fails once new size would exceed the memory type's declared maximum."}
+      ]
+    },
+    {
+      "slug": "remove-memory-grow-from-the-law-s-binary-with-a-fixed-arena-global-allocator-dlmalloc-0-2-13-over-one-span",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle: all 3 checks passed on real wasm32 (std grows 65 pages; frees never shrink; the fixed-arena allocator grows 0). solver/src/arena.rs on PR#44 branch matches the dlmalloc(size,align) API exactly.",
+      "evidence_url": "https://github.com/rust-lang/rust/blob/1.98.1/library/std/src/sys/alloc/wasm.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://github.com/rust-lang/rust/blob/1.98.1/library/std/src/sys/alloc/wasm.rs", "supported": true, "note": "Confirmed: static DLMALLOC wraps dlmalloc::Dlmalloc and backs System's GlobalAlloc on wasm32 at the 1.98.1 tag."},
+        {"url": "https://github.com/alexcrichton/dlmalloc-rs/blob/0.2.13/src/wasm.rs", "supported": true, "note": "Read on disk: donates __heap_base..__heap_end once via an AtomicBool gate, else memory_grow; free* always false."},
+        {"url": "https://docs.rs/dlmalloc/0.2.13/dlmalloc/struct.Dlmalloc.html", "supported": true, "note": "Confirmed on disk (lib.rs): new_with_allocator plus malloc/calloc/free/realloc all taking (size, align)."},
+        {"url": "https://docs.rs/dlmalloc/0.2.13/dlmalloc/trait.Allocator.html", "supported": true, "note": "Confirmed on disk: trait Allocator has exactly alloc/remap/free_part/free/can_release_part/allocates_zeros/page_size."},
+        {"url": "https://doc.rust-lang.org/stable/std/alloc/index.html", "supported": true, "note": "Verbatim: cdylibs/staticlibs are guaranteed System by default absent a #[global_allocator] static."},
+        {"url": "https://docs.wasmtime.dev/examples-deterministic-wasm-execution.html", "supported": true, "note": "Verbatim: memory.grow/table.grow may non-deterministically fail; rejecting growth or fixing max=min is a listed remedy."},
+        {"url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/Cargo.lock", "supported": true, "note": "dlmalloc 0.2.13 confirmed as std's locked dependency at this tag (cross-checked via oracle's own Cargo.lock)."}
+      ]
+    },
+    {
+      "slug": "lint-wasm-by-decoding-every-instruction-0x40-and-0xfd-bytes-recur-in-block-types-immediates-and-data",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle check passed (real wasmparser 0.259.0). Read PR#44's actual solver/lint.mjs: its simd() sub-opcode table silently skips unlisted 0xFD sub-opcodes and never flags table.grow, exactly the two named gaps.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/slice-t3-platforms/solver/lint.mjs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://webassembly.github.io/spec/core/binary/instructions.html", "supported": true, "note": "Confirmed: memory.grow=0x40, empty blocktype=0x40, vector instructions are the 0xFD prefix + LEB128 sub-opcode."},
+        {"url": "https://webassembly.github.io/spec/core/binary/values.html", "supported": true, "note": "Verbatim: spec's own example is 0x03 and 0x83 0x00 both encoding 3, confirming padded LEB128 is legal."},
+        {"url": "https://docs.rs/wasmparser/0.259.0/wasmparser/struct.OperatorsReader.html", "supported": true, "note": "Confirmed at 0.259.0: read() and read_with_offset() both decode one operator at a time."}
+      ]
+    },
+    {
+      "slug": "match-relaxed-simd-as-0xfd-then-u32-leb128-256-275-and-memory-grow-as-0x40-then-a-memidx-padding-allowed",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle check passed (real wasmparser decodes all padded/relaxed encodings as claimed). PR#44's lint.mjs literally exports RELAXED_SIMD_FIRST=0x100, RELAXED_SIMD_LAST=0x113, MEMORY_GROW=0x40, matching exactly.",
+      "evidence_url": "https://github.com/WebAssembly/relaxed-simd/blob/main/proposals/relaxed-simd/Overview.md",
+      "corrections": null,
+      "sources": [
+        {"url": "https://github.com/WebAssembly/relaxed-simd/blob/main/proposals/relaxed-simd/Overview.md", "supported": true, "note": "Confirmed: i8x16.relaxed_swizzle=0x100 first, i32x4.relaxed_dot..add_s=0x113 last, 0x114-0x12F reserved."},
+        {"url": "https://webassembly.github.io/spec/core/binary/instructions.html", "supported": true, "note": "Confirmed: memory.grow=0x40 followed by memidx; empty blocktype=0x40; vectors are 0xFD + LEB128 opcode."},
+        {"url": "https://webassembly.github.io/spec/core/binary/values.html", "supported": true, "note": "Confirmed padded LEB128 is legal up to ceil(N/7) bytes, per the spec's own 0x03/0x83 0x00 example."},
+        {"url": "https://webassembly.github.io/spec/core/binary/types.html", "supported": true, "note": "Confirmed flags 0x00/0x01 for i32 and 0x04/0x05 for i64; page did not surface 0x02/0x03 shared explicitly."},
+        {"url": "https://webassembly.github.io/spec/core/appendix/index-instructions.html", "supported": true, "note": "Verbatim: memory.grow x = 0x40, memory.size x = 0x3F in the instruction index."}
+      ]
+    },
+    {
+      "slug": "don-t-rely-on-c-target-feature-relaxed-simd-a-target-feature-fn-or-a-relaxed-intrinsic-still-emits",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "Oracle: both wasm32 checks (plain call and #[target_feature] fn) compiled clean under -relaxed-simd and returned 7 as claimed. Rust Reference confirms Wasm safe target_feature fns and relaxed-simd implying simd128.",
+      "evidence_url": "https://doc.rust-lang.org/stable/reference/attributes/codegen.html",
+      "corrections": null,
+      "sources": [
+        {"url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html", "supported": true, "note": "Confirmed: no compiler flag disables SIMD emission once a fn enables it via #[target_feature]; must find/remove the fn."},
+        {"url": "https://doc.rust-lang.org/stable/reference/attributes/codegen.html", "supported": true, "note": "Verbatim: safe #[target_feature] fns usable in safe contexts on Wasm; relaxed-simd implicitly enables simd128."},
+        {"url": "https://doc.rust-lang.org/stable/core/arch/wasm32/fn.f32x4_relaxed_madd.html", "supported": true, "note": "Confirmed: computes a*b+c with one or two roundings; stable since exactly 1.82.0 as claimed."},
+        {"url": "https://github.com/WebAssembly/relaxed-simd/blob/main/proposals/relaxed-simd/Overview.md", "supported": true, "note": "Same proposal doc reused correctly; opcode range and rounding note both confirmed (see recipe 4)."},
+        {"url": "https://github.com/WebAssembly/design/blob/main/Nondeterminism.md", "supported": true, "note": "Verbatim: relaxed SIMD instructions have nondeterministic results; resource exhaustion is a listed source too."}
+      ]
+    },
+    {
+      "slug": "expect-rapier-0-35-3-to-stop-t4-s-fast-box-at-a-fixed-slab-with-ccd-enabled-false-max-ccd-substeps-0-tunnels",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle check passed against real rapier3d_f64 0.35.3: exact 'near/FAR' pattern for all three CCD settings. ccd_solver.rs/integration_parameters.rs/rigid_body_components.rs lines match citations exactly, incl. FAST_BODY_SAFETY_FACTOR=0.5.",
+      "evidence_url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md",
+      "corrections": null,
+      "sources": [
+        {"url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md", "supported": true, "note": "Verbatim 0.35.0 entry: fast bodies always sweep fixed colliders, ccd_enabled=bullet, substeps=0 disables CCD."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/ccd/ccd_solver.rs", "supported": true, "note": "Read on disk lines 17-25/61-63/328-340: doc comment and apply_clamps match the claim word for word."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.RigidBodyBuilder.html", "supported": true, "note": "Verbatim: ccd_enabled upgrades to bullet CCD vs kinematic/dynamic; fixed-collider sweep is already automatic."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/integration_parameters.rs", "supported": true, "note": "Read on disk lines 267-271/390-397: max_ccd_substeps=1 default, prediction 0.02, error 0.005, max vel 400 all exact."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/rigid_body_components.rs", "supported": true, "note": "Read on disk lines 1050-1071/1102-1125: ccd_active set regardless of ccd_enabled; 0.5 safety factor exact."},
+        {"url": "https://docs.rs/crate/parry3d-f64/0.30.2/source/src/shape/shape.rs", "supported": true, "note": "Read on disk: ccd_thickness() returns half_extents.min_element(); off by ~1 line from the cited 764-766."}
+      ]
+    },
+    {
+      "slug": "keep-max-ccd-substeps-1-so-rapier-ccd-carries-no-state-between-quanta-it-hashed-alike-on-x86-64-and-wasm32",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle check passed against real rapier3d_f64 0.35.3: both hashes identical before/after swapping in a fresh CCDSolver at quantum 100, as claimed. physics_world.rs/substep.rs citations match exactly.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_pipeline/substep.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_world.rs", "supported": true, "note": "Read on disk: ccd_solver field doc reads verbatim 'Workspace only: not part of a snapshot'."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/pipeline/physics_pipeline/substep.rs", "supported": true, "note": "Read on disk: pre-solve CCD pass gated on remaining_substeps>1; post-solve clamp runs whenever CCD enabled."},
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/dynamics/ccd/ccd_solver.rs", "supported": true, "note": "Same file reused correctly from recipe 6; clamp-only/preserve-velocities behavior re-confirmed."},
+        {"url": "https://rapier.rs/docs/user_guides/rust/determinism", "supported": true, "note": "Verbatim: cross-platform determinism with enhanced-determinism needs IEEE 754-2008 compliant targets."},
+        {"url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md", "supported": true, "note": "Same v0.35.0 entry reused correctly from recipe 6."}
+      ]
+    },
+    {
+      "slug": "set-t4-s-step-heights-around-max-height-offset-kinematiccharactercontroller-climbs-0-31-at-max-height-0-3",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle-reproduced the exact controller-limit claim: 0.29/0.30/0.31 climbed, 0.311/0.32 stopped, via the engine's real STEP_HEIGHT=0.3/STEP_MIN_WIDTH=0.2/SKIN=0.01 from live rapier_law.rs. handle_stairs adds offset to both exactly.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/main/solver/src/rapier_law.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/control/character_controller.rs", "supported": true, "note": "Read on disk: is_wall >=, is_nonslip_slope <=, handle_stairs adds offset to both max_height and min_width exactly."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.CharacterAutostep.html", "supported": true, "note": "Confirmed at 0.35.3: max_height/min_width/include_dynamic_bodies doc text matches paraphrase exactly."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.KinematicCharacterController.html", "supported": true, "note": "Confirmed at 0.35.3: offset and normal_nudge_factor doc text matches the claim verbatim."},
+        {"url": "https://rapier.rs/docs/user_guides/rust/character_controller", "supported": true, "note": "Guide requires floor contact before autostep; handle_stairs' code has no such check -- the gotcha is real."}
+      ]
+    },
+    {
+      "slug": "keep-t4-slope-and-ledge-cases-off-the-controller-s-comparisons-at-45-degrees-nudge-creep-speed-set-snap",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle ran both checks against real rapier3d_f64 0.35.3, matching exact stdout for slope gains and ledge-drop runs. Source confirms is_wall>=, landing check is strict>, snap needs translation.dot(up)<=0.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/control/character_controller.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/control/character_controller.rs", "supported": true, "note": "Read on disk: is_wall>=, is_nonslip_slope<=, landing check is strict '>' (asymmetric), snap<=0.0 -- all exact."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.KinematicCharacterController.html", "supported": true, "note": "Reused correctly; offset/normal_nudge_factor doc text matches."},
+        {"url": "https://github.com/dimforge/rapier/blob/v0.35.3/CHANGELOG.md", "supported": true, "note": "Reused correctly from recipe 6/7."},
+        {"url": "https://github.com/dimforge/rapier/blob/master/CHANGELOG.md", "supported": true, "note": "Verbatim v0.19.0 entry: added normal_nudge_factor to help the character get unstuck from rounding errors."}
+      ]
+    },
+    {
+      "slug": "allow-1-200-quanta-for-a-walker-started-0-1-inside-the-floor-rapier-depenetrates-only-on-a-zero-desired-move",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Oracle check passed against real rapier3d_f64 0.35.3, exact feet trajectory at q64/640/1280. Source's own comment reads 'Depenetrate, but only when there is no desired movement', gated on try_normalize at 1e-5 -- exact match.",
+      "evidence_url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/control/character_controller.rs",
+      "corrections": null,
+      "sources": [
+        {"url": "https://docs.rs/crate/rapier3d-f64/0.35.3/source/src/control/character_controller.rs", "supported": true, "note": "Read on disk: depenetration branch is gated exactly on desired_translation failing try_normalize_and_get_length at 1e-5."},
+        {"url": "https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/control/struct.KinematicCharacterController.html", "supported": true, "note": "Reused correctly; offset/normal_nudge_factor doc text matches."},
+        {"url": "https://github.com/dimforge/rapier/blob/master/CHANGELOG.md", "supported": true, "note": "Reused correctly from recipe 9; v0.19.0 normal_nudge_factor entry supports the 1e-4 nudge mechanism cited here."}
+      ]
+    }
+  ]
+}
