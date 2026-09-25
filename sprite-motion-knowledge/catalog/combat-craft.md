@@ -278,92 +278,92 @@ A smear frame distorts, stretches, or ghost-multiples a limb across the frame to
 - **Sources:** [Smearframes in Video Games](https://theses.fh-hagenberg.at/system/files/pdf/Lendenfeld18.pdf) (Christoph Lendenfeld, 2018) — Surveys smear frame types (elongated inbetweens, motion trails, multiples) and their use in game animation, with case studies from Overwatch, showing that smear frames communicate rapid motion in real-time interactive contexts without increasing frame rates. ; [The Illusion of Life: Disney Animation](https://www.amazon.com/Illusion-Life-Disney-Animation/dp/0786860707) (Frank Thomas, Ollie Johnston, 1981) — Overlapping action and follow-through principles imply that extreme fast-moving limbs between key poses must communicate the arc of travel, not a frozen intermediate position — the conceptual basis for smear frames.
 
 ### DQS Kavan — dual-quaternion vs LBS peer · `situational` · docs
-**Dual-quaternion vs LBS artifacts — plate/weapon skinning peer; flips 33/117/486: 0.**
-STUDY-058 Practitioner Verifier ✅. Recipes invented: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+**Dual-quaternion vs LBS artifacts — plate/weapon skinning peer**
+STUDY-058 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [Geometric Skinning with Approximate Dual Quaternion Blending](https://users.cs.utah.edu/~ladislav/kavan08geometric/kavan08geometric.html) — Dual-quaternion vs LBS artifacts.
 
 ### LLVM phi/SSA identity merge analog (hold-with-limit) · `situational` · analog
 **One identity value at a merge from predecessors — hold for cross-frame identity continuity; CFG ≠ CLIP drift.**
-STUDY-058 Analogist Verifier ✅ hold-with-limit. Flips 33/117/486: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+STUDY-058 Analogist Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [LLVM LangRef phi](https://llvm.org/docs/LangRef.html#phi-instruction) — SSA phi merges predecessor values.
 
 ### Twelve principles pose-to-pose analog (hold-with-limit) · `situational` · analog
 **Pose-to-pose before filling intervals — hold for authored 4–6 keyposes→inbetween→cleanup; squash ≠ rigid weapon length.**
-STUDY-058 Analogist Verifier ✅ hold-with-limit. Flips 33/117/486: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+STUDY-058 Analogist Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [Twelve basic principles of animation](https://en.wikipedia.org/wiki/Twelve_basic_principles_of_animation) — Pose-to-pose before filling intervals.
 
 ### Twelve principles — pose-to-pose + anticipation peer · `situational` · docs
-**Pose-to-pose + anticipation — keypose craft analog peer; recipes invented: 0.**
-STUDY-058 Practitioner Verifier ✅. Flips 33/117/486: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+**Pose-to-pose + anticipation — keypose craft analog peer**
+STUDY-058 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [Twelve basic principles of animation](https://en.wikipedia.org/wiki/Twelve_basic_principles_of_animation) — Pose-to-pose + anticipation.
 
 ### Unity IK foot/grip lock analog (hold-with-limit) · `situational` · analog
 **IK goals pose chains from end effectors — hold for foot-contact/grip lock; Mecanim ≠ orthographic 8-dir sprite cage.**
-STUDY-058 Analogist Verifier ✅ hold-with-limit. Flips 33/117/486: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+STUDY-058 Analogist Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [Unity Inverse Kinematics](https://docs.unity3d.com/Manual/InverseKinematics.html) — IK goals (hands/feet) pose chains from end effectors.
 
 ### Unity IK — Humanoid IK Pass / hand-foot goals · `situational` · docs
-**Humanoid IK Pass / hand-foot goals — foot/grip lock surface; recipes invented: 0.**
-STUDY-058 Practitioner Verifier ✅. Flips 33/117/486: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+**Humanoid IK Pass / hand-foot goals — foot/grip lock surface**
+STUDY-058 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [Unity Inverse Kinematics](https://docs.unity3d.com/Manual/InverseKinematics.html) — Humanoid IK Pass / hand-foot goals.
 
 ### Unity Root Motion anti-slide analog (hold-with-limit) · `situational` · analog
 **Root/Body + Bake Into Pose keeps orientation/displacement controlled — hold for root/anchor gates; ≠ diffusion canvas drift alone.**
-STUDY-058 Analogist Verifier ✅ hold-with-limit. Flips 33/117/486: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+STUDY-058 Analogist Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [Unity Root Motion](https://docs.unity3d.com/Manual/RootMotion.html) — Root/Body transform + Bake Into Pose anti-slide.
 
 ### Unity Root Motion — Bake Into Pose / Feet Root Y · `situational` · docs
-**Bake Into Pose; Feet for Root Y — root/anchor peer; flips 33/117/486: 0.**
-STUDY-058 Practitioner Verifier ✅. Recipes invented: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+**Bake Into Pose; Feet for Root Y — root/anchor peer**
+STUDY-058 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [Unity Root Motion](https://docs.unity3d.com/Manual/RootMotion.html) — Bake Into Pose; Feet for Root Y.
 
 ### Unity Transform — child inherits parent weapon-chain peer · `situational` · docs
-**Child inherits parent — rigid weapon-chain peer; recipes invented: 0.**
-STUDY-058 Practitioner Verifier ✅. Flips 33/117/486: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+**Child inherits parent — rigid weapon-chain peer**
+STUDY-058 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [Unity Transform](https://docs.unity3d.com/Manual/class-Transform.html) — Child inherits parent.
 

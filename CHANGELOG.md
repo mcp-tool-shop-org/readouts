@@ -2,6 +2,28 @@
 
 Notable changes to the published corpus. The format follows [Keep a Changelog](https://keepachangelog.com/). readouts has no version numbers: it is a rolling corpus, so each entry is a dated publication, and the commit on `main` is its identifier.
 
+## 2026-09-25 (second publication)
+
+### Changed
+
+- The last unverified lanes of the 2026-09-10 sweep were checked by an external verifier. godot-knowledge went from 50 to 108 verified entries of 177, and sprites-knowledge from 92 to 182 of 215: 1,671 → 1,819 verified across the corpus.
+- A verifier's correction now leads the entry's verify note: the corrected claim, then any corrected authors, year or id. Until now the loaders stored a corrected verdict as verified but dropped the correction, so the entry kept the wording that had just been corrected.
+- Operator scaffolding was removed from entry text in ten knowledge bases. Some notes were addressed to the authoring agent ("Do not flip 37/42/49", "Recipe 49 stays verified=0"); others were receipts of its compliance ("Recipes invented: 0"). They belong to each wave's record, where they stay. No entry, verdict or verified flag changed; only text.
+
+### Fixed
+
+- godot-knowledge's AStarGrid2D recipe said to mark solid cells and then call `update()`. `update()` rebuilds the grid and clears them, so the order is now reversed.
+- godot-knowledge's GUT CI recipe required a `-gexit_on_complete` flag that no GUT release has. The recipe is now marked avoid.
+- sprites-knowledge had 13 corrections. One of them: FILM's Apache-2.0 licence covers its code but not its weights, while Practical-RIFE's weights are MIT, so the licence comparison between the two ran the wrong way.
+
+### Added
+
+- `shared/rebuild_fts.py --force` rebuilds every full-text index. The alignment check cannot see text edited in place, so a plain run would leave the index matching the old words.
+
+### Security
+
+- Dependabot vulnerability alerts are enabled.
+
 ## 2026-09-25
 
 ### Added

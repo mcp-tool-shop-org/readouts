@@ -150,34 +150,34 @@ Survey/analysis of weight quantization support inside TVM — compile-stack quan
 - **Dev:** Guo · **Type:** paper-guide · **Lang:** see source · **Released:** 2023
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [Analyzing Quantization in TVM](https://arxiv.org/abs/2308.10905) — TVM quant survey
 
 ### Attn-QAT — 4-bit attention QAT · `situational` · experimental
-Systematic 4-bit attention QAT; stabilized path for FP4 attention on FP4-capable GPUs including consumer Blackwell. No invented rates.
+Systematic 4-bit attention QAT; stabilized path for FP4 attention on FP4-capable GPUs including consumer Blackwell.
 - **Dev:** Zhang et al. · **Type:** library · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-018 reopen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-018 reopen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [Attn-QAT — 4-bit attention QAT](https://arxiv.org/abs/2603.00040) — Attn-QAT
 
 ### FireQ — INT4-FP8 kernel + RoPE-aware PTQ · `situational` · experimental
-Co-designed PTQ + INT4-FP8 matmul; weights/KV INT4, activations/queries FP8. No invented rates.
+Co-designed PTQ + INT4-FP8 matmul; weights/KV INT4, activations/queries FP8.
 - **Dev:** Baek et al. · **Type:** library · **Lang:** see source · **Released:** 2025
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-018 reopen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-018 reopen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [FireQ — INT4-FP8 kernel + RoPE-aware PTQ](https://arxiv.org/abs/2505.20839) — FireQ
 
 ### HALO: Hardware-aware quantization with low critical-path-delay weights for LLM acceleration · `situational` · experimental
-Quantization that incorporates hardware critical-path delay, not bit-width alone — hardware-aware loadout craft adjacent to bytefit-class planning (do not flip 143).
+Quantization that incorporates hardware critical-path delay, not bit-width alone — hardware-aware loadout craft adjacent to bytefit-class planning.
 - **Dev:** Juneja, Aggarwal, Huda & Mitra · **Type:** paper-guide · **Lang:** see source · **Released:** 2025
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [HALO: Hardware-aware quantization with low critical-path-delay weights for LLM acceleration](https://arxiv.org/abs/2502.19662) — HW-aware quant; adjacent bytefit
 
@@ -194,20 +194,20 @@ Two block-scaled 4-bit float formats that Blackwell executes in hardware tensor 
 - **Repo:** https://developers.redhat.com/articles/2026/02/04/accelerating-large-language-models-nvfp4-quantization
 
 ### PolarQuant — polar KV cache quant · `situational` · experimental
-Random preconditioning then recursive polar transform so KV embeddings are quantized in angle/radius coordinates. No invented rates.
+Random preconditioning then recursive polar transform so KV embeddings are quantized in angle/radius coordinates.
 - **Dev:** Han et al. · **Type:** library · **Lang:** see source · **Released:** 2025
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-018 reopen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-018 reopen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [PolarQuant — polar KV cache quant](https://arxiv.org/abs/2502.02617) — PolarQuant
 
 ### TurboQuant — online vector quantization · `situational` · experimental
-Online data-oblivious vector quantization with near-optimal MSE for high-dimensional vectors; cited for aggressive KV-cache type work. No invented rates.
+Online data-oblivious vector quantization with near-optimal MSE for high-dimensional vectors; cited for aggressive KV-cache type work.
 - **Dev:** Zandieh et al. · **Type:** library · **Lang:** see source · **Released:** 2025
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-018 reopen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-018 reopen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [TurboQuant — online vector quantization](https://arxiv.org/abs/2504.19874) — TurboQuant
 

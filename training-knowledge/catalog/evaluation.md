@@ -475,320 +475,320 @@ Wave-1 named ai-eyes as the human/different-model tie-breaker and veto; this tec
 
 ### AlpacaEval · `situational` · paper
 **Pairwise auto-evaluator vs reference; default **length-controlled win-rates**; annotator **`is_randomize_output_order`** against position bias; win-rate = mean preference foil (not invent thresholds).**
-STUDY-055 deepen — Pairwise auto-evaluator vs reference; default **length-controlled win-rates**; annotator **`is_randomize_output_order`** against position bias; win-rate = mean  Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Pairwise auto-evaluator vs reference; default **length-controlled win-rates**; annotator **`is_randomize_output_order`** against position bias; win-rate = mean
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [AlpacaEval](https://github.com/tatsu-lab/alpaca_eval) — Pairwise auto-evaluator vs reference; default **length-controlled win-rates**; annotator **`is_randomize_output_order`** against position bias; win-rate = mean preference foil (not invent thresholds).
 
 ### AlpacaEval annotator protocol (same repo §Evaluators) · `situational` · paper
 **On-page metrics table defines **Human agreement**, **Bias/Variance**, **Proba. prefer longer** for judge foil quality (describes evaluator, not invent studio gates).**
-STUDY-055 deepen — On-page metrics table defines **Human agreement**, **Bias/Variance**, **Proba. prefer longer** for judge foil quality (describes evaluator, not invent studio ga Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — On-page metrics table defines **Human agreement**, **Bias/Variance**, **Proba. prefer longer** for judge foil quality (describes evaluator, not invent studio ga
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [AlpacaEval annotator protocol (same repo §Evaluators)](https://github.com/tatsu-lab/alpaca_eval#evaluators) — On-page metrics table defines **Human agreement**, **Bias/Variance**, **Proba. prefer longer** for judge foil quality (describes evaluator, not invent studio gates).
 
 ### Amulet: Putting Complex Multi-Turn Conversations on the Stand with LLM Juries · `situational` · paper
 **Multi-turn preference judging; runs **R1/R2 then swapped** to mitigate position bias; juries of LLM/RM judges — explicit AB/BA contrastive protocol for bias-controlled arbiter.**
-STUDY-055 deepen — Multi-turn preference judging; runs **R1/R2 then swapped** to mitigate position bias; juries of LLM/RM judges — explicit AB/BA contrastive protocol for bias-con Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Multi-turn preference judging; runs **R1/R2 then swapped** to mitigate position bias; juries of LLM/RM judges — explicit AB/BA contrastive protocol for bias-con
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [Amulet: Putting Complex Multi-Turn Conversations on the Stand with LLM Juries](https://arxiv.org/abs/2505.20451) — Multi-turn preference judging; runs **R1/R2 then swapped** to mitigate position bias; juries of LLM/RM judges — explicit AB/BA contrastive protocol for bias-controlled arbiter.
 
 ### Bradley–Terry model · `situational` · paper
 **Analog: pairwise preference outcomes → latent strengths. Holds for contrastive A/B human foil protocols over absolute scalar invent. Limit: BT math ≠ FID/CLIP lone ship gate.**
-STUDY-055 deepen — Analog: pairwise preference outcomes → latent strengths. Holds for contrastive A/B human foil protocols over absolute scalar invent. Limit: BT math ≠ FID/CLIP l Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Analog: pairwise preference outcomes → latent strengths. Holds for contrastive A/B human foil protocols over absolute scalar invent. Limit: BT math ≠ FID/CLIP l
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [Bradley–Terry model](https://en.wikipedia.org/wiki/Bradley%E2%80%93Terry_model) — Analog: pairwise preference outcomes → latent strengths. Holds for contrastive A/B human foil protocols over absolute scalar invent. Limit: BT math ≠ FID/CLIP lone ship gate.
 
 ### CLIP+MLP Aesthetic Predictor · `situational` · paper
 **Average “how much people like” aesthetic foil from CLIP embeds; LAION-bucket viz — **no acceptance threshold on page → flag**.**
-STUDY-055 deepen — Average “how much people like” aesthetic foil from CLIP embeds; LAION-bucket viz — **no acceptance threshold on page → flag**. Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Average “how much people like” aesthetic foil from CLIP embeds; LAION-bucket viz — **no acceptance threshold on page → flag**.
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [CLIP+MLP Aesthetic Predictor](https://github.com/christophschuhmann/improved-aesthetic-predictor) — Average “how much people like” aesthetic foil from CLIP embeds; LAION-bucket viz — **no acceptance threshold on page → flag**.
 
 ### CMMD README CLI eval stack (google-research) · `situational` · paper
-**Distributional image-gen metric CLI (CLIP ViT-L/14@336) — portable peer to bare FID; no invent thresholds.**
-STUDY-035 Practitioner Verifier ✅. Recipes/metrics invented: 0.
-- **For the pipeline:** STUDY-035 Verifier ✅. Recipes/metrics invented: 0. WD thresholds only as card-scraped.
+**Distributional image-gen metric CLI (CLIP ViT-L/14@336) — portable peer to bare FID**
+STUDY-035 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-035 Verifier ✅. WD thresholds only as card-scraped.
 - **Method:** eval · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-035 deepen; recipes/metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-035 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [Rethinking FID / CMMD](https://arxiv.org/abs/2401.09603) — CMMD vs FID failure modes. ; [CMMD README](https://github.com/google-research/google-research/tree/master/cmmd) — python -m cmmd.main ref_dir eval_dir CLI.
 
 ### Clean First, Align Later: Benchmarking Preference Data Cleaning for Reliable LLM Alignment · `situational` · paper
-**Benchmarks LLM-as-judge (and RM/heuristic) preference-label cleaning with human foil on noisy feedback — preference-judge data hygiene before DPO-class stages (no invent studio metrics).**
-STUDY-055 deepen — Benchmarks LLM-as-judge (and RM/heuristic) preference-label cleaning with human foil on noisy feedback — preference-judge data hygiene before DPO-class stages ( Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+**Benchmarks LLM-as-judge (and RM/heuristic) preference-label cleaning with human foil on noisy feedback — preference-judge data hygiene before DPO-class stages.**
+STUDY-055 deepen — Benchmarks LLM-as-judge (and RM/heuristic) preference-label cleaning with human foil on noisy feedback — preference-judge data hygiene before DPO-class stages
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
-- **Sources:** [Clean First, Align Later: Benchmarking Preference Data Cleaning for Reliable LLM](https://arxiv.org/abs/2509.23564) — Benchmarks LLM-as-judge (and RM/heuristic) preference-label cleaning with human foil on noisy feedback — preference-judge data hygiene before DPO-class stages (no invent studio metrics).
+- **Verify:** STUDY-055 deepen
+- **Sources:** [Clean First, Align Later: Benchmarking Preference Data Cleaning for Reliable LLM](https://arxiv.org/abs/2509.23564) — Benchmarks LLM-as-judge (and RM/heuristic) preference-label cleaning with human foil on noisy feedback — preference-judge data hygiene before DPO-class stages.
 
 ### Cohen's kappa · `situational` · paper
 **Analog: inter-rater agreement **chance-corrected** (κ accounts for expected agreement). Holds for judge↔human foil reporting beyond raw %-agree. Limit: categorical κ ≠ inventing a style CMMD threshold.**
-STUDY-055 deepen — Analog: inter-rater agreement **chance-corrected** (κ accounts for expected agreement). Holds for judge↔human foil reporting beyond raw %-agree. Limit: categori Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Analog: inter-rater agreement **chance-corrected** (κ accounts for expected agreement). Holds for judge↔human foil reporting beyond raw %-agree. Limit: categori
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [Cohen's kappa](https://en.wikipedia.org/wiki/Cohen%27s_kappa) — Analog: inter-rater agreement **chance-corrected** (κ accounts for expected agreement). Holds for judge↔human foil reporting beyond raw %-agree. Limit: categorical κ ≠ inventing a style CMMD threshold
 
 ### Diffusers adapter scale 0–1 checkpoint grid · `situational` · docs
-**cross_attention_kwargs scale / set_adapters for LoRA strength grids — inference eval knob; no invent ship gates.**
-STUDY-035 Practitioner Verifier ✅. Recipes/metrics invented: 0.
-- **For the pipeline:** STUDY-035 Verifier ✅. Recipes/metrics invented: 0. WD thresholds only as card-scraped.
+**cross_attention_kwargs scale / set_adapters for LoRA strength grids — inference eval knob**
+STUDY-035 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-035 Verifier ✅. WD thresholds only as card-scraped.
 - **Method:** eval · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-035 deepen; recipes/metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-035 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [Diffusers Load adapters](https://huggingface.co/docs/diffusers/main/en/using-diffusers/loading_adapters) — scale 0–1 LoRA strength for eval grids.
 
 ### DreamSim · `situational` · paper
 **Mid/high-level perceptual distance on diffusion **NIGHTS triplets** (human similarity judgments); distance = cosine between embeds; retrieval ranking by distance.**
-STUDY-055 deepen — Mid/high-level perceptual distance on diffusion **NIGHTS triplets** (human similarity judgments); distance = cosine between embeds; retrieval ranking by distanc Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Mid/high-level perceptual distance on diffusion **NIGHTS triplets** (human similarity judgments); distance = cosine between embeds; retrieval ranking by distanc
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [DreamSim](https://github.com/ssundaram21/dreamsim) — Mid/high-level perceptual distance on diffusion **NIGHTS triplets** (human similarity judgments); distance = cosine between embeds; retrieval ranking by distance.
 
 ### EleutherAI lm-evaluation-harness pinned LLM eval · `situational` · docs
-**Pinned task configs/few-shot/PEFT LoRA model_args — portable LLM eval stack; no invent metrics.**
-STUDY-035 Practitioner Verifier ✅. Recipes/metrics invented: 0.
-- **For the pipeline:** STUDY-035 Verifier ✅. Recipes/metrics invented: 0. WD thresholds only as card-scraped.
+**Pinned task configs/few-shot/PEFT LoRA model_args — portable LLM eval stack**
+STUDY-035 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-035 Verifier ✅. WD thresholds only as card-scraped.
 - **Method:** eval · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-035 deepen; recipes/metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-035 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [lm-evaluation-harness README](https://github.com/EleutherAI/lm-evaluation-harness) — Pinned public prompts; peft= in model_args.
 
 ### FastChat LLM Judge / MT-Bench · `situational` · paper
 **LLM-as-judge: single-answer 1–10 grading; **pairwise-baseline** / **pairwise-all** winrate modes; human↔GPT-4 agreement notebook on MT-bench judgments.**
-STUDY-055 deepen — LLM-as-judge: single-answer 1–10 grading; **pairwise-baseline** / **pairwise-all** winrate modes; human↔GPT-4 agreement notebook on MT-bench judgments. Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — LLM-as-judge: single-answer 1–10 grading; **pairwise-baseline** / **pairwise-all** winrate modes; human↔GPT-4 agreement notebook on MT-bench judgments.
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [FastChat LLM Judge / MT-Bench](https://github.com/lm-sys/FastChat/blob/main/fastchat/llm_judge/README.md) — LLM-as-judge: single-answer 1–10 grading; **pairwise-baseline** / **pairwise-all** winrate modes; human↔GPT-4 agreement notebook on MT-bench judgments.
 
 ### G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment · `situational` · paper
 **Framework for LLM NLG eval with reported Spearman correlation to humans; notes LLM-evaluator biases — human-alignment gate for automated judges.**
-STUDY-055 deepen — Framework for LLM NLG eval with reported Spearman correlation to humans; notes LLM-evaluator biases — human-alignment gate for automated judges. Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Framework for LLM NLG eval with reported Spearman correlation to humans; notes LLM-evaluator biases — human-alignment gate for automated judges.
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment](https://arxiv.org/abs/2303.16634) — Framework for LLM NLG eval with reported Spearman correlation to humans; notes LLM-evaluator biases — human-alignment gate for automated judges.
 
 ### HPSv2 human preference scorer (Wu et al. 2023) · `situational` · paper
-**HPDv2 pairs + HPSv2 scorer for T2I preference — beyond bare CLIP-sim; no invent ship gates.**
-STUDY-035 Scholar deepen — 2306.09341. Recipes/metrics invented: 0.
-- **For the pipeline:** STUDY-035 Verifier ✅. Recipes/metrics invented: 0. WD thresholds only as card-scraped.
+**HPDv2 pairs + HPSv2 scorer for T2I preference — beyond bare CLIP-sim**
+STUDY-035 Scholar deepen — 2306.09341.
+- **For the pipeline:** STUDY-035 Verifier ✅. WD thresholds only as card-scraped.
 - **Method:** eval · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-035 deepen; recipes/metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-035 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [HPSv2](https://arxiv.org/abs/2306.09341) — Human preference score v2 for T2I.
 
 ### HPSv3 · `situational` · paper
 **Beyond HPSv2: VLM preference scorer + **HPDv3** pairwise comparisons (1.17M annotated pairs); `reward(prompts, image_paths)` API (no studio cutoffs invent).**
-STUDY-055 deepen — Beyond HPSv2: VLM preference scorer + **HPDv3** pairwise comparisons (1.17M annotated pairs); `reward(prompts, image_paths)` API (no studio cutoffs invent). Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Beyond HPSv2: VLM preference scorer + **HPDv3** pairwise comparisons (1.17M annotated pairs); `reward(prompts, image_paths)` API (no studio cutoffs invent).
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [HPSv3](https://github.com/MizzenAI/HPSv3) — Beyond HPSv2: VLM preference scorer + **HPDv3** pairwise comparisons (1.17M annotated pairs); `reward(prompts, image_paths)` API (no studio cutoffs invent).
 
 ### Human Preference Score v2 · `situational` · paper
 **Analog: preference scorer grounded in human preference pairs (HPDv2). Holds as contrastive human-foil lane for T2I eval (alongside PickScore/ImageReward). Limit: HPSv2 ≠ inventing studio ship gates.**
-STUDY-055 deepen — Analog: preference scorer grounded in human preference pairs (HPDv2). Holds as contrastive human-foil lane for T2I eval (alongside PickScore/ImageReward). Limit Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Analog: preference scorer grounded in human preference pairs (HPDv2). Holds as contrastive human-foil lane for T2I eval (alongside PickScore/ImageReward).
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [Human Preference Score v2](https://arxiv.org/abs/2306.09341) — Analog: preference scorer grounded in human preference pairs (HPDv2). Holds as contrastive human-foil lane for T2I eval (alongside PickScore/ImageReward). Limit: HPSv2 ≠ inventing studio ship gates.
 
 ### ImageReward learned T2I preference reward (Xu et al. 2023) · `situational` · paper
-**Learned reward on human T2I preferences — third preference-eval axis; no invent ship gates.**
-STUDY-035 Scholar deepen — 2304.05977. Recipes/metrics invented: 0.
-- **For the pipeline:** STUDY-035 Verifier ✅. Recipes/metrics invented: 0. WD thresholds only as card-scraped.
+**Learned reward on human T2I preferences — third preference-eval axis**
+STUDY-035 Scholar deepen — 2304.05977.
+- **For the pipeline:** STUDY-035 Verifier ✅. WD thresholds only as card-scraped.
 - **Method:** eval · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-035 deepen; recipes/metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-035 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [ImageReward](https://arxiv.org/abs/2304.05977) — Learned human preference reward for T2I.
 
 ### Inter-rater reliability · `situational` · paper
 **Analog: agreement among raters as a reliability construct (kappa / ICC / α families). Holds: LLM-judge panels need IRR vs human foil, not solo score. Limit: IRR stats ≠ diffusion LoRA recipe invent.**
-STUDY-055 deepen — Analog: agreement among raters as a reliability construct (kappa / ICC / α families). Holds: LLM-judge panels need IRR vs human foil, not solo score. Limit: IRR Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Analog: agreement among raters as a reliability construct (kappa / ICC / α families). Holds: LLM-judge panels need IRR vs human foil, not solo score. Limit: IRR
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [Inter-rater reliability](https://en.wikipedia.org/wiki/Inter-rater_reliability) — Analog: agreement among raters as a reliability construct (kappa / ICC / α families). Holds: LLM-judge panels need IRR vs human foil, not solo score. Limit: IRR stats ≠ diffusion LoRA recipe invent.
 
 ### Judging LLM-as-a-Judge (MT-Bench / Arena) · `situational` · paper
 **Analog: LLM judges show position/verbosity/self-enhancement biases; agreement with humans must be verified. Holds: **judge ≠ automatic human substitute**. Limit: chat MT-Bench ≠ T2I preference panels.**
-STUDY-055 deepen — Analog: LLM judges show position/verbosity/self-enhancement biases; agreement with humans must be verified. Holds: **judge ≠ automatic human substitute**. Limit Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Analog: LLM judges show position/verbosity/self-enhancement biases; agreement with humans must be verified. Holds: **judge ≠ automatic human substitute**.
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [Judging LLM-as-a-Judge (MT-Bench / Arena)](https://arxiv.org/abs/2306.05685) — Analog: LLM judges show position/verbosity/self-enhancement biases; agreement with humans must be verified. Holds: **judge ≠ automatic human substitute**. Limit: chat MT-Bench ≠ T2I preference panels.
 
 ### Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena · `situational` · paper
 **Documents LLM-judge **position/verbosity/self-enhancement** biases; verifies agreement with **human** preferences via MT-Bench + Chatbot Arena — foundational different-family judge foil (order-control craft, not a new scalar invent).**
-STUDY-055 deepen — Documents LLM-judge **position/verbosity/self-enhancement** biases; verifies agreement with **human** preferences via MT-Bench + Chatbot Arena — foundational di Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Documents LLM-judge **position/verbosity/self-enhancement** biases; verifies agreement with **human** preferences via MT-Bench + Chatbot Arena — foundational di
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena](https://arxiv.org/abs/2306.05685) — Documents LLM-judge **position/verbosity/self-enhancement** biases; verifies agreement with **human** preferences via MT-Bench + Chatbot Arena — foundational different-family judge foil (order-control
 
 ### Judging the Judges: Evaluating Alignment and Vulnerabilities in LLMs-as-Judges · `situational` · paper
 **Only largest judges reasonably align; still differ from humans; urges metrics beyond percent agreement — judge-vs-human honesty without inventing ship gates.**
-STUDY-055 deepen — Only largest judges reasonably align; still differ from humans; urges metrics beyond percent agreement — judge-vs-human honesty without inventing ship gates. Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Only largest judges reasonably align; still differ from humans; urges metrics beyond percent agreement — judge-vs-human honesty without inventing ship gates.
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [Judging the Judges: Evaluating Alignment and Vulnerabilities in LLMs-as-Judges](https://arxiv.org/abs/2406.12624) — Only largest judges reasonably align; still differ from humans; urges metrics beyond percent agreement — judge-vs-human honesty without inventing ship gates.
 
 ### LPIPS / PerceptualSimilarity · `situational` · paper
 **Perceptual distance (higher = more different); BAPPS **2AFC** human foil (ref + two distorted; pick closer) + **JND**; CLI `lpips_2imgs` / `lpips_2dirs`.**
-STUDY-055 deepen — Perceptual distance (higher = more different); BAPPS **2AFC** human foil (ref + two distorted; pick closer) + **JND**; CLI `lpips_2imgs` / `lpips_2dirs`. Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Perceptual distance (higher = more different); BAPPS **2AFC** human foil (ref + two distorted; pick closer) + **JND**; CLI `lpips_2imgs` / `lpips_2dirs`.
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [LPIPS / PerceptualSimilarity](https://github.com/richzhang/PerceptualSimilarity) — Perceptual distance (higher = more different); BAPPS **2AFC** human foil (ref + two distorted; pick closer) + **JND**; CLI `lpips_2imgs` / `lpips_2dirs`.
 
 ### Pick-a-Pic open user preference pairs (Kirstain et al. 2023) · `situational` · paper
-**Open user-preference pairs underlying PickScore — pairwise preference eval; no invent studio metrics.**
-STUDY-035 Scholar deepen — 2305.01569. Recipes/metrics invented: 0.
-- **For the pipeline:** STUDY-035 Verifier ✅. Recipes/metrics invented: 0. WD thresholds only as card-scraped.
+**Open user-preference pairs underlying PickScore — pairwise preference eval**
+STUDY-035 Scholar deepen — 2305.01569.
+- **For the pipeline:** STUDY-035 Verifier ✅. WD thresholds only as card-scraped.
 - **Method:** eval · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-035 deepen; recipes/metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-035 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [Pick-a-Pic](https://arxiv.org/abs/2305.01569) — Open T2I user preference dataset.
 
 ### Pre-SPEC pre-specified eval endpoints · `situational` · paper
-**Declare endpoints before seeing candidate data — acceptance threshold discipline; no invent ship gates.**
-STUDY-035 Analogist Verifier ✅ hold-with-limit. Recipes/metrics invented: 0.
-- **For the pipeline:** STUDY-035 Verifier ✅. Recipes/metrics invented: 0. WD thresholds only as card-scraped.
+**Declare endpoints before seeing candidate data — acceptance threshold discipline**
+STUDY-035 Analogist Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-035 Verifier ✅. WD thresholds only as card-scraped.
 - **Method:** eval · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-035 deepen; recipes/metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-035 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [Pre-SPEC clinical-trial stats](https://doi.org/10.1186/s12916-020-01706-7) — Endpoints declared before candidate data.
 
 ### Prometheus 2: An Open Source Language Model Specialized in Evaluating Other Language Models · `situational` · paper
 **Direct assessment **and** pairwise ranking; highest human/GPT-4 agreement among open judges tested — dual-protocol open judge craft.**
-STUDY-055 deepen — Direct assessment **and** pairwise ranking; highest human/GPT-4 agreement among open judges tested — dual-protocol open judge craft. Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Direct assessment **and** pairwise ranking; highest human/GPT-4 agreement among open judges tested — dual-protocol open judge craft.
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [Prometheus 2: An Open Source Language Model Specialized in Evaluating Other Lang](https://arxiv.org/abs/2405.01535) — Direct assessment **and** pairwise ranking; highest human/GPT-4 agreement among open judges tested — dual-protocol open judge craft.
 
 ### Prometheus: Inducing Fine-grained Evaluation Capability in Language Models · `situational` · paper
 **Open evaluator LLM with custom rubrics; high Pearson with human evaluators on Feedback Collection — open judge alternative to proprietary-only scoring.**
-STUDY-055 deepen — Open evaluator LLM with custom rubrics; high Pearson with human evaluators on Feedback Collection — open judge alternative to proprietary-only scoring. Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Open evaluator LLM with custom rubrics; high Pearson with human evaluators on Feedback Collection — open judge alternative to proprietary-only scoring.
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [Prometheus: Inducing Fine-grained Evaluation Capability in Language Models](https://arxiv.org/abs/2310.08491) — Open evaluator LLM with custom rubrics; high Pearson with human evaluators on Feedback Collection — open judge alternative to proprietary-only scoring.
 
 ### Rating Scales in UX (Likert biases) · `situational` · paper
 **Analog: Likert/semantic scales carry acquiescence / social-desirability bias. Holds for HCI preference protocol design (forced choice / foil over soft agree). Limit: UX surveys ≠ Comfy batch eval harness.**
-STUDY-055 deepen — Analog: Likert/semantic scales carry acquiescence / social-desirability bias. Holds for HCI preference protocol design (forced choice / foil over soft agree). L Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Analog: Likert/semantic scales carry acquiescence / social-desirability bias. Holds for HCI preference protocol design (forced choice / foil over soft agree).
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [Rating Scales in UX (Likert biases)](https://www.nngroup.com/articles/rating-scales/) — Analog: Likert/semantic scales carry acquiescence / social-desirability bias. Holds for HCI preference protocol design (forced choice / foil over soft agree). Limit: UX surveys ≠ Comfy batch eval harn
 
 ### Reliability without Validity — LLM-as-judge audit · `situational` · paper
 **Large multi-judge audit: exact-match overstates agreement; need chance-corrected kappa/alpha, AB+BA swaps, retest, contrasting benchmarks.**
 Large multi-judge audit: exact-match overstates agreement; need chance-corrected kappa/alpha, AB+BA swaps, retest, contrasting benchmarks.
-- **For the pipeline:** STUDY-009 Verifier-verified. Do not invent recipes. Do not flip technique rows.
+- **For the pipeline:** STUDY-009 Verifier-verified. Do not flip technique rows.
 - **Method:** eval · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama · **Kind:** eval-method
-- **Output license:** commercial **check** — STUDY-019 reopen; verified=0. Invented recipes: 0.
+- **Output license:** commercial **check** — STUDY-019 reopen; verified=0.
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [Reliability without Validity — LLM-as-judge audit](https://arxiv.org/abs/2606.19544) — Large multi-judge audit: exact-match overstates agreement; need chance-corrected kappa/alpha, AB+BA swaps, retest, contrasting benchmarks.
 
 ### Reliability without Validity: A Systematic, Large-Scale Evaluation of LLM-as-a-Judge Models Across Agreement, Consistency, and Bias · `situational` · paper
-**Exact-match overstates ability; use chance-corrected **Cohen’s κ** / related; multi-protocol audit incl. bias — catalog “Reliability without Validity” deepen (no invent studio thresholds).**
-STUDY-055 deepen — Exact-match overstates ability; use chance-corrected **Cohen’s κ** / related; multi-protocol audit incl. bias — catalog “Reliability without Validity” deepen (n Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+**Exact-match overstates ability; use chance-corrected **Cohen’s κ** / related; multi-protocol audit incl. bias — catalog “Reliability without Validity” deepen.**
+STUDY-055 deepen — Exact-match overstates ability; use chance-corrected **Cohen’s κ** / related; multi-protocol audit incl. bias — catalog “Reliability without Validity” deepen
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
-- **Sources:** [Reliability without Validity: A Systematic, Large-Scale Evaluation of LLM-as-a-J](https://arxiv.org/abs/2606.19544) — Exact-match overstates ability; use chance-corrected **Cohen’s κ** / related; multi-protocol audit incl. bias — catalog “Reliability without Validity” deepen (no invent studio thresholds).
+- **Verify:** STUDY-055 deepen
+- **Sources:** [Reliability without Validity: A Systematic, Large-Scale Evaluation of LLM-as-a-J](https://arxiv.org/abs/2606.19544) — Exact-match overstates ability; use chance-corrected **Cohen’s κ** / related; multi-protocol audit incl. bias — catalog “Reliability without Validity” deepen.
 
 ### SSCD copy-detection · `situational` · paper
 **Self-supervised fingerprint for copy/overfit foil; README states for `sscd_disc_mixup`, DISC pairs with cosine **>0.75** are copies at **90% precision** (vendor claim on-page — not a studio ship gate invent).**
-STUDY-055 deepen — Self-supervised fingerprint for copy/overfit foil; README states for `sscd_disc_mixup`, DISC pairs with cosine **>0.75** are copies at **90% precision** (vendor Metrics invented: 0.
-- **For the pipeline:** STUDY-055. Metrics invented: 0. Recipes invented: 0. Judge ≠ human substitute; no ship-gate invent.
+STUDY-055 deepen — Self-supervised fingerprint for copy/overfit foil; README states for `sscd_disc_mixup`, DISC pairs with cosine **>0.75** are copies at **90% precision**
+- **For the pipeline:** STUDY-055. Judge ≠ human substitute; no ship-gate invent.
 - **Method:** evaluation · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-055 deepen; metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-055 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-055 deepen; metrics invented: 0; recipes invented: 0
+- **Verify:** STUDY-055 deepen
 - **Sources:** [SSCD copy-detection](https://github.com/facebookresearch/sscd-copy-detection) — Self-supervised fingerprint for copy/overfit foil; README states for `sscd_disc_mixup`, DISC pairs with cosine **>0.75** are copies at **90% precision** (vendor claim on-page — not a studio ship gate
 
 ### Spaced repetition / sequenced curriculum hold-with-limit · `situational` · docs
 **Isolate fundamentals before mixing — anti-bleed curriculum analogy; limit ≠ invent caption-tag recipes.**
-STUDY-035 Analogist Verifier ✅ hold-with-limit. Recipes invented: 0.
-- **For the pipeline:** STUDY-035 Verifier ✅. Recipes/metrics invented: 0. WD thresholds only as card-scraped.
+STUDY-035 Analogist Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-035 Verifier ✅. WD thresholds only as card-scraped.
 - **Method:** dataset · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-035 deepen; recipes/metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-035 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [Spaced repetition](https://en.wikipedia.org/wiki/Spaced_repetition) — Sequenced fundamentals before mixing.
 
 ### sklearn common pitfalls — train/test leakage · `situational` · docs
 **Never fit transforms on the test set; split first. Holds for held-out eval + train_eval_overlap_checked.**
 Never fit transforms on the test set; split first. Holds for held-out eval + train_eval_overlap_checked.
-- **For the pipeline:** STUDY-009 Verifier-verified. Do not invent recipes. Do not flip technique rows.
+- **For the pipeline:** STUDY-009 Verifier-verified. Do not flip technique rows.
 - **Method:** eval · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama · **Kind:** eval-method
-- **Output license:** commercial **check** — STUDY-019 reopen; verified=0. Invented recipes: 0.
+- **Output license:** commercial **check** — STUDY-019 reopen; verified=0.
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [sklearn common pitfalls — train/test leakage](https://scikit-learn.org/stable/common_pitfalls.html) — Never fit transforms on the test set; split first. Holds for held-out eval + train_eval_overlap_checked.
 
 ### sklearn train/test leakage + learning-curve overfit checks · `situational` · docs
-**Split before fit; high train/low val ⇒ overfit; checkpoint≠last — hold-with-limit; no invent metrics.**
-STUDY-035 Practitioner/Analogist Verifier ✅. Recipes invented: 0.
-- **For the pipeline:** STUDY-035 Verifier ✅. Recipes/metrics invented: 0. WD thresholds only as card-scraped.
+**Split before fit; high train/low val ⇒ overfit; checkpoint≠last — hold-with-limit**
+STUDY-035 Practitioner/Analogist Verifier ✅.
+- **For the pipeline:** STUDY-035 Verifier ✅. WD thresholds only as card-scraped.
 - **Method:** eval · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-035 deepen; recipes/metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-035 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [sklearn common pitfalls](https://scikit-learn.org/stable/common_pitfalls.html) — Split first; never fit on test. ; [sklearn learning curves](https://scikit-learn.org/stable/modules/learning_curve.html) — Train/val gap signals overfitting.
 

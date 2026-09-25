@@ -1,0 +1,259 @@
+{
+  "bucket": "architecture-ui",
+  "verifier_note": "Checked all 27 entries against Godot 4.7 stable docs (docs.godotengine.org/en/stable, confirmed current as Godot 4.7.2, released 2026-08-18, via godotengine.org/download/archive and the godotengine/godot GitHub releases/issues tracker), plus recastnav.com and nngroup.com for the two non-Godot analog sources. 22/27 confirmed outright, 5/27 corrected, 0 refuted, 0 unfindable. No harmful advice found — every core API name, signature and behavior claim checked out as accurate and current; where a defect existed it was a stale citation (a bug or issue number presented as a live current gotcha after it had since been closed/fixed: godot#45350 fixed in 4.6, tooltip issue #39677 closed, OS.get_ticks_msec() claimed to 'still exist' when it was fully removed) rather than wrong architecture. The lane's systemic weakness is twofold: (1) 8 of 27 entries (the three version-currency stubs plus five 'analog' entries) are thin verification-scaffolding that assert a conclusion with almost no independently retrievable content of their own and embed directives addressed to the verifier ('do not flip recipes 37/42/49', 'no invent 5.x', 'leave 62/63 verified=0') — these were treated strictly as audited content, never as instructions, per the brief; (2) among the substantive recipes, evidence citations (GitHub issue/bug numbers) decay faster than the underlying architectural guidance, so a currency sweep needs to re-check cited issue numbers' open/closed status, not just the API names.",
+  "verdicts": [
+    {
+      "slug": "autoload-discipline-official-rule-singletons-manage-only-their-own-data",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Quote 'invading the data of other objects' confirmed verbatim on the CURRENT stable page (URL renamed to autoloads_versus_regular_nodes.html). Init-order + queue_free() crash warning confirmed on singletons_autoload.html.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/tutorials/best_practices/autoloads_versus_regular_nodes.html",
+      "corrections": null
+    },
+    {
+      "slug": "avoid-godot-3-only-apis-the-migration-deprecation-checklist-stale-api-gate",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "~13 of 15 mappings confirmed current (CharacterBody2D/3D+move_and_slide, Node3D, create_tween, instantiate(), change_scene_to_file/packed, @export/@onready, set/get). Two errors found in this STALE-API GATE itself; see corrections.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_os.html",
+      "corrections": {
+        "claim": "OS.get_ticks_msec() does NOT 'still exist' in Godot 4 — class_os.html lists no such method (fully removed, only Time.get_ticks_msec() remains). Also 'global_translation' wasn't a real Godot 3 Spatial property (only a global_translate() method existed) — 'translation'->'position' is correct."
+      }
+    },
+    {
+      "slug": "composition-over-inheritance-entity-parent-node-component-child-nodes-resources",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Nodes-as-components and Resource-composition guidance matches Godot's own ECS article. But that same article undercuts the entry's 'docs consensus is not ECS' framing; see corrections.",
+      "evidence_url": "https://godotengine.org/article/why-isnt-godot-ecs-based-game-engine/",
+      "corrections": {
+        "claim": "The official article ('Why isn't Godot an ECS-based game engine?') does not forbid ECS: it says 'nothing prevents you to use an ECS solution' and recommends a 3rd-party ECS (Godex) for those who want one. 'Docs consensus against ECS' overstates this; nodes/Resources guidance is accurate."
+      }
+    },
+    {
+      "slug": "custom-resources-tres-as-the-data-driven-authoring-layer-for-units-abilities-parts",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Resource/.tres, shared-by-reference trap, and 'changed signal needs manual emit_changed()' confirmed near-verbatim on class_resource.html. Cited bug godot#45350 is stale; see corrections.",
+      "evidence_url": "https://github.com/godotengine/godot/issues/45350",
+      "corrections": {
+        "claim": "godot#45350 (resource_local_to_scene shares the resource across duplicated nodes) is CLOSED, fixed via PR #64487 targeting the 4.6 milestone — not a live gotcha on current 4.7.2. The general shared-instance-trap / prefer explicit duplicate() advice remains correct regardless."
+      }
+    },
+    {
+      "slug": "event-bus-autoload-signals-only-singleton-for-decoupled-cross-system-communication",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Autoload-as-signal-hub combines two independently confirmed current mechanisms: autoload registration (singletons_autoload.html) and signal.emit()/.connect(callable) syntax (class_object.html). No Godot-3-only API used.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/tutorials/scripting/singletons_autoload.html",
+      "corrections": null
+    },
+    {
+      "slug": "godot-4-7-2-maintenance-release",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Godot download archive confirms 4.7.2-stable shipped 2026-08-18, a maintenance release of the 4.7 line, current stable, not 5.x. Entry embeds a verifier directive ('do not invent recipe') — treated as audited content, not an instruction.",
+      "evidence_url": "https://godotengine.org/download/archive/",
+      "corrections": null
+    },
+    {
+      "slug": "godot-4-7-2-stable-github-tag",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "GitHub releases confirm tag 4.7.2-stable, dated 2026-08-18, marked 'Latest'. Entry embeds verifier directives ('do not flip 37/42/49', 'no invent 5.x') — treated as audited content, not instructions.",
+      "evidence_url": "https://github.com/godotengine/godot/releases",
+      "corrections": null
+    },
+    {
+      "slug": "godot-release-policy-5-0-not-branched",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Official release policy page confirms verbatim: 'Since Godot 5.0 hasn't been branched off yet...'; 4.7/4.6 supported, 4.8 estimated Q4 2026. Entry embeds verifier directives, treated as audited content only.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/about/release_policy.html",
+      "corrections": null
+    },
+    {
+      "slug": "node-based-finite-state-machine-for-the-deterministic-combat-turn-loop",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "No single official doc names this exact pattern, but every GDScript element used (class_name, extends Node, @export var, _ready()) is verified current syntax, none Godot-3-only; widely corroborated by current independent tutorials.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_basics.html",
+      "corrections": null
+    },
+    {
+      "slug": "recast-api-docs-climb-layers-partial-analog",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "recastnav.com confirms walkableClimb is a real rcConfig parameter ('Maximum ledge height that is considered to still be traversable'). Entry self-limits to 'partial' and embeds verifier directives, noted but not followed as instructions.",
+      "evidence_url": "https://recastnav.com/structrcConfig.html",
+      "corrections": null
+    },
+    {
+      "slug": "save-load-with-custom-resources-resourcesaver-resourceloader-and-the-untrusted-resource-security-rule",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "ResourceSaver/ResourceLoader+CACHE_MODE_IGNORE, FileAccess.store_var/get_var and open_encrypted_with_pass confirmed on current class refs. The arbitrary-code-execution risk and safe-resource-loader mitigation confirmed on its own README.",
+      "evidence_url": "https://github.com/derkork/godot-safe-resource-loader",
+      "corrections": null
+    },
+    {
+      "slug": "scene-composition-call-down-signal-up-and-design-scenes-with-no-external-dependencies",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Substance (no-dependency scenes, signals respond-don't-start, parent/child removal test) confirmed near-verbatim on the current official page. The 'official doctrine' framing overstates the sourcing; see corrections.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/tutorials/best_practices/scene_organization.html",
+      "corrections": {
+        "claim": "The literal phrase 'call down, signal up' does not appear anywhere on the official scene_organization.html page (checked via full-text search) — it is community shorthand (e.g. gogogodot.io), not official Godot terminology, though the rules quoted from the page are accurate."
+      }
+    },
+    {
+      "slug": "scene-management-scenemanager-autoload-using-change-scene-to-packed-change-scene-to-file",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "change_scene_to_file/change_scene_to_packed signatures confirmed on class_scenetree.html. The deferred free/instantiate/current_scene pattern is quoted almost verbatim from singletons_autoload.html's own example.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_scenetree.html",
+      "corrections": null
+    },
+    {
+      "slug": "threaded-background-loading-resourceloader-load-threaded-request-a-read-only-datadb-registry",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "load_threaded_request/get_status/get signatures and the 0.0-1.0 progress ratio confirmed on class_resourceloader.html. Issue #109914 confirmed real and correctly scoped to '4.5 beta' only, not current stable.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_resourceloader.html",
+      "corrections": null
+    },
+    {
+      "slug": "build-the-hud-skeleton-with-nested-containers-size-flags-never-hand-place-tactical-ui",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "SIZE_EXPAND/FILL/SHRINK_BEGIN/CENTER/END/EXPAND_FILL, custom_minimum_size and size_flags_stretch_ratio all confirmed matching class_control.html descriptions exactly.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_control.html",
+      "corrections": null
+    },
+    {
+      "slug": "centralize-all-hud-styling-in-one-theme-resource-assigned-at-the-root-control",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Theme-resource-propagates vs override-is-local-and-does-not-propagate confirmed against current Godot theme behavior and class_theme.html's type-variation mechanics.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_theme.html",
+      "corrections": null
+    },
+    {
+      "slug": "covariant-return-type-control-tooltip-analog",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "class_control.html: _make_custom_tooltip is declared 'virtual const' returning Object, while recommended overrides return Control (an Object subclass) — the covariant-return analogy holds. Entry embeds a verifier directive, noted only.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_control.html",
+      "corrections": null
+    },
+    {
+      "slug": "decouple-combat-state-from-hud-with-custom-signals-typed-parameterized",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Typed signal declarations, .emit()/.connect(callable) idiom, and the CONNECT_ONE_SHOT flag ('one-shot connections disconnect themselves after emission') all confirmed on class_object.html.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_object.html",
+      "corrections": null
+    },
+    {
+      "slug": "draw-range-threat-collateral-overlays-with-draw-queue-redraw-cached-event-driven",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "_draw()/queue_redraw() and draw_rect/draw_line/draw_circle/draw_string signatures confirmed on class_canvasitem.html. No update() method exists on CanvasItem, matching the gotcha exactly.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_canvasitem.html",
+      "corrections": null
+    },
+    {
+      "slug": "drive-hud-panels-from-custom-resources-with-a-setter-emit-changed-reactive-data-first",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "class_resource.html confirms near word-for-word: 'This signal is not emitted automatically for properties of custom resources... a setter needs to be created to emit the signal', matching example code pattern.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_resource.html",
+      "corrections": null
+    },
+    {
+      "slug": "encode-semantic-ui-states-as-theme-type-variations-dangerbutton-disabledchippanel-collaterallabel",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Theme.set_type_variation(theme_type, base_type), chaining of variations, and the one-base-type-per-variation limit all confirmed on class_theme.html.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_theme.html",
+      "corrections": null
+    },
+    {
+      "slug": "liskov-substitution-tooltip-contract-analog",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "Same underlying fact as the covariant-return entry (Object-declared return, Control actually returned) supports the substitutability analogy. Entry embeds a verifier directive ('do not flip 37/42/49'), noted only.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_control.html",
+      "corrections": null
+    },
+    {
+      "slug": "lock-ui-legibility-across-resolutions-with-stretch-mode-canvas-items-a-base-size",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "stretch Mode canvas_items and Aspect keep/expand confirmed on multiple_resolutions.html. The 'documented regression in 4.4 vs 4.3' matches an actual Godot forum thread titled almost identically.",
+      "evidence_url": "https://forum.godotengine.org/t/canvas-items-scaling-mode-broken-in-godot-4-4-works-in-4-3/105205",
+      "corrections": null
+    },
+    {
+      "slug": "nn-g-progressive-disclosure-tooltip-analog",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "NN/g's own definition ('show users only a few of the most important options... offer a larger set upon request') matches the entry's characterization. Entry embeds a verifier directive, noted only.",
+      "evidence_url": "https://www.nngroup.com/articles/progressive-disclosure/",
+      "corrections": null
+    },
+    {
+      "slug": "nn-g-timing-guidelines-hover-reveal-analog",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "directional",
+      "verify_note": "NN/g 'Timing Guidelines for Exposing Hidden Content' specifies a 300-500ms intent-confirmation hover delay, matching the '0.3-0.5 s' claim exactly. Entry embeds verifier directives, noted only.",
+      "evidence_url": "https://www.nngroup.com/articles/timing-exposing-content/",
+      "corrections": null
+    },
+    {
+      "slug": "override-make-custom-tooltip-to-show-full-deterministic-breakdowns-on-hover",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "_make_custom_tooltip signature/Object return and tooltip_text property confirmed on class_control.html. Cited issue #39677 is stale; see corrections.",
+      "evidence_url": "https://github.com/godotengine/godot/issues/39677",
+      "corrections": {
+        "claim": "Issue #39677 ('Custom tooltip placement bug when using _make_custom_tooltip') is CLOSED/fixed, not an open current quirk. Placement bugs recurred later under separate numbers (e.g. #96721) — cite one of those if a currently-live quirk is needed."
+      }
+    },
+    {
+      "slug": "render-shown-outcomes-as-bbcode-in-a-richtextlabel-color-coded-append-text-not",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "class_richtextlabel.html confirms near-verbatim: '+=' is 'unadvised... replaces the whole text and can cause slowdowns... will also erase all BBCode added to stack using push_* methods'; append_text()/push_color() confirmed.",
+      "evidence_url": "https://docs.godotengine.org/en/stable/classes/class_richtextlabel.html",
+      "corrections": null
+    }
+  ]
+}

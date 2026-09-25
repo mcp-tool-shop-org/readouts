@@ -148,6 +148,43 @@ DOCS = {
         ("https://www.mozilla.org/en-US/MPL/2.0/FAQ/", 9000, None),
     ],
 }
+# Wave 5 (si-jam P2) asks narrower questions than wave 4's lanes of the same name, so it gets
+# narrower packs: a smaller pack keeps the model on the pinned code the question is about.
+PACKS_BY_WAVE = {
+    5: {
+        "integer-time": [
+            ("midly", "0.5.3", "src/primitive.rs", None), ("midly", "0.5.3", "src/smf.rs", 20000),
+        ],
+        "midi-notation-ingest": [
+            ("midly", "0.5.3", "Cargo.toml", None), ("midly", "0.5.3", "src/lib.rs", None),
+            ("midly", "0.5.3", "src/smf.rs", None), ("midly", "0.5.3", "src/primitive.rs", None),
+            ("midly", "0.5.3", "src/event.rs", None), ("midly", "0.5.3", "src/error.rs", None),
+            ("midly", "0.5.3", "src/riff.rs", None),
+        ],
+        "host-audio-and-midi": [
+            ("rtrb", "0.4.0", "Cargo.toml", None), ("rtrb", "0.4.0", "README.md", None),
+            ("rtrb", "0.4.0", "src/lib.rs", None),
+            ("assert_no_alloc", "1.1.2", "Cargo.toml", None), ("assert_no_alloc", "1.1.2", "README.md", None),
+            ("assert_no_alloc", "1.1.2", "src/lib.rs", None),
+            ("cpal", "0.18.2", "src/traits.rs", None),
+        ],
+    },
+}
+DOCS_BY_WAVE = {
+    5: {
+        "integer-time": [
+            ("https://doc.rust-lang.org/stable/std/primitive.u128.html", 6000, "pub const fn checked_mul"),
+            ("https://doc.rust-lang.org/stable/cargo/reference/profiles.html", 5000, "overflow-checks"),
+            ("https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html", 5000, "Overflow"),
+            ("https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html", 7000, None),
+        ],
+        "midi-notation-ingest": [],
+        "host-audio-and-midi": [
+            ("https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html", 9000, None),
+            ("https://doc.rust-lang.org/stable/std/alloc/index.html", 6000, None),
+        ],
+    },
+}
 PACK_CHAR_CAP = 420_000
 
 
@@ -169,7 +206,7 @@ def docs_url(crate: str, version: str, path: str) -> str:
 
 def file_pack(lane: str) -> tuple[str, list[dict]]:
     parts, manifest = [], []
-    for crate, version, path, cap in PACKS[lane]:
+    for crate, version, path, cap in PACKS_BY_WAVE.get(WAVE, {}).get(lane, PACKS[lane]):
         full = os.path.join(crate_dir(crate, version), *path.split("/"))
         if not os.path.isfile(full):
             sys.exit(f"HALT: pack file missing: {crate} {version} {path}")
@@ -266,7 +303,7 @@ def html_text(raw: bytes) -> str:
 def docs_pack(lane: str) -> tuple[str, list[dict]]:
     """Fetch the lane's reference pages as text. A page that cannot be fetched is recorded, not cited."""
     parts, manifest = [], []
-    for url, chars, marker in DOCS.get(lane, []):
+    for url, chars, marker in DOCS_BY_WAVE.get(WAVE, {}).get(lane, DOCS.get(lane, [])):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "readouts-rust-knowledge (research lane)"})
             raw = urllib.request.urlopen(req, timeout=60).read()
@@ -362,9 +399,9 @@ def readmit(slug: str) -> int:
 
 def scope_text(lane: str) -> tuple[str, dict]:
     d = json.load(open(os.path.join(KB, "briefs", "lanes.json"), encoding="utf-8"))
-    sc = next((l for l in d["lanes"] if l["slug"] == lane), None)
+    sc = next((l for l in d["lanes"] if l["slug"] == lane and l.get("wave") == WAVE), None)
     if not sc:
-        sys.exit(f"HALT: lane {lane!r} has no scope in briefs/lanes.json")
+        sys.exit(f"HALT: lane {lane!r} has no wave-{WAVE} scope in briefs/lanes.json")
     return json.dumps(sc, indent=2, ensure_ascii=False), sc
 
 
@@ -463,7 +500,9 @@ def normalise(lane: dict, slug: str) -> None:
     for r in lane.get("recipes") or []:
         r["currency"], r["verify_note"] = None, None
         for c in r.get("checks") or []:
-            c["oracle_set"] = "jam"
+            # jam-strict (midly with alloc + strict, wave 5) is the only other set a lane may choose.
+            if c.get("oracle_set") != "jam-strict":
+                c["oracle_set"] = "jam"
             c.setdefault("edition", "2024")
 
 
@@ -539,6 +578,7 @@ def main() -> int:
 
 
 def run() -> int:
+    global WAVE, WAVE_DIR
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--lane", required=True)
     ap.add_argument("--budget", type=float, default=2.0, help="USD cap for this lane")
@@ -548,11 +588,18 @@ def run() -> int:
     ap.add_argument("--readmit", action="store_true", help="re-apply admission to the lane file on disk; no model call")
     ap.add_argument("--revise", action="store_true",
                     help="start from the lane on disk plus the compiler's current objections, not a fresh draft")
+    ap.add_argument("--wave", type=int, default=WAVE, help="wave number; picks the lane scope for that wave")
+    ap.add_argument("--wave-dir", default=WAVE_DIR, help="wave folder under waves/")
+    ap.add_argument("--brief", default="GENERATOR-BRIEF.md",
+                    help="the brief under briefs/ (each wave keeps its own, so a receipt's hash stays replayable)")
     args = ap.parse_args()
+    # A lane slug can recur across waves (wave 5 extends wave 4's lanes), so the wave picks the scope,
+    # the output folder and the receipt.
+    WAVE, WAVE_DIR = args.wave, args.wave_dir
     if args.readmit:
         return readmit(args.lane)
 
-    brief = open(os.path.join(KB, "briefs", "GENERATOR-BRIEF.md"), encoding="utf-8").read()
+    brief = open(os.path.join(KB, "briefs", args.brief), encoding="utf-8").read()
     scope, sc = scope_text(args.lane)
     requested = sc["generator"]
     model = MODELS[requested]["dated"]

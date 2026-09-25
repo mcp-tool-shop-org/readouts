@@ -227,7 +227,7 @@ Payment Channels enable asynchronous, off-ledger XRP micropayments that settle o
 - **Sources:** [Payment Channels (xrpl.org)](https://xrpl.org/docs/concepts/payment-types/payment-channels) — Payment channels let a payer create off-ledger signed XRP claims that the payee verifies and later settles in a single PaymentChannelClaim; they support XRP only. ; [Use Payment Channels (xrpl.org tutorial)](https://xrpl.org/docs/tutorials/payments/use-payment-channels) — PaymentChannelCreate sets aside XRP with a SettleDelay and PublicKey, PaymentChannelFund adds XRP/extends expiration, and PaymentChannelClaim redeems or closes the channel. ; [Feeturre's Stream App Uses XRPL to Deliver Streaming Micropayments to Creators (Nat Law Review, 2026)](https://natlawreview.com/press-releases/feeturres-stream-app-uses-xrpl-deliver-streaming-micropayments-creators) — A 2026 streaming app pays creators in proportion to listening time using XRPL micropayments, illustrating the streaming use case for payment channels.
 
 ### EDISON-X energy trading on XRPL literature · `concept` · · n/a
-Dormitory energy-rights token trading on XRPL — application-layer evidence; invent-enabled: 0.
+Dormitory energy-rights token trading on XRPL — application-layer evidence
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-036 Verifier ✅; invent-enabled: 0
 - **Gotchas:** App-layer demo ≠ invent amendment enablement. No funds.
@@ -235,7 +235,7 @@ Dormitory energy-rights token trading on XRPL — application-layer evidence; in
 - **Sources:** [EDISON-X](https://arxiv.org/abs/2212.02044) — Energy trading experiment using XRPL.
 
 ### Hodge remittance network literature (Ikeda & Chakraborty 2022) · `concept` · · n/a
-Hodge loop-flow analysis of remittance paths on XRPL — payments-track literature; invent-enabled: 0.
+Hodge loop-flow analysis of remittance paths on XRPL — payments-track literature
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-036 Verifier ✅; invent-enabled: 0
 - **Gotchas:** Network-structure paper. No funds.
@@ -243,10 +243,10 @@ Hodge loop-flow analysis of remittance paths on XRPL — payments-track literatu
 - **Sources:** [Hodge Decomposition remittance network](https://arxiv.org/abs/2212.02048) — Hodge analysis of XRPL remittance paths.
 
 ### Stochastic Dynamics of XRP settlement literature (Firouzi 2025) · `concept` · · n/a
-Jump-diffusion / latency simulations for XRP cross-border settlement — invent-enabled: 0.
+Jump-diffusion / latency simulations for XRP cross-border settlement.
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-036 Verifier ✅; invent-enabled: 0
-- **Gotchas:** Simulation craft. No funds. No invent-enabled flips.
+- **Gotchas:** Simulation craft. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Stochastic Dynamics of Ripple XRP](https://arxiv.org/abs/2507.11553) — Stochastic settlement optimization simulations.
 

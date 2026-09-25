@@ -418,36 +418,36 @@ An RL framework absent from wave-1 (which covers GRPO as a preference-method sel
 ### DAA differences are a blur — SFT then preference · `situational` · paper
 **Unifies one- and two-stage DAAs under SFT-then-preference with shared beta tempering; SFT volume and two-stage setup dominate objective-family differences.**
 Unifies one- and two-stage DAAs under SFT-then-preference with shared beta tempering; SFT volume and two-stage setup dominate objective-family differences.
-- **For the pipeline:** STUDY-009 Verifier-verified. Do not invent recipes. Do not flip technique rows.
+- **For the pipeline:** STUDY-009 Verifier-verified. Do not flip technique rows.
 - **Method:** dpo · **Applies to:** llm · **Base:** SDXL|Flux|Qwen|Llama · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-019 reopen; verified=0. Invented recipes: 0.
+- **Output license:** commercial **check** — STUDY-019 reopen; verified=0.
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [DAA differences are a blur — SFT then preference](https://arxiv.org/abs/2502.01237) — Unifies one- and two-stage DAAs under SFT-then-preference with shared beta tempering; SFT volume and two-stage setup dominate objective-family differences.
 
 ### DAPO — open-source LLM RL at scale · `situational` · paper
-**Open reproduction stack for large-scale reasoning RL; complements GRPO/RLVR lane. Do not invent recipes.**
-Open reproduction stack for large-scale reasoning RL; complements GRPO/RLVR lane. Do not invent recipes.
-- **For the pipeline:** STUDY-009 Verifier-verified. Do not invent recipes. Do not flip technique rows.
+**Open reproduction stack for large-scale reasoning RL; complements GRPO/RLVR lane.**
+Open reproduction stack for large-scale reasoning RL; complements GRPO/RLVR lane.
+- **For the pipeline:** STUDY-009 Verifier-verified. Do not flip technique rows.
 - **Method:** rl · **Applies to:** llm · **Base:** SDXL|Flux|Qwen|Llama · **Kind:** systems
-- **Output license:** commercial **check** — STUDY-019 reopen; verified=0. Invented recipes: 0.
+- **Output license:** commercial **check** — STUDY-019 reopen; verified=0.
 - **Fit:** rig 4/5 · studio 4/5
-- **Sources:** [DAPO — open-source LLM RL at scale](https://arxiv.org/abs/2503.14476) — Open reproduction stack for large-scale reasoning RL; complements GRPO/RLVR lane. Do not invent recipes.
+- **Sources:** [DAPO — open-source LLM RL at scale](https://arxiv.org/abs/2503.14476) — Open reproduction stack for large-scale reasoning RL; complements GRPO/RLVR lane.
 
 ### HF PEFT LoRA/QLoRA + Diffusers LoRA + bnb AdamW8bit stack · `situational` · docs
-**Portable PEFT/Diffusers/bnb 8-bit Adam stack docs for single-GPU LoRA/QLoRA; no invent ranks.**
-STUDY-034 Practitioner Verifier ✅ stack hold. Recipes invented: 0.
-- **For the pipeline:** STUDY-034 Verifier ✅. Recipes invented: 0. Copy Ostris YAML values only where present.
+**Portable PEFT/Diffusers/bnb 8-bit Adam stack docs for single-GPU LoRA/QLoRA**
+STUDY-034 Practitioner Verifier ✅ stack hold.
+- **For the pipeline:** STUDY-034 Verifier ✅. Copy Ostris YAML values only where present.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-034 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-034 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [PEFT LoRA conceptual guide](https://huggingface.co/docs/peft/main/en/conceptual_guides/lora) — LoraConfig r/alpha/target_modules/use_rslora. ; [PEFT Quantization / QLoRA](https://huggingface.co/docs/peft/main/en/developer_guides/quantization) — bnb 4-bit NF4 + LoRA QLoRA path. ; [Diffusers Training LoRA](https://huggingface.co/docs/diffusers/en/training/lora) — train_text_to_image_lora.py PEFT LoraConfig. ; [bitsandbytes 8-bit optimizers](https://huggingface.co/docs/bitsandbytes/main/en/optimizers) — AdamW8bit ~75% less optimizer GPU memory.
 
 ### Unsloth fine-tune + Blackwell RTX 50 series tooling · `situational` · docs
-**Unsloth LoRA/QLoRA guide + official 50-series/Blackwell support for local 5090 tooling; no invent ranks/LRs.**
-STUDY-034 Practitioner Verifier ✅. Recipes invented: 0.
-- **For the pipeline:** STUDY-034 Verifier ✅. Recipes invented: 0. Copy Ostris YAML values only where present.
+**Unsloth LoRA/QLoRA guide + official 50-series/Blackwell support for local 5090 tooling**
+STUDY-034 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-034 Verifier ✅. Copy Ostris YAML values only where present.
 - **Method:** qlora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-034 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-034 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [Unsloth Fine-tuning LLMs Guide](https://docs.unsloth.ai/get-started/fine-tuning-llms-guide) — LoRA vs QLoRA; load_in_4bit starting path. ; [Fine-tuning LLMs with Blackwell, RTX 50 series & Unsloth](https://docs.unsloth.ai/blog/fine-tuning-llms-with-blackwell-rtx-50-series-and-unsloth) — 5060–5090 named; TORCH_CUDA_ARCH_LIST=12.0.
 

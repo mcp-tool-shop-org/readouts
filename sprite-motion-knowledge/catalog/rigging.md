@@ -617,9 +617,9 @@ AccuRIG 2 (free, requires free ActorCore account) detects body landmarks and gen
 STUDY-037 Analogist Verifier ✅ hold-with-limit.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [Geometric skinning DQS](https://users.cs.utah.edu/~ladislav/kavan08geometric/kavan08geometric.html) — LBS volume loss; dual-quaternion better. ; [Unity Configuring the Avatar](https://docs.unity3d.com/Manual/ConfiguringtheAvatar.html) — Auto-map needs T-pose / required bones.
 
 ### HumanRig learned automatic humanoid rigging (Chu et al. 2024) · `situational` · paper
@@ -627,9 +627,9 @@ STUDY-037 Analogist Verifier ✅ hold-with-limit.
 STUDY-037 Scholar deepen.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [HumanRig](https://arxiv.org/abs/2412.02317) — Automatic rigging for humanoid characters.
 
 ### Neural Blend Shapes skeletal articulations (Li et al. 2021) · `situational` · paper
@@ -637,9 +637,9 @@ STUDY-037 Scholar deepen.
 STUDY-037 Scholar deepen.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [Neural Blend Shapes](https://arxiv.org/abs/2105.02451) — Skeletal articulations with neural blend shapes.
 
 ### Spiritus — mesh-skeleton binding + MDM · `situational` · paper
@@ -657,9 +657,9 @@ End-to-end 2D character tool: text to layered character, mesh-skeleton binding, 
 STUDY-037 Practitioner Verifier ✅.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** blender · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [UniRig README](https://github.com/VAST-AI-Research/UniRig) — Skeleton GPT + bone-point skinning; FBX out. ; [Blender Clean Up](https://docs.blender.org/manual/en/latest/modeling/meshes/editing/mesh/cleanup.html) — Decimate / dissolve / merge cleanup. ; [Armature Deform Parent](https://docs.blender.org/manual/en/latest/animation/armatures/skinning/parenting.html) — Empty Groups / Automatic Weights parenting.
 
 ### UniRig license watch: MIT is not guaranteed for future weight releases · `situational` · · community

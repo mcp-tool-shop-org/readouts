@@ -188,29 +188,29 @@ An Apache-2.0 GPU-cluster manager (v2.1.2, Apr 2026) that configures and orchest
 - **Repo:** https://github.com/gpustack/gpustack
 
 ### Bench360 — multi-axis local LLM inference bench · `situational` · experimental
-Unified local-deployment benchmark across models, quantization, and engines (vLLM, SGLang, TGI, LMDeploy). Honesty > single peak. No invented tok/s.
+Unified local-deployment benchmark across models, quantization, and engines (vLLM, SGLang, TGI, LMDeploy). Honesty > single peak.
 - **Dev:** Stuhlmann et al. · **Type:** benchmark · **Lang:** see source · **Released:** 2025
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-018 reopen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-018 reopen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [Bench360 — multi-axis local LLM inference bench](https://arxiv.org/abs/2511.16682) — Bench360 multi-axis honesty
 
 ### MLC CLI (mlc_llm chat) · `situational` · experimental
-Interactive chat; /stats prints last-request token/sec (runtime meter surface only — do not invent rates); /metrics full engine metrics; --overrides for context_window_size/prefill_chunk_size/tensor_parallel_shards; devices cuda/metal/vulkan/rocm/opencl/auto.
+Interactive chat; /stats prints last-request token/sec (runtime meter surface only); /metrics full engine metrics; --overrides for context_window_size/prefill_chunk_size/tensor_parallel_shards; devices cuda/metal/vulkan/rocm/opencl/auto.
 - **Dev:** MLC · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** Apache-2.0 — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** Apache-2.0 — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
-- **Sources:** [CLI (mlc_llm chat)](https://llm.mlc.ai/docs/deploy/cli.html) — /stats meter surface; no invent rates
+- **Sources:** [CLI (mlc_llm chat)](https://llm.mlc.ai/docs/deploy/cli.html) — /stats meter surface
 
 ### MLC Compile Model Libraries · `situational` · experimental
-Pipeline: convert_weight → gen_config → compile (.so/.dylib/.dll/.wasm/.tar); library knobs = architecture + quantization + metadata (context_window_size/prefill_chunk_size) + device; Python may JIT skip explicit compile; WebGPU note: lower --prefill-chunk-size / --context-window-size to cut memory. No invent tok/s.
+Pipeline: convert_weight → gen_config → compile (.so/.dylib/.dll/.wasm/.tar); library knobs = architecture + quantization + metadata (context_window_size/prefill_chunk_size) + device; Python may JIT skip explicit compile; WebGPU note: lower --prefill-chunk-size / --context-window-size to cut memory.
 - **Dev:** MLC · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** Apache-2.0 — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** Apache-2.0 — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [Compile Model Libraries](https://llm.mlc.ai/docs/compilation/compile_models.html) — convert→gen_config→compile; JIT; memory knobs
 
@@ -219,53 +219,53 @@ mlc_llm convert_weight HF→MLC quant weights; gen_config writes mlc-chat-config
 - **Dev:** MLC · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** Apache-2.0 — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** Apache-2.0 — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [Convert Model Weights](https://llm.mlc.ai/docs/compilation/convert_weights.html) — HF→MLC quant; tensor-cache
 
 ### MLC LLM Introduction compile path · `situational` · experimental
-End-to-end mlc_llm chat|serve + Python MLCEngine; JIT via TVM; --device vulkan. Do not flip 12.
+End-to-end mlc_llm chat|serve + Python MLCEngine; JIT via TVM; --device vulkan.
 - **Dev:** MLC · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [MLC LLM Introduction compile path](https://llm.mlc.ai/docs/get_started/introduction.html) — gen_config→convert_weight→compile→serve
 
 ### MLC LLM Quick Start (no tok/s) · `situational` · experimental
-Demo MLCEngine path; page recommends ≥6 GB free VRAM for int4 Llama3 8B example; no tok/s claimed. Invented tok/s: 0.
+Demo MLCEngine path; page recommends ≥6 GB free VRAM for int4 Llama3 8B example; no tok/s claimed.
 - **Dev:** MLC · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [MLC LLM Quick Start (no tok/s)](https://llm.mlc.ai/docs/get_started/quick_start.html) — MLCEngine Llama-3-8B q4 ≥6GB VRAM note
 
 ### MLC LLM README (currency) · `situational` · experimental
-Universal LLM deployment via ML compilation; Apache-2.0; CUDA/Vulkan/ROCm/Metal/WebGPU matrix; OpenAI-shaped API. Do not flip id 12.
+Universal LLM deployment via ML compilation; Apache-2.0; CUDA/Vulkan/ROCm/Metal/WebGPU matrix; OpenAI-shaped API.
 - **Dev:** mlc-ai · **Type:** docs · **Lang:** see source · **Released:** 2025
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [MLC LLM README (currency)](https://github.com/mlc-ai/mlc-llm) — Apache-2.0 cross-backend compile+serve
 - **Repo:** https://github.com/mlc-ai/mlc-llm
 
 ### MLC LLM REST API · `situational` · experimental
-mlc_llm serve exposes OpenAI-shaped REST; speculative modes documented. No invent tok/s. Do not flip 12.
+mlc_llm serve exposes OpenAI-shaped REST; speculative modes documented.
 - **Dev:** MLC · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [MLC LLM REST API](https://llm.mlc.ai/docs/deploy/rest.html) — OpenAI-shaped /v1/chat/completions
 
 ### MLC LLM pip install wheels (CUDA 12.8/13) · `situational` · experimental
-Official prebuilt nightly pip wheels for CPU, CUDA 12.8/13.0, ROCm, Vulkan. Currency note only — do not flip 12.
+Official prebuilt nightly pip wheels for CPU, CUDA 12.8/13.0, ROCm, Vulkan. Currency note only.
 - **Dev:** MLC · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [MLC LLM pip install wheels (CUDA 12.8/13)](https://llm.mlc.ai/docs/install/mlc_llm.html) — prebuilt nightly wheels CUDA 12.8/13.0
 
@@ -274,7 +274,7 @@ mlc_llm package reads mlc-package-config.json; emits dist/lib/ + dist/bundle/; J
 - **Dev:** MLC · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** Apache-2.0 — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** Apache-2.0 — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [Package Libraries and Weights](https://llm.mlc.ai/docs/compilation/package_libraries_and_weights.html) — package/JIT cache
 
@@ -283,7 +283,7 @@ MLCEngine/AsyncMLCEngine OpenAI-shaped; modes local/interactive/server trade req
 - **Dev:** MLC · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** Apache-2.0 — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** Apache-2.0 — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [Python API / Engine Mode](https://llm.mlc.ai/docs/deploy/python_engine.html) — concurrency↔KV↔GPU memory trade
 
@@ -292,34 +292,34 @@ Systematic evaluation of consumer Blackwell GPUs for local production LLM servin
 - **Dev:** Knoop & Holtmann · **Type:** paper-guide · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-018 reopen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-018 reopen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [Private LLM Inference on Consumer Blackwell (guide paper)](https://arxiv.org/abs/2601.09527) — consumer Blackwell local guide
 
 ### Production-Grade Local LLM Inference on Apple Silicon: A Comparative Study of MLX, MLC-LLM, Ollama, llama.cpp, and PyTorch MPS · `situational` · experimental
-Systematic comparative evaluation of local runtimes including MLC-LLM — loadout-honesty literature for engine selection methodology (do not invent tok/s; do not flip engine 12).
+Systematic comparative evaluation of local runtimes including MLC-LLM — loadout-honesty literature for engine selection methodology.
 - **Dev:** Rajesh, Jodhpurkar, Anbuselvan, Singh et al. · **Type:** paper-guide · **Lang:** see source · **Released:** 2025
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
-- **Sources:** [Production-Grade Local LLM Inference on Apple Silicon](https://arxiv.org/abs/2511.05502) — comparative incl. MLC-LLM; no invent tok/s
+- **Sources:** [Production-Grade Local LLM Inference on Apple Silicon](https://arxiv.org/abs/2511.05502) — comparative incl. MLC-LLM
 
 ### SGLang: Efficient Execution of Structured Language Model Programs · `situational` · experimental
-Runtime for structured multi-call LLM programs with control flow — serving-layer honesty beyond single-request compile; flips 12/143: 0.
+Runtime for structured multi-call LLM programs with control flow — serving-layer honesty beyond single-request compile
 - **Dev:** Zheng, Yin, Xie, Sun et al. · **Type:** paper-guide · **Lang:** see source · **Released:** 2023
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [SGLang: Efficient Execution of Structured Language Model Programs](https://arxiv.org/abs/2312.07104) — structured LLM program runtime
 
 ### SPECTRE — hybrid speculative serving · `situational` · experimental
-SGLang-integrated speculative serving reusing underutilized multi-tenant tail models as remote drafters. Research craft; no new recipe ids; no invented tok/s.
+SGLang-integrated speculative serving reusing underutilized multi-tenant tail models as remote drafters. Research craft; no new recipe ids
 - **Dev:** Xie et al. · **Type:** serving · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-018 reopen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-018 reopen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [SPECTRE — hybrid speculative serving](https://arxiv.org/abs/2605.08151) — SPECTRE speculative serving
 
@@ -328,64 +328,64 @@ In-browser LLM inference via WebGPU with MLC-class compilation — compile-then-
 - **Dev:** Ruan, Qin, Parthasarathy, Zhou et al. · **Type:** paper-guide · **Lang:** see source · **Released:** 2024
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [WebLLM: A High-Performance In-Browser LLM Inference Engine](https://arxiv.org/abs/2412.15803) — in-browser MLC-class compile-serve
 
 ### bytefit CHANGELOG 1.0.0 · `situational` · experimental
-Anti-paging admission refuses paging configs with {code,message,hint} + non-zero exit (0 ok · 1 not found/refused · 2 usage); probe/recommend/plan; calibrated predictor notes are their RTX 5090 measurements — do not invent studio tok/s; --experimental disk tier gated.
+Anti-paging admission refuses paging configs with {code,message,hint} + non-zero exit (0 ok · 1 not found/refused · 2 usage); probe/recommend/plan; calibrated predictor notes are their RTX 5090 measurements; --experimental disk tier gated.
 - **Dev:** mcp-tool-shop-org · **Type:** docs · **Lang:** see source · **Version:** 1.0.0 · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** MIT — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** MIT — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [bytefit CHANGELOG 1.0.0](https://raw.githubusercontent.com/mcp-tool-shop-org/bytefit/main/CHANGELOG.md) — anti-paging refuse; their 5090 notes ≠ invent studio tok/s
 - **Repo:** https://github.com/mcp-tool-shop-org/bytefit
 
 ### bytefit README (probe/plan anti-paging) · `situational` · experimental
-Hardware-aware loadout planner; refuses configs that would silently page; Node≥20; MIT. Do not flip id 143.
+Hardware-aware loadout planner; refuses configs that would silently page; Node≥20; MIT.
 - **Dev:** mcp-tool-shop-org · **Type:** docs · **Lang:** see source · **Version:** 1.0.0 · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** MIT — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** MIT — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [bytefit README (probe/plan anti-paging)](https://github.com/mcp-tool-shop-org/bytefit) — MIT probe/recommend/plan; refuses paging
 - **Repo:** https://github.com/mcp-tool-shop-org/bytefit
 
 ### bytefit README refuse claim · `situational` · experimental
-Advisor refuses silent paging (on-page: collapses decode ~78×); probe/recommend/plan; sample recommend lines show predicted tok/s for their probe — record as on-page sample UI, not invented studio rates. Flips 12/143: 0.
+Advisor refuses silent paging (on-page: collapses decode ~78×); probe/recommend/plan; sample recommend lines show predicted tok/s for their probe — record as on-page sample UI, not invented studio rates.
 - **Dev:** mcp-tool-shop-org · **Type:** docs · **Lang:** see source · **Version:** 1.0.0 · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** MIT — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** MIT — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [bytefit README refuse claim](https://raw.githubusercontent.com/mcp-tool-shop-org/bytefit/main/README.md) — probe/recommend/plan; sample UI rates ≠ invent
 - **Repo:** https://github.com/mcp-tool-shop-org/bytefit
 
 ### bytefit SPEC v1.0.0 CHANGELOG · `situational` · experimental
-version 1.0.0 stable; governing decode-bandwidth identity; anti-paging admission. Invented tok/s: 0. Do not flip 143.
+version 1.0.0 stable; governing decode-bandwidth identity; anti-paging admission.
 - **Dev:** mcp-tool-shop-org · **Type:** docs · **Lang:** see source · **Version:** 1.0.0 · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** MIT — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** MIT — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [bytefit SPEC v1.0.0 CHANGELOG](https://raw.githubusercontent.com/mcp-tool-shop-org/bytefit/main/SPEC.md) — advisor not estimator; anti-paging admission
 
 ### bytefit SPEC §4–§6 admission · `situational` · experimental
-Admission guard: predicted footprint vs free VRAM+RAM−headroom; Refuse, don't page; disk tier EXPERIMENTAL/--experimental only; refuse returns non-zero + structured reason. Do not flip id 143.
+Admission guard: predicted footprint vs free VRAM+RAM−headroom; Refuse, don't page; disk tier EXPERIMENTAL/--experimental only; refuse returns non-zero + structured reason.
 - **Dev:** mcp-tool-shop-org · **Type:** docs · **Lang:** see source · **Version:** 1.0.0 · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** MIT — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** MIT — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
-- **Sources:** [bytefit SPEC §4–§6 admission](https://raw.githubusercontent.com/mcp-tool-shop-org/bytefit/main/SPEC.md) — Refuse, don't page; do not flip 143
+- **Sources:** [bytefit SPEC §4–§6 admission](https://raw.githubusercontent.com/mcp-tool-shop-org/bytefit/main/SPEC.md) — Refuse, don't page
 
 ### mlc-llm tags v0.19/v0.20 (Releases thin) · `situational` · experimental
-Tags include v0.19.0/v0.20.0/v0.26.dev0; Releases API still lists only prerelease v0.1.dev0. Existence/currency only — do not flip 12.
+Tags include v0.19.0/v0.20.0/v0.26.dev0; Releases API still lists only prerelease v0.1.dev0. Existence/currency only.
 - **Dev:** mlc-ai · **Type:** docs · **Lang:** see source · **Version:** v0.20.0 · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [mlc-llm tags v0.19/v0.20 (Releases thin)](https://api.github.com/repos/mlc-ai/mlc-llm/tags) — tags v0.19.0 v0.20.0; Releases only v0.1.dev0
 - **Repo:** https://github.com/mlc-ai/mlc-llm

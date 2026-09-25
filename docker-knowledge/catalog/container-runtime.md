@@ -22,14 +22,14 @@ _Docker + NVIDIA Container Toolkit + WSL2 GPU passthrough; base images; CUDA too
 | craft | Dissecting the NVIDIA Blackwell Architecture with Microbenchmarks | **CUDA 12.8** and **PTX 8.7** expand support for Blackwell 5th-gen tensor instructions (`tcgen05`); older wgmma/FP8 paths are not Blackwell-compatible — toolkit/PTX currency gate (omit STUDY-028’s other Blackwell microbench). |  | docker; nvidia-ctk; CDI; MIG; MPS | ●●· | · |
 | craft | Docker Engine --gpus | Expose with docker run --gpus all or device=<index/UUID>; requires NVIDIA driver + toolkit on the host. |  | docker; nvidia-ctk; gpu-container | ●●● | · |
 | craft | Docker Engine 28.2.0 release notes | Docker Engine **28.2.0** dated **2025-05-28**; **CDI enabled by default** — Engine CDI default currency beyond STUDY-028/048/049. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
-| craft | Docker Engine 28.x release notes | Dated Engine patches: **28.4.0** 2025-09-03; **28.5.2** 2025-11-05 — package currency trail (Axis invented: 0; Numbers invented: 0). |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
+| craft | Docker Engine 28.x release notes | Dated Engine patches: **28.4.0** 2025-09-03; **28.5.2** 2025-11-05 — package currency trail. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
 | craft | Docker Engine GPU access (`--gpus`) | Analog: expose GPUs via `--gpus` when host has driver + toolkit. Holds for Engine place alongside CDI. Limit: flag presence ≠ honest isolation (MIG vs share). |  | docker; nvidia-ctk; CDI; MIG; MPS | ●●· | · |
 | docs | Docker container run — CDI devices | CDI on by default for Linux; place via --device=<fully-qualified CDI name>. |  | docker; nvidia-ctk; gpu-container | ●●● | ✓ |
 | craft | Dockerfile FROM pin | Analog: pin tag or digest; omit tag implies latest. Holds Dockerfile digest honesty. Limit: digest pin != NVML honesty. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
 | craft | ElastiCo: Elastic Configuration and Interference-Aware Orchestration for GPU Clusters | Kubernetes-native middleware for training/inference co-location; when MPS is enabled, sets per-client CUDA_MPS_PINNED_DEVICE_MEM_LIMIT and profiles with MPS disabled — place/package under MPS, not inventing a singleton axis or farm numbers. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
 | craft | EnclaveX: End-to-End Confidential AI with CPU/GPU TEEs | End-to-end CPU+GPU TEEs with **confidential containers** on Kubernetes and NVIDIA Hopper/H200 confidential GPU via CVM-contained driver — confidential package boundary deepen, not a new catalog axis. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
-| craft | Gaps (on-page) | Refresh auto-path misses MIG geometry changes; CDI schema v0.7.0 vs old engines needs feature-flag; no toolkit page equates generate to Blackwell compute readiness. Do not invent axis. |  | docker; nvidia-ctk; CDI; MIG; MPS | ●●· | · |
-| craft | Gaps vs still-current package catalog | Meta Gaps: CTK **1.20.0** + Docker CDI default **28.2** + Compose nvidia path; Axis invented: 0; Numbers invented: 0 — no invent axis/numbers. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
+| craft | Gaps (on-page) | Refresh auto-path misses MIG geometry changes; CDI schema v0.7.0 vs old engines needs feature-flag; no toolkit page equates generate to Blackwell compute readiness. |  | docker; nvidia-ctk; CDI; MIG; MPS | ●●· | · |
+| craft | Gaps vs still-current package catalog | Meta Gaps: CTK **1.20.0** + Docker CDI default **28.2** + Compose nvidia path;. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
 | craft | Getting Started with MIG | **B200** MIG: CUDA 12, driver **R570≥570.133.20**; **RTX PRO Blackwell** editions: R575+. Container path: CTK ≥v2.5.0-era; `NVIDIA_VISIBLE_DEVICES` / `--gpus` MIG UUID formats. **MPS+MIG:** per-MIG `CUDA_MPS_PIPE_DIRECTORY`; EXCLUSIVE_PROCESS not with MIG. |  | docker; nvidia-ctk; CDI; MIG; MPS | ●●· | · |
 | craft | Getting Started with MIG | MIG container path: Container Toolkit / nvidia-docker2 **v2.5.0+**; B200/R570 floors on-page — MIG container currency, not invent axis. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
 | craft | HPC Containers for EBRAINS: Towards Portable Cross-Domain Software Environment | GPU containers still bind host drivers/libraries (ABI across boundary); deliberately builds against older **CUDA 12.2** for newer host drivers — CUDA currency / ABI gate without crowning an axis. |  | docker; nvidia-ctk; CDI; MIG; MPS | ●●· | · |
@@ -47,15 +47,15 @@ _Docker + NVIDIA Container Toolkit + WSL2 GPU passthrough; base images; CUDA too
 | craft | NVIDIA CTK install guide | Install packages then nvidia-ctk runtime configure --runtime=docker rewriting daemon.json — host-side prerequisite before --gpus. |  | docker; nvidia-ctk; gpu-container | ●●● | · |
 | docs | NVIDIA CTK specialized configs — IMEX channels | NVIDIA_IMEX_CHANNELS requests host IMEX channels; CDI validates channel nodes. |  | docker; nvidia-ctk; gpu-container | ●●● | ✓ |
 | craft | NVIDIA Container Toolkit latest index | Docs branded **1.20.0** tip tree — CTK currency pin for still-current docker package path. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
-| craft | NVIDIA Container Toolkit release notes | Tip **1.20.0**; **1.18.0** JIT-CDI + nvidia-cdi-refresh; **1.19.1** CDI schema **v0.7.0** needs docker>=26.1.0 — dated CTK currency (Axis invented: 0; Numbers invented: 0). |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
+| craft | NVIDIA Container Toolkit release notes | Tip **1.20.0**; **1.18.0** JIT-CDI + nvidia-cdi-refresh; **1.19.1** CDI schema **v0.7.0** needs docker>=26.1.0 — dated CTK currency. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
 | craft | NVIDIA k8s-device-plugin | Analog: DaemonSet advertises/allocates device nodes + health; host driver stays outside the image. Holds for toolkit inject pattern. Limit: cluster plugin ≠ single-host Docker CDI only. |  | docker; nvidia-ctk; CDI; MIG; MPS | ●●· | · |
 | craft | Performance Characterization of Containerized DNN Training and Inference on Edge Accelerators | Compares **Docker** vs bare-metal DNN train/infer on Jetson-class edges; notes CUDA MPS/MIG as related sharing mechanisms — containerization overhead craft without crowning an axis. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
-| craft | Private LLM Inference on Consumer Blackwell GPUs: A Practical Guide for Cost-Effective Local Deployment in SMEs | Releases a **Docker image** (vLLM/AIPerf/DCGM stack); requires NVIDIA **driver 570.x+**, **CUDA 12.9**, cuDNN 9.x for NVFP4 on consumer Blackwell — currency pin for image/driver/CUDA match (no invented measured numbers here). |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
+| craft | Private LLM Inference on Consumer Blackwell GPUs: A Practical Guide for Cost-Effective Local Deployment in SMEs | Releases a **Docker image** (vLLM/AIPerf/DCGM stack); requires NVIDIA **driver 570.x+**, **CUDA 12.9**, cuDNN 9.x for NVFP4 on consumer Blackwell — currency pin for image/driver/CUDA match. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
 | craft | Q-GEAR: Improving quantum simulation framework | Deploys **Podman** container plus NERSC **NVIDIA public image** for Cuda-Q GPU simulation — Podman/NVIDIA image package path adjacent to Docker toolkit inject. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
 | craft | Release notes | UNVERIFIED install-guide 1.20.0-1 pin — do not treat as verified. **1.18.0**: auto CDI refresh systemd + default JIT-CDI. **1.19.1**: CDI schema **v0.7.0** default (needs containerd≥1.7.16 / docker≥26.1 / podman≥5.1); `--feature-flag no-additional-gids-for-device-nodes` for older; MIG `/dev/dri*` injection. **1.20.0**: app-profile hook, WSL2 broader discovery. Generate loads select `config.toml` settings. |  | docker; nvidia-ctk; CDI; MIG; MPS | ●●· | · |
 | craft | SPEC CPU 2017 Overview | Analog: honest data vs marketing hype; SPECspeed != SPECrate. Holds measurement honesty. Limit: SPEC suites != invent tok/s. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
 | craft | Scalable APT Malware Classification via Parallel Feature Extraction and GPU-Accelerated Learning | Repro path: install toolkit then `nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml`, run Podman with `--device nvidia.com/gpu=all` — names **cdi generate** as the compose contract. |  | docker; nvidia-ctk; CDI; MIG; MPS | ●●· | · |
-| craft | Seekable OCI: Lazy-Loading Container Images via Range-Request Indexing | SOCI lazy-loads unmodified **OCI** images; production path notes EKS Auto Mode uses SOCI parallel pull for **GPU instances** — image-pull package craft for GPU pods (no invented axis). |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
+| craft | Seekable OCI: Lazy-Loading Container Images via Range-Request Indexing | SOCI lazy-loads unmodified **OCI** images; production path notes EKS Auto Mode uses SOCI parallel pull for **GPU instances** — image-pull package craft for GPU pods. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
 | craft | Semantic Versioning | Analog: MAJOR.MINOR.PATCH; MUST NOT mutate released versions. Holds SemVer package pin. Limit: SemVer != invent GB/s. |  | docker; container-runtime; CDI; CTK; package-pin | ●●· | · |
 | craft | Subedar — nvidia-ctk cdi generate contract | Repro path: nvidia-ctk cdi generate then Podman --device nvidia.com/gpu=all — CDI generate as compose/runtime attach contract. |  | docker; nvidia-ctk; gpu-container | ●●● | · |
 | craft | Support for CDI | CDI generate since **v1.12.0**. From **v1.18.0**: `nvidia-cdi-refresh` writes `/var/run/cdi/nvidia.yaml` on toolkit/driver install/upgrade and reboot. Knobs: `nvidia-ctk cdi list`; manual `nvidia-ctk cdi generate --output=/var/run/cdi/nvidia.yaml`; env overrides in `/etc/nvidia-container-toolkit/nvidia-cdi-refresh.env`. **Known limits:** refresh does **not** handle driver removal or **MIG reconfiguration** — regenerate manually. Devices: `nvidia.com/gpu=all`, `=0`, MIG e.g. `nvidia.com/gpu=1:0`. JIT-CDI + `--disable-hook`. |  | docker; nvidia-ctk; CDI; MIG; MPS | ●●· | · |
@@ -81,31 +81,31 @@ _Docker + NVIDIA Container Toolkit + WSL2 GPU passthrough; base images; CUDA too
 **Evaluates **MPS** (flexible SM share, memory contention) vs **MIG** (full isolation) including **Blackwell B200** among Ampere/Hopper/Blackwell — profile before choose (wave-06 69 deepen).**
 Evaluates **MPS** (flexible SM share, memory contention) vs **MIG** (full isolation) including **Blackwell B200** among Ampere/Hopper/Blackwell — profile before choose (wave-06 69 deepen).
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [A comprehensive evaluation of spatial co-execution on GPUs using MPS and MIG tec](https://arxiv.org/abs/2604.22430)
 
 ### Absences on CDI support page · `directional` · craft
 ****Absent:** string “Blackwell”; sm_120 / CUDA 12.8 image floor; MPS sharing policy; decisive_axis language. Blackwell MIG mins live on MIG guide; CDI page only notes MIG **reconfig → manual regenerate**.**
 **Absent:** string “Blackwell”; sm_120 / CUDA 12.8 image floor; MPS sharing policy; decisive_axis language. Blackwell MIG mins live on MIG guide; CDI page only notes MIG **reconfig → manual regenerate**.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 
 ### CDI SPEC.md · `directional` · craft
 **Vendor JSON (`cdiVersion`, `kind`, `devices[].name`, `containerEdits`: env/deviceNodes/mounts/hooks/additionalGIDs). Well-known paths `/etc/cdi`, `/var/run/cdi`. Explains what `nvidia.yaml` must satisfy — not NVIDIA GPU-specific.**
 Vendor JSON (`cdiVersion`, `kind`, `devices[].name`, `containerEdits`: env/deviceNodes/mounts/hooks/additionalGIDs). Well-known paths `/etc/cdi`, `/var/run/cdi`. Explains what `nvidia.yaml` must satisfy — not NVIDIA GPU-specific.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [CDI SPEC.md](https://raw.githubusercontent.com/cncf-tags/container-device-interface/main/SPEC.md)
 
 ### CIR: Lightweight Container Image for Cross-Platform Deployment · `directional` · craft
 **Lazy-builder assembles OCI with CNI plus **NVIDIA Container Toolkit**; reuses GPU components via **libnvidia-container** — toolkit inject as portable GPU package craft.**
 Lazy-builder assembles OCI with CNI plus **NVIDIA Container Toolkit**; reuses GPU components via **libnvidia-container** — toolkit inject as portable GPU package craft.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [CIR: Lightweight Container Image for Cross-Platform Deployment](https://arxiv.org/abs/2604.10411)
 
 ### CNCF Container Device Interface (CDI) · `directional` · analog
@@ -128,24 +128,24 @@ GPU container checkpoint/restore integrates CDI + NVIDIA Container Toolkit; libn
 **GPU container C/R integrates **CDI** and the **NVIDIA Container Toolkit**; libnvidia-container injects devices/libraries into the mount namespace — CDI+toolkit as the package surface (not an invented axis).**
 GPU container C/R integrates **CDI** and the **NVIDIA Container Toolkit**; libnvidia-container injects devices/libraries into the mount namespace — CDI+toolkit as the package surface (not an invented axis).
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [CRIUgpu: Transparent Checkpointing of GPU-Accelerated Workloads](https://arxiv.org/abs/2502.16631)
 
 ### CUDA C++ Best Practices (theoretical vs effective) · `directional` · craft
 **Analog: theoretical link rate != effective measured bandwidth. Holds PCIe honesty. Limit: guide != invent 5090 GB/s.**
 Analog: theoretical link rate != effective measured bandwidth. Holds PCIe honesty. Limit: guide != invent 5090 GB/s.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [CUDA C++ Best Practices](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html) — NVIDIA
 
 ### CUDA Compatibility (forward / minor) · `directional` · craft
 **Analog: toolkit/app can run across driver versions under defined forward/minor rules. Holds for toolkit-currency pins (image/toolkit match arch). Limit: compat matrix ≠ inventing a new axis.**
 Analog: toolkit/app can run across driver versions under defined forward/minor rules. Holds for toolkit-currency pins (image/toolkit match arch). Limit: compat matrix ≠ inventing a new axis.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [CUDA Compatibility (forward / minor)](https://docs.nvidia.com/deploy/cuda-compatibility/index.html)
 
 ### Compose GPU devices · `directional` · craft
@@ -160,8 +160,8 @@ Place GPUs via deploy.resources.reservations.devices; capabilities:[gpu] mandato
 **Compose GPU path: **driver: nvidia**, capabilities [gpu]; example nvidia/cuda:12.9.0-base-ubuntu22.04 — dated Compose package currency.**
 Compose GPU path: **driver: nvidia**, capabilities [gpu]; example nvidia/cuda:12.9.0-base-ubuntu22.04 — dated Compose package currency.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [Compose GPU support](https://docs.docker.com/compose/how-tos/gpu-support/) — Docker
 
 ### Compose deploy devices spec · `directional` · craft
@@ -176,24 +176,24 @@ Device reservations require capabilities; count/device_ids exclusive.
 **Analog: OCI runtimes inject third-party devices via CDI edits (nodes/hooks beyond a bare device node). Holds for wave-06 CDI package path. Limit: CDI ≠ a new gpu-container decisive_axis.**
 Analog: OCI runtimes inject third-party devices via CDI edits (nodes/hooks beyond a bare device node). Holds for wave-06 CDI package path. Limit: CDI ≠ a new gpu-container decisive_axis.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [Container Device Interface SPEC](https://github.com/cncf-tags/container-device-interface/blob/main/SPEC.md)
 
 ### Container Device Interface SPEC · `directional` · craft
 **Analog: CNCF CDI device inject via containerEdits/OCI transform. Holds CDI path. Limit: CDI SPEC != new decisive_axis.**
 Analog: CNCF CDI device inject via containerEdits/OCI transform. Holds CDI path. Limit: CDI SPEC != new decisive_axis.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [Container Device Interface SPEC](https://github.com/cncf-tags/container-device-interface/blob/main/SPEC.md) — CNCF
 
 ### Dissecting the NVIDIA Blackwell Architecture with Microbenchmarks · `directional` · craft
 ****CUDA 12.8** and **PTX 8.7** expand support for Blackwell 5th-gen tensor instructions (`tcgen05`); older wgmma/FP8 paths are not Blackwell-compatible — toolkit/PTX currency gate (omit STUDY-028’s other Blackwell microbench).**
 **CUDA 12.8** and **PTX 8.7** expand support for Blackwell 5th-gen tensor instructions (`tcgen05`); older wgmma/FP8 paths are not Blackwell-compatible — toolkit/PTX currency gate (omit STUDY-028’s other Blackwell microbench).
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [Dissecting the NVIDIA Blackwell Architecture with Microbenchmarks](https://arxiv.org/abs/2507.10789)
 
 ### Docker Engine --gpus · `directional` · craft
@@ -208,24 +208,24 @@ Expose with docker run --gpus all or device=<index|UUID>; requires NVIDIA driver
 **Docker Engine **28.2.0** dated **2025-05-28**; **CDI enabled by default** — Engine CDI default currency beyond STUDY-028/048/049.**
 Docker Engine **28.2.0** dated **2025-05-28**; **CDI enabled by default** — Engine CDI default currency beyond STUDY-028/048/049.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [Docker Engine 28.2.0](https://docs.docker.com/engine/release-notes/28/#2820) — Docker
 
 ### Docker Engine 28.x release notes · `directional` · craft
-**Dated Engine patches: **28.4.0** 2025-09-03; **28.5.2** 2025-11-05 — package currency trail (Axis invented: 0; Numbers invented: 0).**
-Dated Engine patches: **28.4.0** 2025-09-03; **28.5.2** 2025-11-05 — package currency trail (Axis invented: 0; Numbers invented: 0).
+**Dated Engine patches: **28.4.0** 2025-09-03; **28.5.2** 2025-11-05 — package currency trail.**
+Dated Engine patches: **28.4.0** 2025-09-03; **28.5.2** 2025-11-05 — package currency trail.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [Docker Engine 28.x release notes](https://docs.docker.com/engine/release-notes/28/) — Docker
 
 ### Docker Engine GPU access (`--gpus`) · `directional` · craft
 **Analog: expose GPUs via `--gpus` when host has driver + toolkit. Holds for Engine place alongside CDI. Limit: flag presence ≠ honest isolation (MIG vs share).**
 Analog: expose GPUs via `--gpus` when host has driver + toolkit. Holds for Engine place alongside CDI. Limit: flag presence ≠ honest isolation (MIG vs share).
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [Docker Engine GPU access (`--gpus`)](https://docs.docker.com/engine/containers/gpu/)
 
 ### Docker container run — CDI devices · `directional` · docs
@@ -240,70 +240,70 @@ CDI on by default for Linux; place via --device=<fully-qualified CDI name>.
 **Analog: pin tag or digest; omit tag implies latest. Holds Dockerfile digest honesty. Limit: digest pin != NVML honesty.**
 Analog: pin tag or digest; omit tag implies latest. Holds Dockerfile digest honesty. Limit: digest pin != NVML honesty.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [Dockerfile FROM](https://docs.docker.com/reference/dockerfile/#from) — Docker
 
 ### ElastiCo: Elastic Configuration and Interference-Aware Orchestration for GPU Clusters · `directional` · craft
 **Kubernetes-native middleware for training/inference co-location; when MPS is enabled, sets per-client CUDA_MPS_PINNED_DEVICE_MEM_LIMIT and profiles with MPS disabled — place/package under MPS, not inventing a singleton axis or farm numbers.**
 Kubernetes-native middleware for training/inference co-location; when MPS is enabled, sets per-client CUDA_MPS_PINNED_DEVICE_MEM_LIMIT and profiles with MPS disabled — place/package under MPS, not inventing a singleton axis or farm numbers.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [ElastiCo: Elastic Configuration and Interference-Aware Orchestration for GPU Clusters](https://arxiv.org/abs/2608.07971) — Wang, Zhou, Sun, Hu et al. 2026
 
 ### EnclaveX: End-to-End Confidential AI with CPU/GPU TEEs · `directional` · craft
 **End-to-end CPU+GPU TEEs with **confidential containers** on Kubernetes and NVIDIA Hopper/H200 confidential GPU via CVM-contained driver — confidential package boundary deepen, not a new catalog axis.**
 End-to-end CPU+GPU TEEs with **confidential containers** on Kubernetes and NVIDIA Hopper/H200 confidential GPU via CVM-contained driver — confidential package boundary deepen, not a new catalog axis.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [EnclaveX: End-to-End Confidential AI with CPU/GPU TEEs](https://arxiv.org/abs/2606.31408) — Schambach, Le, Arnautov, Fetzer 2026
 
 ### Gaps (on-page) · `directional` · craft
-**Refresh auto-path misses MIG geometry changes; CDI schema v0.7.0 vs old engines needs feature-flag; no toolkit page equates generate to Blackwell compute readiness. Do not invent axis.**
-Refresh auto-path misses MIG geometry changes; CDI schema v0.7.0 vs old engines needs feature-flag; no toolkit page equates generate to Blackwell compute readiness. Do not invent axis.
+**Refresh auto-path misses MIG geometry changes; CDI schema v0.7.0 vs old engines needs feature-flag; no toolkit page equates generate to Blackwell compute readiness.**
+Refresh auto-path misses MIG geometry changes; CDI schema v0.7.0 vs old engines needs feature-flag; no toolkit page equates generate to Blackwell compute readiness.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 
 ### Gaps vs still-current package catalog · `directional` · craft
-**Meta Gaps: CTK **1.20.0** + Docker CDI default **28.2** + Compose nvidia path; Axis invented: 0; Numbers invented: 0 — no invent axis/numbers.**
-Meta Gaps: CTK **1.20.0** + Docker CDI default **28.2** + Compose nvidia path; Axis invented: 0; Numbers invented: 0 — no invent axis/numbers.
+**Meta Gaps: CTK **1.20.0** + Docker CDI default **28.2** + Compose nvidia path;.**
+Meta Gaps: CTK **1.20.0** + Docker CDI default **28.2** + Compose nvidia path;.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 
 ### Getting Started with MIG · `directional` · craft
 ****B200** MIG: CUDA 12, driver **R570≥570.133.20**; **RTX PRO Blackwell** editions: R575+. Container path: CTK ≥v2.5.0-era; `NVIDIA_VISIBLE_DEVICES` / `--gpus` MIG UUID formats. **MPS+MIG:** per-MIG `CUDA_MPS_PIPE_DIRECTORY`; EXCLUSIVE_PROCESS not with MIG.**
 **B200** MIG: CUDA 12, driver **R570≥570.133.20**; **RTX PRO Blackwell** editions: R575+. Container path: CTK ≥v2.5.0-era; `NVIDIA_VISIBLE_DEVICES` / `--gpus` MIG UUID formats. **MPS+MIG:** per-MIG `CUDA_MPS_PIPE_DIRECTORY`; EXCLUSIVE_PROCESS not with MIG.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [Getting Started with MIG](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/getting-started-with-mig.html)
 
 ### Getting Started with MIG · `directional` · craft
 **MIG container path: Container Toolkit / nvidia-docker2 **v2.5.0+**; B200/R570 floors on-page — MIG container currency, not invent axis.**
 MIG container path: Container Toolkit / nvidia-docker2 **v2.5.0+**; B200/R570 floors on-page — MIG container currency, not invent axis.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [Getting Started with MIG](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/getting-started-with-mig.html) — NVIDIA
 
 ### HPC Containers for EBRAINS: Towards Portable Cross-Domain Software Environment · `directional` · craft
 **GPU containers still bind host drivers/libraries (ABI across boundary); deliberately builds against older **CUDA 12.2** for newer host drivers — CUDA currency / ABI gate without crowning an axis.**
 GPU containers still bind host drivers/libraries (ABI across boundary); deliberately builds against older **CUDA 12.2** for newer host drivers — CUDA currency / ABI gate without crowning an axis.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [HPC Containers for EBRAINS: Towards Portable Cross-Domain Software Environment](https://arxiv.org/abs/2603.12044)
 
 ### Install guide · `directional` · craft
 **UNVERIFIED install-guide 1.20.0-1 pin — do not treat as verified. Pin packages `NVIDIA_CONTAINER_TOOLKIT_VERSION=1.20.0-1`; `nvidia-ctk runtime configure --runtime=docker` rewrites daemon.json. Podman: prefer CDI. Config: `nvidia-ctk config --in-place --set …`.**
 UNVERIFIED install-guide 1.20.0-1 pin — do not treat as verified. Pin packages `NVIDIA_CONTAINER_TOOLKIT_VERSION=1.20.0-1`; `nvidia-ctk runtime configure --runtime=docker` rewrites daemon.json. Podman: prefer CDI. Config: `nvidia-ctk config --in-place --set …`.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [Install guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
 
 ### K8s schedule GPUs · `directional` · craft
@@ -318,8 +318,8 @@ Expose vendor device resources (nvidia.com/gpu) and schedule via limits=requests
 **GPU-aware K8s inference simulator on MicroK8s + single NVIDIA GPU; contrasts default **HPA** (CPU/memory) vs GPU metrics via Prometheus/DCGM Exporter — autoscaling currency for containerized GPU services.**
 GPU-aware K8s inference simulator on MicroK8s + single NVIDIA GPU; contrasts default **HPA** (CPU/memory) vs GPU metrics via Prometheus/DCGM Exporter — autoscaling currency for containerized GPU services.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [KIS-S: A GPU-Aware Kubernetes Inference Simulator with RL-Based Auto-Scaling](https://arxiv.org/abs/2507.07932) — Zhang, Guo, Tan, Guan, Jiang 2025
 
 ### Kubernetes Resource Quotas — GPU capacity caps · `directional` · analog
@@ -334,32 +334,32 @@ Hard requests.nvidia.com/gpu caps are absolute.
 **MIG on Ampere/Hopper/**Blackwell**; contrasts MPS SM-share vs MIG isolated compute+memory; B100/B200 keep A100/H100-style MIG slice limits — MIG schedule craft under reconfiguration constraints.**
 MIG on Ampere/Hopper/**Blackwell**; contrasts MPS SM-share vs MIG isolated compute+memory; B100/B200 keep A100/H100-style MIG slice limits — MIG schedule craft under reconfiguration constraints.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [Leveraging Multi-Instance GPUs through moldable task scheduling](https://arxiv.org/abs/2507.13601)
 
 ### MIG User Guide · `directional` · craft
 **Analog: partition GPU into **isolated** instances with dedicated compute/memory. Holds for place craft when isolation is required. Limit: MIG hardware profiles ≠ Compose syntax alone.**
 Analog: partition GPU into **isolated** instances with dedicated compute/memory. Holds for place craft when isolation is required. Limit: MIG hardware profiles ≠ Compose syntax alone.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [MIG User Guide](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/index.html)
 
 ### MedFoundationHub: A Lightweight and Secure Toolkit for Deploying Medical Vision Language Foundation Models · `directional` · craft
 **On-prem VLM toolkit with **Docker-orchestrated** inference/workload plane (Dockerfile to isolated containers) on a single NVIDIA workstation GPU — package surface is containerized local deploy, not a new decisive axis.**
 On-prem VLM toolkit with **Docker-orchestrated** inference/workload plane (Dockerfile to isolated containers) on a single NVIDIA workstation GPU — package surface is containerized local deploy, not a new decisive axis.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [MedFoundationHub: A Lightweight and Secure Toolkit for Deploying Medical Vision Language Foundation Models](https://arxiv.org/abs/2508.20345) — Li, Zhu, Deng, Wei et al. 2025
 
 ### Multi-Process Service (MPS) · `directional` · craft
 **Analog: **shared** co-operative CUDA multi-process scheduling for utilization. Holds as the share/time-slice class adjacent to place. Limit: MPS share ≠ MIG isolation guarantees.**
 Analog: **shared** co-operative CUDA multi-process scheduling for utilization. Holds as the share/time-slice class adjacent to place. Limit: MPS share ≠ MIG isolation guarantees.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [Multi-Process Service (MPS)](https://docs.nvidia.com/deploy/mps/index.html)
 
 ### NVIDIA CDI support · `directional` · craft
@@ -374,16 +374,16 @@ From toolkit v1.12.0 CDI specs; v1.18.0 nvidia-cdi-refresh auto-writes nvidia.ya
 **Analog: from toolkit v1.12.0, `nvidia-ctk cdi generate` writes host-driver injection (`nvidia.com/gpu=…`, MIG names). Holds for toolkit-currency → CDI → runtime. Limit: generate on host ≠ image-baked drivers.**
 Analog: from toolkit v1.12.0, `nvidia-ctk cdi generate` writes host-driver injection (`nvidia.com/gpu=…`, MIG names). Holds for toolkit-currency → CDI → runtime. Limit: generate on host ≠ image-baked drivers.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [NVIDIA CDI support](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html)
 
 ### NVIDIA CDI support (analog) · `directional` · craft
 **Analog: CDI generate **v1.12.0**; nvidia-cdi-refresh **v1.18.0**. Holds CDI toolkit inject pin. Limit: generate on host != invent decisive_axis.**
 Analog: CDI generate **v1.12.0**; nvidia-cdi-refresh **v1.18.0**. Holds CDI toolkit inject pin. Limit: generate on host != invent decisive_axis.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [NVIDIA CDI support](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html) — NVIDIA
 
 ### NVIDIA CTK install guide · `directional` · craft
@@ -406,88 +406,88 @@ NVIDIA_IMEX_CHANNELS requests host IMEX channels; CDI validates channel nodes.
 **Docs branded **1.20.0** tip tree — CTK currency pin for still-current docker package path.**
 Docs branded **1.20.0** tip tree — CTK currency pin for still-current docker package path.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/index.html) — NVIDIA
 
 ### NVIDIA Container Toolkit release notes · `directional` · craft
-**Tip **1.20.0**; **1.18.0** JIT-CDI + nvidia-cdi-refresh; **1.19.1** CDI schema **v0.7.0** needs docker>=26.1.0 — dated CTK currency (Axis invented: 0; Numbers invented: 0).**
-Tip **1.20.0**; **1.18.0** JIT-CDI + nvidia-cdi-refresh; **1.19.1** CDI schema **v0.7.0** needs docker>=26.1.0 — dated CTK currency (Axis invented: 0; Numbers invented: 0).
+**Tip **1.20.0**; **1.18.0** JIT-CDI + nvidia-cdi-refresh; **1.19.1** CDI schema **v0.7.0** needs docker>=26.1.0 — dated CTK currency.**
+Tip **1.20.0**; **1.18.0** JIT-CDI + nvidia-cdi-refresh; **1.19.1** CDI schema **v0.7.0** needs docker>=26.1.0 — dated CTK currency.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [NVIDIA Container Toolkit release notes](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/release-notes.html) — NVIDIA
 
 ### NVIDIA k8s-device-plugin · `directional` · craft
 **Analog: DaemonSet advertises/allocates device nodes + health; host driver stays outside the image. Holds for toolkit inject pattern. Limit: cluster plugin ≠ single-host Docker CDI only.**
 Analog: DaemonSet advertises/allocates device nodes + health; host driver stays outside the image. Holds for toolkit inject pattern. Limit: cluster plugin ≠ single-host Docker CDI only.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [NVIDIA k8s-device-plugin](https://github.com/NVIDIA/k8s-device-plugin)
 
 ### Performance Characterization of Containerized DNN Training and Inference on Edge Accelerators · `directional` · craft
 **Compares **Docker** vs bare-metal DNN train/infer on Jetson-class edges; notes CUDA MPS/MIG as related sharing mechanisms — containerization overhead craft without crowning an axis.**
 Compares **Docker** vs bare-metal DNN train/infer on Jetson-class edges; notes CUDA MPS/MIG as related sharing mechanisms — containerization overhead craft without crowning an axis.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [Performance Characterization of Containerized DNN Training and Inference on Edge Accelerators](https://arxiv.org/abs/2312.07220) — Prashanthi, Hegde, Patchava, Das, Simmhan 2023
 
 ### Private LLM Inference on Consumer Blackwell GPUs: A Practical Guide for Cost-Effective Local Deployment in SMEs · `directional` · craft
-**Releases a **Docker image** (vLLM/AIPerf/DCGM stack); requires NVIDIA **driver 570.x+**, **CUDA 12.9**, cuDNN 9.x for NVFP4 on consumer Blackwell — currency pin for image/driver/CUDA match (no invented measured numbers here).**
-Releases a **Docker image** (vLLM/AIPerf/DCGM stack); requires NVIDIA **driver 570.x+**, **CUDA 12.9**, cuDNN 9.x for NVFP4 on consumer Blackwell — currency pin for image/driver/CUDA match (no invented measured numbers here).
+**Releases a **Docker image** (vLLM/AIPerf/DCGM stack); requires NVIDIA **driver 570.x+**, **CUDA 12.9**, cuDNN 9.x for NVFP4 on consumer Blackwell — currency pin for image/driver/CUDA match.**
+Releases a **Docker image** (vLLM/AIPerf/DCGM stack); requires NVIDIA **driver 570.x+**, **CUDA 12.9**, cuDNN 9.x for NVFP4 on consumer Blackwell — currency pin for image/driver/CUDA match.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [Private LLM Inference on Consumer Blackwell GPUs: A Practical Guide for Cost-Effective Local Deployment in SMEs](https://arxiv.org/abs/2601.09527) — Knoop, Holtmann 2026
 
 ### Q-GEAR: Improving quantum simulation framework · `directional` · craft
 **Deploys **Podman** container plus NERSC **NVIDIA public image** for Cuda-Q GPU simulation — Podman/NVIDIA image package path adjacent to Docker toolkit inject.**
 Deploys **Podman** container plus NERSC **NVIDIA public image** for Cuda-Q GPU simulation — Podman/NVIDIA image package path adjacent to Docker toolkit inject.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [Q-GEAR: Improving quantum simulation framework](https://arxiv.org/abs/2504.03967) — Guo, Pan, Balewski 2025
 
 ### Release notes · `directional` · craft
 **UNVERIFIED install-guide 1.20.0-1 pin — do not treat as verified. **1.18.0**: auto CDI refresh systemd + default JIT-CDI. **1.19.1**: CDI schema **v0.7.0** default (needs containerd≥1.7.16 / docker≥26.1 / podman≥5.1); `--feature-flag no-additional-gids-for-device-nodes` for older; MIG `/dev/dri*` injection. **1.20.0**: app-profile hook, WSL2 broader discovery. Generate loads select `config.toml` settings.**
 UNVERIFIED install-guide 1.20.0-1 pin — do not treat as verified. **1.18.0**: auto CDI refresh systemd + default JIT-CDI. **1.19.1**: CDI schema **v0.7.0** default (needs containerd≥1.7.16 / docker≥26.1 / podman≥5.1); `--feature-flag no-additional-gids-for-device-nodes` for older; MIG `/dev/dri*` injection. **1.20.0**: app-profile hook, WSL2 broader discovery. Generate loads select `config.toml` settings.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [Release notes](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/release-notes.html)
 
 ### SPEC CPU 2017 Overview · `directional` · craft
 **Analog: honest data vs marketing hype; SPECspeed != SPECrate. Holds measurement honesty. Limit: SPEC suites != invent tok/s.**
 Analog: honest data vs marketing hype; SPECspeed != SPECrate. Holds measurement honesty. Limit: SPEC suites != invent tok/s.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [SPEC CPU 2017 Overview](https://www.spec.org/cpu2017/Docs/overview.html) — SPEC
 
 ### Scalable APT Malware Classification via Parallel Feature Extraction and GPU-Accelerated Learning · `directional` · craft
 **Repro path: install toolkit then `nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml`, run Podman with `--device nvidia.com/gpu=all` — names **cdi generate** as the compose contract.**
 Repro path: install toolkit then `nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml`, run Podman with `--device nvidia.com/gpu=all` — names **cdi generate** as the compose contract.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [Scalable APT Malware Classification via Parallel Feature Extraction and GPU-Acce](https://arxiv.org/abs/2504.15497)
 
 ### Seekable OCI: Lazy-Loading Container Images via Range-Request Indexing · `directional` · craft
-**SOCI lazy-loads unmodified **OCI** images; production path notes EKS Auto Mode uses SOCI parallel pull for **GPU instances** — image-pull package craft for GPU pods (no invented axis).**
-SOCI lazy-loads unmodified **OCI** images; production path notes EKS Auto Mode uses SOCI parallel pull for **GPU instances** — image-pull package craft for GPU pods (no invented axis).
+**SOCI lazy-loads unmodified **OCI** images; production path notes EKS Auto Mode uses SOCI parallel pull for **GPU instances** — image-pull package craft for GPU pods.**
+SOCI lazy-loads unmodified **OCI** images; production path notes EKS Auto Mode uses SOCI parallel pull for **GPU instances** — image-pull package craft for GPU pods.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [Seekable OCI: Lazy-Loading Container Images via Range-Request Indexing](https://arxiv.org/abs/2607.06868) — Thompson, Mesard, Butler, Rajakumar, Wang 2026
 
 ### Semantic Versioning · `directional` · craft
 **Analog: MAJOR.MINOR.PATCH; MUST NOT mutate released versions. Holds SemVer package pin. Limit: SemVer != invent GB/s.**
 Analog: MAJOR.MINOR.PATCH; MUST NOT mutate released versions. Holds SemVer package pin. Limit: SemVer != invent GB/s.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [Semantic Versioning](https://semver.org/) — semver.org
 
 ### Subedar — nvidia-ctk cdi generate contract · `directional` · craft
@@ -502,32 +502,32 @@ Repro path: nvidia-ctk cdi generate then Podman --device nvidia.com/gpu=all — 
 **CDI generate since **v1.12.0**. From **v1.18.0**: `nvidia-cdi-refresh` writes `/var/run/cdi/nvidia.yaml` on toolkit/driver install/upgrade and reboot. Knobs: `nvidia-ctk cdi list`; manual `nvidia-ctk cdi generate --output=/var/run/cdi/nvidia.yaml`; env overrides in `/etc/nvidia-container-toolkit/nvidia-cdi-refresh.env`. **Known limits:** refresh does **not** handle driver removal or **MIG reconfiguration** — regenerate manually. Devices: `nvidia.com/gpu=all`, `=0`, MIG e.g. `nvidia.com/gpu=1:0`. JIT-CDI + `--disable-hook`.**
 CDI generate since **v1.12.0**. From **v1.18.0**: `nvidia-cdi-refresh` writes `/var/run/cdi/nvidia.yaml` on toolkit/driver install/upgrade and reboot. Knobs: `nvidia-ctk cdi list`; manual `nvidia-ctk cdi generate --output=/var/run/cdi/nvidia.yaml`; env overrides in `/etc/nvidia-container-toolkit/nvidia-cdi-refresh.env`. **Known limits:** refresh does **not** handle driver removal or **MIG reconfiguration** — regenerate manually. Devices: `nvidia.com/gpu=all`, `=0`, MIG e.g. `nvidia.com/gpu=1:0`. JIT-CDI + `--disable-hook`.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [Support for CDI](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html)
 
 ### Support for CDI · `directional` · craft
 **CDI generate since **v1.12.0**; auto refresh **v1.18.0**; example status Fri 2025-06-27; MIG reconfig requires manual regen — CDI pin craft, not invent axis.**
 CDI generate since **v1.12.0**; auto refresh **v1.18.0**; example status Fri 2025-06-27; MIG reconfig requires manual regen — CDI pin craft, not invent axis.
 - **Applies to:** docker; container-runtime; CDI; CTK; package-pin · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen docker still-current package/CDI/CTK. Axis invented: 0. Numbers invented: 0.
-- **Verify:** verdict=unverified | STUDY-063 deepen; Numbers invented: 0
+- **Design implication:** Deepen docker still-current package/CDI/CTK.
+- **Verify:** verdict=unverified | STUDY-063 deepen
 - **Sources:** [Support for CDI](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html) — NVIDIA
 
 ### Taming GPU Underutilization via Static Partitioning and Fine-grained CPU Offloading · `directional` · craft
 **Frames MPS (compute-only partition) vs MIG (compute+memory) as spatial-sharing options with different isolation/flexibility; includes B200 capacity table — underutilization/partition craft, not a singleton axis invent.**
 Frames MPS (compute-only partition) vs MIG (compute+memory) as spatial-sharing options with different isolation/flexibility; includes B200 capacity table — underutilization/partition craft, not a singleton axis invent.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [Taming GPU Underutilization via Static Partitioning and Fine-grained CPU Offload](https://arxiv.org/abs/2604.08451)
 
 ### Troubleshooting · `directional` · craft
 **CDI inject survives cgroup updates better than legacy hook. Generate flags: `--feature-flag no-additional-gids-for-device-nodes`; refresh env `NVIDIA_CTK_CDI_GENERATE_FEATURE_FLAGS=…`.**
 CDI inject survives cgroup updates better than legacy hook. Generate flags: `--feature-flag no-additional-gids-for-device-nodes`; refresh env `NVIDIA_CTK_CDI_GENERATE_FEATURE_FLAGS=…`.
 - **Applies to:** docker; nvidia-ctk; CDI; MIG; MPS · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen wave-06 package/place. Axis invented: 0. Do not invent decisive_axis.
-- **Verify:** verdict=unverified | STUDY-048 deepen; Axis invented: 0
+- **Design implication:** Deepen wave-06 package/place.
+- **Verify:** verdict=unverified | STUDY-048 deepen
 - **Sources:** [Troubleshooting](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/troubleshooting.html)
 
 ### k8s-device-plugin — host inject analog · `directional` · craft

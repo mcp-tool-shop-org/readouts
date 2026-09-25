@@ -50,7 +50,7 @@ blender -b scene.blend -E CYCLES -f 1 -- --cycles-device OPTIX
 ### Cycles Introduction (Manual 4.5 LTS) · `✅ solid` · Blender 4.5 LTS
 **Cycles path-tracing engine docs for 4.5 LTS.**
 - **How:** Cycles-first farms remain the easier headless path.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Cycles Introduction (Manual 4.5 LTS)](https://docs.blender.org/manual/en/4.5/render/cycles/introduction.html) — Cycles 4.5
@@ -80,7 +80,7 @@ scene.cycles.denoiser = 'OPTIX' # RTX 5090: use OptiX
 ### EEVEE Introduction (Manual 4.5 LTS) · `✅ solid` · Blender 4.5 LTS
 **EEVEE realtime engine docs for 4.5 LTS line.**
 - **How:** Pin 4.5 EEVEE Next for headless sprite craft.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [EEVEE Introduction (Manual 4.5 LTS)](https://docs.blender.org/manual/en/4.5/render/eevee/introduction.html) — EEVEE 4.5
@@ -216,8 +216,8 @@ scene.render.resolution_percentage = 100
 
 ### Freestyle NPR introduction — hold-with-limit · `▸ plausible` · Blender 4.5 LTS
 **Edge/line-based NPR silhouette/crease → Line Style.**
-- **How:** Classic vector-line NPR; not GP strokes; keep 4.x pin (do not invent 5.x from latest URL).
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **How:** Classic vector-line NPR; not GP strokes; keep 4.x pin.
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (plausible):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Freestyle NPR introduction — hold-with-limit](https://docs.blender.org/manual/en/latest/render/freestyle/introduction.html) — Freestyle NPR

@@ -140,11 +140,11 @@ ROCm is AMD's open compute stack and the direct counterpart to NVIDIA's CUDA Too
 - **Repo:** https://github.com/ROCm/ROCm
 
 ### Ansor: Generating High-Performance Tensor Programs for Deep Learning · `situational` · experimental
-Hierarchical search space for tensor programs beyond hand templates — MLC-class compilers inherit. Invented tok/s: 0.
+Hierarchical search space for tensor programs beyond hand templates — MLC-class compilers inherit.
 - **Dev:** Zheng, Jia, Sun et al. · **Type:** paper-guide · **Lang:** see source · **Released:** 2020
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [Ansor: Generating High-Performance Tensor Programs for Deep Learning](https://arxiv.org/abs/2006.06762) — Ansor hierarchical tensor-program search
 
@@ -161,20 +161,20 @@ An open ML compiler framework with a cross-level design — TensorIR at the tens
 - **Repo:** https://github.com/apache/tvm
 
 ### Learning to Optimize Tensor Programs (AutoTVM) · `situational` · experimental
-Learned cost-model search over tensor-program schedules — hardware-aware kernel tuning adjacent to compile-then-serve. Invented tok/s: 0.
+Learned cost-model search over tensor-program schedules — hardware-aware kernel tuning adjacent to compile-then-serve.
 - **Dev:** Chen, Zheng, Yan et al. · **Type:** paper-guide · **Lang:** see source · **Released:** 2018
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [Learning to Optimize Tensor Programs (AutoTVM)](https://arxiv.org/abs/1805.08166) — AutoTVM learned cost-model search
 
 ### MATCH: Model-Aware TVM-based Compilation for Heterogeneous Edge Devices · `situational` · experimental
-TVM + hardware cost-model DSE for heterogeneous targets — adjacent to bytefit loadout planning; do not flip 143.
+TVM + hardware cost-model DSE for heterogeneous targets — adjacent to bytefit loadout planning
 - **Dev:** Hamdi, Daghero, Sarda et al. · **Type:** paper-guide · **Lang:** see source · **Released:** 2024
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [MATCH: Model-Aware TVM-based Compilation for Heterogeneous Edge Devices](https://arxiv.org/abs/2410.08855) — MATCH hardware cost-model DSE
 
@@ -183,7 +183,7 @@ Hold: compiler/runtime compile-serve pattern for MLC-class engines. Limit: docs 
 - **Dev:** MLC · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [MLC Compile Model Libraries (hold)](https://llm.mlc.ai/docs/compilation/compile_models.html) — convert_weight→gen_config→compile→deploy
 
@@ -192,61 +192,61 @@ Hold: compile-then-run stack honesty. Limit: install docs ≠ native-Windows Bla
 - **Dev:** MLC · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** Apache-2.0 — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [MLC Install TVM Compiler (hold)](https://llm.mlc.ai/docs/install/tvm.html) — TVM toolchain prerequisite before serve
 
 ### MLC LLM install docs — CUDA 12.8/13 wheels · `situational` · experimental
-Official install: nightly wheels for CPU / CUDA 12.8 / CUDA 13.0 / ROCm / Vulkan. Existence/surface only — engine 12 MLC-LLM stays verified=0. No invented tok/s.
+Official install: nightly wheels for CPU / CUDA 12.8 / CUDA 13.0 / ROCm / Vulkan. Existence/surface only.
 - **Dev:** MLC · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** Apache-2.0 — commercial: **check**. STUDY-018 reopen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** Apache-2.0 — commercial: **check**. STUDY-018 reopen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [MLC LLM install docs — CUDA 12.8/13 wheels](https://llm.mlc.ai/docs/install/mlc_llm.html) — MLC install
 
 ### Relax: Composable Abstractions for End-to-End Dynamic Machine Learning · `situational` · experimental
-Cross-level Relax IR with symbolic shapes — graph/TensorIR unification used by MLC-LLM compilation. Invented tok/s: 0.
+Cross-level Relax IR with symbolic shapes — graph/TensorIR unification used by MLC-LLM compilation.
 - **Dev:** Lai, Shao, Feng et al. · **Type:** paper-guide · **Lang:** see source · **Released:** 2023
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [Relax: Composable Abstractions for End-to-End Dynamic Machine Learning](https://arxiv.org/abs/2311.02103) — Relax IR symbolic shapes
 
 ### TVM: An Automated End-to-End Optimizing Compiler for Deep Learning · `situational` · experimental
-Apache TVM substrate literature floor for MLC-LLM compile-serve (engine 12). No flip. No invent tok/s.
+Apache TVM substrate literature floor for MLC-LLM compile-serve (engine 12).
 - **Dev:** Chen, Moreau, Jiang et al. · **Type:** paper-guide · **Lang:** see source · **Released:** 2018
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [TVM: An Automated End-to-End Optimizing Compiler for Deep Learning](https://arxiv.org/abs/1802.04799) — TVM end-to-end DL compiler
 
 ### Tensor Program Optimization with Probabilistic Programs (MetaSchedule) · `situational` · experimental
-Probabilistic programming abstraction for modular tensor-program search — auto-tuning under TVM Unity. Invented tok/s: 0.
+Probabilistic programming abstraction for modular tensor-program search — auto-tuning under TVM Unity.
 - **Dev:** Shao, Zhou, Feng et al. · **Type:** paper-guide · **Lang:** see source · **Released:** 2022
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [Tensor Program Optimization with Probabilistic Programs (MetaSchedule)](https://arxiv.org/abs/2205.13603) — MetaSchedule probabilistic search
 
 ### TensorIR: An Abstraction for Automatic Tensorized Program Optimization · `situational` · experimental
-Block-based IR for tensorized primitives — TVM Unity / MLC kernel-level compile path. Invented tok/s: 0.
+Block-based IR for tensorized primitives — TVM Unity / MLC kernel-level compile path.
 - **Dev:** Feng, Hou, Jin et al. · **Type:** paper-guide · **Lang:** see source · **Released:** 2022
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [TensorIR: An Abstraction for Automatic Tensorized Program Optimization](https://arxiv.org/abs/2207.04296) — TensorIR block-based IR
 
 ### Vortex: Sample-Free Dynamic Tensor Program Optimization · `situational` · experimental
-Hardware-aware hierarchical strategy spaces for dynamic-shape tensor programs — no invent tok/s; flips 12/143: 0.
+Hardware-aware hierarchical strategy spaces for dynamic-shape tensor programs
 - **Dev:** Zhou, Zhu, Qiu et al. · **Type:** paper-guide · **Lang:** see source · **Released:** 2024
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [Vortex: Sample-Free Dynamic Tensor Program Optimization](https://arxiv.org/abs/2409.01075) — Vortex hardware-aware strategy spaces
 

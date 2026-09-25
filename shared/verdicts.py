@@ -134,6 +134,24 @@ def adjudicate(overalls: list[str]) -> tuple[int, str, str]:
     return 0, "directional", f"only {confirms} of {seats} juror(s) confirmed [{tally}]"
 
 
+def note_with_corrections(note: str, corrections: dict | None) -> str:
+    """The verifier's note, led by what it corrected.
+
+    A `corrected` verdict means the entry holds only after the corrections the verifier
+    recorded. Four loaders kept the note and dropped the corrections, so 116 corrected
+    entries read as if the verifier had passed them unchanged. One of them was a godot
+    gotcha the verifier called actively harmful, still shown under a "solid" badge
+    (found 2026-09-25). The correction goes first because it is what changes the advice.
+    """
+    if not corrections:
+        return note
+    parts = [corrections["claim"]] if corrections.get("claim") else []
+    parts += [f"{k}: {corrections[k]}" for k in ("authors", "year", "citation_id") if corrections.get(k)]
+    if not parts:
+        return note
+    return f"CORRECTED: {' · '.join(parts)} · {note}" if note else f"CORRECTED: {' · '.join(parts)}"
+
+
 class Verdicts:
     """Resolver for one KB. Ledger first, then the wave file's verifier block."""
 

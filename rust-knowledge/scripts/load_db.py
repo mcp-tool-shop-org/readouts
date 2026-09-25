@@ -41,7 +41,7 @@ DB = os.path.join(ROOT, "rust.db")
 SCHEMA = os.path.join(ROOT, "schema.sql")
 
 sys.path.insert(0, os.path.join(os.path.dirname(ROOT), "shared"))
-from verdicts import Verdicts  # noqa: E402
+from verdicts import Verdicts, note_with_corrections  # noqa: E402
 
 STATUS_BY_CURRENCY = {"solid": "recommended", "plausible": "recommended", "shaky": "situational",
                       "stale": "avoid", "wrong": "avoid"}
@@ -123,11 +123,12 @@ def main(path):
         for t in lane.get("recipes") or []:
             slug, name = t["slug"], t["name"]
             currency = ((t.get("currency") or "").strip().lower()) or None
-            verified, vstatus, vnote, _ = verd.for_entry(slug, name)
+            verified, vstatus, vnote, corr = verd.for_entry(slug, name)
             # The ledger note already carries the verifier's words (and any compile-gate failure); the
             # wave file's copy is only a fallback for a row the ledger has never seen.
             own = (t.get("verify_note") or "").strip()
             note = vnote if vnote and not vnote.startswith("no external verdict") else (own or vnote)
+            note = note_with_corrections(note, corr)
             if vstatus in ("avoid", "directional"):
                 status = vstatus
             else:

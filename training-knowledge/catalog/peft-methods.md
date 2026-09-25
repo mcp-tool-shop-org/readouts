@@ -179,20 +179,20 @@ DoRA (Liu et al. 2024, ICML Oral) refines LoRA by first decomposing the pretrain
 
 ### Ostris train_lora_qwen_image_24gb.yaml (sourced 24GB path) · `recommended` · docs
 **Sourced Ostris 24GB-class Qwen-Image LoRA YAML: linear/alpha 16, adamw8bit, lr 1e-4, qtype uint3, low_vram — copy values only.**
-STUDY-034 Practitioner Verifier ✅. Recipes invented: 0. Do not invent other ranks/LRs.
-- **For the pipeline:** STUDY-034 Verifier ✅. Recipes invented: 0. Copy Ostris YAML values only where present.
+STUDY-034 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-034 Verifier ✅. Copy Ostris YAML values only where present.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** recipe
-- **Output license:** commercial **check** — STUDY-034 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-034 deepen
 - **Fit:** rig 4/5 · studio 4/5
 
 **Hyperparameters**
 
 | Param | Value | Req | Note |
 |---|---|---|---|
-| linear | 16 | ● | Ostris YAML sourced — do not invent other ranks |
+| linear | 16 | ● | Ostris YAML sourced |
 | linear_alpha | 16 | ● | Ostris YAML sourced |
 | optimizer | adamw8bit | ● | Ostris YAML sourced |
-| lr | 1e-4 | ● | Ostris YAML sourced — do not invent other LRs |
+| lr | 1e-4 | ● | Ostris YAML sourced |
 | qtype | uint3 | ● | Ostris YAML sourced |
 | low_vram | true | ● | Ostris YAML sourced |
 | cache_text_embeddings | true | ○ | Ostris YAML sourced (required for 24GB on page) |
@@ -233,304 +233,304 @@ Merging is the PEFT-adjacent operation for combining homologous fine-tunes (same
 - **Sources:** [TIES-Merging: Resolving Interference When Merging Models](https://arxiv.org/abs/2306.01708) (Prateek Yadav, Derek Tam, Leshem Choshen, Colin Raffel, Mohit Bansal, 2023) — Merges task-specific models in three steps — reset small-magnitude deltas, resolve sign conflicts by electing a consensus sign, and merge only sign-aligned parameters — addressing interference from redundant values and sign disagreement (NeurIPS 2023). ; [Language Models are Super Mario: Absorbing Abilities from Homologous Models as a Free Lunch (DARE)](https://arxiv.org/abs/2311.03099) (Le Yu, Bowen Yu, Haiyang Yu, Fei Huang, Yongbin Li, 2023) — Delta parameters are extremely redundant (values within ~0.002); DARE drops 90-99% of them and rescales survivors by 1/(1-p) with no performance loss, enabling merges of homologous models that can surpass any source (ICML 2024).
 
 ### A Rank Stabilization Scaling Factor for Fine-Tuning with LoRA · `situational` · paper
-****rsLoRA**: scale by α/√r (vs α/r) so higher ranks remain trainable — rank-scaling honesty for single-GPU PEFT (no invent concrete r).**
-STUDY-054 deepen — **rsLoRA**: scale by α/√r (vs α/r) so higher ranks remain trainable — rank-scaling honesty for single-GPU PEFT (no invent concrete r). Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+****rsLoRA**: scale by α/√r (vs α/r) so higher ranks remain trainable — rank-scaling honesty for single-GPU PEFT.**
+STUDY-054 deepen — **rsLoRA**: scale by α/√r (vs α/r) so higher ranks remain trainable — rank-scaling honesty for single-GPU PEFT.
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
-- **Sources:** [A Rank Stabilization Scaling Factor for Fine-Tuning with LoRA](https://arxiv.org/abs/2312.03732) — **rsLoRA**: scale by α/√r (vs α/r) so higher ranks remain trainable — rank-scaling honesty for single-GPU PEFT (no invent concrete r).
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
+- **Sources:** [A Rank Stabilization Scaling Factor for Fine-Tuning with LoRA](https://arxiv.org/abs/2312.03732) — **rsLoRA**: scale by α/√r (vs α/r) so higher ranks remain trainable — rank-scaling honesty for single-GPU PEFT.
 
 ### A Unified Study of LoRA Variants: Taxonomy, Review, Codebase, and Empirical Evaluation · `situational` · paper
 **Taxonomy along rank / optimization / init / MoE axes + LoRAFactory codebase — map of PEFT variants beyond STUDY-034’s eight without inventing fixed-r schedules.**
-STUDY-054 deepen — Taxonomy along rank / optimization / init / MoE axes + LoRAFactory codebase — map of PEFT variants beyond STUDY-034’s eight without inventing fixed-r schedules. Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — Taxonomy along rank / optimization / init / MoE axes + LoRAFactory codebase — map of PEFT variants beyond STUDY-034’s eight without inventing fixed-r schedules.
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [A Unified Study of LoRA Variants: Taxonomy, Review, Codebase, and Empirical Eval](https://arxiv.org/abs/2601.22708) — Taxonomy along rank / optimization / init / MoE axes + LoRAFactory codebase — map of PEFT variants beyond STUDY-034’s eight without inventing fixed-r schedules.
 
 ### AdaLoRA adaptive rank budget (Zhang et al. 2023) · `situational` · paper
 **Dynamic singular-value importance pruning reallocates rank budget — not a fixed-r recipe invent.**
-STUDY-034 Scholar deepen — AdaLoRA (2303.10512). Recipes invented: 0.
-- **For the pipeline:** STUDY-034 Verifier ✅. Recipes invented: 0. Copy Ostris YAML values only where present.
+STUDY-034 Scholar deepen — AdaLoRA (2303.10512).
+- **For the pipeline:** STUDY-034 Verifier ✅. Copy Ostris YAML values only where present.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-034 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-034 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Verify:** OPERATOR PRISM ACCEPT PRISM-ACCEPT-P2 (arXiv 2303.10512 AdaLoRA)
 - **Sources:** [AdaLoRA](https://arxiv.org/abs/2303.10512) — Adaptive budget allocation for PEFT.
 
 ### Kustomize kustomization overlays · `situational` · paper
 **Analog: declare diffs over a base; don’t silently rewrite. Holds for documenting 32GB deltas only when sourced — else keep 24GB path labeled. Limit: K8s overlays ≠ Ostris job schema.**
-STUDY-054 deepen — Analog: declare diffs over a base; don’t silently rewrite. Holds for documenting 32GB deltas only when sourced — else keep 24GB path labeled. Limit: K8s overlay Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — Analog: declare diffs over a base; don’t silently rewrite. Holds for documenting 32GB deltas only when sourced — else keep 24GB path labeled. Limit: K8s overlay
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [Kustomize kustomization overlays](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/) — Analog: declare diffs over a base; don’t silently rewrite. Holds for documenting 32GB deltas only when sourced — else keep 24GB path labeled. Limit: K8s overlays ≠ Ostris job schema.
 
 ### Learning Rate Matters — LoRA LR retuning · `situational` · paper
 **Across LoRA variants and ranks, accuracy gaps collapse under LR sweeps; advanced variants need different LR bands than vanilla LoRA — rank claims without LR retuning are not load-bearing.**
 Across LoRA variants and ranks, accuracy gaps collapse under LR sweeps; advanced variants need different LR bands than vanilla LoRA — rank claims without LR retuning are not load-bearing.
-- **For the pipeline:** STUDY-009 Verifier-verified. Do not invent recipes. Do not flip technique rows.
+- **For the pipeline:** STUDY-009 Verifier-verified. Do not flip technique rows.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-019 reopen; verified=0. Invented recipes: 0.
+- **Output license:** commercial **check** — STUDY-019 reopen; verified=0.
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [Learning Rate Matters — LoRA LR retuning](https://arxiv.org/abs/2602.04998) — Across LoRA variants and ranks, accuracy gaps collapse under LR sweeps; advanced variants need different LR bands than vanilla LoRA — rank claims without LR retuning are not load-bearing.
 
 ### Learning Rate Matters: Vanilla LoRA May Suffice for LLM Fine-tuning · `situational` · paper
-**Across LoRA variants, accuracy gaps collapse under proper LR sweeps; advanced variants need different LR ranges — LR-first honesty vs crowning a new rank recipe (no invent studio LR).**
-STUDY-054 deepen — Across LoRA variants, accuracy gaps collapse under proper LR sweeps; advanced variants need different LR ranges — LR-first honesty vs crowning a new rank recipe Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+**Across LoRA variants, accuracy gaps collapse under proper LR sweeps; advanced variants need different LR ranges — LR-first honesty vs crowning a new rank recipe.**
+STUDY-054 deepen — Across LoRA variants, accuracy gaps collapse under proper LR sweeps; advanced variants need different LR ranges — LR-first honesty vs crowning a new rank recipe
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
-- **Sources:** [Learning Rate Matters: Vanilla LoRA May Suffice for LLM Fine-tuning](https://arxiv.org/abs/2602.04998) — Across LoRA variants, accuracy gaps collapse under proper LR sweeps; advanced variants need different LR ranges — LR-first honesty vs crowning a new rank recipe (no invent studio LR).
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
+- **Sources:** [Learning Rate Matters: Vanilla LoRA May Suffice for LLM Fine-tuning](https://arxiv.org/abs/2602.04998) — Across LoRA variants, accuracy gaps collapse under proper LR sweeps; advanced variants need different LR ranges — LR-first honesty vs crowning a new rank recipe.
 
 ### LoFT — LoRA that behaves like full fine-tuning · `situational` · paper
-**Aligns optimizer internal moments so low-rank updates behave closer to full fine-tuning; evaluated vs LoRA/DoRA. Do not invent recipes.**
-Aligns optimizer internal moments so low-rank updates behave closer to full fine-tuning; evaluated vs LoRA/DoRA. Do not invent recipes.
-- **For the pipeline:** STUDY-009 Verifier-verified. Do not invent recipes. Do not flip technique rows.
+**Aligns optimizer internal moments so low-rank updates behave closer to full fine-tuning; evaluated vs LoRA/DoRA.**
+Aligns optimizer internal moments so low-rank updates behave closer to full fine-tuning; evaluated vs LoRA/DoRA.
+- **For the pipeline:** STUDY-009 Verifier-verified. Do not flip technique rows.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-019 reopen; verified=0. Invented recipes: 0.
+- **Output license:** commercial **check** — STUDY-019 reopen; verified=0.
 - **Fit:** rig 4/5 · studio 4/5
-- **Sources:** [LoFT — LoRA that behaves like full fine-tuning](https://arxiv.org/abs/2505.21289) — Aligns optimizer internal moments so low-rank updates behave closer to full fine-tuning; evaluated vs LoRA/DoRA. Do not invent recipes.
+- **Sources:** [LoFT — LoRA that behaves like full fine-tuning](https://arxiv.org/abs/2505.21289) — Aligns optimizer internal moments so low-rank updates behave closer to full fine-tuning; evaluated vs LoRA/DoRA.
 
 ### LoFT: Low-Rank Adaptation That Behaves Like Full Fine-Tuning · `situational` · paper
 **Aligns optimizer internal moments so low-rank updates behave closer to full FT — PEFT–FT gap craft without inventing studio hyperparameters.**
-STUDY-054 deepen — Aligns optimizer internal moments so low-rank updates behave closer to full FT — PEFT–FT gap craft without inventing studio hyperparameters. Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — Aligns optimizer internal moments so low-rank updates behave closer to full FT — PEFT–FT gap craft without inventing studio hyperparameters.
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [LoFT: Low-Rank Adaptation That Behaves Like Full Fine-Tuning](https://arxiv.org/abs/2505.21289) — Aligns optimizer internal moments so low-rank updates behave closer to full FT — PEFT–FT gap craft without inventing studio hyperparameters.
 
 ### LoRA Dropout as a Sparsity Regularizer for Overfitting Control · `situational` · paper
-**Dropout noise on low-rank matrices as sparsity regularizer; also applies with AdaLoRA — overfitting-control PEFT craft for small single-GPU sets (no invent dropout rates as studio recipe).**
-STUDY-054 deepen — Dropout noise on low-rank matrices as sparsity regularizer; also applies with AdaLoRA — overfitting-control PEFT craft for small single-GPU sets (no invent drop Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+**Dropout noise on low-rank matrices as sparsity regularizer; also applies with AdaLoRA — overfitting-control PEFT craft for small single-GPU sets.**
+STUDY-054 deepen — Dropout noise on low-rank matrices as sparsity regularizer; also applies with AdaLoRA — overfitting-control PEFT craft for small single-GPU sets
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
-- **Sources:** [LoRA Dropout as a Sparsity Regularizer for Overfitting Control](https://arxiv.org/abs/2404.09610) — Dropout noise on low-rank matrices as sparsity regularizer; also applies with AdaLoRA — overfitting-control PEFT craft for small single-GPU sets (no invent dropout rates as studio recipe).
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
+- **Sources:** [LoRA Dropout as a Sparsity Regularizer for Overfitting Control](https://arxiv.org/abs/2404.09610) — Dropout noise on low-rank matrices as sparsity regularizer; also applies with AdaLoRA — overfitting-control PEFT craft for small single-GPU sets.
 
 ### LoRA learns less and forgets less (Biderman et al. 2024) · `situational` · paper
 **LoRA underfits vs full FT but forgets less — plasticity/stability trade; no recipe invent.**
-STUDY-034 Scholar deepen — 2405.09673. Recipes invented: 0.
-- **For the pipeline:** STUDY-034 Verifier ✅. Recipes invented: 0. Copy Ostris YAML values only where present.
+STUDY-034 Scholar deepen — 2405.09673.
+- **For the pipeline:** STUDY-034 Verifier ✅. Copy Ostris YAML values only where present.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-034 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-034 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [LoRA Learns Less and Forgets Less](https://arxiv.org/abs/2405.09673) — LoRA underfits and forgets less vs full FT.
 
 ### LoRA+ asymmetric learning rates (Hayou et al. 2024) · `situational` · paper
 **Asymmetric LRs for A vs B stabilize/accelerate LoRA — LR-as-first-class PEFT knob; no studio schedule invent.**
-STUDY-034 Scholar deepen — LoRA+ (2402.12354). Recipes invented: 0.
-- **For the pipeline:** STUDY-034 Verifier ✅. Recipes invented: 0. Copy Ostris YAML values only where present.
+STUDY-034 Scholar deepen — LoRA+ (2402.12354).
+- **For the pipeline:** STUDY-034 Verifier ✅. Copy Ostris YAML values only where present.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-034 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-034 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [LoRA+](https://arxiv.org/abs/2402.12354) — Asymmetric LR for LoRA A/B matrices.
 
 ### LoRA-GA: Low-Rank Adaptation with Gradient Approximation · `situational` · paper
 **SVD-on-gradient initialization aligning BA gradients with full-weight gradients — init-axis PEFT peer to PiSSA without inventing ranks.**
-STUDY-054 deepen — SVD-on-gradient initialization aligning BA gradients with full-weight gradients — init-axis PEFT peer to PiSSA without inventing ranks. Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — SVD-on-gradient initialization aligning BA gradients with full-weight gradients — init-axis PEFT peer to PiSSA without inventing ranks.
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [LoRA-GA: Low-Rank Adaptation with Gradient Approximation](https://arxiv.org/abs/2407.05000) — SVD-on-gradient initialization aligning BA gradients with full-weight gradients — init-axis PEFT peer to PiSSA without inventing ranks.
 
 ### LoRA-Pro: Are Low-Rank Adapters Properly Optimized? · `situational` · paper
 **Adjusts LoRA matrix gradients so the implied low-rank update better approximates full-FT gradients — optimization-process PEFT deepen beyond LoRA+.**
-STUDY-054 deepen — Adjusts LoRA matrix gradients so the implied low-rank update better approximates full-FT gradients — optimization-process PEFT deepen beyond LoRA+. Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — Adjusts LoRA matrix gradients so the implied low-rank update better approximates full-FT gradients — optimization-process PEFT deepen beyond LoRA+.
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [LoRA-Pro: Are Low-Rank Adapters Properly Optimized?](https://arxiv.org/abs/2407.18242) — Adjusts LoRA matrix gradients so the implied low-rank update better approximates full-FT gradients — optimization-process PEFT deepen beyond LoRA+.
 
 ### PEFT LoRA conceptual guide (`LoraConfig` r / `lora_alpha`) · `situational` · paper
 **Analog: rank/alpha are coupled scaling knobs (`alpha/r` or RSLoRA). Holds for **PEFT inheritance limits** — change only with measured/docs source. Limit: HF PEFT ≠ Ostris YAML keys.**
-STUDY-054 deepen — Analog: rank/alpha are coupled scaling knobs (`alpha/r` or RSLoRA). Holds for **PEFT inheritance limits** — change only with measured/docs source. Limit: HF PEF Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — Analog: rank/alpha are coupled scaling knobs (`alpha/r` or RSLoRA). Holds for **PEFT inheritance limits** — change only with measured/docs source. Limit: HF PEF
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [PEFT LoRA conceptual guide (`LoraConfig` r / `lora_alpha`)](https://huggingface.co/docs/peft/main/en/conceptual_guides/lora) — Analog: rank/alpha are coupled scaling knobs (`alpha/r` or RSLoRA). Holds for **PEFT inheritance limits** — change only with measured/docs source. Limit: HF PEFT ≠ Ostris YAML keys.
 
 ### PEFT LoraConfig package ref · `situational` · paper
 **Usage example `r=16`, `lora_alpha=16`; API defaults `r: int = 8`, `lora_alpha: int = 8`; LoRA-FA sample `r=128`, `lora_alpha=32`, `lr=7e-5`.**
-STUDY-054 deepen — Usage example `r=16`, `lora_alpha=16`; API defaults `r: int = 8`, `lora_alpha: int = 8`; LoRA-FA sample `r=128`, `lora_alpha=32`, `lr=7e-5`. Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — Usage example `r=16`, `lora_alpha=16`; API defaults `r: int = 8`, `lora_alpha: int = 8`; LoRA-FA sample `r=128`, `lora_alpha=32`, `lr=7e-5`.
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [PEFT LoraConfig package ref](https://huggingface.co/docs/peft/main/en/package_reference/lora) — Usage example `r=16`, `lora_alpha=16`; API defaults `r: int = 8`, `lora_alpha: int = 8`; LoRA-FA sample `r=128`, `lora_alpha=32`, `lr=7e-5`.
 
 ### PiSSA principal-subspace adapter init (Meng et al. 2024) · `situational` · paper
 **SVD principal-subspace init of adapters vs random LoRA init — initialization axis; no fixed-r invent.**
-STUDY-034 Scholar deepen — PiSSA (2404.02948). Recipes invented: 0.
-- **For the pipeline:** STUDY-034 Verifier ✅. Recipes invented: 0. Copy Ostris YAML values only where present.
+STUDY-034 Scholar deepen — PiSSA (2404.02948).
+- **For the pipeline:** STUDY-034 Verifier ✅. Copy Ostris YAML values only where present.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-034 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-034 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [PiSSA](https://arxiv.org/abs/2404.02948) — Principal singular subspace adapter init.
 
 ### Semantic Versioning 2.0.0 · `situational` · paper
 **Analog: MAJOR/incompatible change must be explicit. Holds: retargeting a **24GB** YAML to **32GB** without a sourced overlay is a silent incompatible claim. Limit: SemVer ≠ trainer CLI flags.**
-STUDY-054 deepen — Analog: MAJOR/incompatible change must be explicit. Holds: retargeting a **24GB** YAML to **32GB** without a sourced overlay is a silent incompatible claim. Lim Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — Analog: MAJOR/incompatible change must be explicit. Holds: retargeting a **24GB** YAML to **32GB** without a sourced overlay is a silent incompatible claim.
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [Semantic Versioning 2.0.0](https://semver.org/) — Analog: MAJOR/incompatible change must be explicit. Holds: retargeting a **24GB** YAML to **32GB** without a sourced overlay is a silent incompatible claim. Limit: SemVer ≠ trainer CLI flags.
 
 ### TsqLoRA — sensitivity and quality LoRA · `situational` · paper
 **Couples quality-aware data sampling with sensitivity-guided dynamic rank allocation; PEFT that ignores data informativeness underperforms at low rank/low data.**
 Couples quality-aware data sampling with sensitivity-guided dynamic rank allocation; PEFT that ignores data informativeness underperforms at low rank/low data.
-- **For the pipeline:** STUDY-009 Verifier-verified. Do not invent recipes. Do not flip technique rows.
+- **For the pipeline:** STUDY-009 Verifier-verified. Do not flip technique rows.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-019 reopen; verified=0. Invented recipes: 0.
+- **Output license:** commercial **check** — STUDY-019 reopen; verified=0.
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [TsqLoRA — sensitivity and quality LoRA](https://arxiv.org/abs/2509.18585) — Couples quality-aware data sampling with sensitivity-guided dynamic rank allocation; PEFT that ignores data informativeness underperforms at low rank/low data.
 
 ### TsqLoRA: Towards Sensitivity and Quality Low-Rank Adaptation for Efficient Fine-Tuning · `situational` · paper
 **Quality-aware data sampling + **sensitivity-guided dynamic rank** per layer — adaptive-rank PEFT craft (not a fixed 5090 r invent).**
-STUDY-054 deepen — Quality-aware data sampling + **sensitivity-guided dynamic rank** per layer — adaptive-rank PEFT craft (not a fixed 5090 r invent). Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — Quality-aware data sampling + **sensitivity-guided dynamic rank** per layer — adaptive-rank PEFT craft (not a fixed 5090 r invent).
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [TsqLoRA: Towards Sensitivity and Quality Low-Rank Adaptation for Efficient Fine-](https://arxiv.org/abs/2509.18585) — Quality-aware data sampling + **sensitivity-guided dynamic rank** per layer — adaptive-rank PEFT craft (not a fixed 5090 r invent).
 
 ### Twelve-Factor App III. Config · `situational` · paper
 **Analog: config is source of truth, separated from code/folklore. Holds for Ostris YAML-as-SoT over chat “try rank 64” advice. Limit: 12factor env config ≠ diffusion LoRA graph.**
-STUDY-054 deepen — Analog: config is source of truth, separated from code/folklore. Holds for Ostris YAML-as-SoT over chat “try rank 64” advice. Limit: 12factor env config ≠ diffu Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — Analog: config is source of truth, separated from code/folklore. Holds for Ostris YAML-as-SoT over chat “try rank 64” advice. Limit: 12factor env config ≠ diffu
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 Analogist #1 UNVERIFIED — do not land as verified; recipes invented: 0
+- **Verify:** STUDY-054 Analogist #1 UNVERIFIED — do not land as verified
 - **Sources:** [Twelve-Factor App III. Config](https://12factor.net/config) — Analog: config is source of truth, separated from code/folklore. Holds for Ostris YAML-as-SoT over chat “try rank 64” advice. Limit: 12factor env config ≠ diffusion LoRA graph.
 
 ### Unified Study of LoRA Variants — taxonomy · `situational` · paper
 **Unified taxonomy (rank-adjust / optimization-adjust / init-adjust / MoE-integration) plus shared codebase consolidating AdaLoRA, LoRA+, PiSSA, LoRA-GA peers. No new technique invent beyond catalog.**
 Unified taxonomy (rank-adjust / optimization-adjust / init-adjust / MoE-integration) plus shared codebase consolidating AdaLoRA, LoRA+, PiSSA, LoRA-GA peers. No new technique invent beyond catalog.
-- **For the pipeline:** STUDY-009 Verifier-verified. Do not invent recipes. Do not flip technique rows.
+- **For the pipeline:** STUDY-009 Verifier-verified. Do not flip technique rows.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-019 reopen; verified=0. Invented recipes: 0.
+- **Output license:** commercial **check** — STUDY-019 reopen; verified=0.
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [Unified Study of LoRA Variants — taxonomy](https://arxiv.org/abs/2601.22708) — Unified taxonomy (rank-adjust / optimization-adjust / init-adjust / MoE-integration) plus shared codebase consolidating AdaLoRA, LoRA+, PiSSA, LoRA-GA peers. No new technique invent beyond catalog.
 
 ### Unsloth LoRA Hyperparameters Guide · `situational` · paper
 **Table: LoRA Rank **8, 16, 32, 64, 128** (“Choose 16 or 32”); normal LoRA/QLoRA LR start **`2e-4`**; alpha = `r` or `r*2`.**
-STUDY-054 deepen — Table: LoRA Rank **8, 16, 32, 64, 128** (“Choose 16 or 32”); normal LoRA/QLoRA LR start **`2e-4`**; alpha = `r` or `r*2`. Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — Table: LoRA Rank **8, 16, 32, 64, 128** (“Choose 16 or 32”); normal LoRA/QLoRA LR start **`2e-4`**; alpha = `r` or `r*2`.
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [Unsloth LoRA Hyperparameters Guide](https://docs.unsloth.ai/get-started/fine-tuning-llms-guide/lora-hyperparameters-guide) — Table: LoRA Rank **8, 16, 32, 64, 128** (“Choose 16 or 32”); normal LoRA/QLoRA LR start **`2e-4`**; alpha = `r` or `r*2`.
 
 ### VeRA vector-based random matrix adaptation (Kopiczko et al. 2023) · `situational` · paper
 **Frozen shared random matrices + tiny trainable vectors; extreme PEFT memory lane; no rank invent.**
-STUDY-034 Scholar deepen — VeRA (2310.11454). Recipes invented: 0.
-- **For the pipeline:** STUDY-034 Verifier ✅. Recipes invented: 0. Copy Ostris YAML values only where present.
+STUDY-034 Scholar deepen — VeRA (2310.11454).
+- **For the pipeline:** STUDY-034 Verifier ✅. Copy Ostris YAML values only where present.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-034 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-034 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [VeRA](https://arxiv.org/abs/2310.11454) — Vector-based random matrix adaptation.
 
 ### What Happens to the License When You Fine‑Tune a Model · `situational` · paper
 **Analog: LoRA adapters inherit base license. Holds for PEFT inheritance audit on commercial bases. Limit: commentary ≠ inventing hparams.**
-STUDY-054 deepen — Analog: LoRA adapters inherit base license. Holds for PEFT inheritance audit on commercial bases. Limit: commentary ≠ inventing hparams. Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — Analog: LoRA adapters inherit base license. Holds for PEFT inheritance audit on commercial bases. Limit: commentary ≠ inventing hparams.
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [What Happens to the License When You Fine‑Tune a Model](https://wcr.legal/fine-tuned-model-license/) — Analog: LoRA adapters inherit base license. Holds for PEFT inheritance audit on commercial bases. Limit: commentary ≠ inventing hparams.
 
 ### `train_lora_qwen_image_24gb.yaml` · `situational` · paper
 **Analog: named 24GB example pins `linear`/`linear_alpha` 16, `adamw8bit`, `uint3`, `low_vram`, cache TE. Holds: cite this file only; **do not invent 5090 ranks**. Limit: filename is 24GB-class — not a silent 32GB recipe.**
-STUDY-054 deepen — Analog: named 24GB example pins `linear`/`linear_alpha` 16, `adamw8bit`, `uint3`, `low_vram`, cache TE. Holds: cite this file only; **do not invent 5090 ranks** Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — Analog: named 24GB example pins `linear`/`linear_alpha` 16, `adamw8bit`, `uint3`, `low_vram`, cache TE. Holds: cite this file only; **do not invent 5090 ranks**
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [`train_lora_qwen_image_24gb.yaml`](https://github.com/ostris/ai-toolkit/blob/main/config/examples/train_lora_qwen_image_24gb.yaml) — Analog: named 24GB example pins `linear`/`linear_alpha` 16, `adamw8bit`, `uint3`, `low_vram`, cache TE. Holds: cite this file only; **do not invent 5090 ranks**. Limit: filename is 24GB-class — not a
 
 ### kohya train_network.md · `situational` · paper
 **Example `--network_dim=16`, `--network_alpha=1`, `--learning_rate=1e-4`, `--optimizer_type="AdamW8bit"`; dim commonly 4–128 (page range, not a recipe invent).**
-STUDY-054 deepen — Example `--network_dim=16`, `--network_alpha=1`, `--learning_rate=1e-4`, `--optimizer_type="AdamW8bit"`; dim commonly 4–128 (page range, not a recipe invent). Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — Example `--network_dim=16`, `--network_alpha=1`, `--learning_rate=1e-4`, `--optimizer_type="AdamW8bit"`; dim commonly 4–128 (page range, not a recipe invent).
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [kohya train_network.md](https://github.com/kohya-ss/sd-scripts/blob/main/docs/train_network.md) — Example `--network_dim=16`, `--network_alpha=1`, `--learning_rate=1e-4`, `--optimizer_type="AdamW8bit"`; dim commonly 4–128 (page range, not a recipe invent).
 
 ### train_lora_chroma_24gb.yaml · `situational` · paper
 **`linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `arch: chroma`, `quantize: true`.**
-STUDY-054 deepen — `linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `arch: chroma`, `quantize: true`. Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — `linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `arch: chroma`, `quantize: true`.
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [train_lora_chroma_24gb.yaml](https://github.com/ostris/ai-toolkit/blob/main/config/examples/train_lora_chroma_24gb.yaml) — `linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `arch: chroma`, `quantize: true`.
 
 ### train_lora_flex_24gb.yaml · `situational` · paper
 **`linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `bypass_guidance_embedding: true`.**
-STUDY-054 deepen — `linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `bypass_guidance_embedding: true`. Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — `linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `bypass_guidance_embedding: true`.
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [train_lora_flex_24gb.yaml](https://github.com/ostris/ai-toolkit/blob/main/config/examples/train_lora_flex_24gb.yaml) — `linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `bypass_guidance_embedding: true`.
 
 ### train_lora_flux_24gb.yaml · `situational` · paper
 **`linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `adamw8bit`, `quantize: true` (8bit MP).**
-STUDY-054 deepen — `linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `adamw8bit`, `quantize: true` (8bit MP). Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — `linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `adamw8bit`, `quantize: true` (8bit MP).
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [train_lora_flux_24gb.yaml](https://github.com/ostris/ai-toolkit/blob/main/config/examples/train_lora_flux_24gb.yaml) — `linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `adamw8bit`, `quantize: true` (8bit MP).
 
 ### train_lora_qwen_image_edit_32gb.yaml · `situational` · paper
 **`linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `adamw8bit`; comments: **caching text embeddings required for 32GB**, **3bit (`uint3|…`) required for 32GB**, `low_vram: true`.**
-STUDY-054 deepen — `linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `adamw8bit`; comments: **caching text embeddings required for 32GB**, **3bit (`uint3|…`) required for 32GB**, `low Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — `linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `adamw8bit`; comments: **caching text embeddings required for 32GB**, **3bit (`uint3|…`) required for 32GB**, `low
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [train_lora_qwen_image_edit_32gb.yaml](https://github.com/ostris/ai-toolkit/blob/main/config/examples/train_lora_qwen_image_edit_32gb.yaml) — `linear: 16`, `linear_alpha: 16`, `lr: 1e-4`, `adamw8bit`; comments: **caching text embeddings required for 32GB**, **3bit (`uint3/…`) required for 32GB**, `low_vram: true`.
 
 ### train_lora_wan22_14b_24gb.yaml · `situational` · paper
 **`linear: 32`, `linear_alpha: 32`, `lr: 1e-4`, `weight_decay: 1e-4`; `cache_text_embeddings: true` + `low_vram` / `uint4|…ARA` for 24GB-class path.**
-STUDY-054 deepen — `linear: 32`, `linear_alpha: 32`, `lr: 1e-4`, `weight_decay: 1e-4`; `cache_text_embeddings: true` + `low_vram` / `uint4|…ARA` for 24GB-class path. Recipes invented: 0.
-- **For the pipeline:** STUDY-054. Recipes invented: 0. Cite Ostris YAML / PEFT on-page ranks only. Do not invent 5090 ranks.
+STUDY-054 deepen — `linear: 32`, `linear_alpha: 32`, `lr: 1e-4`, `weight_decay: 1e-4`; `cache_text_embeddings: true` + `low_vram` / `uint4|…ARA` for 24GB-class path.
+- **For the pipeline:** STUDY-054. Cite Ostris YAML / PEFT on-page ranks only.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-054 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-054 deepen
 - **Fit:** rig 3/5 · studio 3/5
-- **Verify:** STUDY-054 deepen; recipes invented: 0; Analogist #1 unverified if present
+- **Verify:** STUDY-054 deepen; Analogist #1 unverified if present
 - **Sources:** [train_lora_wan22_14b_24gb.yaml](https://github.com/ostris/ai-toolkit/blob/main/config/examples/train_lora_wan22_14b_24gb.yaml) — `linear: 32`, `linear_alpha: 32`, `lr: 1e-4`, `weight_decay: 1e-4`; `cache_text_embeddings: true` + `low_vram` / `uint4/…ARA` for 24GB-class path.
 

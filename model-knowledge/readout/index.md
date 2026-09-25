@@ -2,7 +2,7 @@
 
 > Verified knowledge base of the best local generative-AI MODELS per purpose (image / edit / control / video / 3D / audio / LLM / caption) for the RTX 5090 rig — commercial-license-first.
 >
-> **129 models · 126 verified · 553 sources · 19 waves · generated 2026-09-14.**  
+> **129 models · 126 verified · 553 sources · 19 waves · generated 2026-09-25.**  
 > Decisive axis: commercial license (a LoRA/asset inherits its base model's license) + fits 32 GB VRAM.
 
 ## Domains

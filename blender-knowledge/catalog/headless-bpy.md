@@ -90,7 +90,7 @@ _blender --background --python, the bpy API (ops/data/context), CLI render flags
 ### A Scalable Pipeline Combining Procedural 3D Graphics and Guided Diffusion… · `✅ solid` · Blender 4.5 LTS
 **Blender remains the geometry/render backend in hybrid farms.**
 - **How:** Pin 4.x camera/farm craft; no 5.x invent.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [A Scalable Pipeline Combining Procedural 3D Graphics and Guided Diffusion…](https://arxiv.org/abs/2512.08747) — A Scalable Pipeline Combining Procedural 3D Graphics and Guided Diffusion…
@@ -98,7 +98,7 @@ _blender --background --python, the bpy API (ops/data/context), CLI render flags
 ### Blendify — Python rendering framework for Blender · `✅ solid` · Blender 4.5 LTS
 **Lightweight Python high-level API over Blender for scene creation and ray-traced rendering.**
 - **How:** Reduces bpy friction for automated CV/CG batch renders.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Blendify — Python rendering framework for Blender](https://arxiv.org/abs/2410.17858) — Blendify headless API
@@ -153,7 +153,7 @@ bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
 ### Kubric — scalable Blender/Cycles dataset generator · `✅ solid` · Blender 4.5 LTS
 **Parallel Blender/Cycles dataset farm; cites bpy install/version variation pain.**
 - **How:** API-stability / farm-packaging pole for headless bpy.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Kubric — scalable Blender/Cycles dataset generator](https://arxiv.org/abs/2203.03570) — Kubric farm packaging
@@ -161,7 +161,7 @@ bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
 ### MAPS — Blender on-demand camera/lighting farm · `✅ solid` · Blender 4.5 LTS
 **Blender-based rendering under continuous camera/lighting/background factors.**
 - **How:** Parametric camera farm adjacent to multi-azimuth turnaround.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [MAPS — Blender on-demand camera/lighting farm](https://arxiv.org/abs/2605.20549) — MAPS camera farm
@@ -169,7 +169,7 @@ bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
 ### Perret-Gentil EEVEE Docker GPU / EGL notes · `✅ solid` · Blender 4.5 LTS
 **EEVEE headless needs EGL/ICD; bare Docker fails.**
 - **How:** ICD required for EEVEE headless.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Perret-Gentil EEVEE Docker GPU / EGL notes](https://c.pgdm.ch/notes/eevee-docker-gpu/) — EEVEE+EGL ICD
@@ -198,7 +198,7 @@ bpy.ops.render.render(write_still=True)
 ### RenderSettings.engine / film_transparent (API 4.5) · `✅ solid` · Blender 4.5 LTS
 **Default engine BLENDER_EEVEE_NEXT; film_transparent for alpha sheets.**
 - **How:** Alpha sprite sheets need film_transparent on.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [RenderSettings.engine / film_transparent (API 4.5)](https://docs.blender.org/api/4.5/bpy.types.RenderSettings.html) — EEVEE_NEXT + film_transparent
@@ -216,7 +216,7 @@ Argument ORDER is critical: Blender executes flags left-to-right. Set -o (output
 ### ScratchSim — BlenderProc synthetic scratch pipeline · `✅ solid` · Blender 4.5 LTS
 **Large-scale annotated synthetic data via BlenderProc with camera modes + domain randomization.**
 - **How:** BlenderProc as modular batch-render pipeline layer.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [ScratchSim — BlenderProc synthetic scratch pipeline](https://arxiv.org/abs/2607.27065) — BlenderProc batch layer
@@ -240,7 +240,7 @@ print([e.bl_idname for e in bpy.types.RenderEngine.__subclasses__()])
 ### SpatialEdit — Blender camera-trajectory batch render · `✅ solid` · Blender 4.5 LTS
 **Controllable Blender pipeline with systematic camera trajectories for SpatialEdit-500k.**
 - **How:** Camera-path batching for viewpoint grids.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [SpatialEdit — Blender camera-trajectory batch render](https://arxiv.org/abs/2604.04911) — SpatialEdit camera trajectories
@@ -264,7 +264,7 @@ When loading a.blend file explicitly (blender --background myfile.blend --python
 ### SynSacc: A Blender-to-V2E Pipeline for Synthetic Neuromorphic Eye-Movement Data · `✅ solid` · Blender 4.5 LTS
 **shows Blender as the first stage of multi-stage offline farm pipelines.**
 - **How:** Pin 4.x camera/farm craft; no 5.x invent.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [SynSacc: A Blender-to-V2E Pipeline for Synthetic Neuromorphic Eye-Movement Data](https://arxiv.org/abs/2602.08726) — SynSacc: A Blender-to-V2E Pipeline for Synthetic Neuromorphic Eye-Movement Data
@@ -272,7 +272,7 @@ When loading a.blend file explicitly (blender --background myfile.blend --python
 ### T85546 — Grease Pencil headless abort · `✅ solid` · Blender 4.5 LTS
 **GP stroke objects requiring OpenGL/display abort blender -b.**
 - **How:** Live GP fails headless without bake/pack first.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [T85546 — Grease Pencil headless abort](https://archive.blender.org/developer/maniphest/0085/0085546/index.html) — Live GP headless needs bake
@@ -280,7 +280,7 @@ When loading a.blend file explicitly (blender --background myfile.blend --python
 ### Tips and Tricks — no UI / background python (API 4.5) · `✅ solid` · Blender 4.5 LTS
 **Documented farm pattern blender --background --python.**
 - **How:** Matches 8-dir turnaround scripts.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Tips and Tricks — no UI / background python (API 4.5)](https://docs.blender.org/api/4.5/info_tips_and_tricks.html) — background --python
@@ -288,7 +288,7 @@ When loading a.blend file explicitly (blender --background myfile.blend --python
 ### Visual Deformation Detection Using Soft Material Simulation for Pre-training… · `✅ solid` · Blender 4.5 LTS
 **scripted bpy batch viewpoints without GUI.**
 - **How:** Pin 4.x camera/farm craft; no 5.x invent.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Visual Deformation Detection Using Soft Material Simulation for Pre-training…](https://arxiv.org/abs/2405.14877) — Visual Deformation Detection Using Soft Material Simulation for Pre-training…
@@ -312,7 +312,7 @@ bpy.ops.render.render(write_still=True) # Prefer bpy.data over bpy.ops for data 
 ### bpy.ops.render — write_still (API 4.5) · `✅ solid` · Blender 4.5 LTS
 **render() with write_still saves to scene render filepath.**
 - **How:** Script-side still dump per camera angle.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [bpy.ops.render — write_still (API 4.5)](https://docs.blender.org/api/4.5/bpy.ops.render.html) — bpy.ops.render.write_still
@@ -320,7 +320,7 @@ bpy.ops.render.render(write_still=True) # Prefer bpy.data over bpy.ops for data 
 ### Command-line render (Manual latest) — claim holds · `▸ plausible` · Blender 4.5 LTS
 **-b background render without graphical display.**
 - **How:** CLI contract; x as KB target from latest URL.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (plausible):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Command-line render (Manual latest) — claim holds](https://docs.blender.org/manual/en/latest/advanced/command_line/render.html) — -b background render
@@ -351,7 +351,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### 3DCodeBench: Benchmarking Agentic Procedural 3D Modeling Via Code · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Instantiates the operator on **Blender 5.0**; failures mostly from API mismatches; Experience Library catalogs Blender 5.0 syntax changes and migration rules from older versions — explicit 5.0 pin + cross-major break surface (not a silent 4.x patch).**
 - **How:** Literature on Blender version pin vs 5.x; no silent upgrade invent.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [3DCodeBench: Benchmarking Agentic Procedural 3D Modeling Via Code](https://arxiv.org/abs/2606.01057) — Instantiates the operator on **Blender 5.0**; failures mostly from API mismatches; Experience Library catalogs Blender 5.0 syntax changes and migration rules from older versions — explicit 5.0 pin + c
@@ -359,7 +359,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### APOLLO Blender: A Robotics Library for Visualization and Animation in Blender · `⚠ shaky` · Blender 4.x pin (still-current)
 **APOLLO Blender robotics viz/animation library — UNVERIFIED claim mismatch on still-current pin-4.x; land verified=false.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 APOLLO UNVERIFIED claim mismatch; verified=false; Pin 4.x [no external verdict — not checked]
 - **Sources:** [APOLLO Blender: A Robotics Library for Visualization and Animation in Blender](https://arxiv.org/abs/2512.23103) — APOLLO Blender robotics viz/animation library — UNVERIFIED claim mismatch on still-current pin-4.x; land verified=false.
@@ -367,7 +367,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Bioinspired123D: Generative 3D Modeling System for Bioinspired Structures · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Dataset/validation runs **Blender 4.2 LTS** with bpy; render engine **Eevee Next**; headless Blender subprocess validates scripts — explicit 4.2 LTS + EEVEE Next headless pin (not 5.0).**
 - **How:** Literature on Blender version pin vs 5.x; no silent upgrade invent.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Bioinspired123D: Generative 3D Modeling System for Bioinspired Structures](https://arxiv.org/abs/2603.29592) — Dataset/validation runs **Blender 4.2 LTS** with bpy; render engine **Eevee Next**; headless Blender subprocess validates scripts — explicit 4.2 LTS + EEVEE Next headless pin (not 5.0).
@@ -375,7 +375,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender 4.5 CLI arguments · `⚠ shaky` · Blender 4.x pin (still-current)
 **CLI -b/-P/--python-expr on 4.5 — headless knobs for pinned farm; silent 4→5: 0.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [Blender 4.5 CLI arguments](https://docs.blender.org/manual/en/4.5/advanced/command_line/arguments.html) — CLI -b/-P/--python-expr on 4.5 — headless knobs for pinned farm; silent 4→5: 0.
@@ -383,7 +383,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender 4.5 CLI render · `⚠ shaky` · Blender 4.x pin (still-current)
 **CLI render order on 4.5 — left-to-right; -f/-a last; dated currency for pin-4.x.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [Blender 4.5 CLI render](https://docs.blender.org/manual/en/4.5/advanced/command_line/render.html) — CLI render order on 4.5 — left-to-right; -f/-a last; dated currency for pin-4.x.
@@ -391,7 +391,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender 4.5 LTS product · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **4.5 LTS: ~2 years updates (to Jul 2027 per dev notes), full Vulkan support. Positions 4.5 as the long-support companion vs jumping major.**
 - **How:** Official 4.5 LTS vs 5.0 docs; -b/-P stay; logging/color/EEVEE id breaks.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Blender 4.5 LTS product](https://www.blender.org/download/releases/4-5/) — 4.5 LTS: ~2 years updates (to Jul 2027 per dev notes), full Vulkan support. Positions 4.5 as the long-support companion vs jumping major.
@@ -399,7 +399,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender 4.5 LTS product (analog) · `⚠ shaky` · Blender 4.x pin (still-current)
 **Analog 4.5-product LTS pin; Hold dated still-current 4.x. Limit: product page not silent-upgrade license.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [Blender 4.5 LTS product (analog)](https://www.blender.org/download/releases/4-5/) — Analog 4.5-product LTS pin; Hold dated still-current 4.x. Limit: product page not silent-upgrade license.
@@ -407,7 +407,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender 4.5 LTS product page · `⚠ shaky` · Blender 4.x pin (still-current)
 **4.5 LTS product notes — long-support pin; contrast 5.2 current stable naming.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [Blender 4.5 LTS product page](https://www.blender.org/download/releases/4-5/) — 4.5 LTS product notes — long-support pin; contrast 5.2 current stable naming.
@@ -415,7 +415,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender 4.5 Manual · `⚠ shaky` · Blender 4.x pin (still-current)
 **Manual 4.5 — dated docs currency for pinned 4.x farm; 5.2 named current stable elsewhere.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [Blender 4.5 Manual](https://docs.blender.org/manual/en/4.5/) — Manual 4.5 — dated docs currency for pinned 4.x farm; 5.2 named current stable elsewhere.
@@ -423,7 +423,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender 4.5 Release Notes (dev) · `⚠ shaky` · Blender 4.x pin (still-current)
 **4.5 LTS release notes — dated 4.5 currency; not a silent jump to 5.x.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [Blender 4.5 Release Notes (dev)](https://developer.blender.org/docs/release_notes/4.5/) — 4.5 LTS release notes — dated 4.5 currency; not a silent jump to 5.x.
@@ -431,7 +431,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender 5.0 Core · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Unified logger; background render progress format changed. Replacements on page: `--debug-cycles` → `--log cycles`; `--debug-ffmpeg` → `--log video`; `--verbose` → `--log-level [info|debug|trace]`. Farm parsers that scrape old progress lines break.**
 - **How:** Official 4.5 LTS vs 5.0 docs; -b/-P stay; logging/color/EEVEE id breaks.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Blender 5.0 Core](https://developer.blender.org/docs/release_notes/5.0/core/) — Unified logger; background render progress format changed. Replacements on page: `--debug-cycles` → `--log cycles`; `--debug-ffmpeg` → `--log video`; `--verbose` → `--log-level [info/debug/trace]`. Fa
@@ -439,7 +439,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender 5.0 EEVEE & Viewport · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Breaking: Light Probe Volume backface meaning fix; View Layer Overrides change older renders; engine id `BLENDER_EEVEE_NEXT` → `BLENDER_EEVEE`; curves `resolution` now honored (can 15× geometry vs 4.5). Color/HDR path also backend-dependent.**
 - **How:** Official 4.5 LTS vs 5.0 docs; -b/-P stay; logging/color/EEVEE id breaks.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Blender 5.0 EEVEE & Viewport](https://developer.blender.org/docs/release_notes/5.0/eevee/) — Breaking: Light Probe Volume backface meaning fix; View Layer Overrides change older renders; engine id `BLENDER_EEVEE_NEXT` → `BLENDER_EEVEE`; curves `resolution` now honored (can 15× geometry vs 4.5
@@ -447,7 +447,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender 5.0 Release Notes · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Analog (currency): major 5.0 with Compatibility section / listed breaks. Holds: not a silent 4.x patch; pin turnaround on 4.x until a dedicated 5.x wave. Limit: release notes ≠ farm runbook rewrite.**
 - **How:** Adjacent SemVer/LTS/migration hold-with-limit; 5.0-as-patch omitted.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Blender 5.0 Release Notes](https://developer.blender.org/docs/release_notes/5.0/) — Analog (currency): major 5.0 with Compatibility section / listed breaks. Holds: not a silent 4.x patch; pin turnaround on 4.x until a dedicated 5.x wave. Limit: release notes ≠ farm runbook rewrite.
@@ -455,7 +455,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender 5.0 Release Notes (breaks) · `⚠ shaky` · Blender 4.x pin (still-current)
 **Analog 5.0 listed Compatibility breaks; Hold treat as major migrate not patch. Limit: 5.0 notes not invent silent 4→5.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [Blender 5.0 Release Notes (breaks)](https://developer.blender.org/docs/release_notes/5.0/) — Analog 5.0 listed Compatibility breaks; Hold treat as major migrate not patch. Limit: 5.0 notes not invent silent 4→5.
@@ -463,7 +463,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender 5.0 Release Notes (dev) · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Major release with listed Compatibility breaks (name length 255, big-endian gone, Intel Mac gone, Collada gone, GPU mins, theme API rewrite, blend compression default). Not framed as a silent 4.x patch.**
 - **How:** Official 4.5 LTS vs 5.0 docs; -b/-P stay; logging/color/EEVEE id breaks.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Blender 5.0 Release Notes (dev)](https://developer.blender.org/docs/release_notes/5.0/) — Major release with listed Compatibility breaks (name length 255, big-endian gone, Intel Mac gone, Collada gone, GPU mins, theme API rewrite, blend compression default). Not framed as a silent 4.x patc
@@ -471,7 +471,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender 5.0 product notes · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Recaps color-management/HDR/wide-gamut overhaul (ACES views, Working Color Space, AgX HDR) plus EEVEE/Cycles feature and requirement changes. Pipeline must treat version as explicit pin.**
 - **How:** Official 4.5 LTS vs 5.0 docs; -b/-P stay; logging/color/EEVEE id breaks.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Blender 5.0 product notes](https://www.blender.org/download/releases/5-0/) — Recaps color-management/HDR/wide-gamut overhaul (ACES views, Working Color Space, AgX HDR) plus EEVEE/Cycles feature and requirement changes. Pipeline must treat version as explicit pin.
@@ -479,7 +479,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender LTS downloads · `⚠ shaky` · Blender 4.x pin (still-current)
 **LTS download page — production pin target; 4.5 LTS line for still-current farms.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [Blender LTS downloads](https://www.blender.org/download/lts/) — LTS download page — production pin target; 4.5 LTS line for still-current farms.
@@ -487,7 +487,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender Python API 4.5 · `⚠ shaky` · Blender 4.x pin (still-current)
 **bpy API 4.5 — headless script surface for pin-4.x; do not float to 5.x silently.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [Blender Python API 4.5](https://docs.blender.org/api/4.5/) — bpy API 4.5 — headless script surface for pin-4.x; do not float to 5.x silently.
@@ -495,7 +495,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blender Release Notes index · `⚠ shaky` · Blender 4.x pin (still-current)
 **Dev release-notes index — dated currency surface for major/minor lines; pin 4.x still-current vs 5.x.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [Blender Release Notes index](https://developer.blender.org/docs/release_notes/) — Dev release-notes index — dated currency surface for major/minor lines; pin 4.x still-current vs 5.x.
@@ -503,7 +503,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### BlenderRAG: High-Fidelity 3D Object Generation via Retrieval-Augmented Code Synthesis · `⚠ shaky` · Blender 4.x pin (still-current)
 **BlenderRAG RAG over curated Blender code examples raises compile success — code-synthesis deepen on pinned 4.x; no silent major bump.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [BlenderRAG: High-Fidelity 3D Object Generation via Retrieval-Augmented Code Synthesis](https://arxiv.org/abs/2605.00632) — BlenderRAG RAG over curated Blender code examples raises compile success — code-synthesis deepen on pinned 4.x; no silent major bump.
@@ -511,7 +511,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Blendify -- Python rendering framework for Blender · `⚠ shaky` · Blender 4.x pin (still-current)
 **Blendify: lightweight Python framework over Blender bpy for scene creation/rendering — deepens headless pin-4.x stack; not a silent 4→5 bump.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [Blendify -- Python rendering framework for Blender](https://arxiv.org/abs/2410.17858) — Blendify: lightweight Python framework over Blender bpy for scene creation/rendering — deepens headless pin-4.x stack; not a silent 4→5 bump.
@@ -519,7 +519,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### CLI-Anything: Towards Agent-Native Computer Use · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Headless Blender binary runs generated bpy render scripts; EEVEE path is version-tolerant: newer builds select `BLENDER_EEVEE_NEXT`, while **Blender 4.0** still selects `BLENDER_EEVEE` — engine-enum break across the 4.0→EEVEE-Next pin.**
 - **How:** Literature on Blender version pin vs 5.x; no silent upgrade invent.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [CLI-Anything: Towards Agent-Native Computer Use](https://arxiv.org/abs/2606.03854) — Headless Blender binary runs generated bpy render scripts; EEVEE path is version-tolerant: newer builds select `BLENDER_EEVEE_NEXT`, while **Blender 4.0** still selects `BLENDER_EEVEE` — engine-enum b
@@ -527,7 +527,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Calendar Versioning (CalVer) · `⚠ shaky` · Blender 4.x pin (still-current)
 **Analog CalVer date-stamped currency; Hold still-current-as-of labels. Limit: stamp not invent-5.x wave.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [Calendar Versioning (CalVer)](https://calver.org/) — Analog CalVer date-stamped currency; Hold still-current-as-of labels. Limit: stamp not invent-5.x wave.
@@ -535,7 +535,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Command Line Arguments · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Headless knobs on page: `-b`/`--background`, `-P`/`--python`, `--python-expr`, `--factory-startup`, `--` pass-through; Cycles `--cycles-device` after `--`; Logging `--log` / `--log-level` (numeric); Debug still lists `--debug-cycles`.**
 - **How:** Official 4.5 LTS vs 5.0 docs; -b/-P stay; logging/color/EEVEE id breaks.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Command Line Arguments](https://docs.blender.org/manual/en/4.5/advanced/command_line/arguments.html) — Headless knobs on page: `-b`/`--background`, `-P`/`--python`, `--python-expr`, `--factory-startup`, `--` pass-through; Cycles `--cycles-device` after `--`; Logging `--log` / `--log-level` (numeric); D
@@ -543,7 +543,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Command Line Arguments · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Same stay: `-b`, `-P`, `--python-expr`, `--factory-startup`, `--`, `--cycles-device`. Logging section rewritten (named `--log-level` fatal|error|warning|info|debug|trace; `--log-list-categories`; `--log-show-memory`/`--log-show-source`). `--debug-cycles` moved under Other Options (compat note elsewhere maps it to `--log cycles`). Format list drops AVI RAW/JPEG vs 4.5 page.**
 - **How:** Official 4.5 LTS vs 5.0 docs; -b/-P stay; logging/color/EEVEE id breaks.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Command Line Arguments](https://docs.blender.org/manual/en/5.0/advanced/command_line/arguments.html) — Same stay: `-b`, `-P`, `--python-expr`, `--factory-startup`, `--`, `--cycles-device`. Logging section rewritten (named `--log-level` fatal/error/warning/info/debug/trace; `--log-list-categories`; `--l
@@ -551,7 +551,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Dockerfile `FROM` image@digest · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Analog: pin by digest (immutable) rather than a floating tag. Holds for farm images/binaries pinned to exact Blender 4.x builds. Limit: container digest ≠ `.blend` forward-compat.**
 - **How:** Adjacent SemVer/LTS/migration hold-with-limit; 5.0-as-patch omitted.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Dockerfile `FROM` image@digest](https://docs.docker.com/reference/dockerfile/#from) — Analog: pin by digest (immutable) rather than a floating tag. Holds for farm images/binaries pinned to exact Blender 4.x builds. Limit: container digest ≠ `.blend` forward-compat.
@@ -559,7 +559,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### EZBlender: Efficient 3D Editing with Plan-and-ReAct Agent · `⚠ shaky` · Blender 4.x pin (still-current)
 **EZBlender Plan-and-ReAct Blender editing agent — agentic bpy deepen; pin 4.x; silent 4→5: 0.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [EZBlender: Efficient 3D Editing with Plan-and-ReAct Agent](https://arxiv.org/abs/2601.07143) — EZBlender Plan-and-ReAct Blender editing agent — agentic bpy deepen; pin 4.x; silent 4→5: 0.
@@ -567,7 +567,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### From Idea to Co-Creation: A Planner–Actor–Critic Framework for Agent Augmented 3D Modeling · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Agents emit executable Blender Python (`import bpy` / `bpy.ops`) via Blender-MCP without clearing the scene — live bpy automation surface; does not establish a silent 4→5 upgrade.**
 - **How:** Literature on Blender version pin vs 5.x; no silent upgrade invent.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [From Idea to Co-Creation: A Planner–Actor–Critic Framework for Agent Augmented 3](https://arxiv.org/abs/2601.05016) — Agents emit executable Blender Python (`import bpy` / `bpy.ops`) via Blender-MCP without clearing the scene — live bpy automation surface; does not establish a silent 4→5 upgrade.
@@ -575,7 +575,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### How to port Python 2 Code to Python 3 · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Analog: Python 2 EOL → deliberate port, not a quiet upgrade. Holds for treating DCC major bumps as migration projects. Limit: language EOL ≠ Blender file/API break list.**
 - **How:** Adjacent SemVer/LTS/migration hold-with-limit; 5.0-as-patch omitted.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [How to port Python 2 Code to Python 3](https://docs.python.org/3/howto/pyporting.html) — Analog: Python 2 EOL → deliberate port, not a quiet upgrade. Holds for treating DCC major bumps as migration projects. Limit: language EOL ≠ Blender file/API break list.
@@ -583,7 +583,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### MeshCoder: LLM-Powered Structured Mesh Code Generation from Point Clouds · `⚠ shaky` · Blender 4.x pin (still-current)
 **MeshCoder reconstructs point clouds into editable Blender Python scripts — mesh-code deepen; pin 4.x; silent 4→5: 0.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [MeshCoder: LLM-Powered Structured Mesh Code Generation from Point Clouds](https://arxiv.org/abs/2508.14879) — MeshCoder reconstructs point clouds into editable Blender Python scripts — mesh-code deepen; pin 4.x; silent 4→5: 0.
@@ -591,7 +591,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Nimbus: A Unified Embodied Synthetic Data Generation Framework · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Blender backend uses OptiX RT/Tensor cores and **multi-process workers** to bypass the Python GIL that limits standard Blender to one thread — farm-scale headless Cycles/OptiX craft under in-process GIL pressure.**
 - **How:** Literature on Blender version pin vs 5.x; no silent upgrade invent.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Nimbus: A Unified Embodied Synthetic Data Generation Framework](https://arxiv.org/abs/2601.21449) — Blender backend uses OptiX RT/Tensor cores and **multi-process workers** to bypass the Python GIL that limits standard Blender to one thread — farm-scale headless Cycles/OptiX craft under in-process G
@@ -599,7 +599,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Node.js Releases (Current → Active LTS) · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Analog: production pins Active LTS; Current is for library prep. Holds for pinning Blender 4.x LTS (e.g. 4.5) while 5.0 is a new major. Limit: Node odd/even LTS rules ≠ Blender LTS schedule.**
 - **How:** Adjacent SemVer/LTS/migration hold-with-limit; 5.0-as-patch omitted.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Node.js Releases (Current → Active LTS)](https://nodejs.org/en/about/previous-releases) — Analog: production pins Active LTS; Current is for library prep. Holds for pinning Blender 4.x LTS (e.g. 4.5) while 5.0 is a new major. Limit: Node odd/even LTS rules ≠ Blender LTS schedule.
@@ -607,7 +607,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Node.js previous releases (LTS) · `⚠ shaky` · Blender 4.x pin (still-current)
 **Analog Active LTS vs Current; Hold pin Blender 4.x LTS for production farms. Limit: Node LTS not Blender API.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [Node.js previous releases (LTS)](https://nodejs.org/en/about/previous-releases) — Analog Active LTS vs Current; Hold pin Blender 4.x LTS for production farms. Limit: Node LTS not Blender API.
@@ -615,23 +615,23 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Nova3D: Code-Native Generation of Programmable 3D Assets · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Asset = executable Blender Python; compiled via **headless Blender** deterministic operator to GLB — code-native headless bpy farm without claiming a silent major upgrade.**
 - **How:** Literature on Blender version pin vs 5.x; no silent upgrade invent.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Nova3D: Code-Native Generation of Programmable 3D Assets](https://arxiv.org/abs/2607.22738) — Asset = executable Blender Python; compiled via **headless Blender** deterministic operator to GLB — code-native headless bpy farm without claiming a silent major upgrade.
 
 ### ProcFunc: Function-Oriented Abstractions for Procedural 3D Generation in Python · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
-**Blender-based procedural library with atomic bpy primitives plus an **EEVEE** render interface for large-scale dataset generation — EEVEE-as-dataset path on Blender procedural stack (no invented 5.0 pin).**
+**Blender-based procedural library with atomic bpy primitives plus an **EEVEE** render interface for large-scale dataset generation — EEVEE-as-dataset path on Blender procedural stack.**
 - **How:** Literature on Blender version pin vs 5.x; no silent upgrade invent.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
-- **Sources:** [ProcFunc: Function-Oriented Abstractions for Procedural 3D Generation in Python](https://arxiv.org/abs/2604.26943) — Blender-based procedural library with atomic bpy primitives plus an **EEVEE** render interface for large-scale dataset generation — EEVEE-as-dataset path on Blender procedural stack (no invented 5.0 p
+- **Sources:** [ProcFunc: Function-Oriented Abstractions for Procedural 3D Generation in Python](https://arxiv.org/abs/2604.26943) — Blender-based procedural library with atomic bpy primitives plus an **EEVEE** render interface for large-scale dataset generation — EEVEE-as-dataset path on Blender procedural stack
 
 ### Rendering From The Command Line · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Args left-to-right; always put `-f` or `-a` last; wrong order silently ignores output path. Same order rule still documented on 5.0 args page.**
 - **How:** Official 4.5 LTS vs 5.0 docs; -b/-P stay; logging/color/EEVEE id breaks.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Rendering From The Command Line](https://docs.blender.org/manual/en/4.5/advanced/command_line/render.html) — Args left-to-right; always put `-f` or `-a` last; wrong order silently ignores output path. Same order rule still documented on 5.0 args page.
@@ -639,7 +639,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### SceneCode: Executable World Programs for Editable Indoor Scenes with Articulated Objects · `⚠ shaky` · Blender 4.x pin (still-current)
 **SceneCode emits part-wise Blender Python for articulated indoor scenes — executable-world deepen; pin 4.x.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [SceneCode: Executable World Programs for Editable Indoor Scenes with Articulated Objects](https://arxiv.org/abs/2605.19587) — SceneCode emits part-wise Blender Python for articulated indoor scenes — executable-world deepen; pin 4.x.
@@ -647,7 +647,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### SceneCraft: An LLM Agent for Synthesizing 3D Scene as Blender Code · `⚠ shaky` · Blender 4.x pin (still-current)
 **SceneCraft LLM agent emits Blender-executable Python for complex scenes — bpy code-gen deepen; pin 4.x; silent 4→5: 0.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [SceneCraft: An LLM Agent for Synthesizing 3D Scene as Blender Code](https://arxiv.org/abs/2403.01248) — SceneCraft LLM agent emits Blender-executable Python for complex scenes — bpy code-gen deepen; pin 4.x; silent 4→5: 0.
@@ -655,7 +655,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### ScratchSim: A Procedural Synthetic Data Pipeline for Surface Scratch Detection · `⚠ shaky` · Blender 4.x pin (still-current)
 **ScratchSim BlenderProc procedural synthetic scratch data — farm/proc deepen; pin 4.x; silent 4→5: 0.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [ScratchSim: A Procedural Synthetic Data Pipeline for Surface Scratch Detection](https://arxiv.org/abs/2607.27065) — ScratchSim BlenderProc procedural synthetic scratch data — farm/proc deepen; pin 4.x; silent 4→5: 0.
@@ -663,7 +663,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Semantic Versioning 2.0.0 · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Analog: MAJOR = incompatible API changes; PATCH ≠ that. Holds: Blender 5.0 is a major line, not a silent 4.x patch for the sprite farm. Limit: SemVer policy ≠ Blender’s own release cadence labels.**
 - **How:** Adjacent SemVer/LTS/migration hold-with-limit; 5.0-as-patch omitted.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Semantic Versioning 2.0.0](https://semver.org/) — Analog: MAJOR = incompatible API changes; PATCH ≠ that. Holds: Blender 5.0 is a major line, not a silent 4.x patch for the sprite farm. Limit: SemVer policy ≠ Blender’s own release cadence labels.
@@ -671,7 +671,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Semantic Versioning 2.0.0 · `⚠ shaky` · Blender 4.x pin (still-current)
 **Analog SemVer MAJOR=incompatible; Hold pin+cite; silent 4→5 retarget fails. Limit: SemVer not invent 5.x.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [Semantic Versioning 2.0.0](https://semver.org/) — Analog SemVer MAJOR=incompatible; Hold pin+cite; silent 4→5 retarget fails. Limit: SemVer not invent 5.x.
@@ -679,7 +679,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### SimpleProc: Fully Procedural Synthetic Data from Simple Rules for Multi-View Stereo · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Blender data-generation pipeline renders with the **EEVEE** engine for multi-view stereo synthetic data — EEVEE-named farm path adjacent to turnaround sprites (version pin not elevated to 5.0).**
 - **How:** Literature on Blender version pin vs 5.x; no silent upgrade invent.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [SimpleProc: Fully Procedural Synthetic Data from Simple Rules for Multi-View Ste](https://arxiv.org/abs/2604.04925) — Blender data-generation pipeline renders with the **EEVEE** engine for multi-view stereo synthetic data — EEVEE-named farm path adjacent to turnaround sprites (version pin not elevated to 5.0).
@@ -687,7 +687,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Unity LTS (Long Term Support) · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Analog: production locks an LTS line for stability. Holds for blender-knowledge decisive axis Pin 4.x. Limit: Unity commercial LTS packaging ≠ Blender Foundation LTS.**
 - **How:** Adjacent SemVer/LTS/migration hold-with-limit; 5.0-as-patch omitted.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Unity LTS (Long Term Support)](https://unity.com/releases/lts) — Analog: production locks an LTS line for stability. Holds for blender-knowledge decisive axis Pin 4.x. Limit: Unity commercial LTS packaging ≠ Blender Foundation LTS.
@@ -695,7 +695,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Upgrading from Godot 3 to Godot 4 · `⚠ shaky` · Blender 4.x pin (not silent 5.0)
 **Analog: major engine jump needs converter + breaking renames; formats not silently compatible. Holds for “open a 5.x wave only as migration,” not float `latest`. Limit: Godot project converter ≠ bpy/farm scripts.**
 - **How:** Adjacent SemVer/LTS/migration hold-with-limit; 5.0-as-patch omitted.
-- **Gotchas:** STUDY-046. Silent 4→5 invent: 0. Keep Pin 4.x decisive axis until deliberate 5.x wave.
+- **Gotchas:** STUDY-046. Keep Pin 4.x decisive axis until deliberate 5.x wave.
 - **For Studio:** Headless sprite farm pin-4.x currency; no silent upgrade.
 - **Verify (shaky):** STUDY-046 deepen; silent 4→5: 0; pin-4.x holds; default unverified [no external verdict — not checked]
 - **Sources:** [Upgrading from Godot 3 to Godot 4](https://docs.godotengine.org/en/stable/tutorials/migrating/upgrading_to_godot_4.html) — Analog: major engine jump needs converter + breaking renames; formats not silently compatible. Holds for “open a 5.x wave only as migration,” not float `latest`. Limit: Godot project converter ≠ bpy/f
@@ -703,7 +703,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### Upgrading from Godot 3 to Godot 4 · `⚠ shaky` · Blender 4.x pin (still-current)
 **Analog major engine migrate needs deliberate port; Hold for Blender 4→5. Limit: Godot converter not Blender farm.**
 - **How:** STUDY-062 still-current pin-4.x; silent 4→5: 0.
-- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0. Do not invent STUDY-071.
+- **Gotchas:** STUDY-062. Pin 4.x. Silent 4→5: 0.
 - **For Studio:** Headless bpy pin-4.x still-current; no silent upgrade.
 - **Verify (shaky):** STUDY-062 still-current; Pin 4.x; silent 4→5: 0; default unverified [no external verdict — not checked]
 - **Sources:** [Upgrading from Godot 3 to Godot 4](https://docs.godotengine.org/en/stable/tutorials/migrating/upgrading_to_godot_4.html) — Analog major engine migrate needs deliberate port; Hold for Blender 4→5. Limit: Godot converter not Blender farm.
@@ -711,7 +711,7 @@ subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'numpy'])
 ### kajiyama blender-eevee-gpu-headless — 404 · `✗ wrong` · Blender 4.5 LTS
 **Cited EEVEE GPU headless repo.**
 - **How:** Verifier: HTTP 404 — leave unverified.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (wrong):** STUDY-027 Verifier: unverified/404 — do not land as verified [no external verdict — not checked]
 - **Sources:** [kajiyama blender-eevee-gpu-headless — 404](https://github.com/shotaro-kajiyama/blender-eevee-gpu-headless) — 404 unverified

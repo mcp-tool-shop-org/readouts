@@ -35,7 +35,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### BlenderAlchemy — VLM editing of Blender node graphs · `✅ solid` · Blender 4.5 LTS
 **VLM-guided editing including material-node connection sequences.**
 - **How:** Node-graph editing as graphics automation surface.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [BlenderAlchemy — VLM editing of Blender node graphs](https://arxiv.org/abs/2404.17672) — VLM node-graph editing
@@ -43,7 +43,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### BlenderGym — foundational model graphics editing bench · `✅ solid` · Blender 4.5 LTS
 **Code-based 3D reconstruction/editing benchmark in Blender.**
 - **How:** Evaluates systems against real Blender craft complexity.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [BlenderGym — foundational model graphics editing bench](https://arxiv.org/abs/2504.01786) — Blender graphics editing bench
@@ -59,7 +59,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### Geometry Nodes Introduction (Manual 4.5 LTS) · `✅ solid` · Blender 4.5 LTS
 **GN modifies geometry via modifier + node group; Group Input prior stack.**
 - **How:** Procedural craft on modifier stack.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Geometry Nodes Introduction (Manual 4.5 LTS)](https://docs.blender.org/manual/en/4.5/modeling/geometry_nodes/introduction.html) — GN introduction 4.5
@@ -67,7 +67,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### Geometry Nodes Modifier (Manual 4.5 LTS) · `✅ solid` · Blender 4.5 LTS
 **Modifier binds GN group; bake Packed/Disk; mesh/curve/text/volume.**
 - **How:** Procedural variation entry for sprite-adjacent props.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Geometry Nodes Modifier (Manual 4.5 LTS)](https://docs.blender.org/manual/en/4.5/modeling/modifiers/generate/geometry_nodes.html) — GN modifier 4.5
@@ -75,7 +75,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### Grease Pencil Fill Tool (Manual 4.5 LTS) · `✅ solid` · Blender 4.5 LTS
 **Draw Mode Fill auto-fills closed stroke areas.**
 - **How:** Filled silhouette regions for 2.5D sprites.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Grease Pencil Fill Tool (Manual 4.5 LTS)](https://docs.blender.org/manual/en/4.5/grease_pencil/modes/draw/tools/fill.html) — GP Fill tool 4.5
@@ -83,7 +83,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### Grease Pencil Introduction (Manual 4.5 LTS) · `✅ solid` · Blender 4.5 LTS
 **GP is 3D-space stroke object; Draw/Edit/Sculpt + materials/modifiers.**
 - **How:** 2.5D drawing surface for turnaround line craft.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Grease Pencil Introduction (Manual 4.5 LTS)](https://docs.blender.org/manual/en/4.5/grease_pencil/introduction.html) — GP introduction 4.5
@@ -91,7 +91,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### Grease Pencil Material Stroke+Fill (Manual 4.5 LTS) · `✅ solid` · Blender 4.5 LTS
 **Independent Stroke and Fill; Fill Solid/Gradient/Texture.**
 - **How:** Line+fill via material slots.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Grease Pencil Material Stroke+Fill (Manual 4.5 LTS)](https://docs.blender.org/manual/en/4.5/grease_pencil/materials/properties.html) — GP materials 4.5
@@ -99,7 +99,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### Grease Pencil to Curves Node (Manual 4.5 LTS) · `✅ solid` · Blender 4.5 LTS
 **GN converts each GP layer into curve instances.**
 - **How:** Bridge Line Art/GP into curve/mesh GN pipelines.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Grease Pencil to Curves Node (Manual 4.5 LTS)](https://docs.blender.org/manual/en/4.5/modeling/geometry_nodes/grease_pencil/operations/grease_pencil_to_curves.html) — GP→Curves GN
@@ -115,7 +115,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### Import/Export SVG as Grease Pencil (Manual 4.5 LTS) · `✅ solid` · Blender 4.5 LTS
 **SVG import/export path for Grease Pencil strokes.**
 - **How:** Vector authoring → raster sheet still farm contract.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Import/Export SVG as Grease Pencil (Manual 4.5 LTS)](https://docs.blender.org/manual/en/4.5/files/import_export/grease_pencil_svg.html) — GP SVG IO 4.5
@@ -123,7 +123,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### Infinigen Indoors — Blender procedural indoor assets · `✅ solid` · Blender 4.5 LTS
 **Blender-based procedural generator of indoor assets + constraint arrangement.**
 - **How:** Procedural asset library still Blender-native; 4.x craft not 5.x.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Infinigen Indoors — Blender procedural indoor assets](https://arxiv.org/abs/2406.11824) — Procedural indoor generators
@@ -131,7 +131,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### Infinigen-Articulated — simulation-ready procedural assets · `✅ solid` · Blender 4.5 LTS
 **Procedural generators + Blender utilities for articulated assets with physics export.**
 - **How:** Procedural mesh/joint craft for sim-ready props.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Infinigen-Articulated — simulation-ready procedural assets](https://arxiv.org/abs/2505.10755) — Articulated procedural assets
@@ -139,7 +139,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### LL3M — LLMs write Blender Python for editable 3D · `✅ solid` · Blender 4.5 LTS
 **Multi-agent LLMs write interpretable bpy to generate editable assets.**
 - **How:** Code-native procedural path aligned with bpy/GN.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [LL3M — LLMs write Blender Python for editable 3D](https://arxiv.org/abs/2508.08228) — LLM bpy procedural modelers
@@ -147,7 +147,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### Line Art Modifier (Manual 4.5 LTS) · `✅ solid` · Blender 4.5 LTS
 **Contours from Scene/Collection/Object into GP; needs active camera; Bake Line Art.**
 - **How:** Mesh→stroke for multi-angle sprite outlines; bake for headless.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Line Art Modifier (Manual 4.5 LTS)](https://docs.blender.org/manual/en/4.5/grease_pencil/modifiers/generate/line_art.html) — Line Art 4.5
@@ -171,7 +171,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### Process expertise → Blender material node graphs · `✅ solid` · Blender 4.5 LTS
 **Compiles expert process traces into executable Blender material node graphs.**
 - **How:** Procedural node-graph craft beyond static dump.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Process expertise → Blender material node graphs](https://arxiv.org/abs/2607.13318) — Material node-graph generation
@@ -179,7 +179,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### PyTorchGeoNodes — differentiable GN shape programs · `✅ solid` · Blender 4.5 LTS
 **Parses Blender Geometry Nodes into differentiable PyTorch graphs for reconstruction/editing.**
 - **How:** GN node graphs as first-class procedural mesh craft.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [PyTorchGeoNodes — differentiable GN shape programs](https://arxiv.org/abs/2404.10620) — Differentiable GeoNodes-adjacent shape programs
@@ -219,7 +219,7 @@ _The GN modifier/editor, scattering/instancing, named attributes, the Repeat/Sim
 ### Wei & Bousseau — Grease Pencil sketch→3D add-on · `✅ solid` · Blender 4.5 LTS
 **Bridges GP 2D vector strokes to symmetry-driven 3D lift.**
 - **How:** Pair with Line Art/SVG; not live headless GP.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Wei & Bousseau — Grease Pencil sketch→3D add-on](https://doi.org/10.2312/exw.20251065) — GP sketch→3D

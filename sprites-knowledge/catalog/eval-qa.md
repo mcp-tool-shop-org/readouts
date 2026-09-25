@@ -5,22 +5,22 @@ _Grounded evaluators (SigLIP2/CLIP), turnaround-consistency + perceptual metrics
 
 | ↓ | Recipe | Engine | Applies | Evidence | Comm | Rig | Studio | ✓ |
 |---|--------|--------|---------|----------|------|-----|--------|---|
-| 2 | DISTS — structure+texture similarity (texture-substitution robust) | python | both | ▸ reproduced | ✅ yes | 5 | 4 | · |
-| 2 | DreamSim — mid-level perceptual similarity for character identity | python | both | ▸ reproduced | ⚠ cond | 5 | 4 | · |
-| 2 | LPIPS — learned perceptual patch similarity for downscale fidelity | python | both | ▸ reproduced | ✅ yes | 5 | 4 | · |
-| 2 | MLLM-as-a-Judge — VLM rubric scoring & pairwise selection | python | game-sprite | ▸ reproduced | ⚠ cond | 4 | 4 | · |
-| 2 | SigLIP 2 — zero-shot class/weapon/silhouette classifier | python | both | ▸ reproduced | ✅ yes | 5 | 4 | · |
-| 2 | VQAScore (t2v_metrics) — grounded weapon/class/silhouette presence gate | python | game-sprite | ▸ reproduced | ⚠ cond | 4 | 5 | · |
-| 4 | MEt3R — multi-view/turnaround 3D-consistency metric | python | turnaround | · single-run | ⚠ cond | 4 | 4 | · |
-| 4 | Pixel-art-specific quality: palette adherence + grid/block-size consistency | python | tile | · single-run | ✅ yes | 5 | 5 | · |
-| 6 | CLIPScore — reference-free text-image alignment baseline | python | both | ▸ reproduced | ⚠ cond | 5 | 3 | · |
-| 9 | ASME Y14.3 orthographic registration hold-with-limit | docs | sprites | docs | check | 4 | 4 | · |
-| 9 | ASME Y14.3 — orthographic multi-view analog | blender | sprites | docs | check | 4 | 4 | · |
-| 9 | Datum reference — foot-anchor analog | blender | sprites | docs | check | 4 | 4 | · |
+| 2 | DISTS — structure+texture similarity (texture-substitution robust) | python | both | ▸ reproduced | ✅ yes | 5 | 4 | ✓ |
+| 2 | DreamSim — mid-level perceptual similarity for character identity | python | both | ▸ reproduced | ⚠ cond | 5 | 4 | ✓ |
+| 2 | LPIPS — learned perceptual patch similarity for downscale fidelity | python | both | ▸ reproduced | ✅ yes | 5 | 4 | ✓ |
+| 2 | MLLM-as-a-Judge — VLM rubric scoring & pairwise selection | python | game-sprite | ▸ reproduced | ⚠ cond | 4 | 4 | ✓ |
+| 2 | SigLIP 2 — zero-shot class/weapon/silhouette classifier | python | both | ▸ reproduced | ✅ yes | 5 | 4 | ✓ |
+| 2 | VQAScore (t2v_metrics) — grounded weapon/class/silhouette presence gate | python | game-sprite | ▸ reproduced | ⚠ cond | 4 | 5 | ✓ |
+| 4 | MEt3R — multi-view/turnaround 3D-consistency metric | python | turnaround | · single-run | ⚠ cond | 4 | 4 | ✓ |
+| 4 | Pixel-art-specific quality: palette adherence + grid/block-size consistency | python | tile | · single-run | ✅ yes | 5 | 5 | ✓ |
+| 6 | CLIPScore — reference-free text-image alignment baseline | python | both | ▸ reproduced | ⚠ cond | 5 | 3 | ✓ |
+| 9 | ASME Y14.3 orthographic registration hold-with-limit | docs | sprites | docs | check | 4 | 4 | ✓ |
+| 9 | ASME Y14.3 — orthographic multi-view analog | blender | sprites | docs | check | 4 | 4 | ✓ |
+| 9 | Datum reference — foot-anchor analog | blender | sprites | docs | check | 4 | 4 | ✓ |
 | 9 | Datum reference — foot-anchor registration analog | docs | all | docs | check | 4 | 4 | · |
-| 9 | Pose ControlNet + silhouette pedagogy hold-with-limit | docs | sprites | docs | check | 4 | 4 | · |
-| 9 | SDXL Open RAIL++-M + WCR adapter flow-down hold | docs | sprites | docs | check | 4 | 4 | · |
-| 9 | Twelve principles — silhouette readability | blender | sprites | docs | check | 4 | 4 | · |
+| 9 | Pose ControlNet + silhouette pedagogy hold-with-limit | docs | sprites | docs | check | 4 | 4 | ✓ |
+| 9 | SDXL Open RAIL++-M + WCR adapter flow-down hold | docs | sprites | docs | check | 4 | 4 | ✓ |
+| 9 | Twelve principles — silhouette readability | blender | sprites | docs | check | 4 | 4 | ✓ |
 | 9 | Twelve principles — solid drawing / staging silhouette hold-with-limit | docs | all | analog | check | 4 | 4 | · |
 
 ## Detail
@@ -33,7 +33,7 @@ DISTS (Ding et al., IEEE TPAMI 2020) extracts VGG16 feature maps (conv1_2..conv5
 - **VRAM:** <2 (or CPU)
 - **Output license:** commercial **yes** (license: MIT-style (dingkeyan93/DISTS); DISTS-pytorch on PyPI) — Permissive code license and a standard VGG backbone; safe for commercial in-house evaluation. Pure measurement — no shipped-asset license inheritance.
 - **Fit:** rig 5/5 · studio 4/5
-- **Verify:** arXiv:2004.07728 confirmed (Ding, Ma, Wang, Simoncelli) unifying structure+texture similarity with explicit texture-resampling tolerance. github.com/dingkeyan93/DISTS confirmed MIT; PyPI package is 'dists-pytorch' (proposal's 'DISTS-pytorch on PyPI' accurate). commercial_use 'yes' accurate. [no external verdict — not checked]
+- **Verify:** CORRECTED: Venue is IEEE TPAMI 2022 (Vol. 44, No. 5, pp. 2567-2581), not 2020 — 2020 is only the arXiv preprint / IEEE early-access DOI date, not the citable journal publication. · Ding/Ma/Wang/Simoncelli, VGG conv1_2-conv5_3, MIT license, DISTS-pytorch on PyPI all confirmed (arxiv.org/abs/2004.07728). Venue year is wrong — see corrections. [research note: arXiv:2004.07728 confirmed (Ding, Ma, Wang, Simoncelli) unifying structure+texture similarity with explicit texture-resampling tolerance. github.com/dingkeyan93/DISTS confirmed MIT; PyPI package is 'dists-pytorch' (proposal's 'DISTS-pytorch on PyPI' accurate). commercial_use 'yes' accurate.]
 - **Sources:** [Image Quality Assessment: Unifying Structure and Texture Similarity (DISTS)](https://arxiv.org/abs/2004.07728) (Keyan Ding, Kede Ma, Shiqi Wang, Eero P. Simoncelli, 2020) — DISTS combines structure and texture similarity over VGG features into a proper metric that correlates with human judgment while being highly invariant to texture substitution. ; [dingkeyan93/DISTS — Deep Image Structure and Texture Similarity](https://github.com/dingkeyan93/DISTS) (Keyan Ding et al., 2020) — Reference DISTS implementation (also DISTS-pytorch on PyPI) usable as a texture-robust full-reference fidelity metric.
 
 ### DreamSim — mid-level perceptual similarity for character identity · `recommended` · ▸ reproduced
@@ -44,7 +44,7 @@ DreamSim (Fu et al., NeurIPS 2023 Spotlight) is an ensemble of CLIP/OpenCLIP/DIN
 - **VRAM:** 2-4
 - **Output license:** commercial **conditional** (license: Code MIT-style (ssundaram21/dreamsim, pip install dreamsim); note ensemble pulls DINO/CLIP weights with their own terms) — DreamSim code is permissive and pip-installable, but the default ensemble includes a DINO backbone (DINO/DINOv2 weights from Meta carry their own license terms) and OpenCLIP/CLIP weights. As an internal verifier the exposure is minimal, but confirm the bundled backbone licenses if you want a strictly clean dependency tree; a CLIP/OpenCLIP-only variant is the safer instantiation.
 - **Fit:** rig 5/5 · studio 4/5
-- **Verify:** arXiv:2306.09344 confirmed with all 7 stated authors; synthetic-data human-judgment metric for mid-level similarity. github.com/ssundaram21/dreamsim confirmed MIT, pip install dreamsim, concatenates CLIP/OpenCLIP/DINO embeddings, NeurIPS 2023 Spotlight. commercial_use 'conditional' accurate: ensemble pulls backbone weights with their own terms. [no external verdict — not checked]
+- **Verify:** arXiv:2306.09344 confirmed with all 7 stated authors; synthetic-data human-judgment metric for mid-level similarity. github.com/ssundaram21/dreamsim confirmed MIT, pip install dreamsim, concatenates CLIP/OpenCLIP/DINO embeddings, NeurIPS 2023 Spotlight. commercial_use 'conditional' accurate: ensemble pulls backbone weights with their own terms. [Fu et al., NeurIPS 2023 Spotlight confirmed (proceedings.neurips.cc). NIGHTS dataset ~20k triplets, CLIP/OpenCLIP/DINO ensemble, MIT license, 'dreamsim' PyPI package all match.]
 - **Sources:** [DreamSim: Learning New Dimensions of Human Visual Similarity using Synthetic Data](https://arxiv.org/abs/2306.09344) (Stephanie Fu, Netanel Tamir, Shobhita Sundaram, Lucy Chai, Richard Zhang, Tali Dekel, Phillip Isola, 2023) — DreamSim, an ensemble fine-tuned on synthetic human-judgment triplets, captures mid-level similarity (layout, pose, semantic content) and outperforms prior learned metrics and large vision models on retrieval/reconstruction. ; [ssundaram21/dreamsim — DreamSim perceptual metric (NeurIPS 2023 Spotlight)](https://github.com/ssundaram21/dreamsim) (Stephanie Fu et al., 2023) — pip-installable reference implementation concatenating CLIP/OpenCLIP/DINO embeddings fine-tuned on human perceptual judgments.
 
 ### LPIPS — learned perceptual patch similarity for downscale fidelity · `recommended` · ▸ reproduced
@@ -55,7 +55,7 @@ LPIPS (Zhang et al., CVPR 2018) computes distance in the feature space of a pret
 - **VRAM:** <2 (or CPU)
 - **Output license:** commercial **yes** (license: BSD-2-Clause (richzhang/PerceptualSimilarity); pip install lpips) — BSD-2-Clause code and the calibrated linear weights are freely usable commercially. The backbone (AlexNet/VGG) carries standard permissive terms. No shipped-asset exposure — it's a pure measurement.
 - **Fit:** rig 5/5 · studio 4/5
-- **Verify:** Project page confirms LPIPS (Zhang/Isola/Efros/Shechtman/Wang) with claim that deep features beat PSNR/SSIM. github.com/richzhang/PerceptualSimilarity confirmed BSD-2-Clause, pip install lpips. commercial_use 'yes' accurate. [no external verdict — not checked]
+- **Verify:** Project page confirms LPIPS (Zhang/Isola/Efros/Shechtman/Wang) with claim that deep features beat PSNR/SSIM. github.com/richzhang/PerceptualSimilarity confirmed BSD-2-Clause, pip install lpips. commercial_use 'yes' accurate. [Zhang et al., CVPR 2018 (CVF open-access) confirmed; BAPPS dataset, BSD-2-Clause license (GitHub API), 'lpips' PyPI package all match exactly.]
 - **Sources:** [The Unreasonable Effectiveness of Deep Features as a Perceptual Metric (LPIPS)](https://richzhang.github.io/PerceptualSimilarity/) (Richard Zhang, Phillip Isola, Alexei A. Efros, Eli Shechtman, Oliver Wang, 2018) — Deep network features linearly calibrated on human judgments (LPIPS) match perceptual similarity far better than PSNR/SSIM, which often disagree with human assessment. ; [richzhang/PerceptualSimilarity — LPIPS metric (pip install lpips)](https://github.com/richzhang/PerceptualSimilarity) (Richard Zhang et al., 2018) — BSD-2-Clause reference implementation of LPIPS usable as a drop-in perceptual distance for fidelity checks.
 
 ### MLLM-as-a-Judge — VLM rubric scoring & pairwise selection · `recommended` · ▸ reproduced
@@ -66,7 +66,7 @@ MLLM-as-a-Judge (Chen et al., ICML 2024 Oral) benchmarks multimodal LLMs across 
 - **VRAM:** 8-24 for a local 7B-32B VLM judge on the 5090
 - **Output license:** commercial **conditional** (license: Benchmark code permissive (Dongping-Chen/MLLM-Judge); judge-model license varies) — The benchmark/protocol is open and permissive, but commercial standing rides entirely on the judge model: a local Qwen2.5-VL (Apache-2.0) or PaliGemma (Gemma license) keeps it clean and on-rig, whereas API judges (GPT-4o/Gemini) add per-call cost and ToS constraints but no IP inheritance into the game. As a non-shipped verifier the risk is procedural, not asset-license.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** arXiv:2402.04788 confirmed (Dongping Chen et al., ICML 2024 Oral); abstract confirms human-aligned on pairwise but divergent/biased/hallucinatory in scoring and batch ranking. github.com/Dongping-Chen/MLLM-Judge confirmed as official repo covering scoring/pair/batch with human-annotation datasets. Note: explicit repo LICENSE file not visible on the rendered page, but the entry's license claim is hedged ('benchmark code permissive; judge-model license varies') and not overstated. commercial_use 'conditional' accurate. [no external verdict — not checked]
+- **Verify:** CORRECTED: Dongping-Chen/MLLM-Judge has no LICENSE file (GitHub license API 404, raw fetch 404, repo listing confirms none) — code is all-rights-reserved by default, not 'permissive' as stated. · Chen et al., ICML 2024 Oral confirmed (proceedings.mlr.press/v235/chen24h.html); pairwise-vs-scoring finding accurate. License claim wrong — see corrections. [research note: arXiv:2402.04788 confirmed (Dongping Chen et al., ICML 2024 Oral); abstract confirms human-aligned on pairwise but divergent/biased/hallucinatory in scoring and batch ranking. github.com/Dongping-Chen/MLLM-Judge confirmed as official repo covering scoring/pair/batch with human-annotation datasets. Note: explicit repo LICENSE file not visible on the rendered page, but the entry's license claim is hedged ('benchmark code permissive; judge-model license varies') and not overstated. commercial_use 'conditional' accurate.]
 - **Sources:** [MLLM-as-a-Judge: Assessing Multimodal LLM-as-a-Judge with Vision-Language Benchmark](https://arxiv.org/abs/2402.04788) (Dongping Chen, Ruoxi Chen, Shilin Zhang, Yinuo Liu, et al., 2024) — MLLMs align with human judgment on pairwise comparison but show notable discrepancies, biases, and hallucination in scoring and batch ranking. ; [Dongping-Chen/MLLM-Judge — official code (ICML 2024 Oral)](https://github.com/Dongping-Chen/MLLM-Judge) (Dongping Chen et al., 2024) — Reference benchmark and protocol for scoring/pairwise/batch MLLM judging with human-preference datasets (HQ and HARD-with-hallucination).
 
 ### SigLIP 2 — zero-shot class/weapon/silhouette classifier · `recommended` · ▸ reproduced
@@ -77,7 +77,7 @@ SigLIP 2 (Tschannen et al., Feb 2025) extends sigmoid image-text pretraining wit
 - **VRAM:** 1-4 (ViT-B 86M / L 303M); ~4-6 for So400m (400M); ~8 for g (1B)
 - **Output license:** commercial **yes** (license: Apache-2.0 (model weights, all sizes)) — Apache-2.0 on the published Google checkpoints (verified on the google/siglip2-* model cards). Fully commercial-clean for an in-house verifier; nothing about it touches the shipped game, and the license imposes no copyleft on downstream curation decisions.
 - **Fit:** rig 5/5 · studio 4/5
-- **Verify:** arXiv:2502.14786 confirmed as SigLIP 2 with stated DeepMind authors; abstract confirms it outperforms SigLIP at all scales on zero-shot classification/retrieval/dense/localization, released as ViT-B/L/So400m/g. HF model card google/siglip2-so400m-patch14-384 confirms apache-2.0. commercial_use 'yes' accurate. [no external verdict — not checked]
+- **Verify:** arXiv:2502.14786 confirmed as SigLIP 2 with stated DeepMind authors; abstract confirms it outperforms SigLIP at all scales on zero-shot classification/retrieval/dense/localization, released as ViT-B/L/So400m/g. HF model card google/siglip2-so400m-patch14-384 confirms apache-2.0. commercial_use 'yes' accurate. [Tschannen et al., arXiv:2502.14786 (Feb 2025) confirmed; NaFlex real; Apache-2.0 confirmed on 3 separate HF model cards (siglip2-base/so400m/giant-opt).]
 - **Sources:** [SigLIP 2: Multilingual Vision-Language Encoders with Improved Semantic Understanding, Localization, and Dense Features](https://arxiv.org/abs/2502.14786) (Michael Tschannen, Alexey Gritsenko, Xiao Wang, et al. (Google DeepMind), 2025) — SigLIP 2 outperforms SigLIP at all scales on zero-shot classification, retrieval, dense prediction, and localization; released as ViT-B/L/So400m/g with a NaFlex native-resolution variant. ; [google/siglip2-so400m-patch14-384 model card](https://huggingface.co/google/siglip2-so400m-patch14-384) (Google, 2025) — The published SigLIP 2 checkpoints are licensed apache-2.0, permitting commercial use of the encoder as an evaluator.
 
 ### VQAScore (t2v_metrics) — grounded weapon/class/silhouette presence gate · `recommended` · ▸ reproduced
@@ -88,7 +88,7 @@ VQAScore (Lin et al., ECCV 2024) computes alignment as the VQA model's probabili
 - **VRAM:** 8-12 (qwen3-vl-2b / small CLIP-FlanT5) up to 40+ (large judges)
 - **Output license:** commercial **conditional** (license: Apache-2.0 (t2v_metrics code); backend model license varies — CLIP-FlanT5 / PaliGemma / Qwen2.5-VL each carry their own terms) — The t2v_metrics harness is Apache-2.0 (commercial-safe). The DECISIVE constraint is the chosen VQA backbone's license: CLIP-FlanT5 and PaliGemma weights are permissively/Gemma-licensed (commercial OK with terms), Qwen2.5-VL is Apache-2.0 (sizes <=72B), but a LLaVA-1.5 backbone inherits LLaMA community-license restrictions. Pick the judge backbone for commercial standing — this is a verifier, so it never ships in the game, but a contaminated judge can still taint a training-data curation decision.
 - **Fit:** rig 4/5 · studio 5/5
-- **Verify:** Both sources resolve. github.com/linzhiqiu/t2v_metrics is Apache-2.0 and implements VQAScore with swappable VQA backends (PaliGemma, Qwen2.5-VL, Gemma 3 all confirmed; actively maintained, 583 stars, VQAScore v3.1 as of 2026). Paper (ECCV 2024) authors/title/claim accurate. commercial_use 'conditional' is correct: code is Apache-2.0 but backend-model licenses vary. [no external verdict — not checked]
+- **Verify:** Both sources resolve. github.com/linzhiqiu/t2v_metrics is Apache-2.0 and implements VQAScore with swappable VQA backends (PaliGemma, Qwen2.5-VL, Gemma 3 all confirmed; actively maintained, 583 stars, VQAScore v3.1 as of 2026). Paper (ECCV 2024) authors/title/claim accurate. commercial_use 'conditional' is correct: code is Apache-2.0 but backend-model licenses vary. [Lin et al., ECCV 2024 confirmed (ecva.net official proceedings); Apache-2.0 (GitHub API); README 'v3.1' section confirms Qwen2.5-VL/Gemma-3/PaliGemma backends verbatim.]
 - **Sources:** [Evaluating Text-to-Visual Generation with Image-to-Text Generation (VQAScore)](https://linzhiqiu.github.io/papers/vqascore/) (Zhiqiu Lin, Deepak Pathak, Baiqi Li, Jiayao Li, Xide Xia, Graham Neubig, Pengchuan Zhang, Deva Ramanan, 2024) — VQAScore = P('Yes') from a VQA model asked 'Does this figure show {text}?'; it outperforms CLIPScore on compositional prompts with attribute bindings, relations, and logical reasoning. ; [linzhiqiu/t2v_metrics — Evaluating text-to-image/video/3D models with VQAScore](https://github.com/linzhiqiu/t2v_metrics) (Zhiqiu Lin et al., 2024) — Apache-2.0 reference implementation with swappable VQA backends (CLIP-FlanT5, Qwen2.5-VL, PaliGemma, Gemma-3); small variants (e.g. qwen3-vl-2b) run on limited-VRAM GPUs.
 
 ### MEt3R — multi-view/turnaround 3D-consistency metric · `recommended` · · single-run
@@ -99,7 +99,7 @@ MEt3R (Asim et al., CVPR 2025) measures how 3D-consistent a set of generated vie
 - **VRAM:** ~8-16 (DUSt3R inference on a pair of views)
 - **Output license:** commercial **conditional** (license: Code released by the authors (check repo); built on DUSt3R (CC-BY-NC research weights) — verify before commercial pipeline use) — MEt3R itself is a metric, but it depends on DUSt3R, whose research checkpoints have historically carried a non-commercial (CC-BY-NC-style) license. As an internal verifier the legal exposure is far lower than shipping DUSt3R in a product, but if you want a fully clean pipeline confirm the exact DUSt3R weight license or swap in a permissively-licensed MASt3R/feed-forward reconstruction backbone.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** arXiv:2501.06336 confirmed; title/authors (Asim, Wewer, Wimmer, Schiele, Lenssen, 2025) correct. Abstract confirms DUSt3R-based dense reconstruction warping for a reference-free, sampling-independent multi-view consistency score. commercial_use 'conditional' is appropriately cautious: DUSt3R weights carry a non-commercial research caveat, correctly flagged. [no external verdict — not checked]
+- **Verify:** CORRECTED: DUSt3R's LICENSE (github.com/naver/dust3r) is CC BY-NC-SA 4.0 — the ShareAlike clause is dropped from the KB's 'CC-BY-NC' label, a materially more restrictive term for derivative/commercial use. · Asim et al., CVPR 2025 (CVF; github mohammadasim98/met3r) and DUSt3R mechanism confirmed. DUSt3R license imprecise — see corrections. [research note: arXiv:2501.06336 confirmed; title/authors (Asim, Wewer, Wimmer, Schiele, Lenssen, 2025) correct. Abstract confirms DUSt3R-based dense reconstruction warping for a reference-free, sampling-independent multi-view consistency score. commercial_use 'conditional' is appropriately cautious: DUSt3R weights carry a non-commercial research caveat, correctly flagged.]
 - **Sources:** [MEt3R: Measuring Multi-View Consistency in Generated Images](https://arxiv.org/abs/2501.06336) (Mohammad Asim, Christopher Wewer, Thomas Wimmer, Bernt Schiele, Jan Eric Lenssen, 2025) — MEt3R uses DUSt3R dense reconstruction to warp and feature-compare generated views, yielding a reference-free, sampling-independent multi-view consistency score invariant to view-dependent effects.
 
 ### Pixel-art-specific quality: palette adherence + grid/block-size consistency · `recommended` · · single-run
@@ -110,7 +110,7 @@ Pixel art is defined by constraints natural-image metrics don't model: a coheren
 - **VRAM:** 0 (CPU image analysis)
 - **Output license:** commercial **yes** (license: Deterministic checks: your own code (no license issue). SD-piXL reference code released by authors — verify repo license before reuse) — The actual gate (count off-palette colors against the locked palette, detect grid block size and flag non-integer/inconsistent blocks, flag anti-aliased/orphan pixels) is plain deterministic image processing you author — zero license inheritance and zero VRAM. SD-piXL is cited as the criteria/quality reference; only reusing its generation code would invoke its repo license.
 - **Fit:** rig 5/5 · studio 5/5
-- **Verify:** Both papers real. SD-piXL confirmed at igl.ethz.ch (Binninger & Sorkine-Hornung, ETH Zurich, SIGGRAPH ASIA 2024) operating on an HxWxn palette-class tensor with chosen n-color palette. MDPI paper returned HTTP 403 to WebFetch (anti-bot, not hallucination) but WebSearch confirms it exists: 'Structure-Aware Pixel Art Scaling via Block Size Detection', Applied Sciences 16(5):2314 (2026), DOI 10.3390/app16052314, with the Color Loss / Block-Size Consistency / reversibility evaluation framework as claimed. Minor data note: the real MDPI authors are Seo, Lee, Lee, Kim & Jung (proposal used placeholder 'MDPI Applied Sciences authors'), but existence/claims/license stance are sound. commercial_use 'yes' accurate for the deterministic checks. [no external verdict — not checked]
+- **Verify:** Both papers real. SD-piXL confirmed at igl.ethz.ch (Binninger & Sorkine-Hornung, ETH Zurich, SIGGRAPH ASIA 2024) operating on an HxWxn palette-class tensor with chosen n-color palette. MDPI paper returned HTTP 403 to WebFetch (anti-bot, not hallucination) but WebSearch confirms it exists: 'Structure-Aware Pixel Art Scaling via Block Size Detection', Applied Sciences 16(5):2314 (2026), DOI 10.3390/app16052314, with the Color Loss / Block-Size Consistency / reversibility evaluation framework as claimed. Minor data note: the real MDPI authors are Seo, Lee, Lee, Kim & Jung (proposal used placeholder 'MDPI Applied Sciences authors'), but existence/claims/license stance are sound. commercial_use 'yes' accurate for the deterministic checks. [SD-piXL is real: Binninger & Sorkine-Hornung, SIGGRAPH Asia 2024 (dl.acm.org/doi/10.1145/3680528.3687570). HxWxn tensor + Gumbel-softmax, MIT license confirmed verbatim.]
 - **Sources:** [SD-piXL: Generating Low-Resolution Quantized Imagery via Score Distillation](https://igl.ethz.ch/projects/sd-pixl/) (Alexandre Binninger, Olga Sorkine-Hornung (ETH Zurich IGL), 2024) — SD-piXL operates on an HxWxn palette-class tensor with a chosen n-color palette, establishing strict palette adherence and low-resolution semantic readability as core pixel-art quality criteria that existing pixelization methods fail to meet. ; [Structure-Aware Pixel Art Scaling via Block Size Detection](https://www.mdpi.com/2076-3417/16/5/2314) (MDPI Applied Sciences authors, 2026) — Introduces an evaluation framework of Color Loss, Block-Size Consistency, and reversibility tests, detecting intrinsic block size to verify a pixel image preserves its palette and uniform grid without interpolation artifacts.
 
 ### CLIPScore — reference-free text-image alignment baseline · `situational` · ▸ reproduced
@@ -121,7 +121,7 @@ CLIPScore (Hessel et al., EMNLP 2021) is the cosine similarity between a CLIP im
 - **VRAM:** 1-3
 - **Output license:** commercial **conditional** (license: Code MIT-style (jmhessel/clipscore); OpenAI CLIP weights = MIT but trained on undisclosed web data; OpenCLIP weights vary) — The metric code is permissive, and OpenAI's CLIP weights are MIT-licensed — but provenance of CLIP's training data is unstated, so prefer instantiating CLIPScore with an OpenCLIP/LAION or SigLIP backbone whose terms you can audit. As a non-shipped verifier the risk is low, but for license cleanliness SigLIP 2 zero-shot is the stronger choice.
 - **Fit:** rig 5/5 · studio 3/5
-- **Verify:** arXiv:2104.08718 confirmed (Hessel et al., reference-free CLIP-cosine metric, higher human correlation than CIDEr/SPICE). github.com/jmhessel/clipscore confirmed MIT, official EMNLP 2021 impl. commercial_use 'conditional' accurate given CLIP-weights training-data caveat. [no external verdict — not checked]
+- **Verify:** arXiv:2104.08718 confirmed (Hessel et al., reference-free CLIP-cosine metric, higher human correlation than CIDEr/SPICE). github.com/jmhessel/clipscore confirmed MIT, official EMNLP 2021 impl. commercial_use 'conditional' accurate given CLIP-weights training-data caveat. [Hessel et al., EMNLP 2021 (ACL Anthology) confirmed: rescaled cosine similarity, beats CIDEr/SPICE on human correlation. jmhessel/clipscore=MIT, openai/CLIP license API=MIT.]
 - **Sources:** [CLIPScore: A Reference-free Evaluation Metric for Image Captioning](https://arxiv.org/abs/2104.08718) (Jack Hessel, Ari Holtzman, Maxwell Forbes, Ronan Le Bras, Yejin Choi, 2021) — CLIPScore uses CLIP image-text cosine similarity for reference-free evaluation and achieves higher human correlation than reference-based metrics like CIDEr and SPICE. ; [jmhessel/clipscore — CLIPScore EMNLP code](https://github.com/jmhessel/clipscore) (Jack Hessel, 2021) — Reference implementation of CLIPScore; documented to struggle with multiple objects and attribute bindings, motivating VQAScore-style replacements.
 
 ### ASME Y14.3 orthographic registration hold-with-limit · `situational` · docs
@@ -129,9 +129,9 @@ CLIPScore (Hessel et al., EMNLP 2021) is the cosine similarity between a CLIP im
 STUDY-038 Analogist Verifier ✅ hold-with-limit.
 - **For the pipeline:** STUDY-038 Verifier ✅.
 - **Engine:** docs · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; 486 stays avoid.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-038 deepen [no external verdict — not checked]
+- **Verify:** STUDY-038 deepen [ASME Y14.3 ('Orthographic and Pictorial Views', asme.org) is real, governs multiview registration/scale. 'STUDY-038'/'Flip 486' wrapper is internal status data, not externally checkable.]
 - **Sources:** [ASME Y14.3](https://www.asme.org/codes-standards/find-codes-standards/y14-3-orthographic-pictorial-views) — Orthographic/pictorial view registration.
 
 ### ASME Y14.3 — orthographic multi-view analog · `situational` · docs
@@ -141,7 +141,7 @@ One solid to fixed front/side/top views with shared scale and registration. Hold
 - **Engine:** blender · **Applies to:** sprites · **Kind:** technique
 - **Output license:** commercial **check** (license: see-source) — STUDY-017 reopen; verified=0 until ACCEPT.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [no external verdict — not checked]
+- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [ASME Y14.3 (asme.org) codifies the multiview system of orthographic drawing — fixed views sharing scale/registration/alignment — matching the front/side/top analogy exactly.]
 - **Sources:** [ASME Y14.3 — orthographic multi-view analog](https://www.asme.org/codes-standards/find-codes-standards/y14-3-orthographic-pictorial-views) — One solid to fixed front/side/top views with shared scale and registration. Holds for mesh to 8-dir orthographic turnaround.
 
 ### Datum reference — foot-anchor analog · `situational` · docs
@@ -151,17 +151,17 @@ Shared bottom-center datum so every view shares one contact point and crop. Hold
 - **Engine:** blender · **Applies to:** sprites · **Kind:** technique
 - **Output license:** commercial **check** (license: see-source) — STUDY-017 reopen; verified=0 until ACCEPT.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [no external verdict — not checked]
+- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [ASME Y14.5 GD&T datum reference frame (3 mutually perpendicular datum planes, primary/secondary/tertiary hierarchy) matches the shared-anchor/one-contact-point analogy.]
 - **Sources:** [Datum reference — foot-anchor analog](https://en.wikipedia.org/wiki/Datum_reference) — Shared bottom-center datum so every view shares one contact point and crop. Holds for foot-anchored union-bbox finish.
 
 ### Datum reference — foot-anchor registration analog · `situational` · docs
-**Shared reference for registration — foot-anchor analog peer; flip 486: 0.**
-STUDY-059 Practitioner deepen. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+**Shared reference for registration — foot-anchor analog peer**
+STUDY-059 Practitioner deepen.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** docs · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [Datum reference](https://en.wikipedia.org/wiki/Datum_reference) — Shared reference for registration. Foot-anchor analog.
 
 ### Pose ControlNet + silhouette pedagogy hold-with-limit · `situational` · docs
@@ -169,9 +169,9 @@ STUDY-059 Practitioner deepen. Flip 486: 0. Recipes invented: 0.
 STUDY-038 Analogist Verifier ✅ hold-with-limit.
 - **For the pipeline:** STUDY-038 Verifier ✅.
 - **Engine:** docs · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; 486 stays avoid.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-038 deepen [no external verdict — not checked]
+- **Verify:** CORRECTED: Only 'staging' and 'solid drawing' are among Thomas & Johnston's 12 principles; 'silhouette' is not itself a named principle — it's a widely-taught corollary of staging, not a 13th principle. · ComfyUI Pose/OpenPose ControlNet is real (docs.comfy.org). But 'silhouette' isn't one of the 12 animation principles — see corrections. [research note: STUDY-038 deepen]
 - **Sources:** [ComfyUI Pose ControlNet 2-pass](https://docs.comfy.org/tutorials/controlnet/pose-controlnet-2-pass) — Skeleton map as pose conditional. ; [Twelve principles of animation](https://en.wikipedia.org/wiki/Twelve_basic_principles_of_animation) — Solid drawing / staging / silhouette.
 
 ### SDXL Open RAIL++-M + WCR adapter flow-down hold · `situational` · docs
@@ -179,9 +179,9 @@ STUDY-038 Analogist Verifier ✅ hold-with-limit.
 STUDY-038 Analogist Verifier ✅ hold-with-limit.
 - **For the pipeline:** STUDY-038 Verifier ✅.
 - **Engine:** docs · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; 486 stays avoid.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-038 deepen [no external verdict — not checked]
+- **Verify:** STUDY-038 deepen [SDXL's CreativeML Open RAIL++-M (Stability-AI/generative-models LICENSE) confirmed: Attachment-A restrictions MUST flow to Derivatives (LoRA/ControlNet). 'WCR' is unverifiable internal shorthand.]
 - **Sources:** [CreativeML Open RAIL++-M SDXL](https://raw.githubusercontent.com/Stability-AI/generative-models/main/model_licenses/LICENSE-SDXL1.0) — Commercial OK with use-based restrictions. ; [WCR fine-tuned model license](https://wcr.legal/fine-tuned-model-license/) — Adapters inherit base license.
 
 ### Twelve principles — silhouette readability · `situational` · docs
@@ -191,16 +191,16 @@ Solid drawing / staging / silhouette. Holds for 48/64px orthographic readability
 - **Engine:** blender · **Applies to:** sprites · **Kind:** technique
 - **Output license:** commercial **check** (license: see-source) — STUDY-017 reopen; verified=0 until ACCEPT.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [no external verdict — not checked]
+- **Verify:** CORRECTED: 'Silhouette' is not itself one of the 12 named principles — it's a standard corollary/application of 'staging' (clear staging = readable silhouette), not a distinct 13th principle in the list. · Thomas & Johnston's 12 principles (1981) include 'staging' and 'solid drawing' verbatim (Wikipedia). Silhouette issue — see corrections. [research note: STUDY-017 from STUDY-007 Verifier ✅; default verified=0]
 - **Sources:** [Twelve principles — silhouette readability](https://en.wikipedia.org/wiki/Twelve_basic_principles_of_animation) — Solid drawing / staging / silhouette. Holds for 48/64px orthographic readability.
 
 ### Twelve principles — solid drawing / staging silhouette hold-with-limit · `situational` · analog
 **Readable form and staging at a glance — hold for 48/64px silhouette readability gates; limit ≠ rigid weapon/mesh truth.**
-STUDY-059 Analogist #6 Verifier ✅ hold-with-limit. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+STUDY-059 Analogist #6 Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** docs · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [Twelve basic principles of animation](https://en.wikipedia.org/wiki/Twelve_basic_principles_of_animation) — Solid drawing / staging / silhouette readability.
 

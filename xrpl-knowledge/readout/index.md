@@ -2,7 +2,7 @@
 
 > Verified knowledge base of the XRP Ledger ECOSYSTEM for a builder — protocol features, transaction types, XLS standards, client libraries & tooling — each tagged with its current mainnet / amendment status. Whole-ecosystem: XRPL mainnet + Xahau/Hooks + the XRPL EVM sidechain + the institutional layer (RLUSD, compliance).
 >
-> **457 capabilities · 362 verified · 880 sources · 10 waves · generated 2026-09-14.**  
+> **457 capabilities · 362 verified · 880 sources · 10 waves · generated 2026-09-25.**  
 > Decisive axis: network_status — is this feature ACTUALLY enabled on XRPL mainnet right now (vs amendment-pending / devnet-only / deprecated), and which standard/library is current — plus which of the four build-focus tracks (game economies / NFT assets / payments / identity-compliance) it serves.
 
 ## Domains

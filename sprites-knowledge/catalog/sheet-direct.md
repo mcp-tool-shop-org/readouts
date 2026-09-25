@@ -61,7 +61,7 @@ Rather than hoping a LoRA arranges views, you author an OpenPose control map con
 | identity differs per cell | OpenPose constrains pose, not identity | add IP-Adapter FaceID + character LoRA |  |
 | cells bleed into each other | single diffusion canvas | Regional Prompter or per-cell latent masking; or generate cells separately |  |
 
-- **Verify:** Both components resolve: thibaud/controlnet-openpose-sdxl-1.0 exists; OpenArt workflow exists (live slug is.../quick-openpose-character-concept-sheet-creator-v12/F0Cz1ZX0xU7UebTQFyPs, same workflow ID; description of head/body OpenPose grid for concept sheets matches). NOT verified because the license claim is inaccurate: HF page shows 'License: other' deferring to OpenPose's terms, not 'OpenRAIL', and does not affirm commercial use. commercial_use='yes' is overstated. [MOST DAMAGING ERROR IN THE BUCKET. The named checkpoint thibaud/controlnet-openpose-sdxl-1.0 is license: other and its card says it 'refers to the OpenPose's one'; CMU's OpenPose LICENSE permits only 'noncommercial internal research purpose]
+- **Verify:** CORRECTED: The pose-grid technique is sound and the workflow is real — 'Quick OpenPose Character Concept Sheet Creator' V1.2 by Lord Lethris exists on OpenArt, emits both SDXL- and SD-compatible OpenPose maps, and recommends IP-Adapter for head and body separately. The licence line is wrong: thibaud/controlnet-openpose-sdxl-1.0 declares license: other and its card states the licence 'refers to the OpenPose's one', which routes to CMU-Perceptual-Computing-Lab/openpose whose LICENSE reads 'The Software may be used for your own noncommercial internal research purposes', copyright Carnegie Mellon University; commercial use needs a separate CMU agreement. Replace the pinned checkpoint with xinsir/controlnet-openpose-sdxl-1.0, which declares license: apache-2.0 AND reports better pose fidelity on its own card (mAP 0.357 vs thibaud 0.209 on 2000 HumanArt images). Effective licence then becomes Apache-2.0 adapter plus base checkpoint licence, and commercial_use: yes is restored honestly. Separately, the 'recommended turnaround ControlNet strength 0.4-0.65' figure could not be traced to any primary document — treat it as folklore, not a pinned parameter. · MOST DAMAGING ERROR IN THE BUCKET. The named checkpoint thibaud/controlnet-openpose-sdxl-1.0 is license: other and its card says it 'refers to the OpenPose's one'; CMU's OpenPose LICENSE permits only 'noncommercial internal research purpose [research note: Both components resolve: thibaud/controlnet-openpose-sdxl-1.0 exists; OpenArt workflow exists (live slug is.../quick-openpose-character-concept-sheet-creator-v12/F0Cz1ZX0xU7UebTQFyPs, same workflow ID; description of head/body OpenPose grid for concept sheets matches). NOT verified because the license claim is inaccurate: HF page shows 'License: other' deferring to OpenPose's terms, not 'OpenRAIL', and does not affirm commercial use. commercial_use='yes' is overstated.]
 - **Sources:** [thibaud/controlnet-openpose-sdxl-1.0](https://huggingface.co/thibaud/controlnet-openpose-sdxl-1.0) (Thibaud Zamora, 2023) — OpenPose ControlNet for SDXL 1.0 that conditions generation on a keypoint skeleton control map. ; [Quick OpenPose Character Concept Sheet Creator V1.2 (ComfyUI workflow)](https://openart.ai/workflows/lord_lethris/quick-openpose-character-concept-sheet-creator-v1/F0Cz1ZX0xU7UebTQFyPs) (lord_lethris (OpenArt), 2024) — Workflow auto-generates an OpenPose skeleton grid of multiple head/body positions to drive a multi-pose character concept sheet.
 
 ### PixelArtRedmond SDXL LoRA (artificialguybr) · `recommended` · ▸ reproduced
@@ -87,7 +87,7 @@ PixelArtRedmond is the most-used general pixel-art LoRA for SDXL (and a separate
 |---|---|---|---|
 | no directional sheet from this LoRA alone | it is a style LoRA, not a layout/turnaround LoRA | stack with ControlNet pose-grid or charturn LoRA |  |
 
-- **Verify:** Both URLs resolve. SDXL Civitai page exists (artificialguybr, pixel-art LoRA). Decisive license metadata confirmed on the SD1.5 README: bespoke-lora-trained-license, allowCommercialUse=Rent, allowDerivatives=True, allowNoCredit=True. SDXL-version flag unstated as the entry admits; 'conditional' is accurate. ['SDXL version flag unstated' is false. Civitai API: PixelArtRedmond (id 144684) = allowCommercialUse [Image, RentCivit, Rent], allowDerivatives true; the 1.5V (id 205955) carries the identical set. Sell is NOT granted on either — sell gener]
+- **Verify:** CORRECTED: Both versions publish their flags and they are identical, so the 'default to the SD1.5 card as the known-good baseline' workaround is unnecessary. Civitai API model 144684 (PixelArtRedmond, artificialguybr) returns allowCommercialUse: [Image, RentCivit, Rent] with allowDerivatives: true; model 205955 (PixelArtRedmond 1.5V, SD 1.5) returns the same [Image, RentCivit, Rent]. Read the set precisely: 'Image' permits commercial use of generated images (the case that matters for shipping sprites), 'Rent'/'RentCivit' permit hosted generation services, and the absence of 'Sell' means you may not sell or redistribute the LoRA weights themselves. Base SDXL 1.0 is CreativeML Open RAIL++-M, confirmed on stabilityai/stable-diffusion-xl-base-1.0. One drift note: the model has been extended past SDXL — the card now lists Qwen, Z-Image Turbo and Flux.2 Klein 9B versions, each dragging in its own base licence, so pin the version you use. · 'SDXL version flag unstated' is false. Civitai API: PixelArtRedmond (id 144684) = allowCommercialUse [Image, RentCivit, Rent], allowDerivatives true; the 1.5V (id 205955) carries the identical set. Sell is NOT granted on either — sell gener [research note: Both URLs resolve. SDXL Civitai page exists (artificialguybr, pixel-art LoRA). Decisive license metadata confirmed on the SD1.5 README: bespoke-lora-trained-license, allowCommercialUse=Rent, allowDerivatives=True, allowNoCredit=True. SDXL-version flag unstated as the entry admits; 'conditional' is accurate.]
 - **Sources:** [PixelArtRedmond - Pixel Art Loras for SD XL](https://civitai.com/models/144684/pixelartredmond-pixel-art-loras-for-sd-xl) (artificialguybr, 2023) — Pixel-art style LoRA for SDXL 1.0 by artificialguybr (style conditioning, not sheet generation). ; [PixelArtRedmond (SD1.5) README — license metadata](https://huggingface.co/artificialguybr/pixelartredmond-1-5v-pixel-art-loras-for-sd-1-5/blob/main/README.md) (artificialguybr, 2023) — Carries bespoke-lora-trained-license with allowCommercialUse=Rent, allowDerivatives=True, no credit required.
 
 ### PixelLab.ai (commercial SaaS, native 4/8-direction + skeleton animation) · `recommended` · ▸ reproduced
@@ -141,7 +141,7 @@ This entry is the decisive cross-cutting axis, not a tool. Every LoRA above inhe
 | assume commercial OK from base alone | ignoring the LoRA card's own allowCommercialUse flag | always confirm per-version Civitai flag; stricter term wins |  |
 | share-alike surprise on redistributed weights | training/redistributing a LoRA on a NoobAI/FAIPL base | keep redistributed derivatives under FAIPL; or train on Open RAIL base instead |  |
 
-- **Verify:** SDXL LICENSE.md resolves: CreativeML Open RAIL++-M (dated 2023-07-26), royalty-free commercial use with use-based restrictions, no rights claimed in outputs - all confirmed. Illustrious-XL-v2.0 discussion resolves and confirms redistribution under CreativeML Open RAIL (SDXL) permitting commercial use. Caveat: that specific discussion does NOT mention NoobAI or FAIPL 1.0-SD share-alike inheritance (only covers Illustrious); the NoobAI/FAIPL part of the claim is not supported by the cited source, though documented elsewhere. Core SDXL/Illustrious axis verified; NoobAI sub-claim is undersourced. [Three of four bases verified exactly as claimed: SDXL 1.0 = CreativeML Open RAIL++-M; Illustrious-XL v0.1 = fair-ai-public-license-1.0-sd and v1.0 = sdxl-license (the relicensing is real); NoobAI-XL v1.1 = fair-ai-public-license-1.0-sd. Pon]
+- **Verify:** CORRECTED: The inheritance rule and the 'also check the per-version Civitai allowCommercialUse flag' instruction are correct — that rule is exactly what caught three errors elsewhere in this bucket, so keep it as written. Verified base licences: stabilityai/stable-diffusion-xl-base-1.0 = CreativeML Open RAIL++-M; OnomaAIResearch/Illustrious-xl-early-release-v0 = fair-ai-public-license-1.0-sd; OnomaAIResearch/Illustrious-XL-v1.0 = sdxl-license, which confirms the claimed relicensing to Open RAIL; Laxhar/noobai-XL-1.1 = fair-ai-public-license-1.0-sd, share-alike as described. The correction is Pony Diffusion V6 XL: it does not have 'its own permissive terms allowing commercial output' in the loose sense implied. Civitai model 257749 (creator PurpleSmartAI) returns allowCommercialUse: [Image, RentCivit] only — no Rent, no Sell — and allowNoCredit: FALSE, meaning attribution is REQUIRED. Of the four bases, SDXL 1.0 and Illustrious-XL v1.0 are the two clean commercial answers. · Three of four bases verified exactly as claimed: SDXL 1.0 = CreativeML Open RAIL++-M; Illustrious-XL v0.1 = fair-ai-public-license-1.0-sd and v1.0 = sdxl-license (the relicensing is real); NoobAI-XL v1.1 = fair-ai-public-license-1.0-sd. Pon [research note: SDXL LICENSE.md resolves: CreativeML Open RAIL++-M (dated 2023-07-26), royalty-free commercial use with use-based restrictions, no rights claimed in outputs - all confirmed. Illustrious-XL-v2.0 discussion resolves and confirms redistribution under CreativeML Open RAIL (SDXL) permitting commercial use. Caveat: that specific discussion does NOT mention NoobAI or FAIPL 1.0-SD share-alike inheritance (only covers Illustrious); the NoobAI/FAIPL part of the claim is not supported by the cited source, though documented elsewhere. Core SDXL/Illustrious axis verified; NoobAI sub-claim is undersourced.]
 - **Sources:** [stabilityai/stable-diffusion-xl-base-1.0 LICENSE.md (CreativeML Open RAIL++-M)](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md) (Stability AI, 2023) — SDXL 1.0 is licensed under CreativeML Open RAIL++-M, granting royalty-free commercial use with use-based restrictions and no restrictions on generated images. ; [What The License?! (Civitai) + Illustrious-XL v2.0 license discussion](https://huggingface.co/OnomaAIResearch/Illustrious-XL-v2.0/discussions/1) (Civitai / OnomaAIResearch, 2025) — Illustrious-XL is redistributed under CreativeML Open RAIL (SDXL) permitting commercial use; NoobAI built on it inherits Fair AI Public License 1.0-SD share-alike terms.
 
 ### IP-Adapter FaceID + OpenPose identity-locked multi-pose · `recommended` · · community
@@ -169,7 +169,7 @@ The training-free identity lane: feed one (or several averaged) reference images
 | plastic / distorted faces | IPAdapter weight too high | lower to ~0.7, enable FaceDetailer with bbox detection |  |
 | InsightFace license blocks commercial ship | FaceID depends on non-commercial InsightFace models | use plain IP-Adapter image-prompt + trained character LoRA instead |  |
 
-- **Verify:** Both sources resolve. sozee.ai tutorial confirms IPAdapter FaceID + OpenPose ControlNet combo and the >95% face-accuracy figure, and references InsightFace embeddings. InsightFace GitHub confirms the decisive constraint: code is MIT but pretrained models are 'available for non-commercial research purposes only' — so 'conditional' license is accurate. (Note: the Medium/SophieZ source does NOT describe 'averaging multiple reference angles'; author abandons that approach for Flux+template. Secondary source claim is loose, but primary technique+license verify.) [Licence chain confirmed and worse than stated: h94/IP-Adapter-FaceID says 'released exclusively for research purposes and is not intended for commercial use', and the OpenPose half is CMU-noncommercial unless swapped to xinsir. The '>95% id]
+- **Verify:** CORRECTED: The mechanism is real — FaceID substitutes a face-recognition embedding for the CLIP image embedding and adds a LoRA, ControlNet OpenPose gives tighter pose control, and the IPAdapter Batch node averages 2-3 reference angles into one embedding, which validates the recipe's multi-angle advice. Two things must be struck. First, the '>95% identity accuracy when FaceID is combined with OpenPose' figure and the specific weights (IPAdapter ~0.75 / FaceID ~0.6, raised to ~1.2 for hard poses) could not be traced to any primary or community source — do not pin them as parameters. Second, the recipe's own remediation is correct and should be promoted from advice to rule: h94/IP-Adapter-FaceID states 'IP-Adapter-FaceID models are released exclusively for research purposes and is not intended for commercial use' because the underlying InsightFace pretrained models are non-commercial, so use plain h94/IP-Adapter (apache-2.0) paired with xinsir/controlnet-openpose-sdxl-1.0 (apache-2.0), never thibaud's. · Licence chain confirmed and worse than stated: h94/IP-Adapter-FaceID says 'released exclusively for research purposes and is not intended for commercial use', and the OpenPose half is CMU-noncommercial unless swapped to xinsir. The '>95% id [research note: Both sources resolve. sozee.ai tutorial confirms IPAdapter FaceID + OpenPose ControlNet combo and the >95% face-accuracy figure, and references InsightFace embeddings. InsightFace GitHub confirms the decisive constraint: code is MIT but pretrained models are 'available for non-commercial research purposes only' — so 'conditional' license is accurate. (Note: the Medium/SophieZ source does NOT describe 'averaging multiple reference angles'; author abandons that approach for Flux+template. Secondary source claim is loose, but primary technique+license verify.)]
 - **Sources:** [How to Use IPAdapter FaceID with Stable Diffusion](https://sozee.ai/resources/ipadapter-faceid-stable-diffusion-tutorial/) (sozee.ai, 2025) — Combining IPAdapter FaceID with OpenPose ControlNet is reported to reach over 95% identity accuracy across poses. ; [How I Solved Character Consistency in ComfyUI (ControlNet and IPAdapter)](https://medium.com/@sophie_62065/how-i-solved-character-consistency-in-comfyui-after-trying-controlnet-and-ipadapter-fcd9eda25109) (SophieZ (Medium), 2025) — Averaging multiple reference angles into IPAdapter captures a character from multiple views and reduces single-image fixation across poses.
 
 ### SD_PixelArt_SpriteSheet_Generator (Onodofthenorth) · `situational` · ▸ reproduced
@@ -223,7 +223,7 @@ FLUX.1 Kontext [dev] is an image-editing/instruction model; a community turnarou
 | poor results on photos / tight headshots | LoRA trained on full-body stylized illustration | feed full-body stylized character art |  |
 | commercial-license violation | Kontext-dev model is non-commercial | acquire BFL self-serve commercial license or keep out of production path |  |
 
-- **Verify:** RunComfy workflow resolves: single illustration -> five-view turnaround (front/profile/3-4/back), by reverentelusarca, trained with Ostris AI-Toolkit, all confirmed. BFL LICENSE.md resolves and confirms: non-commercial use only, BFL claims no ownership of outputs, commercial model use requires a separate license from BFL. License accurate. [LoRA is real (HF reverentelusarca/kontext-turnaround-sheet-lora-v1, licence flux-kontext-dev-license; Civitai 1753109; Ostris AI-Toolkit confirmed) but it is a SIX-pose sheet, not five. Base licence is 'FLUX.1 [dev] Non-Commercial License v]
+- **Verify:** CORRECTED: The sheet is SIX poses, not five — the card's own recommended prompt lists front view, 3/4 left, left profile, back view, right profile, 3/4 right. Base licence confirmed as 'FLUX.1 [dev] Non-Commercial License v1.1.1'; its Non-Commercial Purpose definition explicitly excludes '(a) for revenue-generating activity, (b) in direct interactions with or that has impact on end users, or (c) to train, fine tune or distill other models for commercial use'. Outputs are freer than the recipe implies: 'We claim no ownership rights in and to the Outputs' — you own generated images and may commercialise them. The training clause is real but narrower than 'cannot train a competitor on outputs': 'You may not use the Output to train, fine-tune or distill a model that is competitive with the FLUX.1 [dev] Model or the FLUX.1 Kontext [dev] Model' — a game-art style LoRA is arguably not competitive, but get counsel before ingesting into style-dataset-lab. BFL's self-serve commercial portal is live (bfl.ai/pricing/licensing; terms at bfl.ai/legal/self-hosted-commercial-license-terms), so path (1) is real. Additional gate the recipe missed: the LoRA's own Civitai flags are allowCommercialUse [RentCivit, Rent] only — no Sell, no Image — with allowDerivatives FALSE. · LoRA is real (HF reverentelusarca/kontext-turnaround-sheet-lora-v1, licence flux-kontext-dev-license; Civitai 1753109; Ostris AI-Toolkit confirmed) but it is a SIX-pose sheet, not five. Base licence is 'FLUX.1 [dev] Non-Commercial License v [research note: RunComfy workflow resolves: single illustration -> five-view turnaround (front/profile/3-4/back), by reverentelusarca, trained with Ostris AI-Toolkit, all confirmed. BFL LICENSE.md resolves and confirms: non-commercial use only, BFL claims no ownership of outputs, commercial model use requires a separate license from BFL. License accurate.]
 - **Sources:** [FLUX.1 Kontext [dev] character turnaround sheet LoRA (ComfyUI workflow)](https://www.runcomfy.com/comfyui-workflows/flux-kontext-character-turnaround-sheet-lora) (reverentelusarca / RunComfy, 2026) — Transforms a single character illustration into a five-view turnaround sheet (front/profile/3-4/back) via a Kontext LoRA trained with Ostris AI-Toolkit. ; [FLUX.1-Kontext-dev LICENSE.md (FLUX.1 Non-Commercial License)](https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev/blob/main/LICENSE.md) (Black Forest Labs, 2025) — Model licensed for non-commercial purposes only; BFL claims no ownership of outputs but commercial production use of the model requires a separate license.
 
 ### Pixel Art XL (nerijs) · `situational` · · single-run
@@ -249,17 +249,17 @@ nerijs's Pixel Art XL is a top-tier SDXL pixel-art style LoRA (notably effective
 |---|---|---|---|
 | cannot clear legal review | no published license | contact author / confirm Civitai flag, or substitute a documented-license LoRA |  |
 
-- **Verify:** Civitai page resolves; Pixel Art XL by nerijs/NeriJS, SDXL 1.0 LoRA confirmed. Page genuinely states no license / commercial-use terms, so the entry's commercial_use='unknown' is itself the accurate finding. Verified. ['No license terms published' is false on BOTH platforms. Civitai API model 120096 returns allowCommercialUse: [] (empty — none granted), allowDerivatives false, allowNoCredit false. HF nerijs/pixel-art-xl declares creativeml-openrail-m. The]
+- **Verify:** CORRECTED: The status is not 'unknown' — it is 'contradictory, and the strict reading forbids it'. The Civitai API for model 120096 (Pixel Art XL, creator NeriJS) returns an EMPTY allowCommercialUse array — no commercial permission of any kind, not even selling generated images — plus allowDerivatives: false and allowNoCredit: false. The HuggingFace mirror nerijs/pixel-art-xl declares license: creativeml-openrail-m, which does permit commercial use subject to the OpenRAIL use restrictions. Two publisher-authored terms in conflict is worse for a commercial build than a silent card, because allowDerivatives: false would also bar merging or fine-tuning on it. Verdict for a shipping JRPG: do not use. The recipe's practical steer (prefer PixelArtRedmond or the Apache-2.0 sprite-sheet checkpoint) is right, for a firmer reason than it gave. The LCM/low-step capability is real — the HF card documents 8 steps at guidance scale 1.5 with an LCM LoRA. · 'No license terms published' is false on BOTH platforms. Civitai API model 120096 returns allowCommercialUse: [] (empty — none granted), allowDerivatives false, allowNoCredit false. HF nerijs/pixel-art-xl declares creativeml-openrail-m. The [research note: Civitai page resolves; Pixel Art XL by nerijs/NeriJS, SDXL 1.0 LoRA confirmed. Page genuinely states no license / commercial-use terms, so the entry's commercial_use='unknown' is itself the accurate finding. Verified.]
 - **Sources:** [Pixel Art XL - v1.1](https://civitai.com/models/120096/pixel-art-xl) (nerijs (NeriJS), 2023) — SDXL pixel-art style LoRA by nerijs; page provides no license or commercial-use terms.
 
 ### APES — articulated part extraction from sprite sheets (Xu et al. 2022) · `situational` · paper
-**Articulated part extraction from sprite sheets — sheet-direct part structure deepen; flip 486: 0.**
-STUDY-059 Scholar deepen. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+**Articulated part extraction from sprite sheets — sheet-direct part structure deepen**
+STUDY-059 Scholar deepen.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [APES](https://arxiv.org/abs/2206.02015) — Articulated part extraction from sprite sheets.
 
 ### Aseprite CLI — sheet export · `situational` · docs
@@ -273,13 +273,13 @@ Batch -b export: --sheet + --data (json-hash/json-array); sheet-type horizontal/
 - **Sources:** [Aseprite CLI — sheet export](https://www.aseprite.org/docs/cli/) — Batch -b export: --sheet + --data (json-hash/json-array); sheet-type horizontal/vertical/rows/columns/packed.
 
 ### BLOCK — MLLM→atlas→NN pixel skin (Guo 2026) · `situational` · paper
-**MLLM→atlas→NN pixel skin pipeline — sheet-direct pixel finish deepen; flip 486: 0.**
-STUDY-059 Scholar deepen. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+**MLLM→atlas→NN pixel skin pipeline — sheet-direct pixel finish deepen**
+STUDY-059 Scholar deepen.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [BLOCK](https://arxiv.org/abs/2603.03964) — MLLM→atlas→NN pixel skin pipeline.
 
 ### ControlNet spatial conditioning (Zhang et al. 2023) · `situational` · paper
@@ -287,17 +287,17 @@ STUDY-059 Scholar deepen. Flip 486: 0. Recipes invented: 0.
 STUDY-038 Scholar deepen.
 - **For the pipeline:** STUDY-038 Verifier ✅.
 - **Engine:** comfy · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; 486 stays avoid.
 - **Fit:** rig 4/5 · studio 4/5
 - **Verify:** STUDY-038 deepen [arXiv 2302.05543 = 'Adding Conditional Control to Text-to-Image Diffusion Models', Lvmin Zhang, 2023 — ID, author and year all match. Abstract verbatim: 'ControlNet locks the production-ready large diffusion models'. Repo lllyasviel/Control]
 - **Sources:** [ControlNet](https://arxiv.org/abs/2302.05543) — Conditional control for T2I diffusion.
 
 ### ControlNet++ consistency feedback (Li et al. 2024) · `situational` · paper
-**Consistency-feedback training to tighten control adherence — pose fidelity deepen; no invent thibaud weights.**
+**Consistency-feedback training to tighten control adherence — pose fidelity deepen**
 STUDY-038 Scholar deepen.
 - **For the pipeline:** STUDY-038 Verifier ✅.
 - **Engine:** comfy · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; 486 stays avoid.
 - **Fit:** rig 4/5 · studio 4/5
 - **Verify:** STUDY-038 deepen [arXiv 2404.07987 = 'ControlNet++: Improving Conditional Controls with Efficient Consistency Feedback', Ming Li, 2024 — ID, author and year match. Abstract confirms pixel-level cycle consistency optimised via a pretrained discriminative rewa]
 - **Sources:** [ControlNet++](https://arxiv.org/abs/2404.07987) — Efficient consistency feedback for controls.
@@ -307,7 +307,7 @@ STUDY-038 Scholar deepen.
 STUDY-038 Scholar deepen.
 - **For the pipeline:** STUDY-038 Verifier ✅.
 - **Engine:** comfy · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; 486 stays avoid.
 - **Fit:** rig 4/5 · studio 4/5
 - **Verify:** STUDY-038 deepen [arXiv 2307.15880 = 'Effective Whole-body Pose Estimation with Two-stages Distillation', Zhendong Yang, 2023 — matches Yang et al. 2023. DWPose = Distillation for Whole-body Pose; two-stage distillation confirmed (RTMPose-l whole-body AP 64.]
 - **Sources:** [DWPose](https://arxiv.org/abs/2307.15880) — Effective whole-body pose estimation.
@@ -317,39 +317,39 @@ STUDY-038 Scholar deepen.
 STUDY-038 Practitioner Verifier ✅.
 - **For the pipeline:** STUDY-038 Verifier ✅.
 - **Engine:** comfy · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; 486 stays avoid.
 - **Fit:** rig 4/5 · studio 4/5
 - **Verify:** STUDY-038 deepen [All three legs verified. Diffusers officially documents StableDiffusionXLControlNetPipeline; ComfyUI_examples publishes Pose/Scribble/Depth/Mixed ControlNet workflows; lllyasviel/sd-controlnet-openpose exists on SD1.5 under CreativeML OpenR]
 - **Sources:** [Diffusers ControlNet using guide](https://huggingface.co/docs/diffusers/en/using-diffusers/controlnet) — SDXL Multi-ControlNet / conditioning_scale. ; [Diffusers ControlNet API](https://huggingface.co/docs/diffusers/en/api/pipelines/controlnet) — Spatial conditioning via control image. ; [ComfyUI ControlNet examples](https://comfyanonymous.github.io/ComfyUI_examples/controlnet/) — Pose ControlNet example; preprocess separately. ; [lllyasviel/control_v11p_sd15_openpose](https://huggingface.co/lllyasviel/control_v11p_sd15_openpose) — CN v1.1 OpenPose hand+face.
 
 ### IP-Adapter image-prompt companion (Ye et al. 2023) · `situational` · paper
-**Decoupled image-prompt adapter compatible with text — identity-lock companion to OpenPose; no flip 486.**
+**Decoupled image-prompt adapter compatible with text — identity-lock companion to OpenPose**
 STUDY-038 Scholar deepen.
 - **For the pipeline:** STUDY-038 Verifier ✅.
 - **Engine:** comfy · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; 486 stays avoid.
 - **Fit:** rig 4/5 · studio 4/5
 - **Verify:** STUDY-038 deepen [arXiv 2308.06721 = 'IP-Adapter: Text Compatible Image Prompt Adapter for Text-to-Image Diffusion Models', Hu Ye, 2023 — matches Ye et al. 2023. Decoupled cross-attention confirmed verbatim; 22M params. HF h94/IP-Adapter declares license: ap]
 - **Sources:** [IP-Adapter](https://arxiv.org/abs/2308.06721) — Text-compatible image prompt adapter.
 
 ### InstantCharacter GH — tuning-free DiT char from one ref · `situational` · docs
-**Tuning-free DiT char from one ref; SigLIP+DINOv2 on FLUX — identity peer; flip 486: 0.**
-STUDY-059 Practitioner deepen. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+**Tuning-free DiT char from one ref; SigLIP+DINOv2 on FLUX — identity peer**
+STUDY-059 Practitioner deepen.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [InstantCharacter GH](https://github.com/Tencent/InstantCharacter) — Tuning-free DiT char from one ref; SigLIP+DINOv2 on FLUX.
 
 ### InstantCharacter — DiT identity under pose/text (Tao et al. 2025) · `situational` · paper
-**DiT identity under pose/text edits — sheet-direct identity deepen; flip 486: 0.**
-STUDY-059 Scholar deepen. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+**DiT identity under pose/text edits — sheet-direct identity deepen**
+STUDY-059 Scholar deepen.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [InstantCharacter](https://arxiv.org/abs/2504.12395) — DiT identity under pose/text edits.
 
 ### InstantCharacter — identity sheet floor · `situational` · paper
@@ -359,7 +359,7 @@ DiT full-transformer character adapter (SigLIP+DINOv2) keeps open-domain identit
 - **Engine:** blender · **Applies to:** sprites · **Kind:** technique
 - **Output license:** commercial **check** (license: see-source) — STUDY-017 reopen; verified=0 until ACCEPT.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [Architecture confirmed (arXiv 2504.12395, Tao 2025; repo pins google/siglip-so400m-patch14-384 + facebook/dinov2-giant on FLUX.1-dev). But Tencent's License.txt limits it to 'academic, research and education purposes' and says to 'refrain f]
+- **Verify:** CORRECTED: InstantCharacter is real and the technical description is exact: arXiv 2504.12395 'InstantCharacter: Personalize Any Characters with a Scalable Diffusion Transformer Framework' (Jiale Tao, 2025), a scalable DiT adapter trained on 10M character samples, using SigLIP (google/siglip-so400m-patch14-384) and DINOv2 (facebook/dinov2-giant) encoders on a black-forest-labs/FLUX.1-dev base. It cannot serve as a 'sheet-direct identity floor' for a commercial studio: the repo's License.txt (copyright THL A29 Limited, a Tencent company) restricts use to 'academic, research and education purposes' and instructs users to 'refrain from using it for any commercial or production purposes under any circumstances', and the FLUX.1-dev base is itself non-commercial. That is two independent non-commercial gates. Reclassify as R&D-only reference; the shippable identity floor is plain h94/IP-Adapter (apache-2.0) plus a self-trained character LoRA. VRAM note: the 2025-05-14 release claims offload inference under 22 GB, with no GPU named. · Architecture confirmed (arXiv 2504.12395, Tao 2025; repo pins google/siglip-so400m-patch14-384 + facebook/dinov2-giant on FLUX.1-dev). But Tencent's License.txt limits it to 'academic, research and education purposes' and says to 'refrain f [research note: STUDY-017 from STUDY-007 Verifier ✅; default verified=0]
 - **Sources:** [InstantCharacter — identity sheet floor](https://arxiv.org/abs/2504.12395) — DiT full-transformer character adapter (SigLIP+DINOv2) keeps open-domain identity under pose/text edits — sheet-direct identity floor.
 
 ### InstantID identity under pose (Wang et al. 2024) · `situational` · paper
@@ -367,7 +367,7 @@ DiT full-transformer character adapter (SigLIP+DINOv2) keeps open-domain identit
 STUDY-038 Scholar deepen.
 - **For the pipeline:** STUDY-038 Verifier ✅.
 - **Engine:** comfy · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; 486 stays avoid.
 - **Fit:** rig 4/5 · studio 4/5
 - **Verify:** STUDY-038 deepen [arXiv 2401.07519 = 'InstantID: Zero-shot Identity-Preserving Generation in Seconds', Qixun Wang, 2024 — matches Wang et al. 2024. IdentityNet with strong semantic and weak spatial conditions confirmed. Licence chain: repo is Apache-2.0 BUT ]
 - **Sources:** [InstantID](https://arxiv.org/abs/2401.07519) — Zero-shot identity-preserving generation.
@@ -377,19 +377,19 @@ STUDY-038 Scholar deepen.
 STUDY-038 Scholar deepen.
 - **For the pipeline:** STUDY-038 Verifier ✅.
 - **Engine:** comfy · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; 486 stays avoid.
 - **Fit:** rig 4/5 · studio 4/5
 - **Verify:** STUDY-038 deepen [arXiv 1812.08008 = 'OpenPose: Realtime Multi-Person 2D Pose Estimation using Part Affinity Fields', Zhe Cao, 2018 — matches Cao et al. 2018; PAFs confirmed verbatim. Licence is the load-bearing fact: CMU's LICENSE permits use only 'for your]
 - **Sources:** [OpenPose](https://arxiv.org/abs/1812.08008) — Realtime multi-person 2D pose estimation.
 
 ### Rotate Your Character — video-diffusion turnaround (Wang et al. 2026) · `situational` · paper
-**Video-diffusion turnaround for 3D characters — sheet-direct/turnaround deepen; flip 486: 0.**
-STUDY-059 Scholar deepen. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+**Video-diffusion turnaround for 3D characters — sheet-direct/turnaround deepen**
+STUDY-059 Scholar deepen.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [Rotate Your Character](https://arxiv.org/abs/2601.05722) — Video-diffusion turnaround for 3D characters.
 
 ### SDXL high-res latent diffusion base (Podell et al. 2023) · `situational` · paper
@@ -397,7 +397,7 @@ STUDY-059 Scholar deepen. Flip 486: 0. Recipes invented: 0.
 STUDY-038 Scholar deepen.
 - **For the pipeline:** STUDY-038 Verifier ✅.
 - **Engine:** comfy · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; 486 stays avoid.
 - **Fit:** rig 4/5 · studio 4/5
 - **Verify:** STUDY-038 deepen [arXiv 2307.01952 = 'SDXL: Improving Latent Diffusion Models for High-Resolution Image Synthesis', Dustin Podell, 2023 — matches Podell et al. 2023. Abstract confirms the three-times-larger UNet and second text encoder. stabilityai/stable-di]
 - **Sources:** [SDXL](https://arxiv.org/abs/2307.01952) — Improving latent diffusion for high-res.
@@ -409,17 +409,17 @@ Animate-Anyone-style ReferenceNet + Pose Guider + Motion Module fine-tuned on ga
 - **Engine:** blender · **Applies to:** sprites · **Kind:** technique
 - **Output license:** commercial **check** (license: see-source) — STUDY-017 reopen; verified=0 until ACCEPT.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [Real and better-licensed than 'see-source': arXiv 2412.03685 (Hsieh, Zhang, Yan 2024), repo chenganhsieh/Sprite-Sheet-Diffusion is MIT with CC0 training data, built on Moore-AnimateAnyone. But it generates ANIMATION motion frames (run/walk/]
+- **Verify:** CORRECTED: Confirmed: arXiv 2412.03685 'Sprite Sheet Diffusion: Generate Game Character for Animation' by Cheng-An Hsieh, Jing Zhang and Ava Yan (2024); the ReferenceNet + Pose Guider + Motion Module architecture is right and is inherited from Moore-AnimateAnyone, so 'Animate-Anyone-style' is accurate. Add the licence, which is strong and was left as 'see-source': the repo states 'This project is licensed under the MIT License. The training data used in this project is based on datasets available under the CC0 license (Public Domain)' — commercially clean on both code and data, making this one of the few unencumbered entries here. The classification is wrong: the abstract describes generating motion frames of 'different poses and actions, such as running, jumping, or attacking' in a motion sequence — this is an animation-frame generator, not a direction generator, and it cannot produce an 8-heading turnaround. Move it out of the sheet-direct lane into the animation lane. Fine-tuned weights are hosted on Google Drive, not in the repo. · Real and better-licensed than 'see-source': arXiv 2412.03685 (Hsieh, Zhang, Yan 2024), repo chenganhsieh/Sprite-Sheet-Diffusion is MIT with CC0 training data, built on Moore-AnimateAnyone. But it generates ANIMATION motion frames (run/walk/ [research note: STUDY-017 from STUDY-007 Verifier ✅; default verified=0]
 - **Sources:** [Sprite Sheet Diffusion — pose-grid sheet-direct](https://arxiv.org/abs/2412.03685) — Animate-Anyone-style ReferenceNet + Pose Guider + Motion Module fine-tuned on game sprite+pose pairs — pose-grid sheet-direct as discrete frames.
 
 ### Sprite Sheet Diffusion — sheet-direct deepen (Hsieh et al. 2024) · `situational` · paper
-**Game sprite+pose sheet-direct diffusion — leftover deepen beyond STUDY-038; flip 486: 0.**
-STUDY-059 Scholar deepen. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+**Game sprite+pose sheet-direct diffusion — leftover deepen beyond STUDY-038**
+STUDY-059 Scholar deepen.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [Sprite Sheet Diffusion](https://arxiv.org/abs/2412.03685) — Game sprite+pose sheet-direct diffusion.
 
 ### T2I-Adapter lightweight spatial control (Mou et al. 2023) · `situational` · paper
@@ -427,7 +427,7 @@ STUDY-059 Scholar deepen. Flip 486: 0. Recipes invented: 0.
 STUDY-038 Scholar deepen.
 - **For the pipeline:** STUDY-038 Verifier ✅.
 - **Engine:** comfy · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; 486 stays avoid.
 - **Fit:** rig 4/5 · studio 4/5
 - **Verify:** STUDY-038 deepen [arXiv 2302.08453 = 'T2I-Adapter: Learning Adapters to Dig out More Controllable Ability for Text-to-Image Diffusion Models', Chong Mou, 2023 — matches Mou et al. 2023. Abstract confirms lightweight adapters 'while freezing the original larg]
 - **Sources:** [T2I-Adapter](https://arxiv.org/abs/2302.08453) — Adapters for controllable T2I.
@@ -437,9 +437,9 @@ STUDY-038 Scholar deepen.
 STUDY-038 Practitioner Verifier ✅.
 - **For the pipeline:** STUDY-038 Verifier ✅.
 - **Engine:** comfy · **Applies to:** sprites · **Base:** SDXL|SD15|general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; flip 486: 0; 486 stays avoid.
+- **Output license:** commercial **check** (license: see-source) — STUDY-038 deepen; verified=0; 486 stays avoid.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-038 deepen [Both exist and xinsir/controlnet-openpose-sdxl-1.0 is apache-2.0 as claimed. The error is pairing them as interchangeable peers: thibaud/controlnet-openpose-sdxl-1.0 is license: other and its card says it 'refers to the OpenPose's one' (CMU]
+- **Verify:** CORRECTED: Both checkpoints resolve and target stabilityai/stable-diffusion-xl-base-1.0, and the 'Apache xinsir' label is exactly right — xinsir/controlnet-openpose-sdxl-1.0 declares license: apache-2.0. What must change is treating thibaud as an equivalent peer: thibaud/controlnet-openpose-sdxl-1.0 declares license: other and its card states the licence 'refers to the OpenPose's one', which routes to CMU's non-commercial research LICENSE. For a commercial pipeline these are not peers — one is usable and one is not. xinsir is also the better artifact on the authors' own numbers: mAP 0.357 vs thibaud's 0.209 across 2000 HumanArt images, with xinsir claiming SOTA among open OpenPose ControlNets. Pin xinsir everywhere thibaud currently appears, including inside the controlnet-openpose-sdxl-pose-grid recipe. · Both exist and xinsir/controlnet-openpose-sdxl-1.0 is apache-2.0 as claimed. The error is pairing them as interchangeable peers: thibaud/controlnet-openpose-sdxl-1.0 is license: other and its card says it 'refers to the OpenPose's one' (CMU [research note: STUDY-038 deepen]
 - **Sources:** [thibaud/controlnet-openpose-sdxl-1.0](https://huggingface.co/thibaud/controlnet-openpose-sdxl-1.0) — SDXL OpenPose CN + Comfy workflow. ; [xinsir/controlnet-openpose-sdxl-1.0](https://huggingface.co/xinsir/controlnet-openpose-sdxl-1.0) — Apache-2.0 SDXL OpenPose peer. ; [stabilityai/stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) — SDXL base Open RAIL++-M. ; [ComfyUI #1184 SDXL ControlNet](https://github.com/comfyanonymous/ComfyUI/issues/1184) — Use SDXL ControlNets; thibaud cited working.
 
 ### Charturn / Multi-View Turnaround LoRA (Chamber, Illustrious/SDXL) · `situational` · · community
@@ -467,6 +467,6 @@ Chamber's Charturn family (IL/XL merged + Pony + XL variants) is the de-facto co
 | face/clothing drift between views | single turn LoRA insufficient for identity lock | stack a second helper LoRA at low weight; add IP-Adapter FaceID |  |
 | consistency collapses outside author's workflow | LoRA tuned to embedded ComfyUI graph | load the author's published image to import the exact workflow |  |
 
-- **Verify:** Civitai page resolves; model exists (Chamber, Illustrious primary + SDXL experimental, ~80 3D-render training images, Helper-LoRA note all confirmed). Card states no explicit commercial flag, so 'conditional' (base-license inheritance) is accurate. Apatero secondary source resolves and contains the 85-92% vs 65-75% consistency figures as claimed. [Not a fabrication and NOT flag-unstated. Chamber's Charturn is real (Civitai 362559 IL/XL Merged; 694887 XL, pub 2024-08-28) and both return allowCommercialUse [Image, RentCivit, Rent, Sell] + allowDerivatives true + no credit — the most pe]
+- **Verify:** CORRECTED: The commercial flag IS stated and it is the best answer available on Civitai: models 362559 (IL/XL Charturn Merged — Illustrious and SDXL 1.0 versions) and 694887 (XL Charturn, SDXL 1.0, published 2024-08-28), creator Chamber, both return allowCommercialUse: [Image, RentCivit, Rent, Sell], allowDerivatives: true, allowNoCredit: true. Sell is granted, so derived weights may be redistributed. The training-set figure is confirmed verbatim in the author's own description: 'Merged all turntable images (~80 3D models render images) as training data', with a stated plan for about 100 more. The helper-LoRA requirement is real — the author ships Clothturn, Bodyturn and Faceturn Helper LoRAs as companions, and recommends at least two turn LoRAs with the main at ~0.7 and the secondary at ~0.15. The remaining gate is therefore the BASE, not the LoRA card: Illustrious-XL v1.0 is now sdxl-license (Open RAIL++-M, clean) while the v0.1 early release is fair-ai-public-license-1.0-sd (share-alike). Pin the base version, not just the LoRA. · Not a fabrication and NOT flag-unstated. Chamber's Charturn is real (Civitai 362559 IL/XL Merged; 694887 XL, pub 2024-08-28) and both return allowCommercialUse [Image, RentCivit, Rent, Sell] + allowDerivatives true + no credit — the most pe [research note: Civitai page resolves; model exists (Chamber, Illustrious primary + SDXL experimental, ~80 3D-render training images, Helper-LoRA note all confirmed). Card states no explicit commercial flag, so 'conditional' (base-license inheritance) is accurate. Apatero secondary source resolves and contains the 85-92% vs 65-75% consistency figures as claimed.]
 - **Sources:** [IL/XL Charturn Merged, Multi-View, Turnaround, Model Sheet, Character Design](https://civitai.com/models/362559/ilxl-charturn-merged-multi-view-turnaround-model-sheet-character-design) (Chamber (ChamberSu1996), 2024) — LoRA built from ~80 3D-model render images that generates multi-view turnarounds; author notes body/face turns still need a special Helper LoRA. ; [AI Character Turnaround Sheet Guide 2026](https://apatero.com/blog/ai-character-turnaround-sheet-generation-guide-2026) (Apatero Blog, 2026) — LoRA-trained characters achieve 85-92% view consistency vs 65-75% for pure prompting with reference images.
 

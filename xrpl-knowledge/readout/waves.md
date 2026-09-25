@@ -1,6 +1,6 @@
 # readouts — xrpl-knowledge · wave dispatches
 
-> The research log: how this KB was built, wave by wave. 10 waves · generated 2026-09-14.
+> The research log: how this KB was built, wave by wave. 10 waves · generated 2026-09-25.
 
 ## Wave 1 — Foundation — the XRPL ecosystem, with current mainnet/amendment status (2026-06-14)
 

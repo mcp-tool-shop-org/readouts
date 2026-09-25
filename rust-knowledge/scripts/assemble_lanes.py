@@ -72,6 +72,7 @@ WAVE_TITLES = {
     2: "Advanced — the parts of the language that decide design",
     3: "si-rpg-engine — how Rust is and will be used in the engine",
     4: "si-jam-sessions — Rust for a deterministic music law (P1)",
+    5: "si-jam-sessions — the signed lock's arithmetic, parser and callback, checked (P2)",
 }
 
 
@@ -338,10 +339,12 @@ def main() -> int:
     ap.add_argument("--lane", help="stage only this lane")
     ap.add_argument("--stage", action="store_true")
     ap.add_argument("--final", action="store_true")
+    ap.add_argument("--sweep", help="sweep folder under verification/ (default sweep-<date>). Two waves on one "
+                                    "date that reuse lane slugs need their own, or the second overwrites the first")
     args = ap.parse_args()
 
     wave_dir = os.path.join(ROOT, "waves", args.dir)
-    sweep_dir = os.path.join(ROOT, "verification", f"sweep-{args.date}", "lanes")
+    sweep_dir = os.path.join(ROOT, "verification", args.sweep or f"sweep-{args.date}", "lanes")
     pattern = os.path.join(wave_dir, "lanes", (args.lane or "*") + ".json")
     lanes = load_lane_files(pattern)
     if not lanes:

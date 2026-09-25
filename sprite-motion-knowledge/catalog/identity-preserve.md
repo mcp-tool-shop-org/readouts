@@ -108,12 +108,12 @@ In a multi-frame repaint pass (e.g. idle, walk, attack strips), each frame is re
 
 ### IP-FaceDiff identity lock analog (hold-with-limit) · `situational` · analog
 **Diffusion facial video edit preserving identity across frames — hold for cross-frame face/identity lock; ≠ flip leftover prism.**
-STUDY-058 Analogist Verifier ✅ hold-with-limit. Flips 33/117/486: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+STUDY-058 Analogist Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [IP-FaceDiff](https://arxiv.org/abs/2501.07530) — Identity-preserving facial video editing.
 
 ### IP-FaceDiff identity-preserving facial video edit (Anand et al. 2025) · `situational` · paper
@@ -121,9 +121,9 @@ STUDY-058 Analogist Verifier ✅ hold-with-limit. Flips 33/117/486: 0.
 STUDY-037 Scholar deepen.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [IP-FaceDiff](https://arxiv.org/abs/2501.07530) — Identity-preserving facial video editing.
 
 ### Identity-preserving pose-guided facial landmarks (Mu et al. 2024) · `situational` · paper
@@ -131,9 +131,9 @@ STUDY-037 Scholar deepen.
 STUDY-037 Scholar deepen.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [Identity-Preserving Pose-Guided](https://arxiv.org/abs/2412.08976) — Facial landmark transform for identity under pose.
 
 ### LLVM phi/SSA identity merge analog (hold-with-limit) · `situational` · docs
@@ -141,19 +141,19 @@ STUDY-037 Scholar deepen.
 STUDY-037 Analogist Verifier ✅ hold-with-limit.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [LLVM LangRef phi](https://llvm.org/docs/LangRef.html#phi-instruction) — SSA phi merges predecessor values.
 
 ### LTX Face Attention Anchor — cross-frame face lock surface · `situational` · docs
-**Face identity via bbox (face_bbox_norm, tracked modes) — cross-frame face lock surface; recipes invented: 0.**
-STUDY-058 Practitioner Verifier ✅. Flips 33/117/486: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+**Face identity via bbox (face_bbox_norm, tracked modes) — cross-frame face lock surface**
+STUDY-058 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [LTX Face Attention Anchor](https://www.runcomfy.com/comfyui-nodes/10S-Comfy-nodes/ltx-face-attention-anchor) — Face identity via bbox; tracked modes.
 
 ### ArcFace / InsightFace face embedding — identity measurement + lock (NON-COMMERCIAL — flagged) · `avoid` · primary-source-confirmed

@@ -35,7 +35,7 @@ SCHEMA = os.path.join(ROOT, "schema.sql")
 
 # One definition of `verified`, shared by every KB — see shared/verdicts.py.
 sys.path.insert(0, os.path.join(os.path.dirname(ROOT), "shared"))
-from verdicts import Verdicts  # noqa: E402
+from verdicts import Verdicts, note_with_corrections  # noqa: E402
 
 
 VERIFIED_VERDICTS = {"solid", "plausible"}
@@ -122,9 +122,13 @@ def main(path):
             # `verified` is external-only now. "plausible" is the adversarial
             # verdict for "could not falsify", never "checked out", and the old
             # else-branch read the research agent's own field.
-            verified, vstatus, vnote, _ = VERD.for_entry(rslug, name)
+            verified, vstatus, vnote, corr = VERD.for_entry(rslug, name)
             own = t.get("verify_note")
-            vnote = f"{own} [{vnote}]" if own else vnote
+            if corr:
+                # A corrected verdict leads: the research seat's own note is what was corrected.
+                vnote = note_with_corrections(vnote, corr) + (f" [research note: {own}]" if own else "")
+            else:
+                vnote = f"{own} [{vnote}]" if own else vnote
             status = ("avoid" if vstatus == "avoid"
                       else t.get("status") or STATUS_BY_CURRENCY.get(currency or ""))
             cur.execute(

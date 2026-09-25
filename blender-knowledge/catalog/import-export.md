@@ -200,14 +200,14 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### Absences on these pages · `⚠ shaky` · Blender 4.x pin (GLB-first)
 ****Absent:** TRELLIS product name; unit-cube normalize recipe; farm camera framing; Draco-import reliability matrix by 4.0–4.5 patch. Scale/bounds post-import is post-doc craft, not a documented import knob.**
 - **How:** Official 4.5 glTF/USD docs; import/export_scene.gltf; Khronos axes.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 
 ### Articulate3D: Holistic Understanding of 3D Scenes as Universal Scene Description · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **First large-scale non-synthetic indoor dataset **natively in USD**; argues USD beats PLY/JSON for hierarchical semantics, articulation, and simulation-ready interchange.**
 - **How:** TRELLIS/GLB/glTF literature; USD adjacent not required; Pin 4.x.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [Articulate3D: Holistic Understanding of 3D Scenes as Universal Scene Description](https://arxiv.org/abs/2412.01398) — First large-scale non-synthetic indoor dataset **natively in USD**; argues USD beats PLY/JSON for hierarchical semantics, articulation, and simulation-ready interchange.
@@ -215,7 +215,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### BlendFusion · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **BlenderProc places cameras on a discrete orbit with azimuth every **45° (eight viewpoints)** around the object AABB center — 8-dir turnaround geometry for object-centric renders (no silent 4→5 invent).**
 - **How:** TRELLIS/GLB/glTF literature; USD adjacent not required; Pin 4.x.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [BlendFusion](https://arxiv.org/abs/2604.09022) — BlenderProc places cameras on a discrete orbit with azimuth every **45° (eight viewpoints)** around the object AABB center — 8-dir turnaround geometry for object-centric renders (no silent 4→5 invent)
@@ -223,7 +223,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### DeepJEB++: Foundation Model-Driven Large-Scale 3D Engineering Dataset via 2D Latent Space Augmentation · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **Selects TRELLIS (MIT) for multi-view conditioning and SLAT decode into NeRF / 3DGS / **triangle meshes** — mesh export + multi-view conditioning limits for engineering assets.**
 - **How:** TRELLIS/GLB/glTF literature; USD adjacent not required; Pin 4.x.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [DeepJEB++: Foundation Model-Driven Large-Scale 3D Engineering Dataset via 2D Lat](https://arxiv.org/abs/2606.12994) — Selects TRELLIS (MIT) for multi-view conditioning and SLAT decode into NeRF / 3DGS / **triangle meshes** — mesh export + multi-view conditioning limits for engineering assets.
@@ -231,7 +231,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### EXT_meshopt_compression / meshopt · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **UNVERIFIED meshopt — Analog: GPU-friendly mesh compression for glTF shipping size. Holds for optional compressed GLB adjacent to Draco export knobs. Limit: compression ext ≠ cleanup/decimate before 8-dir render.**
 - **How:** glTF-first/FBX trap/bake hold-with-limit; USD-required + float-latest omitted.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified; meshopt UNVERIFIED [no external verdict — not checked]
 - **Sources:** [EXT_meshopt_compression / meshopt](https://www.khronos.org/blog/meshopt-compression-makes-3d-assets-smaller-and-faster) — UNVERIFIED meshopt — Analog: GPU-friendly mesh compression for glTF shipping size. Holds for optional compressed GLB adjacent to Draco export knobs. Limit: compression ext ≠ cleanup/decimate before 8-
@@ -239,7 +239,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### FBX (Experimental) · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **Analog: proprietary FBX path marked Experimental with chronic unit/scale pitfalls (KB lane). Holds as the interchange trap vs GLB for generative meshes. Limit: Autodesk DCC round-trips ≠ TRELLIS GLB contract.**
 - **How:** glTF-first/FBX trap/bake hold-with-limit; USD-required + float-latest omitted.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [FBX (Experimental)](https://docs.blender.org/manual/en/4.5/files/import_export/fbx.html) — Analog: proprietary FBX path marked Experimental with chronic unit/scale pitfalls (KB lane). Holds as the interchange trap vs GLB for generative meshes. Limit: Autodesk DCC round-trips ≠ TRELLIS GLB c
@@ -247,7 +247,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### From USD Scenes to Knowledge Graphs: Zero-Shot Ontology Grounding with LLMs · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **USD encodes rich scene graphs but relies on user-defined identifiers; grounding maps prims to OWL — interchange limit: USD structure alone is not a shared ontology.**
 - **How:** TRELLIS/GLB/glTF literature; USD adjacent not required; Pin 4.x.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [From USD Scenes to Knowledge Graphs: Zero-Shot Ontology Grounding with LLMs](https://arxiv.org/abs/2606.09134) — USD encodes rich scene graphs but relies on user-defined identifiers; grounding maps prims to OWL — interchange limit: USD structure alone is not a shared ontology.
@@ -255,7 +255,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### Generating Actionable Robot Knowledge Bases by Combining 3D Scene Graphs with Robot Ontologies · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **Converts diverse scene graphs into unified **USD** so only one importer/exporter to USD is required per format — USD-as-intermediary interchange pattern (and its mapping cost).**
 - **How:** TRELLIS/GLB/glTF literature; USD adjacent not required; Pin 4.x.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [Generating Actionable Robot Knowledge Bases by Combining 3D Scene Graphs with Ro](https://arxiv.org/abs/2507.11770) — Converts diverse scene graphs into unified **USD** so only one importer/exporter to USD is required per format — USD-as-intermediary interchange pattern (and its mapping cost).
@@ -263,14 +263,14 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### Headless farm path (on-page composition only) · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **`-b`/`-P` (STUDY-046) + `bpy.ops.import_scene.gltf(filepath=…)` loads textured GLB into a background scene; optional later `export_scene.gltf` / USD export. Pages document operators + axes; they do not invent a silent 5.0 API.**
 - **How:** Official 4.5 glTF/USD docs; import/export_scene.gltf; Khronos axes.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 
 ### Khronos glTF 2.0 Specification · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **Runtime delivery format; +Y up, +Z forward, meters; GLB = JSON+BIN in one file (`model/gltf-binary`). Core metallic-roughness PBR. Normative axis/units for why Blender rotates on import.**
 - **How:** Official 4.5 glTF/USD docs; import/export_scene.gltf; Khronos axes.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [Khronos glTF 2.0 Specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html) — Runtime delivery format; +Y up, +Z forward, meters; GLB = JSON+BIN in one file (`model/gltf-binary`). Core metallic-roughness PBR. Normative axis/units for why Blender rotates on import.
@@ -278,7 +278,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### MExECON: Multi-view Extended Explicit Clothed humans Optimized via Normal integration · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **Blender renders an **8-view** set with cameras uniformly around the subject — same orbit cardinality as the studio 8-dir turnaround (Blender 4.x pin held).**
 - **How:** TRELLIS/GLB/glTF literature; USD adjacent not required; Pin 4.x.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [MExECON: Multi-view Extended Explicit Clothed humans Optimized via Normal integr](https://arxiv.org/abs/2508.15500) — Blender renders an **8-view** set with cameras uniformly around the subject — same orbit cardinality as the studio 8-dir turnaround (Blender 4.x pin held).
@@ -286,7 +286,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### Modifiers introduction (non-destructive → apply) · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **Analog: modifiers are non-destructive until applied; export must bake evaluated mesh. Holds for `export_apply=True` / bake-before-export in cleanup→GLB. Limit: modifier stack ≠ glTF material mapping.**
 - **How:** glTF-first/FBX trap/bake hold-with-limit; USD-required + float-latest omitted.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [Modifiers introduction (non-destructive → apply)](https://docs.blender.org/manual/en/4.5/modeling/modifiers/introduction.html) — Analog: modifiers are non-destructive until applied; export must bake evaluated mesh. Holds for `export_apply=True` / bake-before-export in cleanup→GLB. Limit: modifier stack ≠ glTF material mapping.
@@ -294,7 +294,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### NANO3D: A Training-Free Approach for Efficient 3D Editing Without Masks · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **Stores SLAT then uses FlexiCube to convert SLAT into **explicit GLB meshes** for downstream apps — names GLB as the compiled mesh delivery from TRELLIS-class latents.**
 - **How:** TRELLIS/GLB/glTF literature; USD adjacent not required; Pin 4.x.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [NANO3D: A Training-Free Approach for Efficient 3D Editing Without Masks](https://arxiv.org/abs/2510.15019) — Stores SLAT then uses FlexiCube to convert SLAT into **explicit GLB meshes** for downstream apps — names GLB as the compiled mesh delivery from TRELLIS-class latents.
@@ -302,7 +302,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### OpenUSD home · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **USD as collaborative scene platform / DCC interchange (geometry, shading, lighting). Frames why Blender ships USD I/O; does not define Blender operator knobs.**
 - **How:** Official 4.5 glTF/USD docs; import/export_scene.gltf; Khronos axes.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [OpenUSD home](https://openusd.org/release/index.html) — USD as collaborative scene platform / DCC interchange (geometry, shading, lighting). Frames why Blender ships USD I/O; does not define Blender operator knobs.
@@ -310,7 +310,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### Referencing Layers (USD composition) · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **Analog: compose scenes by referencing layers/opinions. Holds as VFX composition craft adjacent to multi-asset pipelines. Limit: USD composition ≠ required for a single GLB sprite turnaround.**
 - **How:** glTF-first/FBX trap/bake hold-with-limit; USD-required + float-latest omitted.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [Referencing Layers (USD composition)](https://openusd.org/release/tut_referencing_layers.html) — Analog: compose scenes by referencing layers/opinions. Holds as VFX composition craft adjacent to multi-asset pipelines. Limit: USD composition ≠ required for a single GLB sprite turnaround.
@@ -318,7 +318,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### Structured 3D Latents for Scalable and Versatile 3D Generation (TRELLIS) · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **SLAT decodes to versatile formats (radiance fields, 3D Gaussians, meshes via FlexiCubes) from dense multiview features — generative mesh artifact pole feeding TRELLIS→import pipelines (not a silent Blender major bump).**
 - **How:** TRELLIS/GLB/glTF literature; USD adjacent not required; Pin 4.x.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [Structured 3D Latents for Scalable and Versatile 3D Generation (TRELLIS)](https://arxiv.org/abs/2412.01506) — SLAT decodes to versatile formats (radiance fields, 3D Gaussians, meshes via FlexiCubes) from dense multiview features — generative mesh artifact pole feeding TRELLIS→import pipelines (not a silent Bl
@@ -326,7 +326,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### Universal Scene Description · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **Import meshes/materials/cameras/lights/volumes/points; Y-up → Z-up rotation on roots; Import Options: Scale, Apply Unit Conversion Scale, Import USD Preview, textures None/Packed/Copy. Export: meshes/cameras/lights/curves; USDZ via `.usdz`; Convert Orientation; USD Preview Surface / MaterialX networks. Note: layers/variants not fully handled.**
 - **How:** Official 4.5 glTF/USD docs; import/export_scene.gltf; Khronos axes.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [Universal Scene Description](https://docs.blender.org/manual/en/4.5/files/import_export/usd.html) — Import meshes/materials/cameras/lights/volumes/points; Y-up → Z-up rotation on roots; Import Options: Scale, Apply Unit Conversion Scale, Import USD Preview, textures None/Packed/Copy. Export: meshes/
@@ -334,7 +334,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### Universal Scene Description (Blender 4.5) · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **Analog: Blender USD I/O exists but importer “does not yet handle certain USD composition concepts, such as layers and references.” Holds as scoped USD support; reinforces GLB-first for TRELLIS. Limit: Blender USD gaps ≠ OpenUSD studio full stack.**
 - **How:** glTF-first/FBX trap/bake hold-with-limit; USD-required + float-latest omitted.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [Universal Scene Description (Blender 4.5)](https://docs.blender.org/manual/en/4.5/files/import_export/usd.html) — Analog: Blender USD I/O exists but importer “does not yet handle certain USD composition concepts, such as layers and references.” Holds as scoped USD support; reinforces GLB-first for TRELLIS. Limit:
@@ -342,7 +342,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### bpy.ops.export_scene.gltf · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **Headless export knobs: `export_format`, `export_yup`, `export_apply`, `export_draco_mesh_compression_enable` (+ quantization), `export_materials`, `export_texcoords`/`export_normals`, `use_selection`/`use_visible`. Default filter `*.glb`.**
 - **How:** Official 4.5 glTF/USD docs; import/export_scene.gltf; Khronos axes.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [bpy.ops.export_scene.gltf](https://docs.blender.org/api/4.5/bpy.ops.export_scene.html) — Headless export knobs: `export_format`, `export_yup`, `export_apply`, `export_draco_mesh_compression_enable` (+ quantization), `export_materials`, `export_texcoords`/`export_normals`, `use_selection`/
@@ -350,7 +350,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### bpy.ops.import_scene.gltf · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **Headless entry: `filepath`, `import_pack_images`, `merge_vertices`, `import_shading`, `import_webp_texture`, `import_scene_as_collection`, `import_select_created_objects`. Filter `*.glb;*.gltf`. No TRELLIS-specific args on page.**
 - **How:** Official 4.5 glTF/USD docs; import/export_scene.gltf; Khronos axes.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [bpy.ops.import_scene.gltf](https://docs.blender.org/api/4.5/bpy.ops.import_scene.html) — Headless entry: `filepath`, `import_pack_images`, `merge_vertices`, `import_shading`, `import_webp_texture`, `import_scene_as_collection`, `import_select_created_objects`. Filter `*.glb;*.gltf`. No TR
@@ -358,7 +358,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### glTF · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **Analog: royalty-free runtime shipping format (JSON + binary `.glb`). Holds for TRELLIS→`import_scene.gltf`→8-dir sprites as the decisive interchange, not FBX/USD-first. Limit: runtime delivery spec ≠ headless camera farm knobs.**
 - **How:** glTF-first/FBX trap/bake hold-with-limit; USD-required + float-latest omitted.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [glTF](https://www.khronos.org/gltf/) — Analog: royalty-free runtime shipping format (JSON + binary `.glb`). Holds for TRELLIS→`import_scene.gltf`→8-dir sprites as the decisive interchange, not FBX/USD-first. Limit: runtime delivery spec ≠
@@ -366,7 +366,7 @@ bpy.ops.wm.usd_export( filepath="/path/to/out.usd", export_materials=True, expor
 ### glTF 2.0 · `⚠ shaky` · Blender 4.x pin (GLB-first)
 **Import/export `.glb`/`.gltf`; PBR Principled map; formats GLB binary / Separate / Embedded. Import knobs: Pack Images, Merge Vertices, Shading, Import Scenes as Collections. Export: Format, Y Up, Apply Modifiers, Draco (`KHR_draco_mesh_compression`), materials/vertex color modes. Enabled by default.**
 - **How:** Official 4.5 glTF/USD docs; import/export_scene.gltf; Khronos axes.
-- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. Do not invent USD-required-for-sprites or float-latest. meshopt blog not verified.
+- **Gotchas:** STUDY-047. Pin 4.x. Silent 4→5: 0. meshopt blog not verified.
 - **For Studio:** TRELLIS→GLB→8-dir turnaround; USD adjacent not required.
 - **Verify (shaky):** STUDY-047 deepen; Pin 4.x; silent 4→5: 0; GLB-first; default unverified [no external verdict — not checked]
 - **Sources:** [glTF 2.0](https://docs.blender.org/manual/en/4.5/addons/import_export/scene_gltf2.html) — Import/export `.glb`/`.gltf`; PBR Principled map; formats GLB binary / Separate / Embedded. Import knobs: Pack Images, Merge Vertices, Shading, Import Scenes as Collections. Export: Format, Y Up, Appl

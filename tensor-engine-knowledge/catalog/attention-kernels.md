@@ -149,11 +149,11 @@ A header-only CUDA DSL of 16x16 tile primitives for writing attention/GEMM kerne
 - **Repo:** https://github.com/HazyResearch/ThunderKittens
 
 ### FlashInfer: Efficient and Customizable Attention Engine for LLM Inference Serving · `situational` · experimental
-Customizable GPU attention kernels for LLM serving — compile/serve kernel layer adjacent to TVM/MLC attention backends (no invent tok/s).
+Customizable GPU attention kernels for LLM serving — compile/serve kernel layer adjacent to TVM/MLC attention backends.
 - **Dev:** Ye, Chen, Lai, Lin et al. · **Type:** paper-guide · **Lang:** see source · **Released:** 2025
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [FlashInfer: Efficient and Customizable Attention Engine for LLM Inference Serving](https://arxiv.org/abs/2501.01005) — attention kernels for LLM serve
 
@@ -174,7 +174,7 @@ Hardware-aware bandits steering LLM kernel search — auto-tuning honesty adjace
 - **Dev:** Ran, Xie, Ji, Liu et al. · **Type:** paper-guide · **Lang:** see source · **Released:** 2025
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [KernelBand: Steering LLM-based Kernel Optimization via Hardware-Aware Multi-Armed Bandits](https://arxiv.org/abs/2511.18868) — HW-aware bandit kernel search
 
@@ -183,7 +183,7 @@ Draft-then-verify exploration to accelerate search-based tensor-program tuning �
 - **Dev:** Qiao, Shi, Hao, Fang et al. · **Type:** paper-guide · **Lang:** see source · **Released:** 2024
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [Pruner: A Draft-then-Verify Exploration Mechanism to Accelerate Tensor Program Tuning](https://arxiv.org/abs/2402.02361) — draft-then-verify tensor-program tuning
 

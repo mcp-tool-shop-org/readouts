@@ -5,15 +5,15 @@ _Blender headless render: camera-parented rig, color-management/tonemap per char
 
 | ↓ | Recipe | Engine | Applies | Evidence | Comm | Rig | Studio | ✓ |
 |---|--------|--------|---------|----------|------|-----|--------|---|
-| 1 | Blender 5.0.1 headless 8-direction camera-parented light rig | blender | game-sprite | ▣ measured | ✅ yes | 5 | 5 | · |
-| 1 | Studio HDRI ambient fill (Studio Kontrast 04, CC0) | blender | game-sprite | ▣ measured | ✅ yes | 5 | 4 | · |
+| 1 | Blender 5.0.1 headless 8-direction camera-parented light rig | blender | game-sprite | ▣ measured | ✅ yes | 5 | 5 | ✓ |
+| 1 | Studio HDRI ambient fill (Studio Kontrast 04, CC0) | blender | game-sprite | ▣ measured | ✅ yes | 5 | 4 | ✓ |
 | 1 | Tonemap per character value: AgX for dark, Standard for bright | blender | game-sprite | ▣ measured | ✅ yes | 5 | 5 | · |
-| 2 | Blender headless multi-direction render rig (--background + --python) | blender | game-sprite | ▸ reproduced | ✅ yes | 5 | 5 | · |
-| 2 | Color-management discipline: Standard/Raw (not AgX) for sprite albedo | blender | both | ▸ reproduced | ✅ yes | 5 | 5 | · |
-| 2 | Inverse-hull (backface solidify) outline for toon sprites | blender | both | ▸ reproduced | ✅ yes | 5 | 5 | · |
-| 2 | Normal / depth / AO passes for in-engine sprite re-lighting | blender | both | ▸ reproduced | ✅ yes | 5 | 5 | · |
-| 9 | Diffusers ControlNet overview | blender | sprites | docs | check | 4 | 4 | · |
-| 10 | Freestyle / Grease-Pencil Line Art outline pass | blender | both | · community | ✅ yes | 4 | 4 | · |
+| 2 | Blender headless multi-direction render rig (--background + --python) | blender | game-sprite | ▸ reproduced | ✅ yes | 5 | 5 | ✓ |
+| 2 | Color-management discipline: Standard/Raw (not AgX) for sprite albedo | blender | both | ▸ reproduced | ✅ yes | 5 | 5 | ✓ |
+| 2 | Inverse-hull (backface solidify) outline for toon sprites | blender | both | ▸ reproduced | ✅ yes | 5 | 5 | ✓ |
+| 2 | Normal / depth / AO passes for in-engine sprite re-lighting | blender | both | ▸ reproduced | ✅ yes | 5 | 5 | ✓ |
+| 9 | Diffusers ControlNet overview | blender | sprites | docs | check | 4 | 4 | ✓ |
+| 10 | Freestyle / Grease-Pencil Line Art outline pass | blender | both | · community | ✅ yes | 4 | 4 | ✓ |
 
 ## Detail
 
@@ -34,7 +34,7 @@ render_views.py imports the GLB, builds an ORTHO camera at pitch 30 parented to 
 | ortho_scale | size*1.3 | ○ | frames the normalized TRELLIS mesh |
 | lights | Key/Fill/Rim + shadowless LensFill | ○ | energies auto-scale size^2; LensFill prevents black silhouettes in EEVEE (no GI) |
 
-- **Verify:** no external verdict — not checked
+- **Verify:** Blender 5.0 Python API release notes confirm EEVEE's identifier changed FROM BLENDER_EEVEE_NEXT TO BLENDER_EEVEE -- exactly the claimed enum flip. Timing/rig specifics are rig-measured, uncontradicted.
 - **Sources:** [render_views.py (trellis-sprite-pipeline)](https://github.com/mcp-tool-shop-org/trellis-sprite-pipeline) — The camera-parented 8-direction render rig. ; [Blender 5.0 Python API (color management, EEVEE)](https://docs.blender.org/api/current/) — view_settings.view_transform + EEVEE engine enum.
 
 ### Studio HDRI ambient fill (Studio Kontrast 04, CC0) · `recommended` · ▣ measured
@@ -45,7 +45,7 @@ render_views.py loads an environment HDRI (Studio Kontrast 04, Poly Haven, CC0) 
 - **Validated under:** Rendered with + without HDRI, looked-at on the rig 2026-06-07.
 - **Output license:** commercial **yes** (license: CC0 (Poly Haven))
 - **Fit:** rig 5/5 · studio 4/5
-- **Verify:** no external verdict — not checked
+- **Verify:** Poly Haven confirms Studio Kontrast 04 is CC0 (by Grzegorz Wronkowski). Local install path, strength values, and the looked-at comparison are rig-specific and uncontradicted.
 - **Sources:** [Poly Haven — Studio Kontrast 04 (CC0 HDRI)](https://polyhaven.com/a/studio_kontrast_04) — CC0-licensed studio HDRI used for ambient fill.
 
 ### Tonemap per character value: AgX for dark, Standard for bright · `recommended` · ▣ measured
@@ -63,7 +63,7 @@ render_views.py defaulted to AgX view transform + view-exposure 1.5 (chosen to l
 |---|---|---|---|
 | Sprites look washed-out / chalky / desaturated | AgX view transform + raised exposure desaturates highlights on a bright subject | --view-transform Standard --view-exposure 0 (Filmic for a middle ground) |  |
 
-- **Verify:** no external verdict — not checked
+- **Verify:** No page states this rig's specific 4-way AgX/Standard/Filmic A/B result for one character. Consistent with, not contradicted by, Blender's documented AgX highlight-rolloff/desaturation behavior.
 - **Sources:** [Blender AgX / Standard view transforms](https://docs.blender.org/manual/en/latest/render/color_management/index.html) — AgX is a filmic transform that desaturates toward white; Standard is linear-to-sRGB.
 
 ### Blender headless multi-direction render rig (--background + --python) · `recommended` · ▸ reproduced
@@ -91,7 +91,7 @@ Run `blender -b scene.blend -P rig.py` (or `--background... --python`) on a serv
 | Output options ignored, files land in /tmp | -o or format set AFTER -f/-a on the command line | Put all output/scene flags before the render trigger; verify with a 1-frame dry run |  |
 | Directions drift / sprite jitters between angles | rotating the mesh instead of the camera, or perspective camera | Parent camera to an empty, rotate the empty; use orthographic; lock the model transform |  |
 
-- **Verify:** Both sources resolve (200). Blender manual confirms verbatim: 'we do not need a graphical display (no need for X server on Linux)', 'render via a remote shell (typically SSH)', and 'Always position -f or -a as the last arguments.' yuki-koyama/blender-cli-rendering exists, is a set of Blender Python CLI-rendering scripts (--background + --python pattern), licensed GPL-3.0 — matches 'GPLv3' claim. Blender output unrestricted is correct. License/commercial_use accurate. [no external verdict — not checked]
+- **Verify:** Both sources resolve (200). Blender manual confirms verbatim: 'we do not need a graphical display (no need for X server on Linux)', 'render via a remote shell (typically SSH)', and 'Always position -f or -a as the last arguments.' yuki-koyama/blender-cli-rendering exists, is a set of Blender Python CLI-rendering scripts (--background + --python pattern), licensed GPL-3.0 — matches 'GPLv3' claim. Blender output unrestricted is correct. License/commercial_use accurate. [Blender manual confirms -f/-a (and other render triggers) must be the last CLI args. yuki-koyama/blender-cli-rendering (GPL-3.0) and oqton/blenderless are real, matching wrappers.]
 - **Sources:** [Rendering From The Command Line — Blender Manual](https://docs.blender.org/manual/en/latest/advanced/command_line/render.html) (Blender Foundation, 2025) — Command-line rendering needs no graphical display and can run over SSH; the -f and -a render arguments must be positioned as the last arguments. ; [yuki-koyama/blender-cli-rendering](https://github.com/yuki-koyama/blender-cli-rendering) (Yuki Koyama, 2021) — Provides Blender Python scripts that render images directly from the CLI, demonstrating the --background + --python automation pattern reusable for multi-direction sprite rigs.
 
 ### Color-management discipline: Standard/Raw (not AgX) for sprite albedo · `recommended` · ▸ reproduced
@@ -118,7 +118,7 @@ Blender 4.0 replaced Filmic with AgX as the default view transform. AgX is a sig
 | Sprite colors look muddy/desaturated vs material preview | AgX default view transform applied on output | Switch Render Properties > Color Management > View Transform to Standard |  |
 | Bright hero costume colors clip to neon or white | Standard sRGB blows out very bright values; or AgX rolls them off | Keep emission/values in valid 0-1 range; light flatter for sprite albedo |  |
 
-- **Verify:** Both sources resolve (200). Blender 4.0 release notes confirm verbatim: 'AgX view transform has been added, and replaces Filmic as the [default]... new files; Standard and Filmic remain available.' Blendergrid confirms view transforms only affect display/output, not the linear render. The 'Standard/Raw for albedo' guidance is the entry's own inference; core verifiable claims confirmed. No license concern. [no external verdict — not checked]
+- **Verify:** Both sources resolve (200). Blender 4.0 release notes confirm verbatim: 'AgX view transform has been added, and replaces Filmic as the [default]... new files; Standard and Filmic remain available.' Blendergrid confirms view transforms only affect display/output, not the linear render. The 'Standard/Raw for albedo' guidance is the entry's own inference; core verifiable claims confirmed. No license concern. [Blender 4.0 release notes confirm AgX replaced Filmic as default and rolls bright colors toward white/desaturates highlights -- exactly the harm this entry warns against for flat albedo work.]
 - **Sources:** [Color Management — Filmic / AgX (Blender 4.0 release notes)](https://developer.blender.org/docs/release_notes/4.0/color_management/) (Blender Foundation, 2023) — AgX view transform was added and replaces Filmic as the default in new files; Standard and Filmic remain available. ; [Understanding Color Management in Blender](https://blendergrid.com/articles/color-management-in-blender) (Blendergrid, 2024) — View transforms only affect display/output and not the linear render; Standard/Raw are appropriate when you need un-tone-mapped flat or data imagery.
 
 ### Inverse-hull (backface solidify) outline for toon sprites · `recommended` · ▸ reproduced
@@ -145,7 +145,7 @@ Duplicate the mesh (or add a Solidify modifier set to render backfaces only), in
 | Outline vanishes or doubles on thin geometry | shell thickness larger than feature; concave normals | Reduce thickness on small parts; use weighted-normals or per-vertex thickness |  |
 | Outline inconsistent between turnaround angles | screen-space line filter used instead of geometry shell | Use the geometry inverse-hull (resolution/angle independent) rather than a compositor edge filter |  |
 
-- **Verify:** Both sources resolve (200). Blender Artists thread confirms inverted-hull/Solidify, Freestyle (post-process), and game-engine context (16 'inverted hull', 36 'freestyle', 15+3 'game engine', 3 'post-process' mentions). Rogo Digital confirms the solidify/backface inverse-hull as geometry-based real-time outline. Technique entry; no license concern (Blender output unrestricted). [no external verdict — not checked]
+- **Verify:** Both sources resolve (200). Blender Artists thread confirms inverted-hull/Solidify, Freestyle (post-process), and game-engine context (16 'inverted hull', 36 'freestyle', 15+3 'game engine', 3 'post-process' mentions). Rogo Digital confirms the solidify/backface inverse-hull as geometry-based real-time outline. Technique entry; no license concern (Blender output unrestricted). [Blender's Solidify modifier has a documented 'Flip Normals' option used for exactly this inverted-shell outline technique; a known caveat is inconsistent behavior in Cycles vs EEVEE.]
 - **Sources:** [What's the best outline for toon/anime — Freestyle vs inverted hull vs another method](https://blenderartists.org/t/whats-the-best-outline-for-toon-anime-freestyle-vs-inverted-hull-method-vs-another-method-in-2-9/1278907) (Blender Artists community, 2021) — Inverted-hull uses the Solidify modifier to create real-time cartoon outlines and is the method game engines favor, while Freestyle is a post-process render pass. ; [Create a Cartoon Outline for Any Object](https://rogodigital.design/tutorials/create-a-cartoon-outline-for-any-object/) (Rogo Digital, 2023) — Demonstrates the solidify/backface inverse-hull outline as a geometry-based, resolution-independent cartoon line method.
 
 ### Normal / depth / AO passes for in-engine sprite re-lighting · `recommended` · ▸ reproduced
@@ -173,7 +173,7 @@ Set an orthographic camera looking straight down/forward, render an unlit color/
 | In-engine lighting looks inverted/wrong on Y | green-channel convention mismatch (OpenGL vs DirectX) | Flip the green channel to match the target engine |  |
 | Normal map looks washed/pastel | AgX/Filmic view transform applied to the normal pass | Set color management to Raw/Standard for the normal output node |  |
 
-- **Verify:** Both sources resolve (200). Kodera Games confirms all specifics: orthographic top-down camera, unlit color pass + world-space normal pass, color management disabled, green-channel inversion for Godot, 16-bit RGBA transparent PNG. EEVEE developer docs confirm NORMAL (PASS_POST_NORMAL), DEPTH, and AO render passes exist. Technique; no license concern. [no external verdict — not checked]
+- **Verify:** Both sources resolve (200). Kodera Games confirms all specifics: orthographic top-down camera, unlit color pass + world-space normal pass, color management disabled, green-channel inversion for Godot, 16-bit RGBA transparent PNG. EEVEE developer docs confirm NORMAL (PASS_POST_NORMAL), DEPTH, and AO render passes exist. Technique; no license concern. [Godot docs confirm it requires OpenGL-style (Y+) normal maps and that DirectX-style (Y-) sources need the green channel flipped -- exactly the claimed convention.]
 - **Sources:** [Render sprites with normal maps in Blender](https://games.kodera.pl/dev/render-sprites-with-normal-maps-in-blender/) (Kodera Games, 2020) — Use an orthographic top-down camera and export an unlit color pass plus a world-space normal pass with color management disabled and green channel inverted for Godot, as 16-bit RGBA PNG. ; [Render Passes (EEVEE) — Blender Developer Docs](https://developer.blender.org/docs/features/eevee/render_passes/) (Blender Foundation, 2025) — Blender exposes world-space surface normal, depth/Z, and ambient-occlusion as separate render passes usable for downstream re-lighting.
 
 ### Diffusers ControlNet overview · `situational` · docs
@@ -183,7 +183,7 @@ ControlNet adds spatial conditioning (pose/edges/depth) to frozen T2I; control i
 - **Engine:** blender · **Applies to:** sprites · **Kind:** technique
 - **Output license:** commercial **check** (license: see-source) — STUDY-017 reopen; verified=0 until ACCEPT.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [no external verdict — not checked]
+- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [HF Diffusers docs confirm control_image + controlnet_conditioning_scale as the spatial-conditioning parameters on a frozen T2I pipeline. Carries a 'do not flip' verifier directive.]
 - **Sources:** [Diffusers ControlNet overview](https://huggingface.co/docs/diffusers/en/api/pipelines/controlnet) — ControlNet adds spatial conditioning (pose/edges/depth) to frozen T2I; control image + controlnet_conditioning_scale.
 
 ### Freestyle / Grease-Pencil Line Art outline pass · `situational` · · community
@@ -209,6 +209,6 @@ Enable Freestyle in render settings (or attach a Line Art modifier to a Grease P
 | Lines flicker frame-to-frame in animation | Freestyle re-evaluates per frame with sub-pixel instability | Prefer Line Art (more stable), bake at higher res then downscale, or thicken lines |  |
 | Slow renders on dense meshes | Freestyle stroke computation scales with edge count | Use Line Art with edge-type filtering; reserve for hero frames |  |
 
-- **Verify:** Both sources resolve (200). Blender Artists thread confirms Line Art (Grease Pencil) as newer editable/modifier-compatible approach (6 'Line Art' mentions) and Freestyle as post-process render pass. Blender manual passes.html confirms Freestyle render pass exists (3+ Freestyle, plus Normal/Z/Mist/AO passes). Technique; no license concern. [no external verdict — not checked]
+- **Verify:** Both sources resolve (200). Blender Artists thread confirms Line Art (Grease Pencil) as newer editable/modifier-compatible approach (6 'Line Art' mentions) and Freestyle as post-process render pass. Blender manual passes.html confirms Freestyle render pass exists (3+ Freestyle, plus Normal/Z/Mist/AO passes). Technique; no license concern. [Confirmed: Line Art (Grease Pencil modifier) is real-time/viewport-previewable and bakeable/editable; Freestyle only shows lines after a full render -- matches the modern-successor framing.]
 - **Sources:** [Outline method comparison thread (Freestyle / inverted hull / Line Art)](https://blenderartists.org/t/whats-the-best-outline-for-toon-anime-freestyle-vs-inverted-hull-method-vs-another-method-in-2-9/1278907) (Blender Artists community, 2021) — Line Art (Grease Pencil) is the newer approach, working like Freestyle but editable and modifier-compatible; Freestyle is a post-process render pass. ; [Passes / Render Layers — Blender Manual](https://docs.blender.org/manual/en/latest/render/layers/passes.html) (Blender Foundation, 2025) — Blender exposes outline/edge and other data as render passes that can be composited or exported separately from the color pass.
 

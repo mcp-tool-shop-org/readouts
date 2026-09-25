@@ -199,13 +199,13 @@ Wan2.1 is an open-weight video generation model family (1.3B and 14B) from Aliba
 - **Sources:** [Wan: Open and Advanced Large-Scale Video Generative Models](https://arxiv.org/abs/2503.20314) (Team Wan (Alibaba Group / DAMO Academy), 2025) — Wan2.1 technical report; covers T2V (1.3B, 14B) and I2V (14B) variants; Apache 2.0 license; 1.3B T2V requires 8.19 GB VRAM. ; [Wan-Video/Wan2.1](https://github.com/Wan-Video/Wan2.1) (Wan-Video / Alibaba, 2025) — Official Wan2.1 repo under Apache 2.0; I2V 14B model in 480P and 720P variants; single-GPU offload required for 14B.
 
 ### Animate Anyone 2 — env affordance / object guider (Hu et al. 2025) · `situational` · paper
-**Env affordance + object guider for held props — STUDY-058 deepen peer; flips 33/117/486: 0.**
-STUDY-058 Scholar deepen. Recipes invented: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+**Env affordance + object guider for held props — STUDY-058 deepen peer**
+STUDY-058 Scholar deepen.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [Animate Anyone 2](https://arxiv.org/abs/2502.06145) — Env affordance + object guider for held props.
 
 ### Animate Anyone 2 — environment/object affordance · `situational` · paper
@@ -229,53 +229,53 @@ DiT Pose Indicator animates anthropomorphic/game characters without strict pose 
 - **Sources:** [Animate-X++ — Pose Indicator anthropomorphic anim](https://arxiv.org/abs/2508.09454) — DiT Pose Indicator animates anthropomorphic/game characters without strict pose alignment; multi-task TI2V adds background dynamics.
 
 ### Animate-X++ — Pose Indicator for game characters (Tan et al. 2025) · `situational` · paper
-**Pose Indicator for game/anthropomorphic characters — STUDY-058 deepen peer; flips 33/117/486: 0.**
-STUDY-058 Scholar deepen. Recipes invented: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+**Pose Indicator for game/anthropomorphic characters — STUDY-058 deepen peer**
+STUDY-058 Scholar deepen.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [Animate-X++](https://arxiv.org/abs/2508.09454) — Pose Indicator for game/anthropomorphic characters.
 
 ### CharacterShot — pose to multi-view to 4DGS (Gao et al. 2025) · `situational` · paper
-**Pose → multi-view → 4DGS turnaround craft — STUDY-058 deepen; recipes invented: 0.**
-STUDY-058 Scholar deepen. Flips 33/117/486: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+**Pose → multi-view → 4DGS turnaround craft — STUDY-058 deepen**
+STUDY-058 Scholar deepen.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [CharacterShot](https://arxiv.org/abs/2508.07409) — Pose → multi-view → 4DGS turnaround craft.
 
 ### MVAnimate — multi-view pose optimization (Sun et al. 2026) · `situational` · paper
-**Multi-view pose opt; cut texture contamination — STUDY-058 deepen peer; flips 33/117/486: 0.**
-STUDY-058 Scholar deepen. Recipes invented: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+**Multi-view pose opt; cut texture contamination — STUDY-058 deepen peer**
+STUDY-058 Scholar deepen.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [MVAnimate](https://arxiv.org/abs/2602.08753) — Multi-view pose opt; cut texture contamination.
 
 ### MultiAnimate — multi-character identity-aware pose (Zhang et al. 2026) · `situational` · paper
-**Multi-character identity-aware pose binding — STUDY-058 deepen; recipes invented: 0.**
-STUDY-058 Scholar deepen. Flips 33/117/486: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+**Multi-character identity-aware pose binding — STUDY-058 deepen**
+STUDY-058 Scholar deepen.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [MultiAnimate](https://arxiv.org/abs/2607.13415) — Multi-character identity-aware pose binding.
 
 ### RealisDance-DiT HF — controllable char anim peer · `situational` · docs
-**Controllable char anim; ref+SMPL/HaMeR; academic disclaimer — beyond STUDY-037 AnimateDiff; recipes invented: 0.**
-STUDY-058 Practitioner Verifier ✅. Flips 33/117/486: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+**Controllable char anim; ref+SMPL/HaMeR; academic disclaimer — beyond STUDY-037 AnimateDiff**
+STUDY-058 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [RealisDance-DiT HF](https://huggingface.co/theFoxofSky/RealisDance-DiT) — Controllable char anim; ref+SMPL/HaMeR; academic disclaimer.
 
 ### RealisDance-DiT — Wan-2.1 DiT character animation · `situational` · paper
@@ -289,23 +289,23 @@ Wan-2.1 DiT baseline with minimal mods; strong on stylized characters, rare pose
 - **Sources:** [RealisDance-DiT — Wan-2.1 DiT character animation](https://arxiv.org/abs/2504.14977) — Wan-2.1 DiT baseline with minimal mods; strong on stylized characters, rare poses, and character-object interactions. License-check before shortlist.
 
 ### RealisDance-DiT — Wan-2.1 DiT character animation (Zhou et al. 2025) · `situational` · paper
-**Wan-2.1 DiT; stylized / rare pose / object interaction — STUDY-058 deepen; recipes invented: 0.**
-STUDY-058 Scholar deepen. Flips 33/117/486: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+**Wan-2.1 DiT; stylized / rare pose / object interaction — STUDY-058 deepen**
+STUDY-058 Scholar deepen.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [RealisDance-DiT](https://arxiv.org/abs/2504.14977) — Wan-2.1 DiT; stylized / rare pose / object interaction.
 
 ### Spiritus — 2D layered char + mesh-skeleton + BVH/MDM (Sun et al. 2025) · `situational` · paper
-**2D layered char + mesh-skeleton + BVH/MDM — STUDY-058 deepen peer; flips 33/117/486: 0.**
-STUDY-058 Scholar deepen. Recipes invented: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+**2D layered char + mesh-skeleton + BVH/MDM — STUDY-058 deepen peer**
+STUDY-058 Scholar deepen.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [Spiritus](https://arxiv.org/abs/2503.09127) — 2D layered char + mesh-skeleton + BVH/MDM.
 
 ### UniAnimate — research/non-commercial only (AVOID for commercial game) · `avoid` · ▸ reproduced

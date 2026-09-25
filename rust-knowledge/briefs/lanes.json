@@ -27,6 +27,13 @@
       "tier": "si-jam-sessions",
       "title": "si-jam-sessions — Rust for a deterministic music law (P1)",
       "seats": "generators: Kimi k2.6 via Ollama Cloud (integer-time, host-audio-and-midi, crate-licences), Gemini 3.1 Pro via OpenRouter (midi-notation-ingest; google/gemini-3.1-pro-preview-20260219); verifier Claude Sonnet; compiler oracle set 'jam'"
+    },
+    {
+      "wave": 5,
+      "dir": "wave-05-si-jam-p2",
+      "tier": "si-jam-sessions",
+      "title": "si-jam-sessions — the signed lock's arithmetic, parser and callback, checked (P2)",
+      "seats": "generator Kimi k2.6 via Ollama Cloud (all three lanes); verifier Claude Sonnet; compiler oracle sets 'jam' and 'jam-strict' (midly alloc + strict, new in this wave)"
     }
   ],
   "lanes": [
@@ -742,6 +749,74 @@
       ],
       "hooks": [
         "Provisional lock (unsigned): Rust edition-2024 wasm32-unknown-unknown cdylib, raw C ABI, no files/clocks/threads; integer ticks at one fixed PPQ; pitch, onset, duration, velocity, voice all integers; replay = seed + admitted-action log; audio outside the hash; the host plays committed events through an oscillator. Likely: a second integer timeline in samples via an integer SMF-style tempo map; a separately pinned renderer."
+      ]
+    },
+    {
+      "slug": "integer-time",
+      "wave": 5,
+      "generator": "ollama:kimi-k2.6:cloud",
+      "title": "PPQ 3360 and the u128 tick-to-sample rule, checked",
+      "questions": [
+        "Which tuplets does PPQ 3360 represent exactly, from a whole note down to a 128th, and where do 480, 960 and 3840 fail?",
+        "How far can a take run before tick x tempo_us_per_quarter x 48000 overflows u128 at the slowest SMF tempo (0xFFFFFF microseconds per quarter), and does a per-segment floor with a carried remainder give the same sample as one floor over the whole span?"
+      ],
+      "must_cover": [
+        "exact 3-, 5- and 7-tuplet durations in ticks at PPQ 3360 for each note value from a whole note down to a 128th, as a runnable check that asserts divisibility and prints the result",
+        "the same test at PPQ 480, 960 and 3840, showing which tuplets are not whole ticks there",
+        "the largest tick count before the u128 product tick x 16_777_215 x 48_000 overflows, found by the compiler with checked_mul, and what it means for a take's length",
+        "the remainder carry: flooring each tempo segment with the remainder carried equals one floor over the whole span on a multi-segment tempo map, while summing independent floors drifts; cross-checked at 480, 960 and 3840",
+        "the rule compiled for wasm32-unknown-unknown and called through node, with 64-bit arguments and returns only"
+      ],
+      "exclusions": [
+        "parsing score formats (midi-notation-ingest)",
+        "device clocks and drift (host-audio-and-midi)"
+      ],
+      "hooks": [
+        "Signed lock (si-jam-sessions docs/PHASE-0.md @ e3cc85e): PPQ 3360; tick -> sample = floor(tick x tempo_us_per_quarter x 48000 / (PPQ x 10^6)) in u128 with the remainder carried across tempo segments; checked_* arithmetic with a refusal on None and overflow-checks = true in release; no f64 in the time path; no export argument or return wider than 64 bits; midly 0.5.3 with default-features = false, features = [\"alloc\", \"strict\"], SMPTE-timed files refused; status codes cross the export boundary, panics do not; host: cpal 0.18.2 WASAPI shared mode, rtrb SPSC, no allocation on the callback."
+      ]
+    },
+    {
+      "slug": "midi-notation-ingest",
+      "wave": 5,
+      "generator": "ollama:kimi-k2.6:cloud",
+      "title": "midly with strict: what the law's parser rejects, compiled",
+      "questions": [
+        "What does midly 0.5.3 built with default-features = false and features = [\"alloc\", \"strict\"] reject that the alloc-only build accepts, and does that configuration compile and run inside a wasm32-unknown-unknown export?"
+      ],
+      "must_cover": [
+        "malformed SMF byte strings that parse Ok without strict and Err with strict, each as a pair of runnable checks: one on oracle_set jam (alloc only), one on oracle_set jam-strict; the malformation comes from what midly's source shows strict guards",
+        "the strict parse inside a wasm32 cdylib export: a raw extern \"C\" function that reads bytes from linear memory and returns a status code, never a panic",
+        "SMPTE timing (Timing::Timecode) detected and refused under the signed lock",
+        "which midly error kinds map to refusal codes, from midly's error.rs"
+      ],
+      "exclusions": [
+        "MusicXML and ABC (covered in wave 4)",
+        "audio and device clocks"
+      ],
+      "hooks": [
+        "Signed lock (si-jam-sessions docs/PHASE-0.md @ e3cc85e): PPQ 3360; tick -> sample = floor(tick x tempo_us_per_quarter x 48000 / (PPQ x 10^6)) in u128 with the remainder carried across tempo segments; checked_* arithmetic with a refusal on None and overflow-checks = true in release; no f64 in the time path; no export argument or return wider than 64 bits; midly 0.5.3 with default-features = false, features = [\"alloc\", \"strict\"], SMPTE-timed files refused; status codes cross the export boundary, panics do not; host: cpal 0.18.2 WASAPI shared mode, rtrb SPSC, no allocation on the callback."
+      ]
+    },
+    {
+      "slug": "host-audio-and-midi",
+      "wave": 5,
+      "generator": "ollama:kimi-k2.6:cloud",
+      "title": "The audio callback allocates nothing: proved on the callback body",
+      "questions": [
+        "How do you prove that the host's audio callback body (pop committed events from an rtrb Consumer, fill an output buffer) performs no heap allocation, with a counting global allocator and with assert_no_alloc's AllocDisabler?"
+      ],
+      "must_cover": [
+        "a counting #[global_allocator] (std only) and a simulated callback body that pops from an rtrb Consumer into an f32 buffer: the allocation count is unchanged across the body, as a runnable check",
+        "the negative control: the same body with a Vec push or a format! allocates, and the counter shows it",
+        "rtrb 0.4.0 allocates when the RingBuffer is created, not on push or pop (source-cited), so it must be created before the stream starts",
+        "assert_no_alloc with AllocDisabler registered around the callback body; state what the oracle's debug build shows",
+        "what this does not prove: cpal's own thread and backend (the oracle has no audio device)"
+      ],
+      "exclusions": [
+        "device timing, WASAPI modes and clock anchoring (covered in wave 4)"
+      ],
+      "hooks": [
+        "Signed lock (si-jam-sessions docs/PHASE-0.md @ e3cc85e): PPQ 3360; tick -> sample = floor(tick x tempo_us_per_quarter x 48000 / (PPQ x 10^6)) in u128 with the remainder carried across tempo segments; checked_* arithmetic with a refusal on None and overflow-checks = true in release; no f64 in the time path; no export argument or return wider than 64 bits; midly 0.5.3 with default-features = false, features = [\"alloc\", \"strict\"], SMPTE-timed files refused; status codes cross the export boundary, panics do not; host: cpal 0.18.2 WASAPI shared mode, rtrb SPSC, no allocation on the callback."
       ]
     }
   ],

@@ -194,63 +194,63 @@ The last-resort efficiency path, owned here as the decision heuristic + portable
 ### Axolotl docs — LoRA/QLoRA/DPO/GRPO surface · `situational` · docs
 **Free/open LLM post-training; methods list LoRA, QLoRA, DPO/ORPO/KTO, GRPO; Apache-2.0.**
 Free/open LLM post-training; methods list LoRA, QLoRA, DPO/ORPO/KTO, GRPO; Apache-2.0.
-- **For the pipeline:** STUDY-009 Verifier-verified. Do not invent recipes. Do not flip technique rows.
+- **For the pipeline:** STUDY-009 Verifier-verified. Do not flip technique rows.
 - **Method:** axolotl · **Applies to:** llm · **Base:** SDXL|Flux|Qwen|Llama · **Kind:** tooling
-- **Output license:** commercial **check** — STUDY-019 reopen; verified=0. Invented recipes: 0.
+- **Output license:** commercial **check** — STUDY-019 reopen; verified=0.
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [Axolotl docs — LoRA/QLoRA/DPO/GRPO surface](https://docs.axolotl.ai/) — Free/open LLM post-training; methods list LoRA, QLoRA, DPO/ORPO/KTO, GRPO; Apache-2.0.
 
 ### Diffusers Training LoRA — train_text_to_image_lora · `situational` · docs
 **Official train_text_to_image_lora.py; peft.LoraConfig on UNet (+ text encoder for SDXL).**
 Official train_text_to_image_lora.py; peft.LoraConfig on UNet (+ text encoder for SDXL).
-- **For the pipeline:** STUDY-009 Verifier-verified. Do not invent recipes. Do not flip technique rows.
+- **For the pipeline:** STUDY-009 Verifier-verified. Do not flip technique rows.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama · **Kind:** tooling
-- **Output license:** commercial **check** — STUDY-019 reopen; verified=0. Invented recipes: 0.
+- **Output license:** commercial **check** — STUDY-019 reopen; verified=0.
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [Diffusers Training LoRA — train_text_to_image_lora](https://huggingface.co/docs/diffusers/en/training/lora) — Official train_text_to_image_lora.py; peft.LoraConfig on UNet (+ text encoder for SDXL).
 
 ### GoF Adapter pattern hold-with-limit (≠ ΔW) · `situational` · docs
 **Frozen host + swappable module analogy holds for many LoRAs on one base; limit: software adapters ≠ weight-space ΔW.**
-STUDY-034 Analogist Verifier ✅ hold-with-limit. Recipes invented: 0.
-- **For the pipeline:** STUDY-034 Verifier ✅. Recipes invented: 0. Copy Ostris YAML values only where present.
+STUDY-034 Analogist Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-034 Verifier ✅. Copy Ostris YAML values only where present.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-034 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-034 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [Adapter design pattern](https://refactoring.guru/design-patterns/adapter) — Swappable module on frozen host; ≠ ΔW.
 
 ### HF Trainer — TrainingArguments surface · `situational` · docs
 **Feature-complete PyTorch train loop with TrainingArguments (bf16/fp16, gradient_checkpointing, adamw_8bit, FSDP/DeepSpeed).**
 Feature-complete PyTorch train loop with TrainingArguments (bf16/fp16, gradient_checkpointing, adamw_8bit, FSDP/DeepSpeed).
-- **For the pipeline:** STUDY-009 Verifier-verified. Do not invent recipes. Do not flip technique rows.
+- **For the pipeline:** STUDY-009 Verifier-verified. Do not flip technique rows.
 - **Method:** trainer · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama · **Kind:** tooling
-- **Output license:** commercial **check** — STUDY-019 reopen; verified=0. Invented recipes: 0.
+- **Output license:** commercial **check** — STUDY-019 reopen; verified=0.
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [HF Trainer — TrainingArguments surface](https://huggingface.co/docs/transformers/en/main_classes/trainer) — Feature-complete PyTorch train loop with TrainingArguments (bf16/fp16, gradient_checkpointing, adamw_8bit, FSDP/DeepSpeed).
 
 ### PEFT library index — live mid-2026 surface · `situational` · docs
 **PEFT adapts large models by training few parameters; integrated with Transformers, Diffusers, Accelerate. Currency of library docs; no technique flip.**
 PEFT adapts large models by training few parameters; integrated with Transformers, Diffusers, Accelerate. Currency of library docs; no technique flip.
-- **For the pipeline:** STUDY-009 Verifier-verified. Do not invent recipes. Do not flip technique rows.
+- **For the pipeline:** STUDY-009 Verifier-verified. Do not flip technique rows.
 - **Method:** peft · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama · **Kind:** tooling
-- **Output license:** commercial **check** — STUDY-019 reopen; verified=0. Invented recipes: 0.
+- **Output license:** commercial **check** — STUDY-019 reopen; verified=0.
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [PEFT library index — live mid-2026 surface](https://huggingface.co/docs/peft/en/index) — PEFT adapts large models by training few parameters; integrated with Transformers, Diffusers, Accelerate. Currency of library docs; no technique flip.
 
 ### Unsloth docs — local run+train surface · `situational` · docs
 **Local run+train; states LoRA, QLoRA, full FT, DPO, GRPO, FP8 support.**
 Local run+train; states LoRA, QLoRA, full FT, DPO, GRPO, FP8 support.
-- **For the pipeline:** STUDY-009 Verifier-verified. Do not invent recipes. Do not flip technique rows.
+- **For the pipeline:** STUDY-009 Verifier-verified. Do not flip technique rows.
 - **Method:** unsloth · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama · **Kind:** tooling
-- **Output license:** commercial **check** — STUDY-019 reopen; verified=0. Invented recipes: 0.
+- **Output license:** commercial **check** — STUDY-019 reopen; verified=0.
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [Unsloth docs — local run+train surface](https://docs.unsloth.ai/) — Local run+train; states LoRA, QLoRA, full FT, DPO, GRPO, FP8 support.
 
 ### WCR PEFT fine-tune license flow-down · `situational` · docs
 **LoRA adapter distribution inherits base-model license — commercial-clean PEFT needs commercial-clean base.**
-STUDY-034 Analogist Verifier ✅ hold. Recipes invented: 0.
-- **For the pipeline:** STUDY-034 Verifier ✅. Recipes invented: 0. Copy Ostris YAML values only where present.
+STUDY-034 Analogist Verifier ✅ hold.
+- **For the pipeline:** STUDY-034 Verifier ✅. Copy Ostris YAML values only where present.
 - **Method:** lora · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-034 deepen; recipes invented: 0.
+- **Output license:** commercial **check** — STUDY-034 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [WCR fine-tuned model license](https://wcr.legal/fine-tuned-model-license/) — Fine-tune/LoRA inherits base license.
 

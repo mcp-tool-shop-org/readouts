@@ -5,22 +5,22 @@ _512px master -> 48/64px game sprite: Lanczos/area downscale, foot-anchor, union
 
 | ↓ | Recipe | Engine | Applies | Evidence | Comm | Rig | Studio | ✓ |
 |---|--------|--------|---------|----------|------|-----|--------|---|
-| 1 | Lanczos 512->64px, foot-anchored, union-bbox | python | game-sprite | ▣ measured | ✅ yes | 5 | 5 | · |
-| 2 | Color quantization + dithering + palette discipline at small sizes | python | both | ▸ reproduced | ✅ yes | 5 | 5 | · |
-| 2 | Supersample + Lanczos/area downsample (512 -> 48/64px) | python | both | ▸ reproduced | ✅ yes | 5 | 5 | · |
-| 6 | Orthographic camera + foot-anchor (bottom-center) registration | blender | both | · community | ✅ yes | 5 | 5 | · |
-| 8 | Hiive adaptive pixel-art downscaler (majority-block + edge-preserving) | python | both | · single-run | ? unk | 4 | 3 | · |
+| 1 | Lanczos 512->64px, foot-anchored, union-bbox | python | game-sprite | ▣ measured | ✅ yes | 5 | 5 | ✓ |
+| 2 | Color quantization + dithering + palette discipline at small sizes | python | both | ▸ reproduced | ✅ yes | 5 | 5 | ✓ |
+| 2 | Supersample + Lanczos/area downsample (512 -> 48/64px) | python | both | ▸ reproduced | ✅ yes | 5 | 5 | ✓ |
+| 6 | Orthographic camera + foot-anchor (bottom-center) registration | blender | both | · community | ✅ yes | 5 | 5 | ✓ |
+| 8 | Hiive adaptive pixel-art downscaler (majority-block + edge-preserving) | python | both | · single-run | ? unk | 4 | 3 | ✓ |
 | 9 | Aseprite CLI sheet export — packing hold-with-limit | docs | all | analog | check | 4 | 4 | · |
 | 9 | Aseprite CLI — sheet export surface | docs | all | docs | check | 4 | 4 | · |
-| 9 | BLOCK — pixel-quant character-to-skin | blender | sprites | paper | check | 4 | 4 | · |
-| 9 | CSS image-rendering pixelated — display analog | blender | sprites | docs | check | 4 | 4 | · |
+| 9 | BLOCK — pixel-quant character-to-skin | blender | sprites | paper | check | 4 | 4 | ✓ |
+| 9 | CSS image-rendering pixelated — display analog | blender | sprites | docs | check | 4 | 4 | ✓ |
 | 9 | CSS image-rendering — pixelated / crisp-edges display peer | docs | all | docs | check | 4 | 4 | · |
 | 9 | Heckbert median-cut — palette lock analog (paywall unverified) | docs | all | analog | check | 4 | 4 | · |
-| 9 | Heckbert median-cut — palette quant analog | blender | sprites | docs | check | 4 | 4 | · |
+| 9 | Heckbert median-cut — palette quant analog | blender | sprites | docs | check | 4 | 4 | ✓ |
 | 9 | Pillow Concepts — LANCZOS downsample + palette modes | docs | all | docs | check | 4 | 4 | · |
 | 9 | Pillow LANCZOS / palette modes — downsample hold-with-limit | docs | all | analog | check | 4 | 4 | · |
-| 9 | Pillow resampling — LANCZOS downsample | blender | sprites | docs | check | 4 | 4 | · |
-| 9 | SD-piXL — low-res quantized imagery | blender | sprites | paper | check | 4 | 4 | · |
+| 9 | Pillow resampling — LANCZOS downsample | blender | sprites | docs | check | 4 | 4 | ✓ |
+| 9 | SD-piXL — low-res quantized imagery | blender | sprites | paper | check | 4 | 4 | ✓ |
 | 9 | SD-πXL — SDS palette tensor quantized pixel art (Binninger & Sorkine-Hornung 2024) | comfy | all | paper | check | 4 | 4 | · |
 | 9 | libGDX TexturePacker — atlas pack + .atlas | docs | all | docs | check | 4 | 4 | · |
 | 9 | libGDX TexturePacker — sheet packing hold-with-limit | docs | all | analog | check | 4 | 4 | · |
@@ -44,7 +44,7 @@ downsample_sprites.py (Pillow): crops each direction by its alpha bbox, computes
 | foot_anchor | true | ○ | feet on a common baseline across directions |
 | resample | Lanczos | ○ | Pillow scales the window on downscale; better than OpenCV INTER_LANCZOS4 |
 
-- **Verify:** no external verdict — not checked
+- **Verify:** Confirmed: Pillow widens its Lanczos filter window on downscale while OpenCV's INTER_LANCZOS4 uses a fixed 8x8 kernel. Rest (script, timing) is rig-measured and uncontradicted.
 - **Sources:** [downsample_sprites.py (trellis-sprite-pipeline)](https://github.com/mcp-tool-shop-org/trellis-sprite-pipeline) — Auto-crop/union-bbox/foot-anchor/Lanczos/unsharp downsampler. ; [Pillow Image.resize (Lanczos)](https://pillow.readthedocs.io/en/stable/handbook/concepts.html#filters) — Lanczos properly scales the filter window for downsampling.
 
 ### Color quantization + dithering + palette discipline at small sizes · `recommended` · ▸ reproduced
@@ -72,7 +72,7 @@ Reduce the downsampled sprite to a constrained palette with modified median-cut 
 | Dither pattern crawls/shimmers across animation frames | error-diffusion (Floyd-Steinberg) recomputed per frame | Use ordered/Bayer dithering, or quantize to a fixed palette without diffusion for animated sprites |  |
 | Sprites look color-incoherent across the cast | per-sprite palettes instead of a shared house palette | Author one locked palette; quantize all assets to it |  |
 
-- **Verify:** Both sources resolve. Wikipedia Color quantization confirms verbatim: 'most popular algorithm... invented by Paul Heckbert in 1979, is the median cut algorithm' and 'frequently combined with dithering, which can eliminate... banding.' ubitux (Clement Beffa) blog confirms modified median-cut + K-means refinement + perceptual (OkLab) color weighting + dithering. Minor: blog dated Dec 2022, cited as 2021. License claim accurate (pngquant/libimagequant GPLv3-or-commercial; Pillow HPND; algorithms public). [no external verdict — not checked]
+- **Verify:** CORRECTED: 'Heckbert 1979' is wrong: Heckbert's median-cut paper ('Color Image Quantization for Frame Buffer Display') was published in 1982, ACM Computer Graphics vol. 16, SIGGRAPH proceedings, pp. 297-307. · Floyd-Steinberg-shimmers/Bayer-stable claim confirmed; pngquant/libimagequant GPLv3-or-commercial confirmed. But 'Heckbert 1979' is wrong -- the paper published in 1982. [research note: Both sources resolve. Wikipedia Color quantization confirms verbatim: 'most popular algorithm... invented by Paul Heckbert in 1979, is the median cut algorithm' and 'frequently combined with dithering, which can eliminate... banding.' ubitux (Clement Beffa) blog confirms modified median-cut + K-means refinement + perceptual (OkLab) color weighting + dithering. Minor: blog dated Dec 2022, cited as 2021. License claim accurate (pngquant/libimagequant GPLv3-or-commercial; Pillow HPND; algorithms public).]
 - **Sources:** [Improving color quantization heuristics](http://blog.pkh.me/p/39-improving-color-quantization-heuristics.html) (Clement Beffa (ubitux), 2021) — Modified median-cut with k-means refinement and perceptual color weighting (as in libvips/pngquant) yields better palettes than plain median-cut, and quantization is paired with dithering to break up banding. ; [Color quantization — Wikipedia](https://en.wikipedia.org/wiki/Color_quantization) (Wikipedia contributors, 2025) — Median cut (Heckbert 1979) is the most popular quantization algorithm; it is frequently combined with dithering to eliminate banding artifacts when reducing smooth gradients to a limited palette.
 
 ### Supersample + Lanczos/area downsample (512 -> 48/64px) · `recommended` · ▸ reproduced
@@ -99,7 +99,7 @@ Rendering at the target 48/64px directly aliases hard; instead render a 512px ma
 | Halos/ringing around the outline after downscale | Lanczos overshoot on high-contrast edges | Use area filter or reduce Lanczos lobe count; clamp; or switch to edge-preserving downscaler |  |
 | Sprite looks blurry/soft at 64px | bilinear default in editor instead of Lanczos/area | Force Lanczos or area resampling explicitly in the script |  |
 
-- **Verify:** Both URLs resolve (200). Wikipedia Image scaling strongly confirms box sampling (area averaging, all input pixels contribute) and Lanczos as a windowed-sinc approximation sharper than bilinear/bicubic; ringing is mentioned (tied more to Fourier methods than Lanczos directly — minor). License claim accurate (algorithm public; Pillow HPND, OpenCV Apache-2.0). WEAK SOURCE: pixelera.art resolves but emphasizes Nearest Neighbor and does NOT mention box/area filtering, kernel widening, low-pass, or halo — the specific claim attributed to it is only loosely supported. Entry stands on the Wikipedia source plus universally-known technique. [no external verdict — not checked]
+- **Verify:** Both URLs resolve (200). Wikipedia Image scaling strongly confirms box sampling (area averaging, all input pixels contribute) and Lanczos as a windowed-sinc approximation sharper than bilinear/bicubic; ringing is mentioned (tied more to Fourier methods than Lanczos directly — minor). License claim accurate (algorithm public; Pillow HPND, OpenCV Apache-2.0). WEAK SOURCE: pixelera.art resolves but emphasizes Nearest Neighbor and does NOT mention box/area filtering, kernel widening, low-pass, or halo — the specific claim attributed to it is only loosely supported. Entry stands on the Wikipedia source plus universally-known technique. [Confirmed: box/area filtering is a soft low-pass good on flat regions; Lanczos preserves edges but rings/haloes on high contrast. OpenCV has been Apache-2.0 since v4.5.0.]
 - **Sources:** [How to Scale Down Pixel Art: A Technical Deep Dive](https://pixelera.art/blog/how-to-scale-down-pixel-art) (Pixelera, 2024) — Box/area filtering merges adjacent pixels with a kernel widened by the scale factor to low-pass against aliasing, while Lanczos sharpens at the cost of halo artifacts. ; [Image scaling — Wikipedia](https://en.wikipedia.org/wiki/Image_scaling) (Wikipedia contributors, 2025) — Lanczos resampling uses a windowed sinc function giving sharper results than bilinear/bicubic but can introduce ringing; box filtering provides anti-aliased area averaging when downscaling.
 
 ### Orthographic camera + foot-anchor (bottom-center) registration · `recommended` · · community
@@ -126,7 +126,7 @@ Place the model's feet on a fixed world origin and render with a locked orthogra
 | Character bobs/shifts vertically between animation frames | per-frame auto-crop to content changes the foot pixel | Render to a fixed canvas size; keep feet on world origin |  |
 | Wrong draw order around props (sprite in front/behind incorrectly) | pivot at center, not feet, so Y-sort uses the wrong contact point | Set pivot to bottom-center so the sort key is the ground contact |  |
 
-- **Verify:** Both sources resolve. Godot forum thread exists; discusses uneven/auto-cropped spritesheets needing per-frame Sprite2D.offset/region fixes for consistent ground registration (bottom-pivot Y-sort context). Bevy PR #3463 exists and was merged 2022-04-04, adding a sprite anchor enum (common presets incl. edges + custom point, defaulting to center) — matches claim exactly. Technique; no license concern. [no external verdict — not checked]
+- **Verify:** Both sources resolve. Godot forum thread exists; discusses uneven/auto-cropped spritesheets needing per-frame Sprite2D.offset/region fixes for consistent ground registration (bottom-pivot Y-sort context). Bevy PR #3463 exists and was merged 2022-04-04, adding a sprite anchor enum (common presets incl. edges + custom point, defaulting to center) — matches claim exactly. Technique; no license concern. [Unity Sprite Editor has a built-in 'Bottom' pivot option and Bevy ships Anchor::BottomCenter natively; Godot needs centered=false+offset (entry already hedges this). Matches as stated.]
 - **Sources:** [Set sprite pivot to bottom instead of center on uneven spritesheets](https://forum.godotengine.org/t/set-sprites-pivot-to-bottom-instead-of-center-on-uneven-spritesheets/43612) (Godot community, 2024) — For Y-sorted 2D games the bottom-center pivot is desired as the sort point, and uneven (auto-cropped) spritesheets require a script to fix the per-frame draw offset. ; [Add an anchor for a sprite (Bevy PR #3463)](https://github.com/bevyengine/bevy/pull/3463) (mockersf / Bevy contributors, 2022) — Engines add an explicit sprite anchor enum (center plus custom/edge anchors) so registration can be set to bottom-center rather than the default center.
 
 ### Hiive adaptive pixel-art downscaler (majority-block + edge-preserving) · `situational` · · single-run
@@ -153,27 +153,27 @@ The Hiive method (2025) creates a naive Lanczos/bilinear downscale, then runs ma
 | Detail still lost at 4x | block size too large for the feature density | Stay at 2-3x; author notes 4x loses too much |  |
 | Legal exposure shipping the tool | no license on the repo | Reimplement the described algorithm clean-room; do not redistribute hiive source |  |
 
-- **Verify:** Both sources resolve (200). Hiive Labs blog confirms the adaptive downscaler: Lanczos/bilinear base + majority-color block sampling + edge-preserving mask, with 2x retaining most features for character sprites. GitHub hiive/pixel_scale exists (Python pix.py + Streamlit streamlit_main.py) and has NO LICENSE file — so 'no license stated, all-rights-reserved by default, commercial_use: unknown' is ACCURATE. License/commercial_use claim confirmed correct. [no external verdict — not checked]
+- **Verify:** Both sources resolve (200). Hiive Labs blog confirms the adaptive downscaler: Lanczos/bilinear base + majority-color block sampling + edge-preserving mask, with 2x retaining most features for character sprites. GitHub hiive/pixel_scale exists (Python pix.py + Streamlit streamlit_main.py) and has NO LICENSE file — so 'no license stated, all-rights-reserved by default, commercial_use: unknown' is ACCURATE. License/commercial_use claim confirmed correct. [hiivelabs.com blog + github.com/hiive/pixel_scale confirm the exact method (Lanczos/bilinear base + majority-color blocks + edge mask + conditional merge) and the 2x/3x guidance; repo has no LICENSE file.]
 - **Sources:** [Adaptive Downscaling of Pixel Art](https://hiivelabs.com/blog/gamedev/graphics/2025/01/19/adaptive-downscaling-pixel-art/) (Hiive Labs, 2025) — Combines a naive Lanczos/bilinear downscale with majority-color block sampling and edge-preserving masking to retain edges, shading, and transparency better than nearest-neighbor or bilinear; 2x works best for character sprites, 3x is the practical floor. ; [hiive/pixel_scale](https://github.com/hiive/pixel_scale) (hiive, 2025) — Python/Streamlit reference implementation of the adaptive downscaler; repository contains no LICENSE file, so reuse rights are unspecified (default all-rights-reserved).
 
 ### Aseprite CLI sheet export — packing hold-with-limit · `situational` · analog
 **`-b` batch `--sheet` + sheet-type + JSON data — hold for deterministic sheet packing export; limit ≠ invent-verify 486.**
-STUDY-059 Analogist #5 Verifier ✅ hold-with-limit. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+STUDY-059 Analogist #5 Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** docs · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [Aseprite CLI sheet export](https://www.aseprite.org/docs/cli/) — `-b` batch `--sheet` + sheet-type (rows/columns/packed) + JSON data.
 
 ### Aseprite CLI — sheet export surface · `situational` · docs
-**`-b` `--sheet`/`--data`; sheet-type horizontal/vertical/rows/columns/packed — sheet-export surface; flip 486: 0.**
-STUDY-059 Practitioner deepen. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+**`-b` `--sheet`/`--data`; sheet-type horizontal/vertical/rows/columns/packed — sheet-export surface**
+STUDY-059 Practitioner deepen.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** docs · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [Aseprite CLI](https://www.aseprite.org/docs/cli/) — `-b` `--sheet`/`--data`; sheet-type horizontal/vertical/rows/columns/packed.
 
 ### BLOCK — pixel-quant character-to-skin · `situational` · paper
@@ -183,7 +183,7 @@ MLLM dual-panel preview to FLUX.2 atlas to nearest-neighbor 64x64 UV skin; Evolv
 - **Engine:** blender · **Applies to:** sprites · **Kind:** technique
 - **Output license:** commercial **check** (license: see-source) — STUDY-017 reopen; verified=0 until ACCEPT.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [no external verdict — not checked]
+- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [arXiv:2603.03964 confirms MLLM (Gemini Nano Banana Pro) preview -> fine-tuned FLUX.2 512x512 atlas -> nearest-neighbor downsample to a 64x64 RGBA skin, EvolveLoRA curriculum. Carries a verifier directive.]
 - **Sources:** [BLOCK — pixel-quant character-to-skin](https://arxiv.org/abs/2603.03964) — MLLM dual-panel preview to FLUX.2 atlas to nearest-neighbor 64x64 UV skin; EvolveLoRA curriculum — pixel-grid + integer-upsample lock.
 
 ### CSS image-rendering pixelated — display analog · `situational` · docs
@@ -193,27 +193,27 @@ Nearest-neighbor upscale preserves hard pixel edges. Holds for display of finish
 - **Engine:** blender · **Applies to:** sprites · **Kind:** technique
 - **Output license:** commercial **check** (license: see-source) — STUDY-017 reopen; verified=0 until ACCEPT.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [no external verdict — not checked]
+- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [MDN confirms image-rendering: pixelated uses a nearest-neighbor-like algorithm that preserves contrast/edges with no blurring. Carries a 'do not flip' verifier directive.]
 - **Sources:** [CSS image-rendering pixelated — display analog](https://developer.mozilla.org/en-US/docs/Web/CSS/image-rendering) — Nearest-neighbor upscale preserves hard pixel edges. Holds for display of finished pixel sprites.
 
 ### CSS image-rendering — pixelated / crisp-edges display peer · `situational` · docs
-**`pixelated`/`crisp-edges` nearest-neighbor-class — display peer; flip 486: 0.**
-STUDY-059 Practitioner deepen. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+**`pixelated`/`crisp-edges` nearest-neighbor-class — display peer**
+STUDY-059 Practitioner deepen.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** docs · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [CSS image-rendering](https://developer.mozilla.org/en-US/docs/Web/CSS/image-rendering) — `pixelated`/`crisp-edges` nearest-neighbor-class.
 
 ### Heckbert median-cut — palette lock analog (paywall unverified) · `situational` · analog
 **Choose one shared colormap; remap all pixels — hold for palette lock at 48–64px finish; limit ≠ inventing a named studio palette recipe.**
-STUDY-059 Analogist #2 paywall unverified. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+STUDY-059 Analogist #2 paywall unverified.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** docs · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 Verifier: Analogist #1/#2 paywall unverified — do not land as verified. Flip 486: 0. [no external verdict — not checked]
+- **Verify:** STUDY-059 Verifier: Analogist #1/#2 paywall unverified — do not land as verified. [no external verdict — not checked]
 - **Sources:** [Color image quantization for frame buffer display (median-cut)](https://dl.acm.org/doi/10.1145/800064.801294) — Median-cut shared colormap; remap all pixels to that table.
 
 ### Heckbert median-cut — palette quant analog · `situational` · docs
@@ -223,27 +223,27 @@ Median-cut chooses a shared colormap; remap all pixels to that table. Holds for 
 - **Engine:** blender · **Applies to:** sprites · **Kind:** technique
 - **Output license:** commercial **check** (license: see-source) — STUDY-017 reopen; verified=0 until ACCEPT.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [no external verdict — not checked]
+- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [Matches Heckbert's median-cut algorithm (splits colorspace regions to equalize pixel counts per region). No year is cited in this entry to check. Carries a 'do not flip' directive.]
 - **Sources:** [Heckbert median-cut — palette quant analog](https://dl.acm.org/doi/10.1145/800064.801294) — Median-cut chooses a shared colormap; remap all pixels to that table. Holds for palette lock at 48-64px.
 
 ### Pillow Concepts — LANCZOS downsample + palette modes · `situational` · docs
-**`Resampling.LANCZOS` tops downscale table; mode `P` palette — downsample peer; flip 486: 0.**
-STUDY-059 Practitioner deepen. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+**`Resampling.LANCZOS` tops downscale table; mode `P` palette — downsample peer**
+STUDY-059 Practitioner deepen.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** docs · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [Pillow Concepts](https://pillow.readthedocs.io/en/stable/handbook/concepts.html) — `Resampling.LANCZOS` tops downscale table; mode `P` palette.
 
 ### Pillow LANCZOS / palette modes — downsample hold-with-limit · `situational` · analog
 **High-quality Lanczos downsample + palette-indexed modes — hold for 512→48/64 + palette finish; limit ≠ verified flip of any avoid-row.**
-STUDY-059 Analogist #3 Verifier ✅ hold-with-limit. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+STUDY-059 Analogist #3 Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** docs · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [Pillow Concepts — Resampling.LANCZOS / palette modes](https://pillow.readthedocs.io/en/stable/handbook/concepts.html) — Lanczos downsample; palette-indexed pixel modes.
 
 ### Pillow resampling — LANCZOS downsample · `situational` · docs
@@ -253,7 +253,7 @@ Resampling.LANCZOS ranked highest downscale quality among listed filters; P mode
 - **Engine:** blender · **Applies to:** sprites · **Kind:** technique
 - **Output license:** commercial **check** (license: see-source) — STUDY-017 reopen; verified=0 until ACCEPT.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [no external verdict — not checked]
+- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [Pillow docs confirm LANCZOS is the highest-quality downscale filter and mode 'P' is 8-bit pixels mapped via a color palette. Carries a 'do not flip' verifier directive.]
 - **Sources:** [Pillow resampling — LANCZOS downsample](https://pillow.readthedocs.io/en/stable/handbook/concepts.html) — Resampling.LANCZOS ranked highest downscale quality among listed filters; P mode = palette pixels.
 
 ### SD-piXL — low-res quantized imagery · `situational` · paper
@@ -263,36 +263,36 @@ SDS + Gumbel-softmax palette tensor for crisp HxW x n quantized pixel art from p
 - **Engine:** blender · **Applies to:** sprites · **Kind:** technique
 - **Output license:** commercial **check** (license: see-source) — STUDY-017 reopen; verified=0 until ACCEPT.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [no external verdict — not checked]
+- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [arXiv:2410.06236 / SIGGRAPH Asia 2024 confirms SD-piXL uses score distillation + Gumbel-softmax over an HxWxn tensor for quantized pixel art from a prompt/image. Carries a verifier directive.]
 - **Sources:** [SD-piXL — low-res quantized imagery](https://arxiv.org/abs/2410.06236) — SDS + Gumbel-softmax palette tensor for crisp HxW x n quantized pixel art from prompt/image.
 
 ### SD-πXL — SDS palette tensor quantized pixel art (Binninger & Sorkine-Hornung 2024) · `situational` · paper
-**SDS palette tensor quantized pixel art — downsample-finish deepen; flip 486: 0.**
-STUDY-059 Scholar deepen. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+**SDS palette tensor quantized pixel art — downsample-finish deepen**
+STUDY-059 Scholar deepen.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [SD-πXL](https://arxiv.org/abs/2410.06236) — SDS palette tensor quantized pixel art.
 
 ### libGDX TexturePacker — atlas pack + .atlas · `situational` · docs
-**Atlas pack + `.atlas`; padding/bleed — packing analog peer; flip 486: 0.**
-STUDY-059 Practitioner deepen. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+**Atlas pack + `.atlas`; padding/bleed — packing analog peer**
+STUDY-059 Practitioner deepen.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** docs · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [libGDX TexturePacker](https://libgdx.com/wiki/tools/texture-packer) — Atlas pack + `.atlas`; padding/bleed.
 
 ### libGDX TexturePacker — sheet packing hold-with-limit · `situational` · analog
 **Pack many rects into one atlas; bind once, draw many — hold for sprite-sheet packing / row-per-anim metadata; limit ≠ diffusion invent.**
-STUDY-059 Analogist #4 Verifier ✅ hold-with-limit. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+STUDY-059 Analogist #4 Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** docs · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [libGDX TexturePacker](https://libgdx.com/wiki/tools/texture-packer) — Pack many rects into one atlas; bind once, draw many.
 

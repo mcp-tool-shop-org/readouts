@@ -182,19 +182,19 @@ EMA-VFI (CVPR 2023, MCG-NJU) exploits inter-frame attention to extract both moti
 STUDY-037 Practitioner Verifier ✅.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [Diffusers AnimateDiff API](https://huggingface.co/docs/diffusers/main/en/api/pipelines/animatediff) — SparseCtrl keyframe / interpolation pipelines.
 
 ### Awesome-2D-Animation inventory peer (STUDY-058) · `situational` · docs
 **Inbetweening/2D animation tools/datasets/papers collection — inventory peer, not a named tween recipe.**
-STUDY-058 Practitioner Verifier ✅. Flips 33/117/486: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+STUDY-058 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [Awesome-2D-Animation](https://github.com/MarkMoHR/Awesome-2D-Animation) — Inbetweening/2D animation tools/datasets/papers collection.
 
 ### FILM large-motion frame interpolation (Reda et al. 2022) · `situational` · paper
@@ -202,19 +202,19 @@ STUDY-058 Practitioner Verifier ✅. Flips 33/117/486: 0.
 STUDY-037 Scholar deepen.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [FILM](https://arxiv.org/abs/2202.04901) — Frame interpolation for large motion.
 
 ### FILM large-motion interpolation analog (hold-with-limit) · `situational` · analog
 **Synthesize intermediates across large motion — hold as keypose→inbetween method class; FILM ≠ named studio tween recipe.**
-STUDY-058 Analogist Verifier ✅ hold-with-limit. Flips 33/117/486: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+STUDY-058 Analogist Verifier ✅ hold-with-limit.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [FILM](https://arxiv.org/abs/2202.04901) — Frame interpolation for large motion.
 
 ### Pose-to-pose / keys-vs-extremes hold-with-limit · `situational` · docs
@@ -222,9 +222,9 @@ STUDY-058 Analogist Verifier ✅ hold-with-limit. Flips 33/117/486: 0.
 STUDY-037 Analogist Verifier ✅ hold-with-limit.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [Adobe 12 principles pose-to-pose](https://www.adobe.com/creativecloud/animation/discover/principles-of-animation.html) — Pose to Pose: keys then intervals. ; [Keys or extremes](https://theregurge.wordpress.com/2015/02/15/keys-or-extremes-the-big-difference-explained/) — Storytelling keys separate from extremes.
 
 ### RIFE real-time intermediate flow interpolation (Huang et al. 2020) · `situational` · paper
@@ -232,9 +232,9 @@ STUDY-037 Analogist Verifier ✅ hold-with-limit.
 STUDY-037 Scholar deepen.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [RIFE](https://arxiv.org/abs/2011.06294) — Real-time intermediate flow estimation.
 
 ### GIMM-VFI: Generalizable Implicit Motion Modeling (NeurIPS 2024) — non-commercial reference only · `avoid` · ▸ reproduced

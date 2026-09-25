@@ -283,6 +283,12 @@ def check_dead_links() -> None:
         if os.path.normpath(dp) in (os.path.normpath(ROOT), os.path.join(ROOT, "public")):
             skip.add("site")
         dn[:] = [d for d in dn if d not in skip]
+        # The export publishes public/X at X, so an overlay file's links are written for
+        # the published root. Resolve them there as well: read from public/, every
+        # README translation's link to a KB folder looked dead (160 of them).
+        rel_dp = os.path.relpath(dp, ROOT)
+        published = (os.path.join(ROOT, os.path.relpath(dp, os.path.join(ROOT, "public")))
+                     if rel_dp == "public" or rel_dp.startswith("public" + os.sep) else None)
         for name in fn:
             if not name.endswith(".md"):
                 continue
@@ -296,7 +302,8 @@ def check_dead_links() -> None:
                     continue
                 if re.match(r"^[A-Za-z]:[\\/]", target):
                     continue  # absolute rig path — a separate finding, not a dead link
-                if not os.path.exists(os.path.normpath(os.path.join(dp, target))):
+                if not os.path.exists(os.path.normpath(os.path.join(dp, target))) and not (
+                        published and os.path.exists(os.path.normpath(os.path.join(published, target)))):
                     bad.append(f"{os.path.relpath(p, ROOT)} -> {target}")
     if bad:
         fail("no dead relative links", f"{len(bad)}: " + "; ".join(bad[:6]))

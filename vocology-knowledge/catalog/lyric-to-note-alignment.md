@@ -177,14 +177,14 @@ _Vowel-on-beat, phoneme×MIDI×duration, melisma and onset timing_ · wave 13 ·
 
 ### CTC forced alignment API tutorial · `directional`
 **Analog: modern CTC FA from frame emissions → token/word spans via `forced_align` + merge; blank treatment for duration is ambiguous/peaky. Holds as CTC-FA sibling to Stoller. Limit: speech FA on Wav2Vec2 emissions; not score-conditioned MIDI lock.**
-- **Implication:** STUDY-041 FA/CTC analog hold-with-limit. Fail-transfers 6–8 omitted. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 FA/CTC analog hold-with-limit. Fail-transfers 6–8 omitted.
 - **Identifier:** `https://docs.pytorch.org/audio/stable/tutorials/ctc_forced_alignment_api_tutorial.html`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [CTC forced alignment API tutorial](https://docs.pytorch.org/audio/stable/tutorials/ctc_forced_alignment_api_tutorial.html)
 
 ### Connectionist Temporal Classification · `directional`
 **Analog: CTC labels unsegmented sequences by summing blank/repeat paths (many-to-one, U≤T); no pre-segmentation. Holds for naming the CTC lyrics-to-audio family (Stoller ACCEPT). Limit: CTC transcript paths ≠ lyrics-to-MIDI note grid / vowel-on-beat score-lock.**
-- **Implication:** STUDY-041 FA/CTC analog hold-with-limit. Fail-transfers 6–8 omitted. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 FA/CTC analog hold-with-limit. Fail-transfers 6–8 omitted.
 - **Identifier:** `http://www.cs.toronto.edu/~graves/icml_2006.pdf`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Connectionist Temporal Classification](http://www.cs.toronto.edu/~graves/icml_2006.pdf)
@@ -198,21 +198,21 @@ _Vowel-on-beat, phoneme×MIDI×duration, melisma and onset timing_ · wave 13 ·
 
 ### How Does This Thing Work? (aeneas TTS+DTW) · `directional`
 **Analog: FA via TTS synth + Sakoe-Chiba DTW on MFCC → text↔audio sync map. Holds when structures match (monotonic sync). Limit: ebook/caption speech FA; no MIDI note hard constraint; melisma/repeats break clean transfer.**
-- **Implication:** STUDY-041 FA/CTC analog hold-with-limit. Fail-transfers 6–8 omitted. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 FA/CTC analog hold-with-limit. Fail-transfers 6–8 omitted.
 - **Identifier:** `https://raw.githubusercontent.com/readbeyond/aeneas/master/wiki/HOWITWORKS.md`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [How Does This Thing Work? (aeneas TTS+DTW)](https://raw.githubusercontent.com/readbeyond/aeneas/master/wiki/HOWITWORKS.md)
 
 ### Kaldi: HMM topology and alignments · `directional`
 **Analog: Viterbi forced path yields per-frame transition-ids given transcript (MFA substrate). Holds for naming HMM-FA mechanism under MFA/Gentle. Limit: speech GMM/HMM phone paths; sung duration/melisma not in the topology.**
-- **Implication:** STUDY-041 FA/CTC analog hold-with-limit. Fail-transfers 6–8 omitted. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 FA/CTC analog hold-with-limit. Fail-transfers 6–8 omitted.
 - **Identifier:** `https://www.kaldi-asr.org/doc/hmm.html`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Kaldi: HMM topology and alignments](https://www.kaldi-asr.org/doc/hmm.html)
 
 ### Sequence Modeling with CTC · `directional`
 **Analog: CTC alignments are monotonic many-to-one; blank merges; output cannot exceed input length. Holds for why CTC FA recovers audio spans, not MIDI note onsets. Limit: speech/handwriting framing; peaky blanks ≠ vowel-nucleus contract.**
-- **Implication:** STUDY-041 FA/CTC analog hold-with-limit. Fail-transfers 6–8 omitted. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 FA/CTC analog hold-with-limit. Fail-transfers 6–8 omitted.
 - **Identifier:** `https://distill.pub/2017/ctc`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Sequence Modeling with CTC](https://distill.pub/2017/ctc)

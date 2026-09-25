@@ -10,7 +10,7 @@ _How to measure VRAM / PCIe / NVMe (seq + rand QD1) / pinnable-RAM truthfully �
 | craft | Blackwell Tuning Guide | Documents **CC 10.0 and 12.0** (warps/SM, shared-mem caps differ). B200 as CC 10.0 example. Establishes **10.0 ≠ 12.0** on the same architecture family — relevant vs catalog sm_100 vs sm_120 distinction. |  | docker; hw-measurement; Blackwell; sm_120; PCIe | ●●· | · |
 | docs | CUDA 12.8 Blackwell compatibility — sm_100 | Toolkit 12.8 emits native sm_100/compute_100; PTX forward-compat. |  | docker; nvidia-ctk; gpu-container | ●●● | ✓ |
 | craft | CUDA C++ Best Practices | Pinned via `cudaHostAlloc`; cites **~12 GB/s on PCIe x16 Gen3** as illustrative; points to `bandwidthTest` sample. Timing via `cudaEventElapsedTime`. Gen3 example only — **not** a 5090/Gen5 measurement. |  | docker; hw-measurement; Blackwell; sm_120; PCIe | ●●· | · |
-| craft | CUDA C++ Best Practices | Analog: theoretical link rate ≠ effective measured bandwidth; pinned Host↔Device must be timed. Holds for PCIe honesty vs SKU “Gen5 x16” marketing. Limit: guide cites Gen3-class examples — do not invent 5090 GB/s here. |  | docker; hw-measurement; Blackwell; sm_120; PCIe | ●●· | · |
+| craft | CUDA C++ Best Practices | Analog: theoretical link rate ≠ effective measured bandwidth; pinned Host↔Device must be timed. Holds for PCIe honesty vs SKU “Gen5 x16” marketing. Limit: guide cites Gen3-class examples. |  | docker; hw-measurement; Blackwell; sm_120; PCIe | ●●· | · |
 | craft | CUDA Demo Suite | Measures D2D / H2D / D2H for **pageable** and **pinned**; knobs `--memory=pinned/pageable`, `--mode=quick/range/shmoo`, `--htod`/`--dtoh`/`--dtod`, `--device`, `--wc`. **No default transfer size or GB/s figures on this page.** |  | docker; hw-measurement; Blackwell; sm_120; PCIe | ●●· | · |
 | craft | CUDA on WSL User Guide 13.3 | Known limits: **pinned system memory availability limited** (no numeric cap); unified/managed memory unsupported; **NVML**: utilization + active compute process queries unsupported; ECC/compute/persistence mode not modifiable. Measure free/total-style queries separately from util. |  | docker; hw-measurement; Blackwell; sm_120; PCIe | ●●· | · |
 | craft | Characterizing Warp Divergence from Pascal to Blackwell | Labels Blackwell **server sm_110** vs **consumer sm_120** (RTX 5080); static SASS spans sm_80–sm_120 including sm_100/110/120 — consumer vs server compute-cap are distinct labels. |  | docker; hw-measurement; Blackwell; sm_120; PCIe | ●●· | · |
@@ -69,24 +69,24 @@ _How to measure VRAM / PCIe / NVMe (seq + rand QD1) / pinnable-RAM truthfully �
 **Explicitly names **RTX 5090 (Blackwell, sm_120)** and notes kernel-selection differs from Ampere sm_86 — consumer sm_120 is the named compute target for 5090-class claims.**
 Explicitly names **RTX 5090 (Blackwell, sm_120)** and notes kernel-selection differs from Ampere sm_86 — consumer sm_120 is the named compute target for 5090-class claims.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [A Method for Layer Bit-Width Allocation in LLM Quantization via Performance Maxi](https://arxiv.org/abs/2608.28003)
 
 ### Blackwell Compatibility Guide · `directional` · craft
 **Toolkit **12.8** `nvcc` emits native **compute_100 / sm_100** cubin (+ PTX). Apps need PTX or sm_100 cubin for Blackwell. Page focuses **CC 10.0**; does not name 5090 or quote measured bandwidth.**
 Toolkit **12.8** `nvcc` emits native **compute_100 / sm_100** cubin (+ PTX). Apps need PTX or sm_100 cubin for Blackwell. Page focuses **CC 10.0**; does not name 5090 or quote measured bandwidth.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [Blackwell Compatibility Guide](https://docs.nvidia.com/cuda/archive/12.8.2/blackwell-compatibility-guide/index.html)
 
 ### Blackwell Tuning Guide · `directional` · craft
 **Documents **CC 10.0 and 12.0** (warps/SM, shared-mem caps differ). B200 as CC 10.0 example. Establishes **10.0 ≠ 12.0** on the same architecture family — relevant vs catalog sm_100 vs sm_120 distinction.**
 Documents **CC 10.0 and 12.0** (warps/SM, shared-mem caps differ). B200 as CC 10.0 example. Establishes **10.0 ≠ 12.0** on the same architecture family — relevant vs catalog sm_100 vs sm_120 distinction.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [Blackwell Tuning Guide](https://docs.nvidia.com/cuda/blackwell-tuning-guide/index.html)
 
 ### CUDA 12.8 Blackwell compatibility — sm_100 · `directional` · docs
@@ -101,40 +101,40 @@ Toolkit 12.8 emits native sm_100/compute_100; PTX forward-compat.
 **Pinned via `cudaHostAlloc`; cites **~12 GB/s on PCIe x16 Gen3** as illustrative; points to `bandwidthTest` sample. Timing via `cudaEventElapsedTime`. Gen3 example only — **not** a 5090/Gen5 measurement.**
 Pinned via `cudaHostAlloc`; cites **~12 GB/s on PCIe x16 Gen3** as illustrative; points to `bandwidthTest` sample. Timing via `cudaEventElapsedTime`. Gen3 example only — **not** a 5090/Gen5 measurement.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [CUDA C++ Best Practices](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html)
 
 ### CUDA C++ Best Practices · `directional` · craft
-**Analog: theoretical link rate ≠ effective measured bandwidth; pinned Host↔Device must be timed. Holds for PCIe honesty vs SKU “Gen5 x16” marketing. Limit: guide cites Gen3-class examples — do not invent 5090 GB/s here.**
-Analog: theoretical link rate ≠ effective measured bandwidth; pinned Host↔Device must be timed. Holds for PCIe honesty vs SKU “Gen5 x16” marketing. Limit: guide cites Gen3-class examples — do not invent 5090 GB/s here.
+**Analog: theoretical link rate ≠ effective measured bandwidth; pinned Host↔Device must be timed. Holds for PCIe honesty vs SKU “Gen5 x16” marketing. Limit: guide cites Gen3-class examples.**
+Analog: theoretical link rate ≠ effective measured bandwidth; pinned Host↔Device must be timed. Holds for PCIe honesty vs SKU “Gen5 x16” marketing. Limit: guide cites Gen3-class examples.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [CUDA C++ Best Practices](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html)
 
 ### CUDA Demo Suite · `directional` · craft
 **Measures D2D / H2D / D2H for **pageable** and **pinned**; knobs `--memory=pinned|pageable`, `--mode=quick|range|shmoo`, `--htod`/`--dtoh`/`--dtod`, `--device`, `--wc`. **No default transfer size or GB/s figures on this page.****
 Measures D2D / H2D / D2H for **pageable** and **pinned**; knobs `--memory=pinned|pageable`, `--mode=quick|range|shmoo`, `--htod`/`--dtoh`/`--dtod`, `--device`, `--wc`. **No default transfer size or GB/s figures on this page.**
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [CUDA Demo Suite](https://docs.nvidia.com/cuda/demo-suite/index.html)
 
 ### CUDA on WSL User Guide 13.3 · `directional` · craft
 **Known limits: **pinned system memory availability limited** (no numeric cap); unified/managed memory unsupported; **NVML**: utilization + active compute process queries unsupported; ECC/compute/persistence mode not modifiable. Measure free/total-style queries separately from util.**
 Known limits: **pinned system memory availability limited** (no numeric cap); unified/managed memory unsupported; **NVML**: utilization + active compute process queries unsupported; ECC/compute/persistence mode not modifiable. Measure free/total-style queries separately from util.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [CUDA on WSL User Guide 13.3](https://docs.nvidia.com/cuda/wsl-user-guide/index.html)
 
 ### Characterizing Warp Divergence from Pascal to Blackwell · `directional` · craft
 **Labels Blackwell **server sm_110** vs **consumer sm_120** (RTX 5080); static SASS spans sm_80–sm_120 including sm_100/110/120 — consumer vs server compute-cap are distinct labels.**
 Labels Blackwell **server sm_110** vs **consumer sm_120** (RTX 5080); static SASS spans sm_80–sm_120 including sm_100/110/120 — consumer vs server compute-cap are distinct labels.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [Characterizing Warp Divergence from Pascal to Blackwell](https://arxiv.org/abs/2607.23402)
 
 ### Darzi — host-side eBPF + NVML/NCCL · `directional` · craft
@@ -149,32 +149,32 @@ eBPF host signals correlated with NVML + NCCL for GPU tail latency RCA.
 **PCIe 5.0 unidirectional theoretical ceiling does not equal effective cudaMemcpyAsync under fine-grained non-contiguous pages — measurement honesty: theoretical Gen5 ≠ fragmented effective BW.**
 PCIe 5.0 unidirectional theoretical ceiling does not equal effective cudaMemcpyAsync under fine-grained non-contiguous pages — measurement honesty: theoretical Gen5 ≠ fragmented effective BW.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [ESS: An Offload-Centric Latent-Cache Management Architecture for DeepSeek-V3.2-E](https://arxiv.org/abs/2512.10576)
 
 ### Evaluating CUDA Tile for AI Workloads on Hopper and Blackwell GPUs · `directional` · craft
 **Table contrasts H100 NVL **sm_90**, RTX PRO 6000 Blackwell **sm_120**, and B200 **sm_100**; warns workstation sm_120 CuTile/compiler immaturity vs datacenter Blackwell — sm_100 ≠ sm_120 (wave-06/77 deepen).**
 Table contrasts H100 NVL **sm_90**, RTX PRO 6000 Blackwell **sm_120**, and B200 **sm_100**; warns workstation sm_120 CuTile/compiler immaturity vs datacenter Blackwell — sm_100 ≠ sm_120 (wave-06/77 deepen).
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [Evaluating CUDA Tile for AI Workloads on Hopper and Blackwell GPUs](https://arxiv.org/abs/2604.23466)
 
 ### Evaluating CUDA Tile… · `directional` · craft
 **Analog: B200 `sm_100` vs RTX PRO 6000 `sm_120` are distinct stacks; cross-arch gaps are real. Holds: **sm_100 ≠ sm_120**. Limit: CuTile paper ≠ container profiler receipt format.**
 Analog: B200 `sm_100` vs RTX PRO 6000 `sm_120` are distinct stacks; cross-arch gaps are real. Holds: **sm_100 ≠ sm_120**. Limit: CuTile paper ≠ container profiler receipt format.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [Evaluating CUDA Tile…](https://arxiv.org/abs/2604.23466)
 
 ### Gaps vs hw-measurement catalog · `directional` · craft
 **On these primary pages: **Absent** product-named RTX 5090 / RTX PRO 6000 measured H2D/D2H GB/s; absent numeric WSL pin ceiling; compatibility guide’s build recipe is sm_100-centric (sm_120 targeting lives mainly in tuning CC 12.0 notes / other CUDA docs). Catalog’s “measure yourself / no invented GB/s” matches the page silence.**
 On these primary pages: **Absent** product-named RTX 5090 / RTX PRO 6000 measured H2D/D2H GB/s; absent numeric WSL pin ceiling; compatibility guide’s build recipe is sm_100-centric (sm_120 targeting lives mainly in tuning CC 12.0 notes / other CUDA docs). Catalog’s “measure yourself / no invented GB/s” matches the page silence.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 
 ### Kernel AIO / O_DIRECT caveats · `directional` · craft
 **Async without O_DIRECT quietly becomes sync — headline sequential >> realistic QD1 pattern.**
@@ -204,32 +204,32 @@ Container ships CUDA 12.8.0; driver ≥570; Blackwell-optimized NGC DL container
 **/ raw README — Successor tool: named cases e.g. `host_to_device_memcpy_ce`, `device_to_host_memcpy_ce`; CE vs SM copies; default buffer **512 MiB**, `--testSamples` median; reports **current measured** GB/s on the system (not a published 5090 floor).**
 / raw README — Successor tool: named cases e.g. `host_to_device_memcpy_ce`, `device_to_host_memcpy_ce`; CE vs SM copies; default buffer **512 MiB**, `--testSamples` median; reports **current measured** GB/s on the system (not a published 5090 floor).
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [NVIDIA/nvbandwidth README](https://github.com/NVIDIA/nvbandwidth)
 
 ### NVML Device Queries · `directional` · craft
 **`nvmlDeviceGetMemoryInfo` / `_v2`; `nvmlDeviceGetCudaComputeCapability` (major/minor); `nvmlDeviceGetCurrPcieLinkWidth` / Generation; BAR1 memory. Fields for VRAM/PCIe/CC — not bandwidth numbers.**
 `nvmlDeviceGetMemoryInfo` / `_v2`; `nvmlDeviceGetCudaComputeCapability` (major/minor); `nvmlDeviceGetCurrPcieLinkWidth` / Generation; BAR1 memory. Fields for VRAM/PCIe/CC — not bandwidth numbers.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [NVML Device Queries](https://docs.nvidia.com/deploy/nvml-api/group__nvmlDeviceQueries.html)
 
 ### Non-Uniform L2 Cache Latency Across the Streaming Multiprocessors of an NVIDIA L40 · `directional` · craft
 **Same probe on **RTX 5090 (Blackwell GB202)** shows L2-hit latency varies by physical SM; device-specific fingerprints — 5090 microarchitecture measurement ≠ transplanting B200/datacenter numbers.**
 Same probe on **RTX 5090 (Blackwell GB202)** shows L2-hit latency varies by physical SM; device-specific fingerprints — 5090 microarchitecture measurement ≠ transplanting B200/datacenter numbers.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [Non-Uniform L2 Cache Latency Across the Streaming Multiprocessors of an NVIDIA L](https://arxiv.org/abs/2606.22588)
 
 ### OOM-Free Alpamayo via CPU-GPU Memory Swapping for Vision-Language-Action Models · `directional` · craft
 **Consumer Blackwell-class PCIe Gen5 path: measures with **pinned** memory and names Gen5 vs Gen3 DMA shifts — catalog PCIe claims need pinned + measured, not spec-sheet alone.**
 Consumer Blackwell-class PCIe Gen5 path: measures with **pinned** memory and names Gen5 vs Gen3 DMA shifts — catalog PCIe claims need pinned + measured, not spec-sheet alone.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [OOM-Free Alpamayo via CPU-GPU Memory Swapping for Vision-Language-Action Models](https://arxiv.org/abs/2605.11678)
 
 ### RLIMIT_MEMLOCK — package cap · `directional` · craft
@@ -244,31 +244,31 @@ Unprivileged lockable RAM ceiling (mlock/pinned). Holds for container-gated cuda
 **Analog: SPECspeed = one copy (latency-ish); SPECrate = multi-copy throughput. Holds: do not sell a throughput SKU metric as the single-workload honesty number. Limit: CPU suites ≠ GPU VRAM/PCIe probes.**
 Analog: SPECspeed = one copy (latency-ish); SPECrate = multi-copy throughput. Holds: do not sell a throughput SKU metric as the single-workload honesty number. Limit: CPU suites ≠ GPU VRAM/PCIe probes.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [SPEC CPU 2017 Overview](https://www.spec.org/cpu2017/Docs/overview.html)
 
 ### SPEC “honest data vs marketing hype” · `directional` · craft
 **Analog: standardized, reproducible workload over brochure claims. Holds for catalog methodology over 5090/6000 marketing sheets. Limit: SPEC philosophy ≠ NVML field names.**
 Analog: standardized, reproducible workload over brochure claims. Holds for catalog methodology over 5090/6000 marketing sheets. Limit: SPEC philosophy ≠ NVML field names.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 
 ### The Serialized Bridge: Understanding and Recovering LLM Serving Performance under Blackwell GPU Confidential Computing · `directional` · craft
 **RTX Pro 6000 Blackwell SE as **PCIe Gen5** / no-NVLink baseline vs B300 HGX; Pro 6000 vLLM build **does not run on SM100** — cross-SKU image/stack mismatch is a measurement caveat.**
 RTX Pro 6000 Blackwell SE as **PCIe Gen5** / no-NVLink baseline vs B300 HGX; Pro 6000 vLLM build **does not run on SM100** — cross-SKU image/stack mismatch is a measurement caveat.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [The Serialized Bridge: Understanding and Recovering LLM Serving Performance unde](https://arxiv.org/abs/2606.23969)
 
 ### XFP: Quality-Targeted Adaptive Codebook Quantization with Sparse Outlier Separation for LLM Inference · `directional` · craft
 **Workstation Blackwell **SM120/121** (RTX PRO 6000) lacks datacenter **SM100+** NVFP4 Tensor Core path; CUTLASS/FlashInfer/vLLM needed community patches; SMEM/CTA budget lower on workstation tier — stack-tier gate, not one Blackwell.**
 Workstation Blackwell **SM120/121** (RTX PRO 6000) lacks datacenter **SM100+** NVFP4 Tensor Core path; CUTLASS/FlashInfer/vLLM needed community patches; SMEM/CTA budget lower on workstation tier — stack-tier gate, not one Blackwell.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [XFP: Quality-Targeted Adaptive Codebook Quantization with Sparse Outlier Separat](https://arxiv.org/abs/2605.14844)
 
 ### fio O_DIRECT / libaio honesty · `directional` · craft
@@ -283,16 +283,16 @@ O_DIRECT + async engine or you measure page cache / sync fallback. Holds for NVM
 **Analog: `direct` ⇒ O_DIRECT; `iodepth` sets queue depth. Holds: seq/high-QD headlines ≠ QD1 random honesty for offload math. Limit: fio ≠ CUDA Event timing.**
 Analog: `direct` ⇒ O_DIRECT; `iodepth` sets queue depth. Holds: seq/high-QD headlines ≠ QD1 random honesty for offload math. Limit: fio ≠ CUDA Event timing.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [fio `direct` / `iodepth`](https://fio.readthedocs.io/en/latest/fio_doc.html)
 
 ### nvbandwidth · `directional` · craft
 **Analog: measure H2D/D2H with timed copies, not brochure PCIe ceilings. Holds as the canonical measure path for catalog. Limit: tool output ≠ LLM tok/s.**
 Analog: measure H2D/D2H with timed copies, not brochure PCIe ceilings. Holds as the canonical measure path for catalog. Limit: tool output ≠ LLM tok/s.
 - **Applies to:** docker; hw-measurement; Blackwell; sm_120; PCIe · **Confidence:** medium · **Rig relevance:** 3/5
-- **Design implication:** Deepen hw-measurement honesty. Axis invented: 0. Numbers invented: 0. Do not equate sm_100↔sm_120.
-- **Verify:** verdict=unverified | STUDY-049 deepen; Numbers invented: 0
+- **Design implication:** Deepen hw-measurement honesty. Do not equate sm_100↔sm_120.
+- **Verify:** verdict=unverified | STUDY-049 deepen
 - **Sources:** [nvbandwidth](https://github.com/NVIDIA/nvbandwidth)
 
 ### CUDA-on-WSL guide officially warns pinned + managed memory are limited · `load-bearing` · constraint

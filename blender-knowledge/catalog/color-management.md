@@ -115,7 +115,7 @@ Blender auto-detects based on filename conventions (_normal, _roughness, etc.) w
 ### Anime/toon look in Blender — StraySpark · `▸ plausible` · Blender 4.5 LTS
 **Standard view transform + Shader-to-RGB/ColorRamp + inverted-hull.**
 - **How:** NPR hold-with-limit; AgX washes flat chroma; keep 4.x.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (plausible):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Anime/toon look in Blender — StraySpark](https://www.strayspark.studio/blog/how-to-get-anime-toon-look-blender) — Toon NPR hold-with-limit

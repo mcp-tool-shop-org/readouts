@@ -74,7 +74,7 @@ track.up_axis = 'UP_Y' # Y stays upright bpy.context.view_layer.update() # force
 ### Cameras (Manual 4.5 LTS) · `✅ solid` · Blender 4.5 LTS
 **Camera types including orthographic for sprite turnaround.**
 - **How:** Ortho cameras for 8-dir sheets; ProcFunc EEVEE-vs-Cycles half stays ·.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Cameras (Manual 4.5 LTS)](https://docs.blender.org/manual/en/4.5/render/cameras.html) — Ortho cameras 4.5

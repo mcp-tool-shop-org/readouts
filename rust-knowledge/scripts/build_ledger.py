@@ -123,12 +123,16 @@ def main() -> int:
             if not entry:
                 print(f"  ::error:: operator note for unknown slug {slug!r}")
                 return 2
+            # One note, or a list when a recipe carries more than one (a citation anchor and a
+            # consumed-pin mark, for instance).
+            items = n if isinstance(n, list) else [n]
             base = (entry.get("verify_note") or "").split(" · [operator")[0]
-            # 600: merge_verdicts caps the verifier's own note at 240, so a note of up to ~330
-            # characters fits beside it untrimmed.
-            entry["verify_note"] = append_note(base, f" · [operator {n.get('date', '')}: {n['note']}]", 600)
-            entry["operator_note"] = n
-            n_notes += 1
+            tail = "".join(f" · [operator {x.get('date', '')}: {x['note']}]" for x in items)
+            # 600: merge_verdicts caps the verifier's own note at 240, so one note of up to ~330
+            # characters fits beside it untrimmed; each further note gets its own 300.
+            entry["verify_note"] = append_note(base, tail, 600 + 300 * (len(items) - 1))
+            entry["operator_note"] = items[0] if len(items) == 1 else items
+            n_notes += len(items)
     print(f"› operator notes applied: {n_notes}")
     print(f"› compile gate: {passed} recipes all-pass, {gated} set unverified by a failing check")
     print(f"  ledger verified=1: {sum(1 for e in verdicts.values() if e.get('verified'))} of {len(verdicts)}")

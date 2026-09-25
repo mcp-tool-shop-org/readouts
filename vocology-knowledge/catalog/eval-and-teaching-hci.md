@@ -87,7 +87,7 @@ _MUSHRA/MOS for singing, vocal-model identity, teaching / practice HCI_ · wave 
 
 ### ITU-R BS.1534-3 MUSHRA · `load-bearing`
 **The hidden reference is the listener post-screening tool: disqualify assessors who rate the hidden reference below 90 MUSHRA points on more than 15% of test items. The mandatory mid-range anchor (typically a 3.5 kHz low-pass version, alongside a 7 kHz anchor) calibrates the scale so minor artefacts are not over-penalised and results pool across labs - it is not part of the exclusion criterion.**
-- **Implication:** Reuse the composition-panel discrimination floor; do not invent a speech-MOS gate.
+- **Implication:** Reuse the composition-panel discrimination floor
 - **Identifier:** `ITU-R BS.1534-3`
 - **Verify:** BS.1534-3 (2015) title/edition confirmed at ITU; full text paywalled. Exclusion applies to the HIDDEN REFERENCE only - rated below 90 MUSHRA points on >15% of items. Anchors calibrate the scale across labs; not a screening rule.
 - **Sources:** [ITU-R BS.1534-3 MUSHRA](https://www.itu.int/rec/R-REC-BS.1534)
@@ -164,49 +164,49 @@ _MUSHRA/MOS for singing, vocal-model identity, teaching / practice HCI_ · wave 
 
 ### AI-assisted feedback and reflection in vocal music training: effects on metacognition and singing performance · `directional`
 **AI singing-coach RCT raised metacognition, not singing scores — teaching-outcome metric split (metacognition vs performance).**
-- **Implication:** STUDY-042 eval deepen. Flips beyond ACCEPT 23/30/50: 0.
+- **Implication:** STUDY-042 eval deepen.
 - **Identifier:** `DOI:10.3389/fpsyg.2025.1598867`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [AI-assisted feedback and reflection in vocal music training: effects on metacognition and singing performance](https://doi.org/10.3389/fpsyg.2025.1598867)
 
 ### Addressing Documentation Debt in Machine Learning Research: A Retrospective Datasheet for BookCorpus · `directional`
 **Documents sparsely described but widely used BookCorpus to pay down documentation debt — README/catalog honesty for legacy rows that stay verified=0 until retrieval-checked.**
-- **Implication:** STUDY-064 catalog/README honesty. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `arXiv:2105.05241`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Addressing Documentation Debt in Machine Learning Research: A Retrospective Datasheet for BookCorpus](https://arxiv.org/abs/2105.05241)
 
 ### Croissant: A Metadata Format for ML-Ready Datasets · `directional`
 **Shared machine-readable dataset metadata across tools/platforms — structured documentation surface that keeps discoverable counts tied to declared fields (not silent verified invent).**
-- **Implication:** STUDY-064 catalog/README honesty. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `arXiv:2403.19546`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Croissant: A Metadata Format for ML-Ready Datasets](https://arxiv.org/abs/2403.19546)
 
 ### Datasheets for Datasets · `directional`
 **Argues ML lacked a standard dataset documentation process and proposes datasheets so composition, motivation, and limits are stated explicitly — count/claim honesty over silent promotion of undated rows.**
-- **Implication:** STUDY-064 catalog/README honesty. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `arXiv:1803.09010`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Datasheets for Datasets](https://arxiv.org/abs/1803.09010)
 
 ### DiffSinger ConfigurationSchemas · `directional`
 **`num_valid_plots` and `val_with_vocoder` control validation audio plots during training. Developer validation knobs — not human listening-test or coaching feedback surfaces.**
-- **Implication:** STUDY-042 practice/eval surfaces. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-042 practice/eval surfaces.
 - **Identifier:** `https://raw.githubusercontent.com/openvpi/DiffSinger/main/docs/ConfigurationSchemas.md`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [DiffSinger ConfigurationSchemas](https://raw.githubusercontent.com/openvpi/DiffSinger/main/docs/ConfigurationSchemas.md)
 
 ### DiffSinger Getting Started · `directional`
 **Training eval surface is TensorBoard (`tensorboard --logdir checkpoints/`); inference is DS-file CLI. No listening-test harness, no MOS/MUSHRA UI documented.**
-- **Implication:** STUDY-042 practice/eval surfaces. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-042 practice/eval surfaces.
 - **Identifier:** `https://raw.githubusercontent.com/openvpi/DiffSinger/main/docs/GettingStarted.md`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [DiffSinger Getting Started](https://raw.githubusercontent.com/openvpi/DiffSinger/main/docs/GettingStarted.md)
 
 ### ExpressiveSinger: Multilingual and Multi-Style Score-based Singing Voice Synthesis with Expressive Performance Control · `directional`
 **High MOS still lacks musicality without explicit performance control of onset deviations / F0 curves — quality MOS ≠ expressive score-following outcome.**
-- **Implication:** STUDY-042 eval deepen. Flips beyond ACCEPT 23/30/50: 0.
+- **Implication:** STUDY-042 eval deepen.
 - **Identifier:** `DOI:10.1145/3664647.3681642`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [ExpressiveSinger: Multilingual and Multi-Style Score-based Singing Voice Synthesis with Expressive Performance Control](https://doi.org/10.1145/3664647.3681642)
@@ -227,63 +227,63 @@ _MUSHRA/MOS for singing, vocal-model identity, teaching / practice HCI_ · wave 
 
 ### ITU-R BS.1534-3 · `directional`
 **Hidden reference and mid-range anchors screen listeners; mis-raters of anchors are excluded — formal MUSHRA protocol for intermediate-quality audio listening tests.**
-- **Implication:** STUDY-042 eval deepen. Flips beyond ACCEPT 23/30/50: 0.
+- **Implication:** STUDY-042 eval deepen.
 - **Identifier:** `R-REC-BS.1534-3`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [ITU-R BS.1534-3](https://www.itu.int/rec/R-REC-BS.1534)
 
 ### ITU-R BS.1534-3 MUSHRA · `directional`
 **· PDF R-REC-BS.1534-3 — Method is multi-stimulus with hidden reference and anchors (mandatory low-pass anchors 3.5 kHz / mid 7 kHz). Post-screening excludes assessors who rate the hidden reference <90 on >15% of items, or the mid-range anchor >90 on >15% of items. Listening-test class surface — not an SVS product UI.**
-- **Implication:** STUDY-042 practice/eval surfaces. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-042 practice/eval surfaces.
 - **Identifier:** `https://www.itu.int/rec/R-REC-BS.1534`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [ITU-R BS.1534-3 MUSHRA](https://www.itu.int/rec/R-REC-BS.1534)
 
 ### ITU-R BS.1534-3 MUSHRA · `directional`
 **· PDF — Analog: multi-stimulus with hidden reference + mid-range anchors; post-screen listeners who mis-rate hidden ref/mid-anchor on >15% of items. Holds for outside-SVS listening-test design. Limit: intermediate codec quality scale ≠ SingMOS lyrics/melody split alone.**
-- **Implication:** STUDY-042 HCI/pedagogy analog hold-with-limit. Green 1990 + fail-transfers omitted. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-042 HCI/pedagogy analog hold-with-limit. Green 1990 + fail-transfers omitted.
 - **Identifier:** `https://www.itu.int/rec/R-REC-BS.1534-3-201510-I`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [ITU-R BS.1534-3 MUSHRA](https://www.itu.int/rec/R-REC-BS.1534-3-201510-I)
 
 ### Impact of Latency on Perceptual Judgments… in VR · `directional`
 **· https://cg.cs.tu-dortmund.de/publications/2016-latency.pdf — Analog: motor/simultaneity degrade above ~75 ms; agency later (~125 ms). Holds for practice-companion lyric/score feedback latency. Limit: VR full-body visual delay ≠ phoneme-boundary / MFA error.**
-- **Implication:** STUDY-042 HCI/pedagogy analog hold-with-limit. Green 1990 + fail-transfers omitted. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-042 HCI/pedagogy analog hold-with-limit. Green 1990 + fail-transfers omitted.
 - **Identifier:** `https://doi.org/10.1145/2993369.2993381`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Impact of Latency on Perceptual Judgments… in VR](https://doi.org/10.1145/2993369.2993381)
 
 ### Model Cards for Model Reporting · `directional`
 **Recommends model cards that clarify intended uses and discourage use outside well-suited contexts — supports refusing invented verified=1 flips beyond ACCEPT 23/30/50.**
-- **Implication:** STUDY-064 catalog/README honesty. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `arXiv:1810.03993`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Model Cards for Model Reporting](https://arxiv.org/abs/1810.03993)
 
 ### Navigating Dataset Documentations in AI: A Large-Scale Analysis of Dataset Cards on Hugging Face · `directional`
 **Empirical audit of Hugging Face dataset cards for completeness/transparency gaps — catalog counts must match what cards actually document, not aspirational verified totals.**
-- **Implication:** STUDY-064 catalog/README honesty. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `arXiv:2401.13822`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Navigating Dataset Documentations in AI: A Large-Scale Analysis of Dataset Cards on Hugging Face](https://arxiv.org/abs/2401.13822)
 
 ### OpenUtau README · `directional`
 **Practice/editor surface: MIDI editor, vibrato editor, pre-rendering playback, DiffSinger/ENUNU support, expressions replace UTAU flags. Absent on page: MUSHRA/MOS scoring UI, SingMOS integration, teaching metacognition feedback.**
-- **Implication:** STUDY-042 practice/eval surfaces. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-042 practice/eval surfaces.
 - **Identifier:** `https://raw.githubusercontent.com/stakira/OpenUtau/master/README.md`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [OpenUtau README](https://raw.githubusercontent.com/stakira/OpenUtau/master/README.md)
 
 ### OpenUtau `USTx.cs` default expressions · `directional`
 **Editor exposes gender/breathiness/tension/voicing curves for tuning. Tuning knobs present; eval-harness / coaching-score knobs absent.**
-- **Implication:** STUDY-042 practice/eval surfaces. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-042 practice/eval surfaces.
 - **Identifier:** `https://raw.githubusercontent.com/stakira/OpenUtau/master/OpenUtau.Core/Format/USTx.cs`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [OpenUtau `USTx.cs` default expressions](https://raw.githubusercontent.com/stakira/OpenUtau/master/OpenUtau.Core/Format/USTx.cs)
 
 ### Progressive Disclosure · `directional`
 **Analog: defer advanced/rarely used controls to a secondary surface; primary shows only frequent, non-confusing options. Holds for SVS teaching UIs — expose register/formant only when the engine has them; hide false enums. Limit: print-dialog HCI ≠ singing pedagogy content.**
-- **Implication:** STUDY-042 HCI/pedagogy analog hold-with-limit. Green 1990 + fail-transfers omitted. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-042 HCI/pedagogy analog hold-with-limit. Green 1990 + fail-transfers omitted.
 - **Identifier:** `https://www.nngroup.com/articles/progressive-disclosure/`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Progressive Disclosure](https://www.nngroup.com/articles/progressive-disclosure/)
@@ -297,7 +297,7 @@ _MUSHRA/MOS for singing, vocal-model identity, teaching / practice HCI_ · wave 
 
 ### SingMOS README · `directional`
 **`torch.hub` loaders `singmos_pro` / `singmos_v1` predict singing MOS from 16 kHz waveforms; example returns Pred MOS (batch tensor). Automatic SQA tooling — no MUSHRA panel, no coaching feedback UI, no register/formant knobs on the page.**
-- **Implication:** STUDY-042 practice/eval surfaces. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-042 practice/eval surfaces.
 - **Identifier:** `https://raw.githubusercontent.com/South-Twilight/SingMOS/main/README.md`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [SingMOS README](https://raw.githubusercontent.com/South-Twilight/SingMOS/main/README.md)
@@ -311,56 +311,56 @@ _MUSHRA/MOS for singing, vocal-model identity, teaching / practice HCI_ · wave 
 
 ### SingMOS-Pro dataset card · `directional`
 **7,981 clips; `score.json` system/utterance MOS + judges; `metadata.csv` documents `judge_score` and optional `judge_lyrics_score` / `judge_melody_score` columns (may be empty). Annotation/eval dataset surface, not a practice app.**
-- **Implication:** STUDY-042 practice/eval surfaces. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-042 practice/eval surfaces.
 - **Identifier:** `https://huggingface.co/datasets/TangRain/SingMOS-Pro`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [SingMOS-Pro dataset card](https://huggingface.co/datasets/TangRain/SingMOS-Pro)
 
 ### SingMOS-Pro: An Comprehensive Benchmark for Singing Quality Assessment · `directional`
 **Multilingual SQA benchmark with separate Lyrics MOS (pronunciation/intelligibility), Melody MOS, and Overall MOS — explicit MOS-dimension split for quality vs lyric clarity.**
-- **Implication:** STUDY-042 eval deepen. Flips beyond ACCEPT 23/30/50: 0.
+- **Implication:** STUDY-042 eval deepen.
 - **Identifier:** `SingMOS-Pro STUDY-042 deepen (see url)`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [SingMOS-Pro: An Comprehensive Benchmark for Singing Quality Assessment](https://arxiv.org/abs/2510.01812)
 
 ### SingMOS: An extensive Open-Source Singing Voice Dataset for MOS Prediction · `directional`
 **First open singing MOS dataset (SVS/SVC/resynthesis clips) for automatic singing-quality prediction — SingMOS-class evaluator literature (not a flip).**
-- **Implication:** STUDY-042 eval deepen. Flips beyond ACCEPT 23/30/50: 0.
+- **Implication:** STUDY-042 eval deepen.
 - **Identifier:** `arXiv:2406.10911`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [SingMOS: An extensive Open-Source Singing Voice Dataset for MOS Prediction](https://arxiv.org/abs/2406.10911)
 
 ### Singing with yourself · `directional`
 **· http://www.acsu.buffalo.edu/~pqp/pdfs/Pfordresher&Mantell_2014_CogPsy.pdf — Analog: poor-pitch singers match self recordings far better than other voices. Holds for self-vs-other pitch-matching pedagogy (perfect other/synth is the hard tutor). Limit: imitation psychology ≠ SVS MOS admission harness.**
-- **Implication:** STUDY-042 HCI/pedagogy analog hold-with-limit. Green 1990 + fail-transfers omitted. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-042 HCI/pedagogy analog hold-with-limit. Green 1990 + fail-transfers omitted.
 - **Identifier:** `https://doi.org/10.1016/j.cogpsych.2013.12.005`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Singing with yourself](https://doi.org/10.1016/j.cogpsych.2013.12.005)
 
 ### The Data Provenance Initiative: A Large Scale Audit of Dataset Licensing & Attribution in AI · `directional`
 **Multi-disciplinary audit of licensing/attribution under inconsistent documentation — provenance honesty for catalog sources without inventing nodes or flips.**
-- **Implication:** STUDY-064 catalog/README honesty. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `arXiv:2310.16787`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [The Data Provenance Initiative: A Large Scale Audit of Dataset Licensing & Attribution in AI](https://arxiv.org/abs/2310.16787)
 
 ### The Open-Box Fallacy: Why AI Deployment Needs a Calibrated Verification Regime · `directional`
 **Argues deployment needs a calibrated verification regime rather than overclaiming openness/explainability as proof — analog for default-unverified rows and flips only on ACCEPT 23/30/50.**
-- **Implication:** STUDY-064 catalog/README honesty. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `arXiv:2605.10601`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [The Open-Box Fallacy: Why AI Deployment Needs a Calibrated Verification Regime](https://arxiv.org/abs/2605.10601)
 
 ### The State of Documentation Practices of Third-party Machine Learning Models and Datasets · `directional`
 **Finds model/dataset stores often lack the detailed specs model/dataset cards imply — supports keeping README 175 · 12/175 honest rather than inventing verified mass-flips.**
-- **Implication:** STUDY-064 catalog/README honesty. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `arXiv:2312.15058`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [The State of Documentation Practices of Third-party Machine Learning Models and Datasets](https://arxiv.org/abs/2312.15058)
 
 ### The VoiceMOS Challenge 2023: Zero-shot Subjective Speech Quality Prediction for Multiple Domains · `directional`
 **Challenge framing for automatic prediction of subjective MOS across domains — parent eval class later extended by singing-track MOS datasets (SingMOS lineage).**
-- **Implication:** STUDY-042 eval deepen. Flips beyond ACCEPT 23/30/50: 0.
+- **Implication:** STUDY-042 eval deepen.
 - **Identifier:** `arXiv:2310.02640`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [The VoiceMOS Challenge 2023: Zero-shot Subjective Speech Quality Prediction for Multiple Domains](https://arxiv.org/abs/2310.02640)
@@ -374,28 +374,28 @@ _MUSHRA/MOS for singing, vocal-model identity, teaching / practice HCI_ · wave 
 
 ### UTMOS: UTokyo-SaruLab System for VoiceMOS Challenge 2022 · `directional`
 **Strong automatic MOS predictor (UTMOS) widely reused as speech/singing SQA baseline — automatic MOS-prediction engine class vs human MOS panels.**
-- **Implication:** STUDY-042 eval deepen. Flips beyond ACCEPT 23/30/50: 0.
+- **Implication:** STUDY-042 eval deepen.
 - **Identifier:** `arXiv:2204.02152`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [UTMOS: UTokyo-SaruLab System for VoiceMOS Challenge 2022](https://arxiv.org/abs/2204.02152)
 
 ### Vocal Registers? (TA/CT antagonism lexicon) · `directional`
 **Analog: chest/head/mix as muscular coordination language, not a simple F0 switch. Holds-with-limit for pedagogy register wording (STUDY-022 item 9). Limit: does not license inventing chest/mix/head menus on DiffSinger/OpenUtau/WORLD.**
-- **Implication:** STUDY-042 HCI/pedagogy analog hold-with-limit. Green 1990 + fail-transfers omitted. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-042 HCI/pedagogy analog hold-with-limit. Green 1990 + fail-transfers omitted.
 - **Identifier:** `http://www.voicescienceworks.org/vocal-registers.html`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Vocal Registers? (TA/CT antagonism lexicon)](http://www.voicescienceworks.org/vocal-registers.html)
 
 ### VocalRender: Score-Native Singing Voice Synthesis for Real-World Composition · `directional`
 **VocalRender wins MS-MOS (~2.96) on reported subjective score-following panel — MS-MOS figure only this land; RPA/IOU objective/subjective invert clause stays unverified.**
-- **Implication:** STUDY-042 eval deepen. VocalRender RPA/IOU invert UNVERIFIED. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-042 eval deepen. VocalRender RPA/IOU invert UNVERIFIED.
 - **Identifier:** `arXiv:2607.27768`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [VocalRender: Score-Native Singing Voice Synthesis for Real-World Composition](https://arxiv.org/abs/2607.27768)
 
 ### vocal-synth-engine README · `directional`
 **Cockpit SPA: piano roll, live keyboard, XY pad (timbre×breathiness), latency presets, render bank + telemetry (peak/RTF/jitter). Practice/instrument UI documented; no MUSHRA, no SingMOS, no named singing-coach score panel.**
-- **Implication:** STUDY-042 practice/eval surfaces. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-042 practice/eval surfaces.
 - **Identifier:** `https://raw.githubusercontent.com/mcp-tool-shop-org/vocal-synth-engine/main/README.md`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [vocal-synth-engine README](https://raw.githubusercontent.com/mcp-tool-shop-org/vocal-synth-engine/main/README.md)

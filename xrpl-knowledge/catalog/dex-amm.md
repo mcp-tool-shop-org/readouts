@@ -254,7 +254,7 @@ Lets LPToken holders vote on the AMM's trading fee (0-1000 = 0%-1%). The effecti
 - **Sources:** [AMMVote - XRPL.org](https://xrpl.org/docs/references/protocol/transactions/types/ammvote) — AMMVote sets a TradingFee (0-1000); the effective fee is the LP-token-weighted average of the top 8 voters, and non-holders are rejected with tecAMM_INVALID_TOKENS.
 
 ### AMM-based DEX on XRPL literature (Cruz et al. 2023) · `concept` · · n/a
-Protocol-level XRPL AMM-DEX vs Ethereum AMM claims — feature-domain AMM craft; invent-enabled: 0.
+Protocol-level XRPL AMM-DEX vs Ethereum AMM claims — feature-domain AMM craft
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-036 Verifier ✅; invent-enabled: 0
 - **Gotchas:** Does not invent live amendment status. No funds.
@@ -262,7 +262,7 @@ Protocol-level XRPL AMM-DEX vs Ethereum AMM claims — feature-domain AMM craft;
 - **Sources:** [AMM-based DEX on the XRP Ledger](https://arxiv.org/abs/2312.13749) — XRPL AMM-DEX protocol analysis.
 
 ### Jack The Rippler XRPL DEX arbitrage literature · `concept` · · n/a
-Bot measuring arbitrage on XRPL order-book DEX — market-structure evidence; invent-enabled: 0.
+Bot measuring arbitrage on XRPL order-book DEX — market-structure evidence
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-036 Verifier ✅; invent-enabled: 0
 - **Gotchas:** Research measurement only. No funds.

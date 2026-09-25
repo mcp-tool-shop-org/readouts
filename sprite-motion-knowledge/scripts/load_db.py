@@ -47,7 +47,7 @@ SCHEMA = os.path.join(ROOT, "schema.sql")
 
 # One definition of `verified`, shared by every KB — see shared/verdicts.py.
 sys.path.insert(0, os.path.join(os.path.dirname(ROOT), "shared"))
-from verdicts import Verdicts  # noqa: E402
+from verdicts import Verdicts, note_with_corrections  # noqa: E402
 
 
 # status + evidence ordinals -> try-first ordering (lower = try first)
@@ -219,9 +219,13 @@ def main(path):
             rslug = uniq_slug(cur, "recipes", slugify(t.get("slug") or name))
             # Three jurors have been sitting in this KB's own cloud_verify block
             # since wave 1, and the loader never opened it.
-            verified, vstatus, vnote, _ = VERD.for_entry(rslug, name)
+            verified, vstatus, vnote, corr = VERD.for_entry(rslug, name)
             own = t.get("verify_note")
-            vnote = f"{own} [{vnote}]" if own else vnote
+            if corr:
+                # A corrected verdict leads: the research seat's own note is what was corrected.
+                vnote = note_with_corrections(vnote, corr) + (f" [research note: {own}]" if own else "")
+            else:
+                vnote = f"{own} [{vnote}]" if own else vnote
             status = "avoid" if vstatus == "avoid" else norm_status(t.get("status"))
             ev = t.get("evidence_strength")
             cur.execute(

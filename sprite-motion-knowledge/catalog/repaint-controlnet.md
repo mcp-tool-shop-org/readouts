@@ -229,13 +229,13 @@ Canny ControlNet enforces hard pixel-accurate edges that conflict with painterly
 - **Sources:** [lllyasviel/control_v11p_sd15_softedge](https://huggingface.co/lllyasviel/control_v11p_sd15_softedge) (Lvmin Zhang, 2023) — CreativeML OpenRAIL-M; soft edge v1.1 improved over HED 1.0 by training with 75% safe-filtered HED/PIDI maps to remove corrupted greyscale hidden in older edge models; produces gentle painterly-compatible boundary conditioning.
 
 ### ControlNet spatial conditioning literature (Zhang et al. 2023) · `situational` · paper
-**ControlNet depth/pose/edges conditioning — control receipt for mesh-depth / pose-conditioned repaint; no invent Qwen stacks.**
+**ControlNet depth/pose/edges conditioning — control receipt for mesh-depth / pose-conditioned repaint**
 STUDY-037 Scholar deepen.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [ControlNet](https://arxiv.org/abs/2302.05543) — Adding conditional control to T2I diffusion.
 
 ### Diffusers AnimateDiff API — temporal pipelines · `situational` · docs
@@ -253,9 +253,9 @@ Official pipelines: AnimateDiffPipeline, ControlNet/SparseControlNet/SDXL/vid2vi
 STUDY-037 Practitioner Verifier ✅.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [InstantX Qwen-Image-ControlNet-Union](https://huggingface.co/InstantX/Qwen-Image-ControlNet-Union) — Unified CN: canny/soft edge/depth/pose.
 
 ### Qwen-Image-Edit-2511 repaint peer · `situational` · docs
@@ -263,9 +263,9 @@ STUDY-037 Practitioner Verifier ✅.
 STUDY-037 Practitioner Verifier ✅.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [Qwen-Image-Edit-2511](https://huggingface.co/Qwen/Qwen-Image-Edit-2511) — Better character consistency / less drift.
 
 ### control_v11p_sd15_openpose — OpenPose ControlNet v1.1 · `situational` · docs
@@ -283,9 +283,9 @@ ControlNet v1.1 openpose checkpoint; CreativeML OpenRAIL-M; Diffusers StableDiff
 STUDY-037 Practitioner Verifier ✅.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [control_v11f1p_sd15_depth](https://huggingface.co/lllyasviel/control_v11f1p_sd15_depth) — Depth CN; 3D engine depth OK. ; [control_v11p_sd15_openpose](https://huggingface.co/lllyasviel/control_v11p_sd15_openpose) — OpenPose CN with hand+face.
 
 ### Normal BAE ControlNet from mesh — surface orientation lock during repaint · `situational` · · community

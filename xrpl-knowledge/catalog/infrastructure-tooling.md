@@ -58,8 +58,8 @@ Clio is the XRPLF API server purpose-built for reads: it ingests validated ledge
 Operator docs for amendment voting config; amendment-pending stays unverified for Batch/PermissionDelegation.
 - **Chain:** off-ledger · **Maturity:** stable · **Use:** recommended
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Do not flip Batch/PermissionDelegation (915/916). Amendment-pending stays unverified. No invent-enabled.
-- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (do not invent-enabled; STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds. Do not flip 915/916.
+- **Gotchas:** Do not flip Batch/PermissionDelegation (915/916). Amendment-pending stays unverified.
+- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds.
 - **Sources:** [Configure amendment voting](https://xrpl.org/docs/infrastructure/configuration/configure-amendment-voting) — Operator docs for amendment voting config; amendment-pending stays unverified for Batch/PermissionDelegation.
 
 ### Crossmark (browser-extension XRPL wallet) · `service` · ● live ✓
@@ -108,12 +108,12 @@ rippled is the reference C++ server that forms the XRPL peer-to-peer network: it
 - **Sources:** [Networks and Servers — xrpl.org](https://xrpl.org/docs/concepts/networks-and-servers) — rippled runs the peer-to-peer network that processes transactions and reaches consensus on their outcome. ; [XRPLF/rippled — GitHub](https://github.com/XRPLF/rippled) — rippled is the official C++ reference implementation of the XRP Ledger server. ; [XRPL Version 3.0.0 release coverage](https://www.comparenodes.com/protocols/xrp-ledger/) — XRPL 3.0.0 resolves data-processing issues related to tokens, escrow, and price, and node operators must update promptly.
 
 ### rippled admin feature method · `docs` · · n/a ✓
-Admin feature API shows amendment support/majority; do not invent-enabled from this job.
+Admin feature API shows amendment support/majority
 - **Chain:** off-ledger · **Maturity:** stable · **Use:** recommended
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Do not flip Batch/PermissionDelegation (915/916). Amendment-pending stays unverified. No invent-enabled.
-- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (do not invent-enabled; STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds. Do not flip 915/916.
-- **Sources:** [rippled admin feature method](https://xrpl.org/docs/references/http-websocket-apis/admin-api-methods/status-and-debugging-methods/feature) — Admin feature API shows amendment support/majority; do not invent-enabled from this job.
+- **Gotchas:** Do not flip Batch/PermissionDelegation (915/916). Amendment-pending stays unverified.
+- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds.
+- **Sources:** [rippled admin feature method](https://xrpl.org/docs/references/http-websocket-apis/admin-api-methods/status-and-debugging-methods/feature) — Admin feature API shows amendment support/majority
 
 ### Xaman (formerly XUMM) wallet + developer platform · `service` · ● live ✓
 Xaman (the rebrand of XUMM, by XRPL Labs) is the mobile-first self-custody wallet with the deepest native XRPL/Xahau feature coverage — trustlines, DEX, NFTs, AMM, and Hooks (on Xahau). For builders it is also a platform: the Xaman SDK/API, xApps (in-wallet apps), and sign-requests via deep links / QR let any dApp request user signatures and 'Sign in with Xaman' without handling keys. Tangem NFC hardware cards extend it to cold storage. The default integration target for XRPL apps that need real user wallets.
@@ -155,8 +155,8 @@ XRPL parallel networks for development: Testnet (mainnet-like, stable feature se
 On-ledger Amendments object documents enabled/majority amendments; process literacy, not flip of 915/916.
 - **Chain:** off-ledger · **Maturity:** stable · **Use:** recommended
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Do not flip Batch/PermissionDelegation (915/916). Amendment-pending stays unverified. No invent-enabled.
-- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (do not invent-enabled; STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds. Do not flip 915/916.
+- **Gotchas:** Do not flip Batch/PermissionDelegation (915/916). Amendment-pending stays unverified.
+- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds.
 - **Sources:** [XRPL Ledger Entry: Amendments](https://xrpl.org/docs/references/protocol/ledger-data/ledger-entry-types/amendments) — On-ledger Amendments object documents enabled/majority amendments; process literacy, not flip of 915/916.
 
 ### XRPSCAN (explorer + analytics API) · `service` · ● live ✓
@@ -181,47 +181,47 @@ The XRPL EVM Sidechain (Ripple + Peersyst + Axelar, on a Cosmos/Evmos stack) wen
 Adjacent: time-bounded signaling for soft-fork activation — analog to XRPL amendment majority windows.
 - **Chain:** off-ledger · **Maturity:** stable · **Use:** situational
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Analog only. Do not invent-enabled on XRPL mainnet. No funds.
-- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (do not invent-enabled; STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds. Do not flip 915/916.
+- **Gotchas:** Analog only. No funds.
+- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds.
 - **Sources:** [Bitcoin Speedy Trial soft-fork activation](https://github.com/bitcoin/bitcoin/pull/21377) — Adjacent: time-bounded signaling for soft-fork activation — analog to XRPL amendment majority windows.
 
 ### Chrome Origin Trials · `analog` · · n/a ✓
 Adjacent: time-boxed experimental enablement — analog to XRPL testnet/devnet feature exposure.
 - **Chain:** off-ledger · **Maturity:** stable · **Use:** situational
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Analog only. Do not invent-enabled on XRPL mainnet. No funds.
-- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (do not invent-enabled; STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds. Do not flip 915/916.
+- **Gotchas:** Analog only. No funds.
+- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds.
 - **Sources:** [Chrome Origin Trials](https://developer.chrome.com/docs/web-platform/origin-trials) — Adjacent: time-boxed experimental enablement — analog to XRPL testnet/devnet feature exposure.
 
 ### Kubernetes Feature Gates · `analog` · · n/a ✓
 Adjacent: staged feature enablement with explicit gates — maps to XRPL amendment maturity without inventing enablement.
 - **Chain:** off-ledger · **Maturity:** stable · **Use:** situational
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Analog only. Do not invent-enabled on XRPL mainnet. No funds.
-- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (do not invent-enabled; STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds. Do not flip 915/916.
+- **Gotchas:** Analog only. No funds.
+- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds.
 - **Sources:** [Kubernetes Feature Gates](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/) — Adjacent: staged feature enablement with explicit gates — maps to XRPL amendment maturity without inventing enablement.
 
 ### Semantic Versioning (SemVer) · `analog` · · n/a ✓
 Adjacent: version-gated compatibility contracts — maps to rippled version / amendment coupling without invent-enabled.
 - **Chain:** off-ledger · **Maturity:** stable · **Use:** situational
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Analog only. Do not invent-enabled on XRPL mainnet. No funds.
-- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (do not invent-enabled; STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds. Do not flip 915/916.
+- **Gotchas:** Analog only. No funds.
+- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds.
 - **Sources:** [Semantic Versioning (SemVer)](https://semver.org/) — Adjacent: version-gated compatibility contracts — maps to rippled version / amendment coupling without invent-enabled.
 
 ### Cross-chain CCI Survey — Cosmos IBC Hub-and-Zone · `concept` · · n/a
-Cosmos IBC Hub-and-Zone; sidechain plane≠Hooks L1. Invent-enabled: 0. Invent Mainnet Hooks: 0.
+Cosmos IBC Hub-and-Zone; sidechain plane≠Hooks L1. Invent Mainnet Hooks: 0.
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Cross-chain CCI Survey — Deng et al., 2025 — arXiv:2505.04934](https://arxiv.org/abs/2505.04934) — Cosmos IBC Hub-and-Zone; sidechain plane≠Hooks L1.
 
 ### Parallel Networks (Hooks V3 Testnet ≠ Mainnet Hooks) · `doc` · ○ devnet
-One XRPL Mainnet; Hooks V3 Testnet separate preview. ≠ Mainnet Hooks. Invent-enabled: 0. Invent Mainnet Hooks: 0.
+One XRPL Mainnet; Hooks V3 Testnet separate preview. ≠ Mainnet Hooks. Invent Mainnet Hooks: 0.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Parallel Networks](https://xrpl.org/docs/concepts/networks-and-servers/parallel-networks) — One XRPL Mainnet; Hooks V3 Testnet separate preview. ≠ Mainnet Hooks.
 
@@ -229,15 +229,15 @@ One XRPL Mainnet; Hooks V3 Testnet separate preview. ≠ Mainnet Hooks. Invent-e
 One production Mainnet; Testnet mirrors; Devnet experimental; Hooks V3 Testnet separate — Altnets ≠ invent Mainnet-live.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-036 Verifier ✅; invent-enabled: 0
-- **Gotchas:** invent-enabled: 0. No funds.
+- **Gotchas:** No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Parallel Networks](https://xrpl.org/docs/concepts/networks-and-servers/parallel-networks) — Mainnet/Testnet/Devnet roles; Hooks V3 Testnet separate.
 
 ### SoK Cross-chain Bridges — lock-and-mint / OP / Axelar · `concept` · · n/a
-Lock-and-mint / OP / Axelar; bridge≠L1 enable. Invent-enabled: 0. Invent Mainnet Hooks: 0.
+Lock-and-mint / OP / Axelar; bridge≠L1 enable. Invent Mainnet Hooks: 0.
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [SoK Cross-chain Bridges — Zhang et al., 2023 — arXiv:2312.12573](https://arxiv.org/abs/2312.12573) — Lock-and-mint / OP / Axelar; bridge≠L1 enable.
 
@@ -245,7 +245,7 @@ Lock-and-mint / OP / Axelar; bridge≠L1 enable. Invent-enabled: 0. Invent Mainn
 Portable sandboxed VM ≠ EVM opcodes. Holds for Hooks WASM lane.
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [WebAssembly](https://webassembly.org/) — Portable sandboxed VM ≠ EVM opcodes. Holds for Hooks WASM lane.
 
@@ -262,15 +262,15 @@ Hooks add lightweight WebAssembly-based 'smart contract' logic that executes on 
 Analogist Finch-% rollout analog. Verifier fail-transfer — no XRPL enablement claim.
 - **Chain:** off-ledger · **Maturity:** experimental · **Use:** avoid
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Verifier fail-transfer. Amendment-pending stays unverified. Do not invent-enabled.
-- **Verify:** cross-family(study-010-verifier-pass)=fail-transfer | net-check: n/a — fail-transfer; do not invent-enabled | currency=2026-09 | fix: leave unverified | STUDY-010 Verifier flag: Finch+% / LaunchDarkly fail-transfer.
+- **Gotchas:** Verifier fail-transfer. Amendment-pending stays unverified.
+- **Verify:** cross-family(study-010-verifier-pass)=fail-transfer | net-check: n/a — fail-transfer; | currency=2026-09 | fix: leave unverified | STUDY-010 Verifier flag: Finch+% / LaunchDarkly fail-transfer.
 - **Sources:** [Finch percentage / feature-flag analogy (fail-transfer)](https://developer.chrome.com/docs/web-platform/chrome-variations) — Analogist Finch-% rollout analog. Verifier fail-transfer — no XRPL enablement claim.
 
 ### LaunchDarkly feature flags (fail-transfer) · `analog` · · n/a
-Analogist LaunchDarkly analog. Verifier fail-transfer — no invent-enabled.
+Analogist LaunchDarkly analog. Verifier fail-transfer.
 - **Chain:** off-ledger · **Maturity:** experimental · **Use:** avoid
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Verifier fail-transfer. Amendment-pending stays unverified. Do not invent-enabled.
-- **Verify:** cross-family(study-010-verifier-pass)=fail-transfer | net-check: n/a — fail-transfer; do not invent-enabled | currency=2026-09 | fix: leave unverified | STUDY-010 Verifier flag: Finch+% / LaunchDarkly fail-transfer.
-- **Sources:** [LaunchDarkly feature flags (fail-transfer)](https://launchdarkly.com/docs/home) — Analogist LaunchDarkly analog. Verifier fail-transfer — no invent-enabled.
+- **Gotchas:** Verifier fail-transfer. Amendment-pending stays unverified.
+- **Verify:** cross-family(study-010-verifier-pass)=fail-transfer | net-check: n/a — fail-transfer; | currency=2026-09 | fix: leave unverified | STUDY-010 Verifier flag: Finch+% / LaunchDarkly fail-transfer.
+- **Sources:** [LaunchDarkly feature flags (fail-transfer)](https://launchdarkly.com/docs/home) — Analogist LaunchDarkly analog. Verifier fail-transfer.
 

@@ -338,74 +338,74 @@ There is no single 'good dataset size' -- it scales with target breadth. CHARACT
 - **Sources:** [Detailed Flux Training Guide: Dataset Preparation](https://civitai.com/articles/7777/detailed-flux-training-guide-dataset-preparation) (Civitai (community), 2024) — Style needs broad subject coverage so the model learns style independent of subject; character needs varied poses/lighting; consistency and quality dominate count. ; [How To Create Dataset For Training (SeaArt) -- size brackets by LoRA type](https://docs.seaart.ai/guide-1/3-advanced-guide/3-2-lora-training-advance/how-to-create-dataset-for-training) (SeaArt, 2024) — Style LoRA ~50-200 images, character ~15-40, concept ~30-100; a small set of good images beats a large bad one.
 
 ### Datasheets for Datasets provenance gate (Gebru et al.) · `situational` · paper
-**Document motivation/composition/collection/uses — commercial-clean provenance gate; no invent recipes.**
-STUDY-035 Scholar/Analogist Verifier ✅. Recipes invented: 0.
-- **For the pipeline:** STUDY-035 Verifier ✅. Recipes/metrics invented: 0. WD thresholds only as card-scraped.
+**Document motivation/composition/collection/uses — commercial-clean provenance gate**
+STUDY-035 Scholar/Analogist Verifier ✅.
+- **For the pipeline:** STUDY-035 Verifier ✅. WD thresholds only as card-scraped.
 - **Method:** dataset · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-035 deepen; recipes/metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-035 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [Datasheets for Datasets (arXiv)](https://arxiv.org/abs/1803.09010) — Structured dataset documentation. ; [Datasheets for Datasets (CACM DOI)](https://doi.org/10.1145/3458723) — CACM datasheet template.
 
 ### DreamBooth subject craft + class prior-preservation (Ruiz et al. 2022) · `situational` · paper
-**Few-shot subject fine-tune with class prior-preservation — ancestral subject/style dataset craft; no invent mix recipe.**
-STUDY-035 Scholar deepen — 2208.12242. Recipes invented: 0.
-- **For the pipeline:** STUDY-035 Verifier ✅. Recipes/metrics invented: 0. WD thresholds only as card-scraped.
+**Few-shot subject fine-tune with class prior-preservation — ancestral subject/style dataset craft**
+STUDY-035 Scholar deepen — 2208.12242.
+- **For the pipeline:** STUDY-035 Verifier ✅. WD thresholds only as card-scraped.
 - **Method:** dataset · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-035 deepen; recipes/metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-035 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Verify:** OPERATOR PRISM ACCEPT PRISM-ACCEPT-P2 (arXiv 2208.12242 DreamBooth)
 - **Sources:** [DreamBooth](https://arxiv.org/abs/2208.12242) — Subject-driven generation with prior preservation.
 
 ### JoyCaption diffusion-dataset caption VLM · `situational` · docs
-**Descriptive/Straightforward/SD-prompt/Danbooru-tag modes for training-set captions — no invented thresholds.**
-STUDY-035 Practitioner Verifier ✅. Recipes/metrics invented: 0.
-- **For the pipeline:** STUDY-035 Verifier ✅. Recipes/metrics invented: 0. WD thresholds only as card-scraped.
+**Descriptive/Straightforward/SD-prompt/Danbooru-tag modes for training-set captions.**
+STUDY-035 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-035 Verifier ✅. WD thresholds only as card-scraped.
 - **Method:** dataset · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-035 deepen; recipes/metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-035 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [JoyCaption README](https://github.com/fpgaminer/joycaption) — Caption VLM modes for diffusion datasets.
 
 ### LIMA quality-over-quantity alignment data (Zhou et al. 2023) · `situational` · paper
-**~1k carefully curated instructions can rival larger noisy pools — quality-over-quantity; no invent studio mix.**
-STUDY-035 Scholar deepen — 2305.11206. Recipes invented: 0.
-- **For the pipeline:** STUDY-035 Verifier ✅. Recipes/metrics invented: 0. WD thresholds only as card-scraped.
+**~1k carefully curated instructions can rival larger noisy pools — quality-over-quantity**
+STUDY-035 Scholar deepen — 2305.11206.
+- **For the pipeline:** STUDY-035 Verifier ✅. WD thresholds only as card-scraped.
 - **Method:** dataset · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-035 deepen; recipes/metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-035 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [LIMA](https://arxiv.org/abs/2305.11206) — Less is more for alignment with curated data.
 
 ### Large-Scale Data Selection for Instruction Tuning · `situational` · paper
 **Stress-tests automated instruction-data selectors beyond ~10k toy pools; curated smaller sets still beat larger noisier pools when selection scales.**
 Stress-tests automated instruction-data selectors beyond ~10k toy pools; curated smaller sets still beat larger noisier pools when selection scales.
-- **For the pipeline:** STUDY-009 Verifier-verified. Do not invent recipes. Do not flip technique rows.
+- **For the pipeline:** STUDY-009 Verifier-verified. Do not flip technique rows.
 - **Method:** data-selection · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama · **Kind:** dataset-craft
-- **Output license:** commercial **check** — STUDY-019 reopen; verified=0. Invented recipes: 0.
+- **Output license:** commercial **check** — STUDY-019 reopen; verified=0.
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [Large-Scale Data Selection for Instruction Tuning](https://arxiv.org/abs/2503.01807) — Stress-tests automated instruction-data selectors beyond ~10k toy pools; curated smaller sets still beat larger noisier pools when selection scales.
 
 ### WD EVA02-Large Tagger v3 card metrics (sourced only) · `situational` · docs
-**Booru tagger with card-scraped v1.0 P=R threshold 0.5296 and F1 0.4772 only — do not invent ship gates.**
-STUDY-035 Practitioner Verifier ✅. Metrics invented: 0.
-- **For the pipeline:** STUDY-035 Verifier ✅. Recipes/metrics invented: 0. WD thresholds only as card-scraped.
+**Booru tagger with card-scraped v1.0 P=R threshold 0.5296 and F1 0.4772 only.**
+STUDY-035 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-035 Verifier ✅. WD thresholds only as card-scraped.
 - **Method:** dataset · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** recipe
-- **Output license:** commercial **check** — STUDY-035 deepen; recipes/metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-035 deepen
 - **Fit:** rig 4/5 · studio 4/5
 
 **Hyperparameters**
 
 | Param | Value | Req | Note |
 |---|---|---|---|
-| P_equals_R_threshold | 0.5296 | ○ | WD EVA02 card v1.0 scraped only — do not invent ship gates |
+| P_equals_R_threshold | 0.5296 | ○ | WD EVA02 card v1.0 scraped only |
 | F1 | 0.4772 | ○ | WD EVA02 card v1.0 scraped only |
 
 - **Sources:** [WD EVA02-Large Tagger v3](https://huggingface.co/SmilingWolf/wd-eva02-large-tagger-v3) — v1.0 P=R threshold=0.5296 F1=0.4772 on card. ; [ComfyUI-WD14-Tagger](https://github.com/pythongosssss/ComfyUI-WD14-Tagger) — ComfyUI WD14/WD-v3 batch tagger peer.
 
 ### kohya-ss dataset TOML craft (aug/repeats/reg) · `situational` · docs
-**Per-subset flip/color/crop, num_repeats, caption_dropout, is_reg, resolution mix — sourced train-set craft; no invent thresholds.**
-STUDY-035 Practitioner Verifier ✅. Recipes invented: 0.
-- **For the pipeline:** STUDY-035 Verifier ✅. Recipes/metrics invented: 0. WD thresholds only as card-scraped.
+**Per-subset flip/color/crop, num_repeats, caption_dropout, is_reg, resolution mix — sourced train-set craft**
+STUDY-035 Practitioner Verifier ✅.
+- **For the pipeline:** STUDY-035 Verifier ✅. WD thresholds only as card-scraped.
 - **Method:** dataset · **Applies to:** both · **Base:** SDXL|Flux|Qwen|Llama|general · **Kind:** method-theory
-- **Output license:** commercial **check** — STUDY-035 deepen; recipes/metrics invented: 0.
+- **Output license:** commercial **check** — STUDY-035 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [kohya-ss config README](https://github.com/kohya-ss/sd-scripts/blob/main/docs/config_README-en.md) — Dataset TOML craft knobs.
 

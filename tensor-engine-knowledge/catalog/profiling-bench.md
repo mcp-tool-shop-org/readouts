@@ -196,25 +196,25 @@ Hold: convert_weight → gen_config → compile → deploy (TVM). Hold for compi
 - **Dev:** MLC · **Type:** analog · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** Apache-2.0 — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** Apache-2.0 — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [Compile Model Libraries](https://llm.mlc.ai/docs/compilation/compile_models.html) — hold compile-then-run
 
 ### Google Benchmark MinWarmUpTime (hold) · `situational` · experimental
-Hold: soak/warmup before any engine rate. No invented rates. Limit: CPU microbench ≠ GPU eval_duration.
+Hold: soak/warmup before any engine rate. Limit: CPU microbench ≠ GPU eval_duration.
 - **Dev:** Google · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cpu · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [Google Benchmark MinWarmUpTime (hold)](https://google.github.io/benchmark/user_guide.html) — discard cold iterations; report steady state
 
 ### Google Benchmark — warm-up method analog · `situational` · experimental
-Discard cold iterations; report only after steady state. Holds for soak methodology. No invented tok/s.
+Discard cold iterations; report only after steady state. Holds for soak methodology.
 - **Dev:** Google · **Type:** methodology · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** no · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-018 reopen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-018 reopen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [Google Benchmark — warm-up method analog](https://google.github.io/benchmark/user_guide.html) — MinWarmUpTime
 
@@ -223,25 +223,25 @@ Hold: purely functional build → immutable store path before run. Adjacent comp
 - **Dev:** NixOS · **Type:** analog · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cpu · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [How Nix Works](https://nixos.org/guides/how-nix-works/) — hold hermetic build-then-run
 
 ### K8s ResourceQuota — capacity refuse analog · `situational` · experimental
-Over-quota requests get 403, not silent overcommit. Holds for capacity refusal. No invented tok/s.
+Over-quota requests get 403, not silent overcommit. Holds for capacity refusal.
 - **Dev:** Kubernetes · **Type:** methodology · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** no · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-018 reopen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-018 reopen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [K8s ResourceQuota — capacity refuse analog](https://kubernetes.io/docs/concepts/policy/resource-quotas/) — ResourceQuota
 
 ### Kubernetes ResourceQuota (hold) · `situational` · experimental
-Hold: bytefit-style capacity refuse. Limit: cluster quota ≠ single card; do not flip 143.
+Hold: bytefit-style capacity refuse. Limit: cluster quota ≠ single card
 - **Dev:** Kubernetes · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux · **Accelerators:** n/a · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [Kubernetes ResourceQuota (hold)](https://kubernetes.io/docs/concepts/policy/resource-quotas/) — over-quota → 403 not silent overcommit
 
@@ -250,25 +250,25 @@ Hold: over-quota create/update → 403, not silent overcommit. Hard capacity ref
 - **Dev:** Kubernetes · **Type:** analog · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux · **Accelerators:** n/a · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [Kubernetes ResourceQuota](https://kubernetes.io/docs/concepts/policy/resource-quotas/) — hold capacity refuse
 
 ### SPEC CPU Run and Reporting Rules (hold) · `situational` · experimental
-Hold: honest bench methodology (method + raw logs). Invented tok/s: 0. Limit: SPEC ≠ LLM decode.
+Hold: honest bench methodology (method + raw logs). Limit: SPEC ≠ LLM decode.
 - **Dev:** SPEC · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cpu · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [SPEC CPU Run and Reporting Rules (hold)](https://www.spec.org/cpu2026/Docs/runrules.html) — disclosed conditions or label estimates
 
 ### SPEC CPU runrules — disclosure analog · `situational` · experimental
-Public numbers must be reproducible with disclosed conditions. Holds for on-rig baselines with method + raw logs vs marketing peaks. No invented tok/s.
+Public numbers must be reproducible with disclosed conditions. Holds for on-rig baselines with method + raw logs vs marketing peaks.
 - **Dev:** SPEC · **Type:** methodology · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** no · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-018 reopen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-018 reopen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [SPEC CPU runrules — disclosure analog](https://www.spec.org/cpu2026/Docs/runrules.html) — SPEC disclosure
 
@@ -277,34 +277,34 @@ Hold: advisor refuses configs that would silently page; probe then plan. Anti-pa
 - **Dev:** mcp-tool-shop-org · **Type:** analog · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** MIT — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** MIT — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [bytefit SPEC](https://raw.githubusercontent.com/mcp-tool-shop-org/bytefit/main/SPEC.md) — hold anti-paging refuse
 
 ### cgroup v2 memory.max (hold) · `situational` · experimental
-Hold: fits VRAM/RAM as hard admit. Limit: host memcg ≠ CUDA residency; flips 12/143: 0.
+Hold: fits VRAM/RAM as hard admit. Limit: host memcg ≠ CUDA residency
 - **Dev:** Linux · **Type:** docs · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux · **Accelerators:** n/a · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-039 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-039 deepen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [cgroup v2 memory.max (hold)](https://docs.kernel.org/admin-guide/cgroup-v2.html) — hard ceiling refuses; soft high throttles
 
 ### cgroup v2 memory.max (hold) · `situational` · experimental
-Hold: hard ceiling vs memory.high throttle-only. Fits VRAM/RAM as hard admit. Limit: host memcg ≠ CUDA residency; flips 12/143: 0.
+Hold: hard ceiling vs memory.high throttle-only. Fits VRAM/RAM as hard admit. Limit: host memcg ≠ CUDA residency
 - **Dev:** Linux · **Type:** analog · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux · **Accelerators:** n/a · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [cgroup v2 memory.max](https://docs.kernel.org/admin-guide/cgroup-v2.html) — hold hard ceiling admit
 
 ### cgroup v2 memory.max — hard ceiling analog · `situational` · experimental
-Hard ceiling kills/refuses; soft high only throttles. Holds for fits-in-VRAM as hard admit. No invented tok/s.
+Hard ceiling kills/refuses; soft high only throttles. Holds for fits-in-VRAM as hard admit.
 - **Dev:** Linux · **Type:** methodology · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** no · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-018 reopen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-018 reopen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [cgroup v2 memory.max — hard ceiling analog](https://docs.kernel.org/admin-guide/cgroup-v2.html) — memory.max
 
@@ -313,16 +313,16 @@ Hold: bypass page cache so measured I/O is device-honest. Anti-paging honesty in
 - **Dev:** fio · **Type:** analog · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cpu · **Formats:** varies
 - **Blackwell/Win-ready:** yes · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-060 deepen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-060 deepen.
 - **Speed/notes:** No measured tok/s this wave (No GPU). Do not invent rates.
 - **Sources:** [fio direct / O_DIRECT](https://fio.readthedocs.io/en/latest/fio_doc.html) — hold honest measure
 
 ### fio — O_DIRECT honest I/O measure analog · `situational` · experimental
-Bypass page cache so numbers reflect the device. Holds for honest engine benches. No invented tok/s.
+Bypass page cache so numbers reflect the device. Holds for honest engine benches.
 - **Dev:** fio · **Type:** methodology · **Lang:** see source · **Released:** 2026
 - **Platforms:** linux, windows · **Accelerators:** cuda · **Formats:** varies
 - **Blackwell/Win-ready:** no · **Optimizes for:** honesty · **Multi-GPU:** unknown · **Fit:** rig 4/5 · studio 4/5
-- **License:** see source — commercial: **check**. STUDY-018 reopen. Invented tok/s: 0. Do not flip 12/143.
+- **License:** see source — commercial: **check**. STUDY-018 reopen.
 - **Speed/notes:** No measured tok/s this wave (VM has no GPU). Do not invent rates.
 - **Sources:** [fio — O_DIRECT honest I/O measure analog](https://fio.readthedocs.io/) — fio O_DIRECT
 

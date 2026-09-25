@@ -26,3 +26,17 @@ The verifier was rigorous — it confirmed load-bearing API claims against the d
 Same-model-family verifier + a live-docs retrieval oracle (the official Godot 4.x page is the decorrelating element).
 Cross-family cloud verification (`verify_cloud.py` via a non-Claude cloud model) is the planned hardening pass per the
 readouts convention — wave 1 is research-grade, currency-checked, with the 2 flagged items carrying explicit corrections.
+
+## A correction applied to the text (2026-09-25)
+
+The 2026-09-10 retrieval sweep (lane `grid-movement`) marked "Use AStarGrid2D for the actual MOVE
+path" as `corrected`, and called its gotcha 2 actively harmful. The gotcha said every mutation needs a
+following `update()`. The Godot 4.7 class reference says `update()` clears all point data (solidity and
+weight scale), and that `set_point_solid` and `set_point_weight_scale` need no `update()`. Following the
+gotcha wiped the obstacles it had just marked.
+
+The correction sat in `verification/verdicts.json` for two weeks without reaching this recipe's text,
+because the loader dropped every verifier correction. The loader now shows corrections, and this one is
+also applied here: gotcha 2 now gives the verified ordering (`update()` after region, cell_size or
+offset, before marking solids), and gotcha 3 no longer attributes its point to the kidscancode recipe,
+which the verifier found does not state it. The verdict is unchanged.

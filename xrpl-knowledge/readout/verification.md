@@ -1,6 +1,6 @@
 # readouts — xrpl-knowledge · verification receipt
 
-> **362/457 capabilities verified · 880 sources (736 resolve) · 10 waves · generated 2026-09-14.**  
+> **362/457 capabilities verified · 880 sources (736 resolve) · 10 waves · generated 2026-09-25.**  
 > Verdicts: 0 confirmed clean · 0 confirmed-with-fixes · 95 unverified.
 
 ## Verification method, by wave

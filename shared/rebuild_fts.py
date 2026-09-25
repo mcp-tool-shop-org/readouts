@@ -112,6 +112,10 @@ def report(rows) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--check", action="store_true", help="report only; change nothing")
+    ap.add_argument("--force", action="store_true",
+                    help="rebuild every index, aligned or not. Alignment cannot see stale "
+                         "content: after base-table text is edited in place (strip_operator_notes "
+                         "--db), the index still matches the old words until it is rebuilt")
     args = ap.parse_args()
 
     targets = []
@@ -130,13 +134,13 @@ def main() -> int:
     if args.check:
         print(f"\n{bad} KB(s) with a broken index." if bad else "\nAll indexes aligned.")
         return 1 if bad else 0
-    if not bad:
+    if not bad and not args.force:
         print("\nNothing to repair.")
         return 0
 
     print("\nREBUILDING\n")
     for kb, db, a in targets:
-        if a[3] == a[2] and a[4] == 0:
+        if a[3] == a[2] and a[4] == 0 and not args.force:
             continue
         print(f"  {os.path.basename(kb):<28} {rebuild(kb, db)}")
 

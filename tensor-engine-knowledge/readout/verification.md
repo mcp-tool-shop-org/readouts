@@ -1,6 +1,6 @@
 # readouts — tensor-engine-knowledge · verification receipt
 
-> **134/193 engines verified · 491 sources (388 resolve) · 17 waves · generated 2026-09-14.**  
+> **134/193 engines verified · 491 sources (388 resolve) · 17 waves · generated 2026-09-25.**  
 > Verdicts: 26 confirmed clean · 107 confirmed-with-fixes · 59 unverified.
 
 ## Verification method, by wave

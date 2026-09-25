@@ -49,9 +49,23 @@ Sonnet verifier then judges the lane, now across model families.
 `verified = 1` requires both: a confirming verdict in the ledger (`verification/verdicts.json`, built
 by [scripts/build_ledger.py](scripts/build_ledger.py)) **and** no failing code check (the compile gate).
 A recipe whose own example fails the compiler is never verified, whatever the retrieval verifier said.
-Operator notes (`verification/operator-notes.json`) annotate a verdict and never change it. Each note
-records one of three things: a pipeline defect the verifier could not see, the engine commit a
-citation was checked against, or a later measurement that narrows a verified claim.
+Operator notes (`verification/operator-notes.json`) annotate a verdict and never change it. A recipe
+may carry one note or a list. Each note records one of four things:
+
+- `void-correction`: a pipeline defect the verifier could not see;
+- `citation-anchor`: the engine commit a citation was checked against;
+- `later-measurement`: a later measurement that narrows a verified claim;
+- `consumed-pin`: a signed design lock took this recipe as a pin. si-jam-sessions' Phase 0 lock
+  (`docs/PHASE-0.md` @ `e3cc85e`) consumed 32 recipes. An edit to one of them is a lock change, raised
+  with that project before it lands.
+
+**Wave 5, in progress, takes si-jam-sessions' questions after its lock signed:** PPQ 3360, midly's
+`strict` path, and an allocation-free audio callback. None of its recipes are in the database yet; they
+land once compiled and verified. Its briefs are in `briefs/`, and its checks can link a third dependency
+set, `oracle-jam-strict/`,
+which is midly 0.5.3 with `alloc` + `strict`, the law's own configuration. It lives in a separate crate
+because cargo unifies features within one build: adding `strict` to the jam set would have changed what
+every wave-4 midly check measured.
 
 ## Rebuild and extend
 

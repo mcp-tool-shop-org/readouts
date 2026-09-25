@@ -8,19 +8,19 @@ _Single image -> textured 3D mesh -> rendered multi-direction sprites. The recon
 | 1 | 1024_cascade vs 512 for thin features (5090) | trellis2 | turnaround | ▣ measured | ✅ yes | 5 | 5 | · |
 | 1 | Re-pointed pipeline (generate_mesh_v3 -> Blender -> downsample) | python | game-sprite | ▣ measured | ✅ yes | 5 | 5 | · |
 | 1 | Skip the v1-era trimesh cleanup for TRELLIS.2 (RAM trap) | python | turnaround | ▣ measured | ✅ yes | 5 | 4 | · |
-| 1 | TRELLIS.2-4B image -> textured GLB on RTX 5090 (Blackwell) | trellis2 | turnaround | ▣ measured | ✅ yes | 5 | 5 | · |
-| 2 | Step1X-3D (StepFun) | comfyui | game-sprite | ▸ reproduced | ✅ yes | 5 | 5 | · |
-| 2 | TRELLIS.2-4B (Microsoft) | comfyui | game-sprite | ▸ reproduced | ✅ yes | 5 | 5 | · |
-| 2 | TripoSG (VAST AI / Tripo) | comfyui | game-sprite | ▸ reproduced | ✅ yes | 5 | 4 | · |
-| 6 | Direct3D-S2 (DreamTech) | comfyui | game-sprite | ▸ reproduced | ✅ yes | 5 | 4 | · |
-| 6 | Hi3DGen (ByteDance / Stable-X) | comfyui | game-sprite | ▸ reproduced | ⚠ cond | 5 | 4 | · |
-| 6 | Hunyuan3D-2.1 (Tencent) | comfyui | game-sprite | ▸ reproduced | ⚠ cond | 5 | 2 | · |
-| 6 | SF3D / Stable Fast 3D (Stability AI) | comfyui | game-sprite | ▸ reproduced | ⚠ cond | 5 | 3 | · |
+| 1 | TRELLIS.2-4B image -> textured GLB on RTX 5090 (Blackwell) | trellis2 | turnaround | ▣ measured | ✅ yes | 5 | 5 | ✓ |
+| 2 | Step1X-3D (StepFun) | comfyui | game-sprite | ▸ reproduced | ✅ yes | 5 | 5 | ✓ |
+| 2 | TRELLIS.2-4B (Microsoft) | comfyui | game-sprite | ▸ reproduced | ✅ yes | 5 | 5 | ✓ |
+| 2 | TripoSG (VAST AI / Tripo) | comfyui | game-sprite | ▸ reproduced | ✅ yes | 5 | 4 | ✓ |
+| 6 | Direct3D-S2 (DreamTech) | comfyui | game-sprite | ▸ reproduced | ✅ yes | 5 | 4 | ✓ |
+| 6 | Hi3DGen (ByteDance / Stable-X) | comfyui | game-sprite | ▸ reproduced | ⚠ cond | 5 | 4 | ✓ |
+| 6 | Hunyuan3D-2.1 (Tencent) | comfyui | game-sprite | ▸ reproduced | ⚠ cond | 5 | 2 | ✓ |
+| 6 | SF3D / Stable Fast 3D (Stability AI) | comfyui | game-sprite | ▸ reproduced | ⚠ cond | 5 | 3 | ✓ |
 | 9 | ASME Y14.3 — orthographic multi-view analog (paywall unverified) | docs | all | analog | check | 4 | 4 | · |
-| 9 | TripoSG — image-to-3D mesh for sprite path | blender | sprites | paper | check | 4 | 4 | · |
+| 9 | TripoSG — image-to-3D mesh for sprite path | blender | sprites | paper | check | 4 | 4 | ✓ |
 | 9 | TripoSG — rectified-flow image-to-mesh (Li et al. 2025) | comfy | all | paper | check | 4 | 4 | · |
-| 9 | Unique3D (AiuniAI) | comfyui | game-sprite | ▸ reproduced | ✅ yes | 4 | 3 | · |
-| 11 | Sparc3D / SparC (academic) | python | game-sprite | ▸ reproduced | ⛔ no | 4 | 1 | · |
+| 9 | Unique3D (AiuniAI) | comfyui | game-sprite | ▸ reproduced | ✅ yes | 4 | 3 | ✓ |
+| 11 | Sparc3D / SparC (academic) | python | game-sprite | ▸ reproduced | ⛔ no | 4 | 1 | ✓ |
 
 ## Detail
 
@@ -33,7 +33,7 @@ Same character meshed at pipeline_type='512' vs '1024_cascade', identical to_glb
 - **Validated under:** RTX 5090; 512 gen 60s/3.4GB, 1024_cascade gen 37s/3.5GB; both looked-at from 8 angles 2026-06-07.
 - **Output license:** commercial **yes** (license: n/a (technique))
 - **Fit:** rig 5/5 · studio 5/5
-- **Verify:** A/B looked-at on the rig. [no external verdict — not checked]
+- **Verify:** A/B looked-at on the rig. [pipeline_type values '512'/'1024_cascade' and cascaded refinement are real (confirmed via TRELLIS.2 ecosystem sources); the studio's vert/VRAM/time A/B is on-rig, unfindable.]
 - **Sources:** [TRELLIS.2 (resolution tiers)](https://arxiv.org/abs/2512.14692) — 1024 cascade credited with finer detail / structural stability.
 
 ### Re-pointed pipeline (generate_mesh_v3 -> Blender -> downsample) · `recommended` · ▣ measured
@@ -44,7 +44,7 @@ generate_mesh_v3.py replaces the dead ComfyUI-API generate_mesh_v2.py with a dir
 - **Validated under:** RTX 5090; e2e trellis_v3 512 + --no-cleanup --no-mesh-gate --hdri = 8 sprites in 159.5s (mesh 117s, render 7s, downsample <1s) 2026-06-07.
 - **Output license:** commercial **yes** (license: n/a (orchestration))
 - **Fit:** rig 5/5 · studio 5/5
-- **Verify:** Full chain produced 8 looked-at 64px sprites on the rig. [no external verdict — not checked]
+- **Verify:** Full chain produced 8 looked-at 64px sprites on the rig. [The studio's own pipeline.py/generate_mesh_v3.py orchestration and ~160s end-to-end timing are on-rig specifics no public page documents; nothing found contradicts them.]
 - **Sources:** [trellis-sprite-pipeline (generate_mesh_v3.py, pipeline.py)](https://github.com/mcp-tool-shop-org/trellis-sprite-pipeline) — The re-pointed pipeline + v3 mesh generator.
 
 ### Skip the v1-era trimesh cleanup for TRELLIS.2 (RAM trap) · `recommended` · ▣ measured
@@ -62,7 +62,7 @@ The parked clean_mesh.py (split + component filter + fix_normals) and the pipeli
 |---|---|---|---|
 | Pipeline killed mid-'Cleaning mesh' with no traceback | trimesh.split on 1M-face mesh spikes system RAM; watchdog aborts at 90% | --no-cleanup --no-mesh-gate, or gate on a decimated copy |  |
 
-- **Verify:** Reproduced the RAM trip + the clean re-run on the rig. [no external verdict — not checked]
+- **Verify:** Reproduced the RAM trip + the clean re-run on the rig. [The studio's own clean_mesh.py/watchdog RAM-trip finding on a specific TRELLIS GLB is on-rig engineering no public page documents; nothing found contradicts it.]
 - **Sources:** [watchdog kill log + e2e reruns (trellis-sprite-pipeline)](https://github.com/mcp-tool-shop-org/trellis-sprite-pipeline) — clean step tripped the RAM watchdog; --no-cleanup run completed in 159.5s.
 
 ### TRELLIS.2-4B image -> textured GLB on RTX 5090 (Blackwell) · `recommended` · ▣ measured
@@ -95,7 +95,7 @@ Run TRELLIS.2 in a dedicated env (E:/AI-Models/trellis2-env, torch 2.10.0+cu130)
 | Back textures desaturated/hallucinated (never black with AgX lift) | TRELLIS hallucinates unseen back from a front image | acceptable at sprite size; tonemap keeps them readable |  |
 | expandable_segments not supported warning | Windows CUDA allocator | benign — ignore |  |
 
-- **Verify:** Run end-to-end on the rig 2026-06-07; outputs looked-at from 8 angles. [no external verdict — not checked]
+- **Verify:** Run end-to-end on the rig 2026-06-07; outputs looked-at from 8 angles. [microsoft/TRELLIS.2 README confirms MIT + exact API (Trellis2ImageTo3DPipeline, mesh.simplify(), o_voxel.postprocess.to_glb()); dinov3 encoder gated. BiRefNet=MIT, RMBG-2.0=CC-BY-NC gated.]
 - **Sources:** [microsoft/TRELLIS.2](https://github.com/microsoft/TRELLIS.2) — Official TRELLIS.2 repo (MIT); O-Voxel image-to-3D. ; [TRELLIS.2](https://arxiv.org/abs/2512.14692) — TRELLIS.2 method paper; 512^3 vs 1024^3 O-Voxel representation. ; [microsoft/TRELLIS.2-4B](https://huggingface.co/microsoft/TRELLIS.2-4B) — The 4B checkpoint used; ships 512 + 1024 DiTs. ; [ZhengPeng7/BiRefNet](https://huggingface.co/ZhengPeng7/BiRefNet) — Ungated MIT background remover swapped in for gated RMBG-2.0.
 
 ### Step1X-3D (StepFun) · `recommended` · ▸ reproduced
@@ -122,7 +122,7 @@ StepFun's open framework generates watertight geometry (hybrid VAE-DiT producing
 |---|---|---|---|
 | texture seams on UV islands | SDXL texture module per-view inpainting | regenerate texture stage; rely on geometry stage for silhouette and bake later |  |
 
-- **Verify:** Both sources resolve. GitHub explicitly states Apache License 2.0; arXiv 2505.07747 confirms hybrid VAE-DiT geometry + SD-XL texture and LoRA transfer to 3D. License Apache-2.0 + commercial=yes accurate. [no external verdict — not checked]
+- **Verify:** Both sources resolve. GitHub explicitly states Apache License 2.0; arXiv 2505.07747 confirms hybrid VAE-DiT geometry + SD-XL texture and LoRA transfer to 3D. License Apache-2.0 + commercial=yes accurate. [stepfun-ai/Step1X-3D = Apache-2.0 (license API + README). Hybrid VAE-DiT/TSDF geometry, SDXL-texture w/ normal+position guidance, LoRA symmetry/detail control confirmed.]
 - **Sources:** [stepfun-ai/Step1X-3D: Towards High-Fidelity and Controllable Generation of Textured 3D Assets](https://github.com/stepfun-ai/Step1X-3D) (StepFun AI, 2025) — Apache-2.0 framework generating textured 3D (VAE-DiT geometry + SDXL texture) with LoRA support for symmetry/detail control. ; [Step1X-3D: Towards High-Fidelity and Controllable Generation of Textured 3D Assets](https://arxiv.org/html/2505.07747v1) (StepFun AI, 2025) — Hybrid VAE-DiT produces watertight TSDF geometry; texture module fine-tuned on SDXL with normal/position-map guidance for geometry-texture alignment.
 
 ### TRELLIS.2-4B (Microsoft) · `recommended` · ▸ reproduced
@@ -149,7 +149,7 @@ Microsoft's successor to the CVPR-2025 TRELLIS, built on a 'field-free' sparse-v
 |---|---|---|---|
 | thin weapons/blades thicken or fuse to body | low voxel tier under-resolves sub-voxel features | use 1024 or 1536 tier; clean alpha-matted input with weapon clearly separated from silhouette |  |
 
-- **Verify:** Both sources resolve. microsoft/TRELLIS.2 GitHub (8.2k stars) and HF model card both state MIT License for code + weights. Confirmed: PBR mesh output (Base Color/Roughness/Metallic/Opacity) with GLB export, 24GB+ VRAM, 512/1024/1536 tiers, transparency/translucency. License + commercial=yes accurate. [no external verdict — not checked]
+- **Verify:** CORRECTED: The repo never mentions Windows or WSL2 anywhere (full-text search: zero matches) — it states only 'tested only on Linux.' 'On Windows expect WSL2' is an unsourced addition. · microsoft/TRELLIS.2 README confirms MIT, o_voxel.postprocess.to_glb(), texture_size=4096, 512/1024/1536 tiers, 4B params, PBR — verbatim. WSL2 claim wrong — see corrections. [research note: Both sources resolve. microsoft/TRELLIS.2 GitHub (8.2k stars) and HF model card both state MIT License for code + weights. Confirmed: PBR mesh output (Base Color/Roughness/Metallic/Opacity) with GLB export, 24GB+ VRAM, 512/1024/1536 tiers, transparency/translucency. License + commercial=yes accurate.]
 - **Sources:** [microsoft/TRELLIS.2: Native and Compact Structured Latents for 3D Generation](https://github.com/microsoft/TRELLIS.2) (Microsoft Research, 2025) — Released under MIT License; outputs textured PBR meshes (Base Color/Roughness/Metallic/Opacity) with GLB export via to_glb(), needs >=24GB VRAM, tiers 512/1024/1536. ; [microsoft/TRELLIS.2-4B](https://huggingface.co/microsoft/TRELLIS.2-4B) (Microsoft, 2025) — Model card states MIT License and that output is a 'Mesh with PBR Materials' including transparency/translucency.
 
 ### TripoSG (VAST AI / Tripo) · `recommended` · ▸ reproduced
@@ -175,7 +175,7 @@ VAST AI's large-scale rectified-flow transformer turns a single image into a hig
 |---|---|---|---|
 | no color/material on output | model is shape-only | add a texture/paint stage or render geometry passes into the diffusion sprite step |  |
 
-- **Verify:** Both sources resolve. HF model card header shows 'mit'; GitHub footer shows 'MIT license'. Confirmed image-to-mesh, >8GB VRAM, sharp geometric features (geometry-focused, not PBR). License MIT + commercial=yes accurate. [no external verdict — not checked]
+- **Verify:** Both sources resolve. HF model card header shows 'mit'; GitHub footer shows 'MIT license'. Confirmed image-to-mesh, >8GB VRAM, sharp geometric features (geometry-focused, not PBR). License MIT + commercial=yes accurate. [VAST-AI-Research/TripoSG = MIT (license API); VAST-AI/TripoSG HF card independently = MIT. ~8GB VRAM floor confirmed in README+HF card. Rectified-flow, geometry-only both confirmed.]
 - **Sources:** [VAST-AI/TripoSG](https://huggingface.co/VAST-AI/TripoSG) (VAST AI Research / Tripo, 2025) — Released under MIT license; high-fidelity image-to-mesh, needs CUDA GPU with >8GB VRAM. ; [VAST-AI-Research/TripoSG](https://github.com/VAST-AI-Research/TripoSG) (VAST AI Research, 2025) — GitHub license API confirms MIT for the TripoSG repository; produces meshes with sharp geometric features (geometry, not PBR texture).
 
 ### Direct3D-S2 (DreamTech) · `situational` · ▸ reproduced
@@ -201,7 +201,7 @@ DreamTech's Direct3D-S2 introduces Spatial Sparse Attention (SSA) on sparse volu
 |---|---|---|---|
 | Windows build friction | sparse-attention CUDA kernels | use WSL2 or provided container; the 5090 sm_120 may need recent CUDA/torch builds |  |
 
-- **Verify:** Both sources resolve. GitHub states 'released under the MIT License'; arXiv 2505.17412 confirms Spatial Sparse Attention, 1024-res training on 8 GPUs, 3.9x/9.6x fwd/bwd speedups, image-to-mesh Gradio demo. License MIT + commercial=yes accurate. [no external verdict — not checked]
+- **Verify:** Both sources resolve. GitHub states 'released under the MIT License'; arXiv 2505.17412 confirms Spatial Sparse Attention, 1024-res training on 8 GPUs, 3.9x/9.6x fwd/bwd speedups, image-to-mesh Gradio demo. License MIT + commercial=yes accurate. [DreamTechAI/Direct3D-S2 README confirms MIT (license API), NeurIPS 2025 (OpenReview id=ZYHzcZFEGD), exact 3.9x/9.6x forward/backward speedups, 1024-res on 8 GPUs.]
 - **Sources:** [DreamTechAI/Direct3D-S2: Gigascale 3D Generation Made Easy with Spatial Sparse Attention (NeurIPS 2025)](https://github.com/DreamTechAI/Direct3D-S2) (DreamTech AI, 2025) — MIT-licensed; SSA enables 1024-resolution 3D generation with 3.9x/9.6x fwd/bwd speedups and an image-to-mesh Gradio demo. ; [Direct3D-S2: Gigascale 3D Generation Made Easy with Spatial Sparse Attention](https://arxiv.org/abs/2505.17412) (DreamTech AI, 2025) — Spatial Sparse Attention makes high-resolution (1024) sparse-volume 3D generation practical and accurate.
 
 ### Hi3DGen (ByteDance / Stable-X) · `situational` · ▸ reproduced
@@ -228,7 +228,7 @@ Hi3DGen estimates surface normals from the input image then uses normal-regulari
 |---|---|---|---|
 | uncertain weight license at ship time | code MIT but weights from a separate HF card | open the Stable-X/trellis-normal-v0-1 model card, record its license, before commercial use |  |
 
-- **Verify:** All sources resolve. GitHub bytedance/Hi3DGen is MIT (code). Crucially, the weights at Stable-X/trellis-normal-v0-1 HF card state license 'mit' — NOT conditional/encumbered as the entry hedged. ICCV 2025 paper confirmed (Ye/Chongjie Ye et al., arXiv 2503.22236). Correction: weights are MIT, so commercial_use should be 'yes', not 'conditional', and the 'verify' hedge on weights is resolved. [no external verdict — not checked]
+- **Verify:** All sources resolve. GitHub bytedance/Hi3DGen is MIT (code). Crucially, the weights at Stable-X/trellis-normal-v0-1 HF card state license 'mit' — NOT conditional/encumbered as the entry hedged. ICCV 2025 paper confirmed (Ye/Chongjie Ye et al., arXiv 2503.22236). Correction: weights are MIT, so commercial_use should be 'yes', not 'conditional', and the 'verify' hedge on weights is resolved. [bytedance/Hi3DGen = MIT (license API); ICCV 2025 confirmed (CVF proceedings, poster #2286). Dependency Stable-X/trellis-normal-v0-1 is also MIT, resolving the flagged caveat.]
 - **Sources:** [bytedance/Hi3DGen (High-fidelity 3D Geometry Generation from Images via Normal Bridging)](https://github.com/bytedance/Hi3DGen) (ByteDance; CUHK-Shenzhen; AIR, Tsinghua, 2025) — MIT-licensed repo that generates high-fidelity 3D geometry via normal bridging and loads the Stable-X/trellis-normal-v0-1 weights. ; [Hi3DGen: High-fidelity 3D Geometry Generation from Images via Normal Bridging (ICCV 2025)](https://openaccess.thecvf.com/content/ICCV2025/papers/Ye_Hi3DGen_High-fidelity_3D_Geometry_Generation_from_Images_via_Normal_Bridging_ICCV_2025_paper.pdf) (Ye et al., 2025) — Normal-bridged latent diffusion produces sharper geometry and fewer artifacts than direct geometry predictors.
 
 ### Hunyuan3D-2.1 (Tencent) · `situational` · ▸ reproduced
@@ -255,7 +255,7 @@ Tencent's open-weights 2.1 line produces high-fidelity meshes with a real PBR ma
 |---|---|---|---|
 | asset legally unusable for EU/UK/SK distribution | license territory excludes those regions | do not use for worldwide commercial release; switch to an MIT/Apache base |  |
 
-- **Verify:** Both sources resolve. LICENSE confirms Tencent Hunyuan 3D 2.1 Community License: commercial use permitted but Section 4 requires separate license at >1M MAU; territory explicitly excludes EU/UK/South Korea. Repo confirms PBR meshes and VRAM (~10GB shape, ~21GB texture, ~29GB combined). commercial_use=conditional accurate. [no external verdict — not checked]
+- **Verify:** CORRECTED: Required attribution is not 'Created with Hunyuan 3D-2.1' — that phrase appears nowhere in the license. Sec 3(d) mandates a longer Notice-file text; Sec 3(c)'s 'Powered by Tencent Hunyuan' mark is only encouraged. · Full LICENSE text (Tencent-Hunyuan/Hunyuan3D-2.1) confirms 1M MAU + EU/UK/South Korea exclusion verbatim. Attribution claim wrong — see corrections. [research note: Both sources resolve. LICENSE confirms Tencent Hunyuan 3D 2.1 Community License: commercial use permitted but Section 4 requires separate license at >1M MAU; territory explicitly excludes EU/UK/South Korea. Repo confirms PBR meshes and VRAM (~10GB shape, ~21GB texture, ~29GB combined). commercial_use=conditional accurate.]
 - **Sources:** [Hunyuan3D-2.1 LICENSE (Tencent Hunyuan 3D 2.1 Community License Agreement)](https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1/blob/main/LICENSE) (Tencent Hunyuan, 2025) — Commercial use permitted but >1M MAU requires a separate Tencent license and territory excludes the EU, UK, and South Korea (Sections 1.l and 4). ; [Hunyuan3D-2.1: From Images to High-Fidelity 3D Assets with Production-Ready PBR Material](https://github.com/tencent-hunyuan/hunyuan3d-2.1) (Tencent Hunyuan, 2025) — Generates PBR meshes; ~10GB VRAM shape, ~21GB texture, ~29GB combined.
 
 ### SF3D / Stable Fast 3D (Stability AI) · `situational` · ▸ reproduced
@@ -282,17 +282,17 @@ SF3D turns a single image into a UV-unwrapped, textured, low-poly mesh with mate
 |---|---|---|---|
 | license flips at $1M revenue | Stability Community License revenue gate | track studio revenue; migrate canonical assets to MIT/Apache base before crossing threshold |  |
 
-- **Verify:** Both sources resolve. HF card and Stability news confirm Stability AI Community License: free for commercial use only for orgs/individuals under $1M annual revenue, enterprise license required above. Single-image UV-unwrapped textured mesh with delighting, sub-second, ~7GB. commercial_use=conditional accurate. [no external verdict — not checked]
+- **Verify:** Both sources resolve. HF card and Stability news confirm Stability AI Community License: free for commercial use only for orgs/individuals under $1M annual revenue, enterprise license required above. Single-image UV-unwrapped textured mesh with delighting, sub-second, ~7GB. commercial_use=conditional accurate. [Stability-AI/stable-fast-3d LICENSE.md (fetched directly) confirms $1M/yr revenue gate verbatim. ~0.5s/~6-7GB VRAM confirmed via Stability's announcement + README.]
 - **Sources:** [stabilityai/stable-fast-3d](https://huggingface.co/stabilityai/stable-fast-3d) (Stability AI, 2024) — Single image to UV-unwrapped textured mesh with delighting in ~0.5s at ~7GB VRAM, under the Stability AI Community License. ; [Introducing Stable Fast 3D: Rapid 3D Asset Generation From Single Images](https://stability.ai/news-updates/introducing-stable-fast-3d) (Stability AI, 2024) — Community License is free for commercial use only for organizations/individuals under US$1M annual revenue; above that an enterprise license is required.
 
 ### ASME Y14.3 — orthographic multi-view analog (paywall unverified) · `situational` · analog
 **Fixed front/side/top views with shared scale and registration — hold for mesh→8-dir / pose-grid cell registration; limit ≠ painterly SDXL sheets.**
-STUDY-059 Analogist #1 paywall unverified. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+STUDY-059 Analogist #1 paywall unverified.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** docs · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 Verifier: Analogist #1/#2 paywall unverified — do not land as verified. Flip 486: 0. [no external verdict — not checked]
+- **Verify:** STUDY-059 Verifier: Analogist #1/#2 paywall unverified — do not land as verified. [no external verdict — not checked]
 - **Sources:** [ASME Y14.3 Orthographic and Pictorial Views](https://www.asme.org/codes-standards/find-codes-standards/y14-3-orthographic-pictorial-views) — Orthographic/pictorial views with shared scale and registration.
 
 ### TripoSG — image-to-3D mesh for sprite path · `situational` · paper
@@ -302,17 +302,17 @@ Large rectified-flow mesh synthesis from images — commercial-leaning mesh-360 
 - **Engine:** blender · **Applies to:** sprites · **Kind:** technique
 - **Output license:** commercial **check** (license: see-source) — STUDY-017 reopen; verified=0 until ACCEPT.
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [no external verdict — not checked]
+- **Verify:** STUDY-017 from STUDY-007 Verifier ✅; default verified=0 [Same model as the TripoSG entry; 'rectified-flow' confirmed via repo README and arXiv 2502.06608 title. Blender/sprite-path framing is the studio's own downstream use.]
 - **Sources:** [TripoSG — image-to-3D mesh for sprite path](https://arxiv.org/abs/2502.06608) — Large rectified-flow mesh synthesis from images — commercial-leaning mesh-360 path that feeds Blender orthographic sprite renders.
 
 ### TripoSG — rectified-flow image-to-mesh (Li et al. 2025) · `situational` · paper
-**Rectified-flow image-to-mesh for mesh-360 sprite path — deepen; flip 486: 0.**
-STUDY-059 Scholar deepen. Flip 486: 0. Recipes invented: 0.
-- **For the pipeline:** STUDY-059 Verifier ✅. Flip 486: 0. Recipes invented: 0.
+**Rectified-flow image-to-mesh for mesh-360 sprite path — deepen**
+STUDY-059 Scholar deepen.
+- **For the pipeline:** STUDY-059 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0; flip 486: 0; recipes invented: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-059 deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-059 deepen; flip 486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-059 deepen [no external verdict — not checked]
 - **Sources:** [TripoSG](https://arxiv.org/abs/2502.06608) — Rectified-flow image-to-mesh for mesh-360.
 
 ### Unique3D (AiuniAI) · `legacy` · ▸ reproduced
@@ -338,7 +338,7 @@ Unique3D generates a high-fidelity, diverse, TEXTURED mesh from a single wild im
 |---|---|---|---|
 | soft/blurry fine geometry vs 2025 models | 2024-era multi-view recon resolution | use for stylized assets; switch to TRELLIS.2/Step1X-3D for sharp weapons |  |
 
-- **Verify:** Both sources resolve. GitHub AiuniAI/Unique3D shows 'MIT license' and NeurIPS 2024 designation; arXiv 2405.20343 confirms (Wu/Kailu Wu et al., ISOMER reconstruction). Single-view to textured mesh ~30s. License MIT + commercial=yes accurate. [no external verdict — not checked]
+- **Verify:** Both sources resolve. GitHub AiuniAI/Unique3D shows 'MIT license' and NeurIPS 2024 designation; arXiv 2405.20343 confirms (Wu/Kailu Wu et al., ISOMER reconstruction). Single-view to textured mesh ~30s. License MIT + commercial=yes accurate. [AiuniAI/Unique3D = MIT (license API). NeurIPS 2024 confirmed via official proceedings.neurips.cc listing (not just a repo badge). ~30s generation confirmed verbatim in README.]
 - **Sources:** [AiuniAI/Unique3D: High-Quality and Efficient 3D Mesh Generation from a Single Image (NeurIPS 2024)](https://github.com/AiuniAI/Unique3D) (Wu et al. (AiuniAI / Tsinghua), 2024) — MIT-licensed (per GitHub license API); generates high-fidelity textured meshes from a single wild image in ~30s. ; [Unique3D: High-Quality and Efficient 3D Mesh Generation from a Single Image](https://arxiv.org/abs/2405.20343) (Wu et al., 2024) — Multi-view diffusion plus reconstruction yields diverse textured meshes from single-view images efficiently.
 
 ### Sparc3D / SparC (academic) · `avoid` · ▸ reproduced
@@ -364,6 +364,6 @@ Sparc3D (paper 'SparC') combines a sparse deformable marching-cubes representati
 |---|---|---|---|
 | no legal right to use output commercially | repo ships no LICENSE (all rights reserved) | do not use commercially; request explicit license from authors or choose a licensed alternative |  |
 
-- **Verify:** Both sources resolve. GitHub lizhihao6/Sparc3D confirmed to have NO LICENSE file / no license badge (all-rights-reserved by default); arXiv 2505.14521 confirmed (Zhihao Li, Yufei Wang, Heliang Zheng, Yihao Luo, Bihan Wen) — Sparcubes + Sparconv-VAE, watertight 1024-res. License claim 'NONE PUBLISHED' and commercial_use=no are accurate. [no external verdict — not checked]
+- **Verify:** Both sources resolve. GitHub lizhihao6/Sparc3D confirmed to have NO LICENSE file / no license badge (all-rights-reserved by default); arXiv 2505.14521 confirmed (Zhihao Li, Yufei Wang, Heliang Zheng, Yihao Luo, Bihan Wen) — Sparcubes + Sparconv-VAE, watertight 1024-res. License claim 'NONE PUBLISHED' and commercial_use=no are accurate. [lizhihao6/Sparc3D license API returns literal 404 (no LICENSE), confirmed 3 ways incl. contents listing. 'SparC' is the genuine v1 arXiv title; watertight claim verbatim in paper.]
 - **Sources:** [Sparc3D / SparC: Sparse Representation and Construction for High-Resolution 3D Shapes Modeling](https://arxiv.org/abs/2505.14521) (Li et al., 2025) — Sparcubes + Sparconv-VAE reconstruct watertight 1024-resolution meshes from open surfaces, disconnected components, and intricate geometry at SOTA fidelity. ; [lizhihao6/Sparc3D (official repo)](https://github.com/lizhihao6/Sparc3D) (Li et al., 2025) — Repository has no LICENSE file (GitHub license API and /blob/main/LICENSE both return 404), so default copyright applies and commercial use is not granted.
 

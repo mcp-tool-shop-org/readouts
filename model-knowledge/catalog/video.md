@@ -174,7 +174,7 @@ Announced early April 2026 as a four-model suite (T2V, I2V, reference-to-video w
 ### Alice v1 (Wan2.2 distill) · `situational` · strong
 14B student of Wan2.2; 4-step distill path for local video (LightX2V / Wan2.2 craft). STUDY-015 reopen — new vs prior catalog.
 - **Dev:** Wang / Nguyen / Zhao (Mirage) · **Arch:** Wan2.2 student distill · **Params:** 14B · **Released:** 2026
-- **License:** open weights (see paper) — commercial: **check**. STUDY-005 Scholar Verifier ✅ arXiv:2605.08115. Do not invent new recipe id. Wan2.2 distill path.
+- **License:** open weights (see paper) — commercial: **check**. STUDY-005 Scholar Verifier ✅ arXiv:2605.08115. Wan2.2 distill path.
 - **Cloud:** unknown — Not measured this wave.
 - **Speed/notes:** Paper claims 4-step ~8s H100; no on-rig measure.
 - **Sources:** [Alice v1](https://arxiv.org/abs/2605.08115) — Wan2.2 distill; few-step local video path.

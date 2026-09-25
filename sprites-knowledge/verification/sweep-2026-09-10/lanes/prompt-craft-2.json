@@ -1,0 +1,318 @@
+{
+  "bucket": "prompt-craft-2",
+  "verifier_note": "Checked against primary sources retrieved 2026-09-25: the SDXL paper (arXiv:2307.01952), the Qwen-Image tech report (arXiv:2508.02324) and its diffusers pipeline source (huggingface/diffusers qwenimage/pipeline_qwenimage.py and pipeline_qwenimage_edit.py, current main), the CFG paper (Ho & Salimans, arXiv:2207.12598) and Lin et al. 2023's guidance-rescale paper (arXiv:2305.08891, WACV2024), the negative-prompt neutralization paper (Ban et al., arXiv:2406.02965, ECCV2024), the CLIP bag-of-words paper (Koishigarina/Uselis/Oh, arXiv:2502.03566) and the CLIP geometric-ceiling paper (arXiv:2503.08723, ICCV2025), the T5-distillation paper (Wang et al., arXiv:2503.19897, CVPR2025), FLUX/Chroma/Z-Image-Turbo model cards and ComfyUI node docs, and the seed-transfer paper (Xu et al., arXiv:2405.14828, WACV2025). 31 of 34 entries confirmed as stated, including several verbatim matches (Qwen system-prompt templates byte-for-byte, Rescale-CFG's w=7.5/phi=0.7, and the Reverse-Activation paper's step-5/step-10/99.5%-correlation figures). 3 entries needed correction: one misattributes a real CLIP bag-of-words finding to 'Lin et al.' when the actual authors are Koishigarina/Uselis/Oh (likely bleed-through from the correctly-cited but unrelated Lin et al. 2023 CFG paper elsewhere in this same lane); one states Qwen-Image has 'no hard token cap (32k+)' when its diffusers pipeline actually defaults to the same 512-token budget as Z-Image, conflating the underlying LLM's raw context window with the actual image-conditioning budget (this lane's own entry 10 states the correct 512 figure for both models); one gives FLUX-dev's distilled guidance value as '~1-1.5' when the documented default is 3.5, conflating it with the unrelated sampler-level real-CFG scalar of 1.0. No harmful advice (nothing destructive or state-corrupting) was found; the CFG-value error would only produce under-adherent FLUX output if followed literally. Systemic weakness: the lane's citation discipline is excellent on mechanism (every mechanism claim I tried to falsify held up against a primary source, several verbatim) but fails specifically where two genuinely different numbers or author names are topically adjacent within the same lane — the errors are bleed-through/conflation between real facts, not invention.",
+  "verdicts": [
+    {
+      "slug": "clip-clip-bag-concepts-weak-grammar-does-reliably",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: Koishigarina/Uselis/Oh (arXiv:2502.03566) show CLIP matches 'orange square+blue triangle' to swapped-attribute captions; binding exists unimodally, lost cross-modally.",
+      "evidence_url": "https://arxiv.org/abs/2502.03566",
+      "corrections": null
+    },
+    {
+      "slug": "clip-hard-ceiling-77-tokens-75-content-start",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: CLIP has 77 absolute positional slots; HF diffusers truncates prompts over 77 tokens (75+BOS+EOS) with only a console warning, per diffusers issue #2136.",
+      "evidence_url": "https://github.com/huggingface/diffusers/issues/2136",
+      "corrections": null
+    },
+    {
+      "slug": "clip-tag-style-vs-sentence-style-clip-fact",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed by consistent community sourcing: base SDXL favors natural-language-ish captions; booru-tag anime finetunes (Pony/Illustrious/Animagine/NovelAI) need comma-tag prompts.",
+      "evidence_url": "https://techtactician.com/booru-style-tagging-sdxl-anime-prompts-guide/",
+      "corrections": null
+    },
+    {
+      "slug": "depict-clip-openclip-behave-like-bag-words-cross",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Core bag-of-words finding is real (matches claim exactly) but misattributed to 'Lin et al.' — the actual authors are Koishigarina, Uselis & Oh (arXiv:2502.03566, ICLR2026).",
+      "evidence_url": "https://arxiv.org/abs/2502.03566",
+      "corrections": {
+        "claim": "The orange-square/blue-triangle binding finding is Koishigarina, Uselis & Oh (arXiv:2502.03566, ICLR2026) — not 'Lin et al.'; no Lin paper proves this result. The core claim (CLIP fails cross-modal attribute binding) is itself accurate."
+      }
+    },
+    {
+      "slug": "depict-folklore-debunked-more-descriptive-words-richer-emotional",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed as synthesis: rests on independently-verified mechanisms in this lane (77-token truncation, bag-of-words degradation, T5 non-response to non-visual tokens per Wang 2025).",
+      "evidence_url": "https://arxiv.org/abs/2503.19897",
+      "corrections": null
+    },
+    {
+      "slug": "depict-there-proven-geometric-ceiling-clip-style-joint",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed verbatim: arXiv:2503.08723 (ICCV2025) proves a CLIP-style embedding represents at most two of {description, attribute binding, spatial relations, negation} at once.",
+      "evidence_url": "https://arxiv.org/abs/2503.08723",
+      "corrections": null
+    },
+    {
+      "slug": "face-face-starves-below-hard-pixel-floor-vae",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: SD/SDXL/FLUX VAEs use 8x spatial downsampling (kl-f8 lineage, Rombach et al. 2112.10752); a 70px face at 1024px frame lands in roughly an 8-9px latent patch.",
+      "evidence_url": "https://arxiv.org/abs/2112.10752",
+      "corrections": null
+    },
+    {
+      "slug": "face-qwen2-5-vl-qwen-image-qwen3-4b",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Corrected: Qwen2.5-VL-7B/last-hidden-state encoder claim is right, but Qwen-Image's diffusers pipeline caps prompts at max_sequence_length=512 by default, not '32k+'.",
+      "evidence_url": "https://huggingface.co/docs/diffusers/main/en/api/pipelines/qwenimage",
+      "corrections": {
+        "claim": "Qwen-Image's diffusers pipeline defaults max_sequence_length=512 (HF docs) — same order as Z-Image's budget, not '32k+'. That figure is Qwen2.5-VL's raw LLM context window, not the actual image-conditioning token budget used."
+      }
+    },
+    {
+      "slug": "face-t5-flux-chroma-narrative-abstract-prose-free",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: Wang et al. CVPR2025 (arXiv:2503.19897) show T5-conditioned diffusion 'does not respond to non-visual prompts'; non-depictable tokens dilute depictable ones.",
+      "evidence_url": "https://arxiv.org/abs/2503.19897",
+      "corrections": null
+    },
+    {
+      "slug": "llm-folklore-debunked-more-detail-always-better-longer",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: Qwen-Image and Z-Image diffusers pipelines both default max_sequence_length=512 (HF docs), matching this entry exactly.",
+      "evidence_url": "https://huggingface.co/docs/diffusers/main/en/api/pipelines/qwenimage",
+      "corrections": null
+    },
+    {
+      "slug": "llm-qwen-image-edit-uses-different-instruction-shaped",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed verbatim: Qwen-Image-Edit's diffusers template matches exactly, including <|vision_start|><|image_pad|><|vision_end|> and prompt_template_encode_start_idx=64.",
+      "evidence_url": "https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/qwenimage/pipeline_qwenimage_edit.py",
+      "corrections": null
+    },
+    {
+      "slug": "llm-qwen-image-silently-prepends-fixed-system-prompt",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed verbatim: Qwen-Image's diffusers system-prompt text and drop_idx=34 match the pipeline source word for word.",
+      "evidence_url": "https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/qwenimage/pipeline_qwenimage.py",
+      "corrections": null
+    },
+    {
+      "slug": "neg-cfg-cfg-scale-dial-negative-strength-higher-scale",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: CFG's guidance term inflates latent magnitude/std as w grows (Lin et al. 2023 and corroborating sources), producing the documented over-exposure/'fried' look.",
+      "evidence_url": "https://arxiv.org/abs/2305.08891",
+      "corrections": null
+    },
+    {
+      "slug": "neg-cfg-fix-high-cfg-frying-rescale-cfg-k",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed verbatim: Lin et al. 2023 (arXiv:2305.08891) report 'w=7.5, phi=0.7 works great' and phi in [0.5,0.75] as the appealing range for guidance rescale.",
+      "evidence_url": "https://arxiv.org/abs/2305.08891",
+      "corrections": null
+    },
+    {
+      "slug": "neg-cfg-negative-prompt-filter-literally-replaces-unconditioned-branch",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: Ho & Salimans 2022 CFG formula; the documented negative-prompt variant replaces the unconditional branch with a real negative encode, exactly as described.",
+      "evidence_url": "https://huggingface.co/papers/2207.12598",
+      "corrections": null
+    },
+    {
+      "slug": "neg-content-folklore-long-copy-pasted-cargo-negatives-deformed",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: arXiv:2406.02965 documents the cancellation mechanism; community sources confirm SDXL/SD3.5/FLUX need far less negative than SD1.5, and removing negatives can help SD3.5.",
+      "evidence_url": "https://arxiv.org/abs/2406.02965",
+      "corrections": null
+    },
+    {
+      "slug": "neg-content-negative-should-target-specific-observed-defect-blindly",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: arXiv:2406.02965's 'Deletion Through Neutralization' mechanism directly supports that a negative overlapping the positive's own content cancels it out.",
+      "evidence_url": "https://arxiv.org/abs/2406.02965",
+      "corrections": null
+    },
+    {
+      "slug": "neg-content-per-encoder-syntax-differs-clip-negatives-comma",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed pattern: CLIP 77-token vs T5/Qwen 512-token limits verified elsewhere in this lane; arXiv:2504.01137 (cross-token info flow) is topically supportive context.",
+      "evidence_url": "https://huggingface.co/docs/diffusers/v0.30.1/api/pipelines/flux",
+      "corrections": null
+    },
+    {
+      "slug": "neg-folklore-giant-50-term-worst-quality-lowres-bad",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: attention-dilution research supports the mechanism; community hand-anatomy tests found 'basically zero effect' from long bad-hands negative blocks.",
+      "evidence_url": "https://arxiv.org/abs/2504.01137",
+      "corrections": null
+    },
+    {
+      "slug": "neg-folklore-negative-textual-inversion-embeddings-easynegative-ng-deepnegative",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: SDXL paper gives CLIP-L(768)+bigG(1280)=2048 dims; SD1.5's 768-dim TI embeddings have no bigG half, confirmed incompatible by practitioner sources.",
+      "evidence_url": "https://arxiv.org/abs/2307.01952",
+      "corrections": null
+    },
+    {
+      "slug": "neg-folklore-stacking-negatives-can-backfire-generate-very-thing",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed verbatim: arXiv:2406.02965 names 'Reverse Activation' and 'Inducing Effect,' peak noun removal at step 5, adjective plateau ~step 10, 99.5% noise correlation in first 25 steps.",
+      "evidence_url": "https://arxiv.org/abs/2406.02965",
+      "corrections": null
+    },
+    {
+      "slug": "seed-decide-diagnostic-right-kind-thing-unlucky-instance-re",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: grounded in standard diffusion mechanics (seed fixes structural scaffold, prompt defines content), consistent with Discovering Secret Seeds (arXiv:2405.14828).",
+      "evidence_url": "https://arxiv.org/abs/2405.14828",
+      "corrections": null
+    },
+    {
+      "slug": "seed-decide-production-loop-find-good-seed-first-then",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed as a workflow corollary of verified seed mechanics (fixed seed = fixed structure across prompt edits); no single doc prescribes the loop, but the underlying fact holds.",
+      "evidence_url": "https://arxiv.org/abs/2405.14828",
+      "corrections": null
+    },
+    {
+      "slug": "seed-folklore-ancestral-sde-samplers-euler-dpm2-dpm-2s",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: ancestral/SDE samplers re-inject random noise every step (never converge, not reproducible); deterministic samplers (DDIM/Euler/Heun/DPM++2M) reproduce exactly.",
+      "evidence_url": "https://stable-diffusion-art.com/samplers/",
+      "corrections": null
+    },
+    {
+      "slug": "seed-folklore-fixed-seed-does-deliver-character-consistency-across",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: fixed seed only fixes starting noise, not identity across different prompts; LoRA/reference-conditioning are the standard reliable consistency levers.",
+      "evidence_url": "https://arxiv.org/abs/2406.02820",
+      "corrections": null
+    },
+    {
+      "slug": "seed-folklore-good-seed-does-transfer-across-different-models",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: Xu, Zhang & Shi (arXiv:2405.14828, WACV2025) built their seed dataset across exactly SD 2.0 (multi-step) and SDXL Turbo (distilled), matching the cited comparison.",
+      "evidence_url": "https://arxiv.org/abs/2405.14828",
+      "corrections": null
+    },
+    {
+      "slug": "seed-roles-correct-cfg-range-model-family-specific-using",
+      "verdict": "corrected",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Corrected: family-specific-CFG framing is right, but FLUX-dev's distilled guidance defaults to 3.5, not '~1-1.5' — that number conflates it with the sampler's real-CFG value of 1.0.",
+      "evidence_url": "https://comfyai.run/documentation/FluxGuidance",
+      "corrections": {
+        "claim": "FLUX-dev's distilled guidance value defaults to 3.5 (ComfyUI FluxGuidance default, typical range ~2-5), not '~1-1.5.' The 1.0 figure is the separate sampler-level real-CFG scalar, not the guidance embedding value."
+      }
+    },
+    {
+      "slug": "seed-roles-seed-only-chooses-starting-gaussian-noise-latent",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: standard DDPM/latent-diffusion fact (Rombach et al. 2112.10752) — the seed fixes z_T only; the denoiser interprets it through the prompt conditioning.",
+      "evidence_url": "https://arxiv.org/abs/2112.10752",
+      "corrections": null
+    },
+    {
+      "slug": "seed-roles-weak-underspecified-prompt-produces-generic-regression-mean",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: weakly-conditioned generation regresses toward the dataset mean (the behavior CFG's unconditional branch represents), consistent with Ho & Salimans 2022 framing.",
+      "evidence_url": "https://huggingface.co/papers/2207.12598",
+      "corrections": null
+    },
+    {
+      "slug": "struct-encoder-type-dictates-token-order-sensitivity-clip",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: CLIP's absolute positional embeddings create order sensitivity (arXiv:2511.11216 on positional bias); T5's bidirectional attention and Qwen's causal LM handling differ as described.",
+      "evidence_url": "https://arxiv.org/pdf/2511.11216",
+      "corrections": null
+    },
+    {
+      "slug": "struct-negative-prompts-cfg-mechanic-forbidden-words-list",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: FLUX-dev/schnell are guidance-distilled with no real negative branch; Z-Image-Turbo uses guidance=0/no CFG; Chroma is de-distilled from schnell with true CFG re-enabled.",
+      "evidence_url": "https://huggingface.co/Tongyi-MAI/Z-Image-Turbo",
+      "corrections": null
+    },
+    {
+      "slug": "struct-there-length-sweet-spot-encoder-specific-short",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed directionally: CLIP's well-trained token count is under ~20 (Long-CLIP paper); T5/Qwen-Image/Z-Image operate on a larger but still bounded ~512-token budget.",
+      "evidence_url": "https://arxiv.org/abs/2403.15378",
+      "corrections": null
+    },
+    {
+      "slug": "t5-t5-based-diffusion-models-do-respond-non",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed verbatim: Wang et al. CVPR2025 (arXiv:2503.19897) — T5-conditioned diffusion doesn't respond to non-visual prompts; distilled T5-Base is 50x smaller at comparable quality.",
+      "evidence_url": "https://arxiv.org/abs/2503.19897",
+      "corrections": null
+    },
+    {
+      "slug": "t5-t5-truncation-silent-past-token-limit-tail",
+      "verdict": "confirmed",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Confirmed: the T5/diffusers path truncates silently past max_sequence_length with no error; ComfyUI's CLIP path instead auto-chunks into 75-token blocks, unlike native T5 handling.",
+      "evidence_url": "https://huggingface.co/black-forest-labs/FLUX.1-dev/discussions/43",
+      "corrections": null
+    }
+  ]
+}

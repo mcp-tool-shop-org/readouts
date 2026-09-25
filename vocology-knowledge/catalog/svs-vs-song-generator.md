@@ -28,7 +28,7 @@ _Score-conditioned singing synthesis vs mixed-song generators; MIDI-lock and lic
 | so-vits-svc 4.0 | innnky / SVC community · 2023 | Converts a dry vocal into a cloned singer; F0 comes from the source recording, not MIDI; AGPL-3.0. | ✓ |
 | A Comparison of Discrete and Soft Speech Units for Improved Voice Conversion | van Niekerk, Carbonneau, Zaïdi, Baas et al. · 2021 | SoftVC: transform source speech into a target voice while keeping content unchanged; soft units retain more linguistic content than discrete units (so-vits-svc SoftVC content-encoder lineage). | · |
 | ACE-Step 1.5: Pushing the Boundaries of Open-Source Music Generation | Gong, Song, Zhao, Wang et al. · 2026 | Unified editing toolkit includes cover generation, repainting, vocal-to-BGM; cover re-synthesizes timbre while retaining melodic skeletons via quantized latents — cover/repaint pole, not note-MIDI score-lock. | · |
-| ACE-Step: A Step Towards Music Generation Foundation Model | Gong, Zhao, Wang et al. · 2025 | Lyrics+caption → mixed song; BPM/duration size a latent canvas — free-generator pole that breaks note-level MIDI+lyrics hard lock (contrast SVS score-lock; no invent) | · |
+| ACE-Step: A Step Towards Music Generation Foundation Model | Gong, Zhao, Wang et al. · 2025 | Lyrics+caption → mixed song; BPM/duration size a latent canvas — free-generator pole that breaks note-level MIDI+lyrics hard lock (contrast SVS score-lock) | · |
 | DiffRhythm 2: Efficient and High Fidelity Song Generation via Block Flow Matching | Jiang, Chen, Ning, Yao et al. · 2025 | Explicit pole: unlike singing voice synthesis, which produces vocals with predefined melodies, song generation does not — free song-gen vs score/melody-predefined SVS. | · |
 | DiffSVC: A Diffusion Probabilistic Model for Singing Voice Conversion | Liu, Cao, Su, Meng · 2021 | SVC with PPGs as content features plus fundamental-frequency and loudness features as auxiliary inputs to the denoiser — content+F0+loudness taken from the source performance, not a MIDI score. | · |
 | DiffSinger: Singing Voice Synthesis via Shallow Diffusion Mechanism | Liu, Li, Ren et al. · 2021 | Diffusion acoustic model conditioned on music score (lyrics+pitch+duration → mel; MIDI-B path) — score-bound SVS pole opposite free lyrics-to-song generators | · |
@@ -41,7 +41,7 @@ _Score-conditioned singing synthesis vs mixed-song generators; MIDI-lock and lic
 | SongEcho: Towards Cover Song Generation via Instance-Adaptive Element-wise Linear Modulation | Li, Li, Wang, Zhang et al. · 2026 | Cover song generation: simultaneously generate new vocals and accompaniment conditioned on the original vocal melody and text prompts — melody from source performance, not score-lock MIDI+lyrics SVS. | · |
 | UniVoice: A Unified Model for Speech and Singing Voice Generation | Zheng, Xue, Ren et al. · 2026 | Naïve shared melody conditioning causes gradient conflict (elevated speech/singing PER) vs factorized paths — failure mode when one model blurs speech and score-locked singing | · |
 | VISinger 2: High-Fidelity End-to-End Singing Voice Synthesis Enhanced by Digital Signal Processing Techniques | Zhang, Xue, Li et al. · 2022 | Predicted F0 drives a DDSP harmonic oscillator as hard pitch constraint; removing DSP path yields spectral discontinuities / glitches — failure mode when pitch is soft | · |
-| XiaoiceSing: A High-Quality and Integrated Singing Voice Synthesis System | Lu, Wu, Luan et al. · 2020 | Residual log-F0 around MIDI note pitch vs independent F0 prediction — documents out-of-tune failure when score pitch is not residual-locked (hard constraint craft; no flip beyond ACCEPT) | · |
+| XiaoiceSing: A High-Quality and Integrated Singing Voice Synthesis System | Lu, Wu, Luan et al. · 2020 | Residual log-F0 around MIDI note pitch vs independent F0 prediction — documents out-of-tune failure when score pitch is not residual-locked (hard constraint craft) | · |
 | YuE | Yuan, Lin, Guo et al. · 2025 | Lyrics-to-song; dual-track ICL can change lyrics while preserving accompaniment audio; MIDI is not an input. | · |
 
 ## Detail
@@ -195,112 +195,112 @@ _Score-conditioned singing synthesis vs mixed-song generators; MIDI-lock and lic
 
 ### A Comparison of Discrete and Soft Speech Units for Improved Voice Conversion · `directional`
 **SoftVC: transform source speech into a target voice while keeping content unchanged; soft units retain more linguistic content than discrete units (so-vits-svc SoftVC content-encoder lineage).**
-- **Implication:** STUDY-043 A2A/SVC/cover deepen. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-043 A2A/SVC/cover deepen.
 - **Identifier:** `arXiv:2111.02392`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [A Comparison of Discrete and Soft Speech Units for Improved Voice Conversion](https://arxiv.org/abs/2111.02392)
 
 ### ACE-Step 1.5: Pushing the Boundaries of Open-Source Music Generation · `directional`
 **Unified editing toolkit includes cover generation, repainting, vocal-to-BGM; cover re-synthesizes timbre while retaining melodic skeletons via quantized latents — cover/repaint pole, not note-MIDI score-lock.**
-- **Implication:** STUDY-043 A2A/SVC/cover deepen. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-043 A2A/SVC/cover deepen.
 - **Identifier:** `arXiv:2602.00744`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [ACE-Step 1.5: Pushing the Boundaries of Open-Source Music Generation](https://arxiv.org/abs/2602.00744)
 
 ### ACE-Step: A Step Towards Music Generation Foundation Model · `directional`
-**Lyrics+caption → mixed song; BPM/duration size a latent canvas — free-generator pole that breaks note-level MIDI+lyrics hard lock (contrast SVS score-lock; no invent)**
-- **Implication:** STUDY-041 score-lock failure deepen. Flips beyond ACCEPT: 0.
+**Lyrics+caption → mixed song; BPM/duration size a latent canvas — free-generator pole that breaks note-level MIDI+lyrics hard lock (contrast SVS score-lock)**
+- **Implication:** STUDY-041 score-lock failure deepen.
 - **Identifier:** `arXiv:2506.00045`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [ACE-Step: A Step Towards Music Generation Foundation Model](https://arxiv.org/abs/2506.00045)
 
 ### DiffRhythm 2: Efficient and High Fidelity Song Generation via Block Flow Matching · `directional`
 **Explicit pole: unlike singing voice synthesis, which produces vocals with predefined melodies, song generation does not — free song-gen vs score/melody-predefined SVS.**
-- **Implication:** STUDY-043 A2A/SVC/cover deepen. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-043 A2A/SVC/cover deepen.
 - **Identifier:** `arXiv:2510.22950`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [DiffRhythm 2: Efficient and High Fidelity Song Generation via Block Flow Matching](https://arxiv.org/abs/2510.22950)
 
 ### DiffSVC: A Diffusion Probabilistic Model for Singing Voice Conversion · `directional`
 **SVC with PPGs as content features plus fundamental-frequency and loudness features as auxiliary inputs to the denoiser — content+F0+loudness taken from the source performance, not a MIDI score.**
-- **Implication:** STUDY-043 A2A/SVC/cover deepen. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-043 A2A/SVC/cover deepen.
 - **Identifier:** `arXiv:2105.13871`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [DiffSVC: A Diffusion Probabilistic Model for Singing Voice Conversion](https://arxiv.org/abs/2105.13871)
 
 ### DiffSinger: Singing Voice Synthesis via Shallow Diffusion Mechanism · `directional`
 **Diffusion acoustic model conditioned on music score (lyrics+pitch+duration → mel; MIDI-B path) — score-bound SVS pole opposite free lyrics-to-song generators**
-- **Implication:** STUDY-041 score-lock failure deepen. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 score-lock failure deepen.
 - **Identifier:** `arXiv:2105.02446`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [DiffSinger: Singing Voice Synthesis via Shallow Diffusion Mechanism](https://arxiv.org/abs/2105.02446)
 
 ### FreeSVC: Towards Zero-shot Multilingual Singing Voice Conversion · `directional`
 **Zero-shot multilingual SVC (enhanced VITS + SPIN content + ECAPA2 speaker): disentangles speaker from linguistic content; multilingual content extractor for cross-language conversion — so-vits SoftVC-class SVC, not score-lock SVS.**
-- **Implication:** STUDY-043 A2A/SVC/cover deepen. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-043 A2A/SVC/cover deepen.
 - **Identifier:** `arXiv:2501.05586`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [FreeSVC: Towards Zero-shot Multilingual Singing Voice Conversion](https://arxiv.org/abs/2501.05586)
 
 ### FreeVC: Towards High-Quality Text-Free One-Shot Voice Conversion · `directional`
 **Text-free one-shot VC: extract clean content from WavLM (information bottleneck) without text annotation, then reconstruct waveform with target speaker — STS/wav→wav content path, no new text mint.**
-- **Implication:** STUDY-043 A2A/SVC/cover deepen. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-043 A2A/SVC/cover deepen.
 - **Identifier:** `arXiv:2210.15418`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [FreeVC: Towards High-Quality Text-Free One-Shot Voice Conversion](https://arxiv.org/abs/2210.15418)
 
 ### LDM-SVC: Latent Diffusion Model Based Zero-Shot Any-to-Any Singing Voice Conversion with Singer Guidance · `directional`
 **Any-to-any SVC pretrained on open-source So-VITS-SVC (VITS); latent diffusion + singer guidance to suppress source timbre leakage while converting — So-VITS-SVC stack, not MIDI-locked SVS.**
-- **Implication:** STUDY-043 A2A/SVC/cover deepen. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-043 A2A/SVC/cover deepen.
 - **Identifier:** `arXiv:2406.05325`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [LDM-SVC: Latent Diffusion Model Based Zero-Shot Any-to-Any Singing Voice Conversion with Singer Guidance](https://arxiv.org/abs/2406.05325)
 
 ### NNSVS: A Neural Network-Based Singing Voice Synthesis Toolkit · `directional`
 **Reports DiffSinger-style retrain yielding discontinuous F0 and unstable vibrato when spectrum is overweighted vs F0 — acoustic-path failure under score-conditioned SVS**
-- **Implication:** STUDY-041 score-lock failure deepen. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 score-lock failure deepen.
 - **Identifier:** `arXiv:2210.15987`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [NNSVS: A Neural Network-Based Singing Voice Synthesis Toolkit](https://arxiv.org/abs/2210.15987)
 
 ### Singing voice synthesis based on frame-level sequence-to-sequence models considering vocal timing deviation · `directional`
 **SVS quality collapses when phoneme-boundary alignments from external aligners err; models vocal timing deviation explicitly — alignment/timing failure mode under score conditioning**
-- **Implication:** STUDY-041 score-lock failure deepen. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 score-lock failure deepen.
 - **Identifier:** `arXiv:2301.02262`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Singing voice synthesis based on frame-level sequence-to-sequence models considering vocal timing deviation](https://arxiv.org/abs/2301.02262)
 
 ### Sinsy: A Deep Neural Network-Based Singing Voice Synthesis System · `directional`
 **Without pitch-normalization to the score, F0-RMSE jumps ~74→264 cents; time-lag puts consonants before notated onset — classic score-lock failure modes under MIDI+lyrics**
-- **Implication:** STUDY-041 score-lock failure deepen. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 score-lock failure deepen.
 - **Identifier:** `arXiv:2108.02776`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Sinsy: A Deep Neural Network-Based Singing Voice Synthesis System](https://arxiv.org/abs/2108.02776)
 
 ### SongEcho: Towards Cover Song Generation via Instance-Adaptive Element-wise Linear Modulation · `directional`
 **Cover song generation: simultaneously generate new vocals and accompaniment conditioned on the original vocal melody and text prompts — melody from source performance, not score-lock MIDI+lyrics SVS.**
-- **Implication:** STUDY-043 A2A/SVC/cover deepen. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-043 A2A/SVC/cover deepen.
 - **Identifier:** `arXiv:2602.19976`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [SongEcho: Towards Cover Song Generation via Instance-Adaptive Element-wise Linear Modulation](https://arxiv.org/abs/2602.19976)
 
 ### UniVoice: A Unified Model for Speech and Singing Voice Generation · `directional`
 **Naïve shared melody conditioning causes gradient conflict (elevated speech/singing PER) vs factorized paths — failure mode when one model blurs speech and score-locked singing**
-- **Implication:** STUDY-041 score-lock failure deepen. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 score-lock failure deepen.
 - **Identifier:** `arXiv:2606.05852`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [UniVoice: A Unified Model for Speech and Singing Voice Generation](https://arxiv.org/abs/2606.05852)
 
 ### VISinger 2: High-Fidelity End-to-End Singing Voice Synthesis Enhanced by Digital Signal Processing Techniques · `directional`
 **Predicted F0 drives a DDSP harmonic oscillator as hard pitch constraint; removing DSP path yields spectral discontinuities / glitches — failure mode when pitch is soft**
-- **Implication:** STUDY-041 score-lock failure deepen. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 score-lock failure deepen.
 - **Identifier:** `arXiv:2211.02903`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [VISinger 2: High-Fidelity End-to-End Singing Voice Synthesis Enhanced by Digital Signal Processing Techniques](https://arxiv.org/abs/2211.02903)
 
 ### XiaoiceSing: A High-Quality and Integrated Singing Voice Synthesis System · `directional`
-**Residual log-F0 around MIDI note pitch vs independent F0 prediction — documents out-of-tune failure when score pitch is not residual-locked (hard constraint craft; no flip beyond ACCEPT)**
-- **Implication:** STUDY-041 score-lock failure deepen. Flips beyond ACCEPT: 0.
+**Residual log-F0 around MIDI note pitch vs independent F0 prediction — documents out-of-tune failure when score pitch is not residual-locked (hard constraint craft)**
+- **Implication:** STUDY-041 score-lock failure deepen.
 - **Identifier:** `arXiv:2006.06261`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [XiaoiceSing: A High-Quality and Integrated Singing Voice Synthesis System](https://arxiv.org/abs/2006.06261)

@@ -1,6 +1,6 @@
 # readouts — model-knowledge · verification receipt
 
-> **126/129 models verified · 553 sources (323 resolve) · 19 waves · generated 2026-09-14.**  
+> **126/129 models verified · 553 sources (323 resolve) · 19 waves · generated 2026-09-25.**  
 > Verdicts: 92 confirmed clean · 34 confirmed-with-fixes · 3 unverified.
 
 ## Verification method, by wave

@@ -91,7 +91,7 @@ _Source–filter theory, singer formant, registers, vibrato, breathiness cues_ �
 
 ### Chest/mix/head classification from mel texture around passaggio · `load-bearing`
 **Classifies chest/mix/head-mix/head from mel-spectrogram texture around male passaggio; mixed voice is TA–CT balance, not a single F0 label.**
-- **Implication:** Measurement/pedagogy naming ≠ SVS register enum. Do not invent register enums.
+- **Implication:** Measurement/pedagogy naming ≠ SVS register enum.
 - **Identifier:** `arXiv:2505.11378`
 - **Verify:** arXiv:2505.11378v2, Kim & Botha 2025. Four classes chest/mix/head mix/head confirmed; mixed voice = TA and CT coordination; pitch alone does not fix register. Real title: ML Approaches to Vocal Register Classification.
 - **Sources:** [Chest/mix/head classification from mel texture around passaggio](https://arxiv.org/abs/2505.11378)
@@ -105,7 +105,6 @@ _Source–filter theory, singer formant, registers, vibrato, breathiness cues_ �
 
 ### DiffSinger Best Practices · `load-bearing`
 **Acoustic inputs are fixed to phoneme seq + phoneme duration + F0; narrow variance knobs are energy, breathiness, voicing, tension — no named register or singer-formant control.**
-- **Implication:** Do not invent register enums on DiffSinger.
 - **Identifier:** `DiffSinger BestPractices`
 - **Verify:** openvpi/DiffSinger docs/BestPractices.md: three basic and fixed inputs are phoneme sequence, phoneme duration sequence and F0. Variance parameters documented are energy, breathiness, voicing, tension. No register or singer-formant control.
 - **Sources:** [DiffSinger Best Practices](https://github.com/openvpi/DiffSinger/blob/main/docs/BestPractices.md)
@@ -189,7 +188,7 @@ _Source–filter theory, singer formant, registers, vibrato, breathiness cues_ �
 
 ### ACE-Step 1.5 Inference API · `directional`
 **`GenerationParams` metadata is caption/lyrics + `bpm` / `keyscale` / `timesignature` / `duration` (+ CFG/seed). No note MIDI, no register, no formant fields — song-generator surface.**
-- **Implication:** STUDY-041 formant/register surface deepen. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 formant/register surface deepen.
 - **Identifier:** `https://raw.githubusercontent.com/ace-step/ACE-Step-1.5/main/docs/en/INFERENCE.md`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [ACE-Step 1.5 Inference API](https://raw.githubusercontent.com/ace-step/ACE-Step-1.5/main/docs/en/INFERENCE.md)
@@ -210,42 +209,42 @@ _Source–filter theory, singer formant, registers, vibrato, breathiness cues_ �
 
 ### Cantor Digitalis README · `directional`
 **Peer parametric SVS: perceptual API exposes `isFalsetto` (M1/M2), `tenseness`, `breathiness`, `vocalTractSize`, and synth-level F1–F6 formant centers. Explicit register boolean + formant tract — contrast class to DiffSinger/NNSVS/ACE-Step.**
-- **Implication:** STUDY-041 formant/register surface deepen. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 formant/register surface deepen.
 - **Identifier:** `https://raw.githubusercontent.com/edwardbrowncross/cantor-digitalis/main/README.md`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Cantor Digitalis README](https://raw.githubusercontent.com/edwardbrowncross/cantor-digitalis/main/README.md)
 
 ### Coverage.py excluding code · `directional`
 **Hold for catalog vs README count honesty. Limit: line coverage ≠ claim verification.**
-- **Implication:** STUDY-064 catalog/README honesty. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `coverage-excluding`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Coverage.py excluding code](https://coverage.readthedocs.io/en/latest/excluding.html)
 
 ### DiffSinger Best Practices · `directional`
 **Acoustic inputs fixed to phoneme seq + phoneme duration + F0; narrowly defined variance knobs are energy, breathiness, voicing, tension. Page does not name a register enum or singer-formant control.**
-- **Implication:** STUDY-041 formant/register surface deepen. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 formant/register surface deepen.
 - **Identifier:** `https://raw.githubusercontent.com/openvpi/DiffSinger/main/docs/BestPractices.md`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [DiffSinger Best Practices](https://raw.githubusercontent.com/openvpi/DiffSinger/main/docs/BestPractices.md)
 
 ### DiffSinger ConfigurationSchemas · `directional`
 **Documents `predict_breathiness` / `predict_energy` / `predict_tension` / `predict_voicing`, `use_*_embed`, and inference `gender` scaled via `augmentation_args.random_pitch_shifting.range` + `use_key_shift_embed` (key-shift / timbre embed). No `isFalsetto` or F1–Fn formant keys.**
-- **Implication:** STUDY-041 formant/register surface deepen. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 formant/register surface deepen.
 - **Identifier:** `https://raw.githubusercontent.com/openvpi/DiffSinger/main/docs/ConfigurationSchemas.md`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [DiffSinger ConfigurationSchemas](https://raw.githubusercontent.com/openvpi/DiffSinger/main/docs/ConfigurationSchemas.md)
 
 ### DiffSinger README · `directional`
 **Fork markets variance models for pitch, energy, breathiness controllability and OpenUtau/DiffScope production; Apache-2.0. Still score-driven SVS, not pedagogy register enums.**
-- **Implication:** STUDY-041 formant/register surface deepen. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 formant/register surface deepen.
 - **Identifier:** `https://github.com/openvpi/DiffSinger`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [DiffSinger README](https://github.com/openvpi/DiffSinger)
 
 ### Keep a Changelog 1.1.0 · `directional`
 **Hold for README Status matching catalog/DB. Limit: human changelog ≠ generated catalog/.**
-- **Implication:** STUDY-064 catalog/README honesty. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `keepachangelog-1.1.0`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/)
@@ -266,28 +265,28 @@ _Source–filter theory, singer formant, registers, vibrato, breathiness cues_ �
 
 ### OpenUtau default expressions (`USTx.cs`) · `directional`
 **Editor registers `gender`/`gen` (−100…100, flag `g`), `gender (curve)`, `breath`/`bre`, `breathiness (curve)`, `tension (curve)`, `voicing (curve)`. Gender is the formant-shift surface; no chest/mix/head or falsetto enum.**
-- **Implication:** STUDY-041 formant/register surface deepen. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 formant/register surface deepen.
 - **Identifier:** `https://raw.githubusercontent.com/stakira/OpenUtau/master/OpenUtau.Core/Format/USTx.cs`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [OpenUtau default expressions (`USTx.cs`)](https://raw.githubusercontent.com/stakira/OpenUtau/master/OpenUtau.Core/Format/USTx.cs)
 
 ### SPDX Package verification code / NOASSERTION · `directional`
 **Hold for default verified=0 / do-not-assert until ACCEPT. Limit: package SBOM ≠ vocology finding gate.**
-- **Implication:** STUDY-064 catalog/README honesty. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `spdx-noassertion`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [SPDX Package verification code / NOASSERTION](https://spdx.github.io/spdx-spec/v2.3/package-information/)
 
 ### SPEC Fair Use Rules · `directional`
 **Hold for README 12/175 verified-ratio honesty. Limit: SPEC public metrics ≠ KB SQLite verified bit.**
-- **Implication:** STUDY-064 catalog/README honesty. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `spec-fairuse`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [SPEC Fair Use Rules](https://www.spec.org/fairuse.html)
 
 ### Semantic Versioning 2.0.0 · `directional`
 **Hold for ACCEPT-gate: do not silent-mutate landed verified flags outside the gate. Limit: package release ≠ finding row.**
-- **Implication:** STUDY-064 catalog/README honesty. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `semver`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [Semantic Versioning 2.0.0](https://semver.org/)
@@ -301,21 +300,21 @@ _Source–filter theory, singer formant, registers, vibrato, breathiness cues_ �
 
 ### WORLD README · `directional`
 **Public analysis/synthesis surface is F0 + spectral envelope (CheapTrick) + aperiodicity (D4C). No register or singer-formant parameter names.**
-- **Implication:** STUDY-041 formant/register surface deepen. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 formant/register surface deepen.
 - **Identifier:** `https://raw.githubusercontent.com/mmorise/World/master/README.md`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [WORLD README](https://raw.githubusercontent.com/mmorise/World/master/README.md)
 
 ### nnsvs.gen class reference · `directional`
 **Score-locked path predicts/post-processes `mgc`, `lf0`, `vuv`, `bap`; `relative_f0` ties LF0 to MIDI; `vibrato_scale` and phone V/UV flags exist. Opaque WORLD streams — not named formant/register knobs.**
-- **Implication:** STUDY-041 formant/register surface deepen. Knobs invented: 0. Flips beyond ACCEPT: 0.
+- **Implication:** STUDY-041 formant/register surface deepen.
 - **Identifier:** `https://nnsvs.github.io/_modules/nnsvs/gen.html`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [nnsvs.gen class reference](https://nnsvs.github.io/_modules/nnsvs/gen.html)
 
 ### pytest skip and xfail · `directional`
 **Hold for ACCEPT-gate — unverified stays unverified. Limit: test outcomes ≠ prism ACCEPT ids.**
-- **Implication:** STUDY-064 catalog/README honesty. Flips beyond ACCEPT: 0. Nodes invented: 0.
+- **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `pytest-skipping`
 - **Verify:** no external verdict — not yet swept
 - **Sources:** [pytest skip and xfail](https://docs.pytest.org/en/stable/how-to/skipping.html)

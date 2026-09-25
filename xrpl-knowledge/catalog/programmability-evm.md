@@ -147,8 +147,8 @@ The fastest on-ramp: configure MetaMask with the sidechain's network params, the
 Cosmos zones + EVM rollups; zone≠parent Hooks. Verifier left Scholar #6 unverified (Accountable Safety for Rollups — Tas et al. arXiv:2210.15017). verified=0; no cloud_verify flip.
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** Scholar #6 Accountable Safety unverified; verify_note flag; STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Verifier left Scholar #6 unverified (arXiv:2210.15017). Do NOT invent a verified flip. Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
-- **Verify:** Scholar #6 Accountable Safety for Rollups (Tas et al. arXiv:2210.15017) unverified; verified=0; invent-enabled: 0; invent Mainnet Hooks: 0
+- **Gotchas:** Verifier left Scholar #6 unverified (arXiv:2210.15017). No mainnet. No funds.
+- **Verify:** Scholar #6 Accountable Safety for Rollups (Tas et al. arXiv:2210.15017) unverified; verified=0; invent Mainnet Hooks: 0
 - **Sources:** [Accountable Safety for Rollups — Tas et al., 2022 — arXiv:2210.15017](https://arxiv.org/abs/2210.15017) — Cosmos zones + EVM rollups; zone≠parent Hooks. Scholar #6 unverified.
 
 ### Axelar Interchain Token Service (ITS) · `service` · ● live ✓
@@ -164,7 +164,7 @@ The Interchain Token Service is the Axelar primitive that lets a single token ex
 EVM-in-Cosmos SDK class. Holds adjacent to xrpl-evm.
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Cosmos EVM overview](https://docs.cosmos.network/evm/latest/documentation/overview) — EVM-in-Cosmos SDK class. Holds adjacent to xrpl-evm.
 
@@ -172,7 +172,7 @@ EVM-in-Cosmos SDK class. Holds adjacent to xrpl-evm.
 Remix/Hardhat/Foundry; RPC https://rpc.xrplevm.org; Chain ID 1440000; Testnet 1449000.
 - **Chain:** xrpl-evm-sidechain · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Deploy the smart contract](https://docs.xrplevm.org/pages/developers/interacting-with-evm/deploy-the-smart-contract) — Remix/Hardhat/Foundry deploy path on XRPL EVM. ; [Interact with the smart contract](https://docs.xrplevm.org/pages/developers/interacting-with-evm/interact-with-the-smart-contract) — RPC https://rpc.xrplevm.org; Chain ID 1440000; Testnet 1449000.
 
@@ -180,12 +180,12 @@ Remix/Hardhat/Foundry; RPC https://rpc.xrplevm.org; Chain ID 1440000; Testnet 14
 Solidity on XRPL EVM Sidechain; Remix/Hardhat. ≠ Hooks C/WASM.
 - **Chain:** xrpl-evm-sidechain · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Develop a Smart Contract](https://docs.xrplevm.org/pages/developers/interacting-with-evm/develop-a-smart-contract) — Solidity on XRPL EVM Sidechain; Remix/Hardhat. ≠ Hooks C/WASM.
 
 ### DID on Ripple EVM sidechain literature (Konara et al. 2025) · `concept` · · n/a
-Conceptual ABABDIDM on EVM-compatible Ripple sidechain — programmability-evm framing; invent-enabled: 0.
+Conceptual ABABDIDM on EVM-compatible Ripple sidechain — programmability-evm framing
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-036 Verifier ✅; invent-enabled: 0
 - **Gotchas:** Sidechain literature ≠ invent XRPL mainnet feature flag. No funds.
@@ -202,10 +202,10 @@ Because the sidechain is built on the Cosmos SDK, it natively supports the Inter
 - **Sources:** [Bridge overview — IBC (XRPL EVM Docs)](https://docs.xrplevm.org/pages/bridge) — As a Cosmos SDK-based chain it has native Inter-Blockchain Communication (IBC) support as a bridge option. ; [XRPL EVM — built with Cosmos SDK](https://www.xrplevm.org/) — Built with the Cosmos SDK and connected to the Cosmos ecosystem with access to dApps through the IBC interoperability protocol.
 
 ### Optimism vs StarkNet — EVM-tooling vs custom-VM lane · `concept` · · n/a
-EVM-tooling lane vs custom-VM lane. Invent-enabled: 0. Invent Mainnet Hooks: 0.
+EVM-tooling lane vs custom-VM lane. Invent Mainnet Hooks: 0.
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Optimism vs StarkNet — Donno, 2022 — arXiv:2210.16610](https://arxiv.org/abs/2210.16610) — EVM-tooling lane vs custom-VM lane.
 
@@ -219,10 +219,10 @@ The sidechain reaches consensus via CometBFT (Tendermint-style BFT) under a Proo
 - **Sources:** [XRPL EVM — consensus & performance](https://www.xrplevm.org/) — Uses a Proof-of-Authority consensus enabled by CometBFT, achieving >1,000 TPS, 3-5s blocks and <$0.01 transaction costs. ; [XRPL EVM Sidechain network (Polkachu)](https://www.polkachu.com/networks/xrp) — The XRPL EVM sidechain runs a CometBFT/Cosmos validator network with staking infrastructure documented by node operators.
 
 ### Rollup Comparison Framework — Sovereign vs EVM-familiarity · `concept` · · n/a
-Sovereign vs EVM-familiarity lanes. Invent-enabled: 0. Invent Mainnet Hooks: 0.
+Sovereign vs EVM-familiarity lanes. Invent Mainnet Hooks: 0.
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Rollup Comparison Framework — Gorzny & Derka, 2024 — arXiv:2404.16150](https://arxiv.org/abs/2404.16150) — Sovereign vs EVM-familiarity lanes.
 
@@ -230,15 +230,15 @@ Sovereign vs EVM-familiarity lanes. Invent-enabled: 0. Invent Mainnet Hooks: 0.
 OP Standard Bridge lock-and-mint; Initia Wasm IBC Hooks ≠ full EVM; Cosmos EVM overview — sidechain/EVM lane hold; no funds.
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-036 Verifier ✅; invent-enabled: 0
-- **Gotchas:** invent-enabled: 0. No funds exercised. Sidechain ≠ invent XRPL mainnet-enabled.
+- **Gotchas:** No funds exercised. Sidechain ≠ invent XRPL mainnet-enabled.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Optimism Standard Bridge](https://docs.optimism.io/app-developers/guides/bridging/standard-bridge) — Lock L1 / mint L2 bridge pattern. ; [Initia WasmVM IBC Hooks](https://docs.initia.xyz/developers/developer-guides/vm-specific-tutorials/wasmvm/ibc-hooks) — Wasm hook middleware ≠ full EVM. ; [Cosmos EVM overview](https://docs.cosmos.network/evm/latest/documentation/overview) — Cosmos EVM lane documentation.
 
 ### Weaving the Cosmos — CosmWasm vs Ethermint dual tracks · `concept` · · n/a
-CosmWasm vs Ethermint dual tracks. Invent-enabled: 0. Invent Mainnet Hooks: 0.
+CosmWasm vs Ethermint dual tracks. Invent Mainnet Hooks: 0.
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Weaving the Cosmos — Karanjai et al., 2025 — arXiv:2502.17604](https://arxiv.org/abs/2502.17604) — CosmWasm vs Ethermint dual tracks.
 
@@ -246,7 +246,7 @@ CosmWasm vs Ethermint dual tracks. Invent-enabled: 0. Invent Mainnet Hooks: 0.
 Sovereign Cosmos L1; independent of XRPL consensus; Paris/solc≤0.8.24. ≠ Mainnet Hooks.
 - **Chain:** xrpl-evm-sidechain · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [What is the XRPL EVM?](https://docs.xrplevm.org/pages/users/introduction/what-is-the-xrplevm) — Sovereign Cosmos L1; independent of XRPL consensus; Paris/solc≤0.8.24. ≠ Mainnet Hooks.
 
@@ -254,7 +254,7 @@ Sovereign Cosmos L1; independent of XRPL consensus; Paris/solc≤0.8.24. ≠ Mai
 Sovereign Cosmos SDK L1 (Peersyst/Ripple): XRP gas via Axelar; independent of XRPL consensus — sidechain ≠ XRPL Mainnet feature flag.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-036 Verifier ✅; invent-enabled: 0
-- **Gotchas:** invent-enabled: 0. No funds. Do not invent as XRPL mainnet-live.
+- **Gotchas:** No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [What is the XRPL EVM?](https://docs.xrplevm.org/pages/users/introduction/what-is-the-xrplevm) — Cosmos SDK L1 sidechain; independent consensus. ; [XRPL EVM Developers](https://docs.xrplevm.org/pages/developers) — Hardhat/Foundry/Remix; IBC + bridges.
 
@@ -262,7 +262,7 @@ Sovereign Cosmos SDK L1 (Peersyst/Ripple): XRP gas via Axelar; independent of XR
 Hardhat/Foundry/Solidity path. Holds: separate tooling vs Hooks C/WASM.
 - **Chain:** xrpl-evm-sidechain · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [XRPL EVM Developers](https://docs.xrplevm.org/pages/developers) — Hardhat/Foundry/Solidity path. Holds: separate tooling vs Hooks C/WASM.
 
@@ -270,7 +270,7 @@ Hardhat/Foundry/Solidity path. Holds: separate tooling vs Hooks C/WASM.
 Sovereign Cosmos L1; independent of XRPL consensus. Holds: separate network_id.
 - **Chain:** xrpl-evm-sidechain · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [What is the XRPL EVM?](https://docs.xrplevm.org/pages/users/introduction/what-is-the-xrplevm) — Sovereign Cosmos L1; independent of XRPL consensus. Holds: separate network_id.
 

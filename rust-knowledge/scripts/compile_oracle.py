@@ -95,9 +95,15 @@ JAM_DEPS = {
     "musicxml": "musicxml", "cpal": "cpal", "midir": "midir", "rtrb": "rtrb", "ringbuf": "ringbuf",
     "assert_no_alloc": "assert_no_alloc",
 }
+# The law's own midly configuration (si-jam-sessions Phase 0 pins alloc + strict). It lives in
+# its own crate because cargo unifies features across one build: adding "strict" to the jam
+# set would silently change what every wave-4 midly check measured.
+ORACLE_JAM_STRICT = os.path.join(KB, "oracle-jam-strict")
+JAM_STRICT_DEPS = {"midly": "midly"}
 ORACLE_SETS = {
     "engine": {"dir": ORACLE, "deps": ORACLE_DEPS, "targets": ["host"]},
     "jam": {"dir": ORACLE_JAM, "deps": JAM_DEPS, "targets": ["host", "wasm32-unknown-unknown"]},
+    "jam-strict": {"dir": ORACLE_JAM_STRICT, "deps": JAM_STRICT_DEPS, "targets": ["host", "wasm32-unknown-unknown"]},
 }
 # rustc flags a check may pass. Anything else is refused: a check proves a claim about
 # stable Rust under ordinary flags, not about whatever a clever flag can make true.
@@ -198,12 +204,13 @@ def setup() -> int:
     return 0
 
 
-def setup_jam() -> int:
-    """Build the si-jam-sessions set for every target it serves and record each rlib per target."""
+def setup_jam(name: str = "jam") -> int:
+    """Build a non-engine set (jam, jam-strict) for every target it serves; record each rlib per target."""
     version = rustc_version()
     cargo = tool("cargo")
+    set_dir, set_deps = ORACLE_SETS[name]["dir"], ORACLE_SETS[name]["deps"]
     meta = subprocess.run([cargo, f"+{TOOLCHAIN}", "metadata", "--format-version", "1"],
-                          cwd=ORACLE_JAM, capture_output=True, text=True, encoding="utf-8", errors="replace")
+                          cwd=set_dir, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if meta.returncode != 0:
         print(meta.stderr, file=sys.stderr)
         return 2
@@ -212,14 +219,14 @@ def setup_jam() -> int:
     node = next(n for n in md["resolve"]["nodes"] if n["id"] == root)
     direct = {d["name"]: d["pkg"] for d in node["deps"]}
     versions = {p["id"]: p["version"] for p in md["packages"]}
-    host_deps = os.path.join(ORACLE_JAM, "target", "debug", "deps")
+    host_deps = os.path.join(set_dir, "target", "debug", "deps")
     out = {"rustc": version, "built": dt.date.today().isoformat(), "targets": {}}
-    for target in ORACLE_SETS["jam"]["targets"]:
+    for target in ORACLE_SETS[name]["targets"]:
         cmd = [cargo, f"+{TOOLCHAIN}", "build", "--message-format=json-render-diagnostics"]
         if target != "host":
             cmd += ["--target", target]
-        print(f"› cargo build (jam set, {target})")
-        b = subprocess.run(cmd, cwd=ORACLE_JAM, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        print(f"› cargo build ({name} set, {target})")
+        b = subprocess.run(cmd, cwd=set_dir, capture_output=True, text=True, encoding="utf-8", errors="replace")
         if b.returncode != 0:
             print(b.stderr[-4000:], file=sys.stderr)
             return 2
@@ -240,17 +247,17 @@ def setup_jam() -> int:
         if target == "host":
             dirs = [host_deps]
         else:
-            dirs = [os.path.join(ORACLE_JAM, "target", target, "debug", "deps"), host_deps]
+            dirs = [os.path.join(set_dir, "target", target, "debug", "deps"), host_deps]
         out["targets"][target] = {"deps_dirs": dirs, "externs": dict(sorted(rlibs.items())),
                                   "versions": {c: versions[direct[c]] for c in sorted(rlibs)}}
-    missing = sorted(set(JAM_DEPS) - set(out["targets"]["host"]["externs"]))
+    missing = sorted(set(set_deps) - set(out["targets"]["host"]["externs"]))
     if missing:
         print(f"ORACLE BROKEN: no host rlib recorded for {missing}", file=sys.stderr)
         return 2
-    path = os.path.join(ORACLE_JAM, "target", "externs.json")
+    path = os.path.join(set_dir, "target", "externs.json")
     with open(path, "w", encoding="utf-8", newline="\n") as fh:
         json.dump(out, fh, indent=2)
-    print(f"jam set ready: {version}")
+    print(f"{name} set ready: {version}")
     for target, t in out["targets"].items():
         print(f"  {target}: " + ", ".join(f"{c} {v}" for c, v in t["versions"].items()))
     return 0
@@ -265,11 +272,14 @@ def load_externs() -> dict:
         e = json.load(fh)
     sets = {"engine": {"rustc": e["rustc"], "versions": e.get("versions"),
                        "targets": {"host": {"deps_dirs": [e["deps_dir"]], "externs": e["externs"]}}}}
-    jam = os.path.join(ORACLE_JAM, "target", "externs.json")
-    if os.path.isfile(jam):
-        with open(jam, encoding="utf-8") as fh:
-            j = json.load(fh)
-        sets["jam"] = {"rustc": j["rustc"], "versions": j["targets"]["host"]["versions"], "targets": j["targets"]}
+    for name, spec in ORACLE_SETS.items():
+        if name == "engine":
+            continue
+        built = os.path.join(spec["dir"], "target", "externs.json")
+        if os.path.isfile(built):
+            with open(built, encoding="utf-8") as fh:
+                j = json.load(fh)
+            sets[name] = {"rustc": j["rustc"], "versions": j["targets"]["host"]["versions"], "targets": j["targets"]}
     return sets
 
 
@@ -630,7 +640,11 @@ def cmd_run(args) -> int:
     }
     with open(out, "w", encoding="utf-8", newline="\n") as fh:
         json.dump(payload, fh, indent=2, ensure_ascii=False)
-    print(f"\nwrote {os.path.relpath(out, KB)} — {payload['checks']} checks, {payload['failed']} failed")
+    try:
+        shown = os.path.relpath(out, KB)
+    except ValueError:  # --out on another drive (Windows): relpath cannot span drives
+        shown = out
+    print(f"\nwrote {shown} — {payload['checks']} checks, {payload['failed']} failed")
     return 1 if payload["failed"] else 0
 
 
@@ -704,7 +718,8 @@ def main() -> int:
     if args.cmd == "redact":
         return cmd_redact(args)
     if args.cmd == "setup":
-        return setup_jam() if getattr(args, "set", "engine") == "jam" else setup()
+        name = getattr(args, "set", "engine")
+        return setup() if name == "engine" else setup_jam(name)
     if args.cmd == "check":
         return cmd_check(args)
     if args.cmd == "run":

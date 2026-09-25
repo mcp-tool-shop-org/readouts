@@ -225,10 +225,10 @@ Hook execution is metered at roughly 1 drop of XAH per WebAssembly instruction i
 - **Sources:** [Hook Fees / Xahau Network](https://docs.xahau.network/concepts/hook-fees) — Hook execution fees are 1 drop per WebAssembly instruction in the worst-case execution; strong hooks are paid by the transaction originator with up to 4 strong hooks each on sending and receiving accounts.
 
 ### Blockly2Hooks literature (WASM Hooks authoring) · `concept` · · n/a
-Documents XRPL Hooks as non-Turing-complete WASM with Blockly authoring — literature deepen; invent-enabled: 0.
+Documents XRPL Hooks as non-Turing-complete WASM with Blockly authoring — literature deepen
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-036 Verifier ✅; invent-enabled: 0
-- **Gotchas:** Do not invent XRPL mainnet Hooks enablement. Amendment-pending stays ·. No funds.
+- **Gotchas:** Amendment-pending stays ·. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Blockly2Hooks](https://arxiv.org/abs/2511.08403) — Hooks WASM + Blockly authoring literature.
 
@@ -236,7 +236,7 @@ Documents XRPL Hooks as non-Turing-complete WASM with Blockly authoring — lite
 Single WASM; hook/cbak; must import _g; Hook Cleaner.
 - **Chain:** xahau · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Compiling Hooks](https://xahau.network/docs/hooks/concepts/compiling-hooks/) — Single WASM; hook/cbak; must import _g; Hook Cleaner.
 
@@ -250,10 +250,10 @@ CronSet brings on-chain scheduled execution to Xahau — a blockchain alarm cloc
 - **Sources:** [Learning Xahau: Automating Hook Execution with Cron Transactions — DEV](https://dev.to/ekiserrepe/learning-xahau-automating-hook-execution-with-cron-transactions-14n1) — CronSet transactions schedule hook callbacks via StartTime, RepeatCount and DelaySeconds, acting as an on-chain alarm clock with no external trigger, and cannot currently be delegated to another account.
 
 ### DTVM — Deterministic VM / Wasm-era compatibility · `concept` · · n/a
-Deterministic VM / Wasm-era compatibility craft. Invent-enabled: 0. Invent Mainnet Hooks: 0.
+Deterministic VM / Wasm-era compatibility craft. Invent Mainnet Hooks: 0.
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [DTVM — Zhou et al., 2025 — arXiv:2504.16552](https://arxiv.org/abs/2504.16552) — Deterministic VM / Wasm-era compatibility craft.
 
@@ -261,7 +261,7 @@ Deterministic VM / Wasm-era compatibility craft. Invent-enabled: 0. Invent Mainn
 L1 account code; not Turing-complete; testnet/future-amendment framing. Holds: L1 plugin≠sidechain.
 - **Chain:** xahau · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Hooks Introduction](https://xahau.network/docs/hooks/concepts/introduction/) — L1 account code; not Turing-complete; testnet/future-amendment framing. Holds: L1 plugin≠sidechain.
 
@@ -269,7 +269,7 @@ L1 account code; not Turing-complete; testnet/future-amendment framing. Holds: L
 Available on Xahau; Builder on testnet; JSHooks upcoming; WASM+guards vs EVM; EVM sidechain = autonomous alternative.
 - **Chain:** xahau · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Hooks (overview)](https://xahau.network/docs/hooks/) — Available on Xahau; Builder on testnet; JSHooks upcoming; WASM+guards vs EVM; EVM sidechain = autonomous alternative.
 
@@ -277,20 +277,20 @@ Available on Xahau; Builder on testnet; JSHooks upcoming; WASM+guards vs EVM; EV
 Install WASM on Xahau account (CreateCode/HookHash). Not XRPL Mainnet.
 - **Chain:** xahau · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [SetHook Transaction](https://xahau.network/docs/hooks/concepts/sethook-transaction/) — Install WASM on Xahau account (CreateCode/HookHash). Not XRPL Mainnet.
 
 ### VM Matters — WASM VM vs EVM measurement · `concept` · · n/a
-WASM VM vs EVM measurement; Wasm≠EVM runtimes. Invent-enabled: 0. Invent Mainnet Hooks: 0.
+WASM VM vs EVM measurement; Wasm≠EVM runtimes. Invent Mainnet Hooks: 0.
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [VM Matters — Zheng et al., 2020 — arXiv:2012.01032](https://arxiv.org/abs/2012.01032) — WASM VM vs EVM measurement; Wasm≠EVM runtimes.
 
 ### Xahau Hooks / SetHook docs (Xahau L1 WASM) · `concept` · · n/a
-WASM Hooks on Xahau L1 (SetHook install); deliberately not Turing-complete — distinguish from XRPL EVM sidechain; invent-enabled: 0.
+WASM Hooks on Xahau L1 (SetHook install); deliberately not Turing-complete — distinguish from XRPL EVM sidechain
 - **Chain:** xahau · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-036 Verifier ✅; invent-enabled: 0
 - **Gotchas:** Xahau craft ≠ invent XRPL mainnet Hooks enablement. No funds.
@@ -301,7 +301,7 @@ WASM Hooks on Xahau L1 (SetHook install); deliberately not Turing-complete — d
 WASM+guards vs EVM bytecode. Holds: Wasm≠EVM. Limit: ≠ invent Mainnet Hooks.
 - **Chain:** xahau · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Xahau Hooks vs EVM](https://xahau.network/docs/hooks/) — WASM+guards vs EVM bytecode. Holds: Wasm≠EVM. Limit: ≠ invent Mainnet Hooks.
 
@@ -309,7 +309,7 @@ WASM+guards vs EVM bytecode. Holds: Wasm≠EVM. Limit: ≠ invent Mainnet Hooks.
 Xahau = smart-contract sidechain / rippled fork; Hooks on Xahau; evaluate XRPL mainnet Hooks later. Xahau ≠ invent Mainnet Hooks.
 - **Chain:** xahau · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-057 deepen; invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds
-- **Gotchas:** Do not invent Mainnet Hooks. Invent-enabled: 0. No mainnet. No funds.
+- **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Xahau Whitepaper](https://xahau.network/docs/resources/whitepaper/) — Xahau = smart-contract sidechain / rippled fork; Hooks on Xahau; evaluate XRPL mainnet Hooks later. Xahau ≠ invent Mainnet Hooks.
 

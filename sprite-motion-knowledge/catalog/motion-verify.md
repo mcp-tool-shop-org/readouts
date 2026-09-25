@@ -245,13 +245,13 @@ Analog: below ~48-60 Hz flicker/jerk is visible. Holds for JRPG frame-budget / h
 - **Sources:** [Flicker fusion threshold — frame budget analog](https://en.wikipedia.org/wiki/Flicker_fusion_threshold) — Analog: below ~48-60 Hz flicker/jerk is visible. Holds for JRPG frame-budget / hit-stop readability.
 
 ### GlitchBench — LMM game-glitch detection (Taesiri et al. 2023) · `situational` · paper
-**LMM game-glitch detection; jury/defect taxonomy — STUDY-058 deepen peer; flips 33/117/486: 0.**
-STUDY-058 Scholar deepen. Recipes invented: 0.
-- **For the pipeline:** STUDY-058 Verifier ✅. Flips 33/117/486: 0. Recipes invented: 0.
+**LMM game-glitch detection; jury/defect taxonomy — STUDY-058 deepen peer**
+STUDY-058 Scholar deepen.
+- **For the pipeline:** STUDY-058 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-058 leftover minus prism deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-058 deepen; flips 33/117/486: 0; recipes invented: 0 [no external verdict — not checked]
+- **Verify:** STUDY-058 deepen; [no external verdict — not checked]
 - **Sources:** [GlitchBench](https://arxiv.org/abs/2312.05291) — LMM game-glitch detection; jury/defect taxonomy.
 
 ### LLVM phi / SSA — cross-frame identity analog · `situational` · docs
@@ -289,9 +289,9 @@ Analog: deep-feature distance as perceptual similarity. Holds for frame-to-frame
 STUDY-037 Scholar deepen.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** comfy · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [LPIPS](https://arxiv.org/abs/1801.03924) — Deep features as perceptual metric.
 
 ### TLA stuttering steps — hit-stop analog · `situational` · docs
@@ -339,9 +339,9 @@ Analog: Bake Into Pose / feet-based root lock kill slide. Holds for root/anchor 
 STUDY-037 Analogist Verifier ✅ hold-with-limit.
 - **For the pipeline:** STUDY-037 Verifier ✅.
 - **Engine:** docs · **Applies to:** all-motion · **Base:** general · **Kind:** technique
-- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0; flips 33/117/486: 0.
+- **Output license:** commercial **check** (license: see-source) — STUDY-037 leftover craft deepen; verified=0
 - **Fit:** rig 4/5 · studio 4/5
-- **Verify:** STUDY-037 deepen; empty ACCEPT — do not invent-verify 33/117/486. [no external verdict — not checked]
+- **Verify:** STUDY-037 deepen; empty ACCEPT. [no external verdict — not checked]
 - **Sources:** [Unity Transform](https://docs.unity3d.com/Manual/class-Transform.html) — Parent-child rigid transform hierarchy.
 
 ### Optical-flow warping error for temporal coherence · `situational` · · community

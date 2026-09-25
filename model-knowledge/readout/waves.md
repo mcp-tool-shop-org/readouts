@@ -1,6 +1,6 @@
 # readouts — model-knowledge · wave dispatches
 
-> The research log: how this KB was built, wave by wave. 19 waves · generated 2026-09-14.
+> The research log: how this KB was built, wave by wave. 19 waves · generated 2026-09-25.
 
 ## Wave 0 — Local downloaded workflows (2026-06-02)
 

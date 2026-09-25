@@ -28,7 +28,7 @@ _The 4.2 Extensions platform, bundled pipeline add-ons, the bpy add-on API, enab
 ### Autodesk Bifrost — build/modify graphs · `✅ solid` · Blender 4.5 LTS
 **Left-to-right typed procedural graph for geometry compounds.**
 - **How:** Adjacent DCC graph craft; ≠ Realize Instances→glTF sprite bake.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Autodesk Bifrost — build/modify graphs](https://help.autodesk.com/cloudhelp/2026/ENU/Bifrost-Common/files/Bifrost_Common_build_a_graph_html.html) — Bifrost graph analog
@@ -80,7 +80,7 @@ The `-r user_default` specifies the local repository (use `blender --command ext
 ### Flamenco job types / manager blenderArgs -b · `✅ solid` · Blender 4.5 LTS
 **Studio render manager compiles Blend jobs with -b.**
 - **How:** Offline batch of turnaround blends; limit: shared-storage≠orbit logic.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Flamenco job types / manager blenderArgs -b](https://flamenco.blender.org/usage/job-types/) — Flamenco -b jobs
@@ -88,7 +88,7 @@ The `-r user_default` specifies the local repository (use `blender --command ext
 ### Flamenco manager configuration · `✅ solid` · Blender 4.5 LTS
 **Manager config for Flamenco workers/jobs.**
 - **How:** Companion to job-types; pin 4.x blends.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Flamenco manager configuration](https://flamenco.blender.org/usage/manager-configuration/) — Flamenco manager
@@ -104,7 +104,7 @@ The `-r user_default` specifies the local repository (use `blender --command ext
 ### GenioPlus — 8-dir turntable sprite analog · `✅ solid` · Blender 4.5 LTS
 **8-direction sprite sheets; camera orbits.**
 - **How:** 8-dir turntable analog for sprite orbit craft.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [GenioPlus — 8-dir turntable sprite analog](https://genioplus.com/en/workspace/3d-to-sprite) — 8-dir turntable
@@ -112,7 +112,7 @@ The `-r user_default` specifies the local repository (use `blender --command ext
 ### Houdini SOP networks — procedural graph analog · `✅ solid` · Blender 4.5 LTS
 **Wired procedural geometry graph generate→modify→display.**
 - **How:** Holds for GN with DCC limits; not bpy 8-dir farm substitute.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Houdini SOP networks — procedural graph analog](https://www.sidefx.com/docs/houdini/nodes/sop/) — Houdini SOP analog
@@ -120,7 +120,7 @@ The `-r user_default` specifies the local repository (use `blender --command ext
 ### Pixar Tractor tractor-spool -c · `✅ solid` · Blender 4.5 LTS
 **Spool a single CLI command to farm blades.**
 - **How:** Adjacent farm CLI batch; limit: prman≠EEVEE/Cycles choice.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Pixar Tractor tractor-spool -c](https://renderman.atlassian.net/wiki/spaces/TRA/pages/22184276/tractor-spool) — Tractor spool
@@ -128,7 +128,7 @@ The `-r user_default` specifies the local repository (use `blender --command ext
 ### Substance 3D Designer — graph view · `✅ solid` · Blender 4.5 LTS
 **Node graph + exposed params → reusable SBSAR.**
 - **How:** Procedural graph mindset; texture≠mesh GN sprite bake.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Substance 3D Designer — graph view](https://experienceleague.adobe.com/en/docs/substance-3d-designer/using/workspace/graph-view/the-graph-view) — Substance graph analog
@@ -136,7 +136,7 @@ The `-r user_default` specifies the local repository (use `blender --command ext
 ### Thinkbox Deadline — SubmitCommandLineJob · `✅ solid` · Blender 4.5 LTS
 **Farm wraps headless executable + frame range into tasks.**
 - **How:** Holds for queueing blender -b -P; limit: pools≠orbit script.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. ProcFunc (176) stays verified=0. Live GP headless needs bake (T85546).
 - **For Studio:** Headless blender -b -P farm; EEVEE_NEXT needs EGL/ICD; bake GP first.
 - **Verify (solid):** STUDY-027 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Thinkbox Deadline — SubmitCommandLineJob](https://docs.thinkboxsoftware.com/products/deadline/10.4/1_User%20Manual/manual/command-line-arguments-jobs.html) — Deadline CLI jobs
@@ -144,7 +144,7 @@ The `-r user_default` specifies the local repository (use `blender --command ext
 ### Vector vs raster in game art — Sunstrike · `✅ solid` · Blender 4.5 LTS
 **Author vector, export bitmaps/sprite sheets/SDF.**
 - **How:** GP/Freestyle authoring-time vector; output raster PNG atlas.
-- **Gotchas:** Pin 4.x. Invented 5.x: 0. Live GP headless needs bake (T85546).
+- **Gotchas:** Pin 4.x. Live GP headless needs bake (T85546).
 - **For Studio:** 4.x GN/GP/Line Art craft for 2.5D sprite/NPR; bake GP before blender -b.
 - **Verify (solid):** STUDY-026 Verifier ✅; pin 4.x [no external verdict — not checked]
 - **Sources:** [Vector vs raster in game art — Sunstrike](https://sunstrikestudios.com/en/blog/vector_vs_raster_in_game_art/) — Vector→raster game practice

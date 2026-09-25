@@ -1,6 +1,6 @@
 # readouts — tensor-engine-knowledge · wave dispatches
 
-> The research log: how this KB was built, wave by wave. 17 waves · generated 2026-09-14.
+> The research log: how this KB was built, wave by wave. 17 waves · generated 2026-09-25.
 
 ## Wave 1 — Foundation — best tensor / inference / training engines per lane (2026-06-02)
 

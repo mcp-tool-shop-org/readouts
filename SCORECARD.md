@@ -40,8 +40,13 @@
 | A. Security | 3/10 | 9/10 |
 | B. Error Handling | 5/10 | 9/10 |
 | C. Operator Docs | 5/10 | 10/10 |
-| D. Shipping Hygiene | 4/10 | 8/10 |
+| D. Shipping Hygiene | 4/10 | 10/10 |
 | E. Identity (soft) | 1/10 | 10/10 |
-| **Overall** | 18/50 | 46/50 |
+| **Overall** | 18/50 | 48/50 |
 
-Not yet 50: the exposed data is gone from `main` but still sits in the two earlier commits until the history is rewritten, and Dependabot alerts are a repository setting for the owner.
+Re-scored 2026-09-25 after the history rewrite and with Dependabot alerts on; `shipcheck audit` passes every item.
+
+Not yet 50:
+
+- **Security (9).** The rewrite took the exposed data off every ref: `main` is a single commit, and there is no other branch, tag or pull ref. GitHub still serves the two pre-rewrite commits to anyone holding their SHA, until it garbage-collects them. Asking GitHub Support to purge them is the owner's step.
+- **Error handling (9).** `verify.py` reports a code and a hint for every finding. The loaders and generators still end in a raw traceback on bad input; a missing wave file, for one, raises `FileNotFoundError`.

@@ -159,40 +159,40 @@ XRP is the XRP Ledger's native asset, created at genesis with a fixed maximum su
 Models amendment activation thresholds; not an enablement claim for any XLS.
 - **Chain:** off-ledger · **Maturity:** stable · **Use:** situational
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Paper/theory only. Do not invent-enabled. No mainnet. No funds.
-- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (do not invent-enabled; STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds. Do not flip 915/916.
+- **Gotchas:** Paper/theory only. No mainnet. No funds.
+- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds.
 - **Sources:** [Amendment Activation Dynamics (XRPL governance modeling)](https://arxiv.org/abs/2608.26380) — Models amendment activation thresholds; not an enablement claim for any XLS.
 
 ### Asynchronous Absolute Agreement (Cachin–Tackmann) · `concept` · · n/a ✓
 Absolute agreement under asynchrony; frames XRPL uniqueness claims.
 - **Chain:** off-ledger · **Maturity:** stable · **Use:** situational
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Paper/theory only. Do not invent-enabled. No mainnet. No funds.
-- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (do not invent-enabled; STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds. Do not flip 915/916.
+- **Gotchas:** Paper/theory only. No mainnet. No funds.
+- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds.
 - **Sources:** [Asynchronous Absolute Agreement (Cachin–Tackmann)](https://arxiv.org/abs/2011.14816) — Absolute agreement under asynchrony; frames XRPL uniqueness claims.
 
 ### Asynchronous Byzantine Reliable Broadcast (Cachin–Tackmann) · `concept` · · n/a ✓
 Async reliable broadcast under Byzantine faults; adjacent to XRPL messaging assumptions.
 - **Chain:** off-ledger · **Maturity:** stable · **Use:** situational
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Paper/theory only. Do not invent-enabled. No mainnet. No funds.
-- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (do not invent-enabled; STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds. Do not flip 915/916.
+- **Gotchas:** Paper/theory only. No mainnet. No funds.
+- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds.
 - **Sources:** [Asynchronous Byzantine Reliable Broadcast (Cachin–Tackmann)](https://arxiv.org/abs/1802.07242) — Async reliable broadcast under Byzantine faults; adjacent to XRPL messaging assumptions.
 
 ### Consensus Finality Bounds under Partial Synchrony · `concept` · · n/a ✓
 Finality/latency bounds under partial synchrony; maps to XRPL ledger close.
 - **Chain:** off-ledger · **Maturity:** stable · **Use:** situational
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Paper/theory only. Do not invent-enabled. No mainnet. No funds.
-- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (do not invent-enabled; STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds. Do not flip 915/916.
+- **Gotchas:** Paper/theory only. No mainnet. No funds.
+- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds.
 - **Sources:** [Consensus Finality Bounds under Partial Synchrony](https://arxiv.org/abs/2301.10209) — Finality/latency bounds under partial synchrony; maps to XRPL ledger close.
 
 ### Federated Byzantine Agreement Systems (Cachin–Tackmann) · `concept` · · n/a ✓
 Defines FBAS; XRPL-style consensus is an FBAS instance.
 - **Chain:** off-ledger · **Maturity:** stable · **Use:** situational
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Paper/theory only. Do not invent-enabled. No mainnet. No funds.
-- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (do not invent-enabled; STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds. Do not flip 915/916.
+- **Gotchas:** Paper/theory only. No mainnet. No funds.
+- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds.
 - **Sources:** [Federated Byzantine Agreement Systems (Cachin–Tackmann)](https://arxiv.org/abs/1802.07240) — Defines FBAS; XRPL-style consensus is an FBAS instance.
 
 ### Negative UNL · `concept` · ● live ✓
@@ -208,169 +208,169 @@ The Negative UNL is a liveness feature that lets the network keep validating led
 Formal treatment of Ripple/XRPL consensus safety/liveness assumptions.
 - **Chain:** off-ledger · **Maturity:** stable · **Use:** situational
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Paper/theory only. Do not invent-enabled. No mainnet. No funds.
-- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (do not invent-enabled; STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds. Do not flip 915/916.
+- **Gotchas:** Paper/theory only. No mainnet. No funds.
+- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds.
 - **Sources:** [Ripple Consensus: Theory & Formalization (Chase–MacBrough lineage)](https://arxiv.org/abs/2205.00869) — Formal treatment of Ripple/XRPL consensus safety/liveness assumptions.
 
 ### UNL Topology & Quorum Overlap (XRPL consensus topology) · `concept` · · n/a ✓
 UNL graph / quorum intersection implications for XRPL validators.
 - **Chain:** off-ledger · **Maturity:** stable · **Use:** situational
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Paper/theory only. Do not invent-enabled. No mainnet. No funds.
-- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (do not invent-enabled; STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds. Do not flip 915/916.
+- **Gotchas:** Paper/theory only. No mainnet. No funds.
+- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds.
 - **Sources:** [UNL Topology & Quorum Overlap (XRPL consensus topology)](https://arxiv.org/abs/2511.05362) — UNL graph / quorum intersection implications for XRPL validators.
 
 ### Validator Incentive & UNL Economics · `concept` · · n/a ✓
 Incentive analysis for UNL operators; off-ledger economics.
 - **Chain:** off-ledger · **Maturity:** stable · **Use:** situational
 - **Key fields / API:** STUDY-010 Verifier-pass; network_status n/a (do not invent-enabled)
-- **Gotchas:** Paper/theory only. Do not invent-enabled. No mainnet. No funds.
-- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (do not invent-enabled; STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds. Do not flip 915/916.
+- **Gotchas:** Paper/theory only. No mainnet. No funds.
+- **Verify:** cross-family(study-010-verifier-pass)=confirmed | net-check: n/a (STUDY-020) | currency=2026-09 | STUDY-010 Verifier retrieval-pass. No mainnet. No funds.
 - **Sources:** [Validator Incentive & UNL Economics](https://arxiv.org/abs/2505.19216) — Incentive analysis for UNL operators; off-ledger economics.
 
 ### Amendments (concept) · `concept` · ◐ pending
->80% trusted validators for two weeks → enable; drop below 80% restarts clock; amendment-blocked if enabled+unsupported. Process honesty — does not name which Mainnet features are live. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+>80% trusted validators for two weeks → enable; drop below 80% restarts clock; amendment-blocked if enabled+unsupported. Process honesty — does not name which Mainnet features are live. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Amendments (concept)](https://xrpl.org/docs/concepts/networks-and-servers/amendments) — >80% trusted validators for two weeks → enable; drop below 80% restarts clock; amendment-blocked if enabled+unsupported. Process honesty — does not name which Mainnet features are live.
 
 ### Amendments ledger entry · `concept` · ◐ pending
 `Amendments` array = currently enabled IDs; `Majorities` = pending with majority support not yet enabled (`Amendment` + `CloseTime`). Page: ≥2 weeks in Majorities → EnableAmendment no-flags moves to A Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Amendments ledger entry](https://xrpl.org/docs/references/protocol/ledger-data/ledger-entry-types/amendments) — `Amendments` array = currently enabled IDs; `Majorities` = pending with majority support not yet enabled (`Amendment` + `CloseTime`). Page: ≥2 weeks in Majorities → EnableAmendment no-flags moves to A
 
 ### Bitcoin, a DAO? · `concept` · ◐ pending
-BIP9/BIP8 + UASF pending signaling before de facto live. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+BIP9/BIP8 + UASF pending signaling before de facto live. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Bitcoin, a DAO?](https://arxiv.org/abs/2504.20838) — BIP9/BIP8 + UASF pending signaling before de facto live.
 
 ### Blockchain Governance Framework · `concept` · ◐ pending
-Dash >80% client delay; Tezos phases — shipped≠enabled. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+Dash >80% client delay; Tezos phases — shipped≠enabled. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Blockchain Governance Framework](https://arxiv.org/abs/2110.13374) — Dash >80% client delay; Tezos phases — shipped≠enabled.
 
 ### Canarying Releases · `concept` · ◐ pending
-Analog: subset production probe before full roll. Holds as gradual-gate class adjacent to pending windows. Limit: % canary ≠ XRPL all-or-nothing EnableAmendment. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+Analog: subset production probe before full roll. Holds as gradual-gate class adjacent to pending windows. Limit: % canary ≠ XRPL all-or-nothing EnableAmendment. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Canarying Releases](https://sre.google/workbook/canarying-releases/) — Analog: subset production probe before full roll. Holds as gradual-gate class adjacent to pending windows. Limit: % canary ≠ XRPL all-or-nothing EnableAmendment.
 
 ### Cardano Voltaire · `concept` · ◐ pending
-Hard-fork waits SPO readiness; insufficient nullifies. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+Hard-fork waits SPO readiness; insufficient nullifies. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Cardano Voltaire](https://arxiv.org/abs/2607.11601) — Hard-fork waits SPO readiness; insufficient nullifies.
 
 ### Chrome Origin Trials · `concept` · ◐ pending
-Analog: token-scoped experimental access ≠ stable for everyone. Holds for experiment lanes ≠ Mainnet-live. Limit: origin tokens ≠ ledger votes. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+Analog: token-scoped experimental access ≠ stable for everyone. Holds for experiment lanes ≠ Mainnet-live. Limit: origin tokens ≠ ledger votes. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Chrome Origin Trials](https://developer.chrome.com/docs/web-platform/origin-trials) — Analog: token-scoped experimental access ≠ stable for everyone. Holds for experiment lanes ≠ Mainnet-live. Limit: origin tokens ≠ ledger votes.
 
 ### Cobalt · `concept` · ◐ pending
-Amendments as DABC with explicit activation time; pending ≠ live. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+Amendments as DABC with explicit activation time; pending ≠ live. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Cobalt](https://arxiv.org/abs/1802.07240) — Amendments as DABC with explicit activation time; pending ≠ live.
 
 ### Coinbugs · `concept` · ◐ pending
-MASF/UASF/flag-day; Loading≠enabled activation consistency. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+MASF/UASF/flag-day; Loading≠enabled activation consistency. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Coinbugs](https://arxiv.org/abs/2104.06540) — MASF/UASF/flag-day; Loading≠enabled activation consistency.
 
 ### Configure Amendment Voting · `concept` · ◐ pending
-Admin `feature` + `vetoed` / `[rpc_startup]` sets validator votes. Vote config ≠ Mainnet-enabled flip. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+Admin `feature` + `vetoed` / `[rpc_startup]` sets validator votes. Vote config ≠ Mainnet-enabled flip. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Configure Amendment Voting](https://xrpl.org/docs/infrastructure/configuration/configure-amendment-voting) — Admin `feature` + `vetoed` / `[rpc_startup]` sets validator votes. Vote config ≠ Mainnet-enabled flip.
 
 ### EnableAmendment · `concept` · ◐ pending
-Flags `0`/omitted = amendment **enabled**; `tfGotMajority` / `tfLostMajority` = supermajority gain/loss only — not yet enabled. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+Flags `0`/omitted = amendment **enabled**; `tfGotMajority` / `tfLostMajority` = supermajority gain/loss only — not yet enabled. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [EnableAmendment](https://xrpl.org/docs/references/protocol/transactions/pseudo-transaction-types/enableamendment) — Flags `0`/omitted = amendment **enabled**; `tfGotMajority` / `tfLostMajority` = supermajority gain/loss only — not yet enabled.
 
 ### feature (admin) · `concept` · ◐ pending
-Same `enabled`/`supported` plus `vetoed` (vote against / Obsolete). Vote configure persists; vote ≠ invent-enabled. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+Same `enabled`/`supported` plus `vetoed` (vote against / Obsolete). Vote configure persists; vote ≠ invent-enabled. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [feature (admin)](https://xrpl.org/docs/references/http-websocket-apis/admin-api-methods/status-and-debugging-methods/feature) — Same `enabled`/`supported` plus `vetoed` (vote against / Obsolete). Vote configure persists; vote ≠ invent-enabled.
 
 ### feature (public) · `concept` · ◐ pending
 Returns amendments this server knows: `enabled` (bool: currently enabled in latest ledger), `supported` (bool: server can apply). Example MultiSign `enabled:false`. Status API — not a Mainnet enable c Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [feature (public)](https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/server-info-methods/feature) — Returns amendments this server knows: `enabled` (bool: currently enabled in latest ledger), `supported` (bool: server can apply). Example MultiSign `enabled:false`. Status API — not a Mainnet enable c
 
 ### Feature Toggles (Release / Experiment / Canary) · `concept` · ◐ pending
-Analog: release toggles gate incomplete work; canary ≠ GA. Holds for amendment-pending craft staying out of live shortlists. Limit: app toggles ≠ UNL consensus flip. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+Analog: release toggles gate incomplete work; canary ≠ GA. Holds for amendment-pending craft staying out of live shortlists. Limit: app toggles ≠ UNL consensus flip. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Feature Toggles (Release / Experiment / Canary)](https://martinfowler.com/articles/feature-toggles.html) — Analog: release toggles gate incomplete work; canary ≠ GA. Holds for amendment-pending craft staying out of live shortlists. Limit: app toggles ≠ UNL consensus flip.
 
 ### Forks & Coordination · `concept` · ◐ pending
-Hard/soft fork coordination; signaling ≠ completed change. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+Hard/soft fork coordination; signaling ≠ completed change. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Forks & Coordination](https://arxiv.org/abs/2102.10006) — Hard/soft fork coordination; signaling ≠ completed change.
 
 ### Known Amendments · `concept` · ◐ pending
 Mainnet Status UI: **"Loading amendments..."**. Per-amendment Status often **Loading...**. Amendments in Development (manual): InvariantsV1_1, MPTokensV2, SmartEscrow, LendingProtocolV1_1. Batch→Batch Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Known Amendments](https://xrpl.org/resources/known-amendments) — Mainnet Status UI: **"Loading amendments..."**. Per-amendment Status often **Loading...**. Amendments in Development (manual): InvariantsV1_1, MPTokensV2, SmartEscrow, LendingProtocolV1_1. Batch→Batch
 
 ### Kubernetes Feature Gates (Alpha) · `concept` · ◐ pending
-Analog: Alpha default-disabled until graduated. Holds for amendment-pending / in-dev IDs. Limit: admin flip ≠ XRPL unilateral enable. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+Analog: Alpha default-disabled until graduated. Holds for amendment-pending / in-dev IDs. Limit: admin flip ≠ XRPL unilateral enable. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Kubernetes Feature Gates (Alpha)](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/) — Analog: Alpha default-disabled until graduated. Holds for amendment-pending / in-dev IDs. Limit: admin flip ≠ XRPL unilateral enable.
 
 ### ledger_entry Amendments · `concept` · ◐ pending
-`amendments: true` retrieves Amendments entry: "list of all enabled amendments on the network." Live query surface for enabled IDs — do not invent without calling (no execute here). Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+`amendments: true` retrieves Amendments entry: "list of all enabled amendments on the network." Live query surface for enabled IDs. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
-- **Sources:** [ledger_entry Amendments](https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/ledger-methods/ledger_entry) — `amendments: true` retrieves Amendments entry: "list of all enabled amendments on the network." Live query surface for enabled IDs — do not invent without calling (no execute here).
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
+- **Sources:** [ledger_entry Amendments](https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/ledger-methods/ledger_entry) — `amendments: true` retrieves Amendments entry: "list of all enabled amendments on the network." Live query surface for enabled IDs.
 
 ### Lending Protocol & Single Asset Vaults · `amendment` · ◐ pending ✓
 The Lending Protocol (XLS-66) is a native DeFi primitive for on-chain, fixed-term, currently uncollateralized loans funded from pooled liquidity in a Single Asset Vault (XLS-65). Vaults let managers pool one asset with permissioning; the lending layer adds term loans with automated repayment, targeting institutional credit/yield. The amendments entered validator voting in late January 2026 (after v3.1.0) and have been progressively hardened on mainnet (fixCleanup3_1_3, enabled 2026-05-27, shipped vault/lending fixes), but as of mid-2026 builders must verify whether LendingProtocol itself has crossed the 80%/2-week threshold to fully enabled.
@@ -382,11 +382,11 @@ The Lending Protocol (XLS-66) is a native DeFi primitive for on-chain, fixed-ter
 - **Sources:** [XRPL's New Lending Protocol Could Attract Institutional Capital](https://finance.yahoo.com/news/xrpl-lending-protocol-could-attract-164620885.html) — The XRPL Lending Protocol (XLS-66) entered validator voting on 2026-01-28 following the v3.1.0 release, enabling fixed-term loans from Single Asset Vault pooled funds. ; [XLS-0065: Single Asset Vault](https://github.com/XRPLF/XRPL-Standards/tree/master/XLS-0065-single-asset-vault) — XLS-65 defines a Single Asset Vault that pools one asset with permissioning to back the Lending Protocol. ; [XRP Ledger Upgrade 3.1.3 Goes Live on Mainnet](https://coingape.com/xrp-ledger-upgrade-3-1-3-goes-live-on-mainnet-with-major-node-adoption/) — v3.1.3 went live on mainnet 2026-05-27 with fixCleanup3_1_3 enabled, delivering fixes across NFTs, Permissioned Domains, Vaults, and the Lending Protocol.
 
 ### Parallel Networks · `concept` · ◐ pending
-Analog: Devnet holds experimental amendments not yet Mainnet; Testnet mirrors. Holds: **Loading/Devnet ≠ Mainnet-shipped**. Limit: altnet ≠ invent-enabled on Mainnet. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+Analog: Devnet holds experimental amendments not yet Mainnet; Testnet mirrors. Holds: **Loading/Devnet ≠ Mainnet-shipped**. Limit: altnet ≠ invent-enabled on Mainnet. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Parallel Networks](https://xrpl.org/docs/concepts/networks-and-servers/parallel-networks) — Analog: Devnet holds experimental amendments not yet Mainnet; Testnet mirrors. Holds: **Loading/Devnet ≠ Mainnet-shipped**. Limit: altnet ≠ invent-enabled on Mainnet.
 
 ### Permissioned Domains · `amendment` · ● live ✓
@@ -399,15 +399,15 @@ PermissionedDomains creates rule-based, credential-gated environments on the pub
 - **Sources:** [Ripple's permissioned domains go live on XRPL mainnet](https://www.thecoinrepublic.com/2026/02/04/xrp-ledger-xrpl-to-launch-permission-domain-amendment-in-hours-details/) — The PermissionedDomains amendment was enabled on XRPL mainnet on 2026-02-04 with more than 91% validator support, gating activity via rule-based credentials. ; [Known Amendments](https://xrpl.org/resources/known-amendments) — PermissionedDomains and Credentials are listed among XRPL amendments enabled on mainnet.
 
 ### Ripple Consensus Security · `concept` · ◐ pending
-Safety/liveness under UNL/Byzantine; running ≠ feature-safe. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+Safety/liveness under UNL/Byzantine; running ≠ feature-safe. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [Ripple Consensus Security](https://arxiv.org/abs/2011.14816) — Safety/liveness under UNL/Byzantine; running ≠ feature-safe.
 
 ### Transactional statistics of high-scalability chains (Perez et al. 2020) · `concept` · · n/a
-Empirical throughput/usage across high-scalability chains including XRPL — invent-enabled: 0.
+Empirical throughput/usage across high-scalability chains including XRPL.
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-036 Verifier ✅; invent-enabled: 0
 - **Gotchas:** Measured statistics ≠ status flips. No funds.
@@ -418,31 +418,31 @@ Empirical throughput/usage across high-scalability chains including XRPL — inv
 Speedy Trial signaling≠enforcing; K8s Alpha default-off; Chrome Origin Trials experiment≠stable — hold-with-limit for amendment-pending.
 - **Chain:** off-ledger · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-036 Verifier ✅; invent-enabled: 0
-- **Gotchas:** invent-enabled: 0. Pending ≠ mainnet-live. No funds.
+- **Gotchas:** Pending ≠ mainnet-live. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Bitcoin Speedy Trial PR #21377](https://github.com/bitcoin/bitcoin/pull/21377) — STARTED→LOCKED_IN→ACTIVE; signaling ≠ enforcing. ; [Kubernetes feature gates](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/) — Alpha disabled by default. ; [Chrome Origin Trials](https://developer.chrome.com/docs/web-platform/origin-trials) — Token-scoped experiment ≠ stable.
 
 ### XRPL Amendments process · `concept` · ◐ pending
-Analog: >80% support for two weeks → EnableAmendment; majority signaling ≠ already enabled. Holds: **pending ≠ enabled**. Limit: docs ≠ live `feature` bit (re-check); invent-enabled: 0. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+Analog: >80% support for two weeks → EnableAmendment; majority signaling ≠ already enabled. Holds: **pending ≠ enabled**. Limit: docs ≠ live `feature` bit (re-check); Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
-- **Sources:** [XRPL Amendments process](https://xrpl.org/docs/concepts/networks-and-servers/amendments) — Analog: >80% support for two weeks → EnableAmendment; majority signaling ≠ already enabled. Holds: **pending ≠ enabled**. Limit: docs ≠ live `feature` bit (re-check); invent-enabled: 0.
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
+- **Sources:** [XRPL Amendments process](https://xrpl.org/docs/concepts/networks-and-servers/amendments) — Analog: >80% support for two weeks → EnableAmendment; majority signaling ≠ already enabled. Holds: **pending ≠ enabled**. Limit: docs ≠ live `feature` bit (re-check)
 
 ### XRPL Consensus · `concept` · ◐ pending
-UNL safety; no Known Amendment invent-enabled. Invent-enabled: 0. Loading≠enabled. Pending≠enabled.
+UNL safety; no Known Amendment invent-enabled. Loading≠enabled. Pending≠enabled.
 - **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
 - **Key fields / API:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds
-- **Gotchas:** Do not flip amendment-pending → live. Do not invent enabled. No mainnet. No funds.
-- **Verify:** STUDY-056 deepen; invent-enabled: 0; no mainnet; no funds; Loading≠enabled
+- **Gotchas:** No mainnet. No funds.
+- **Verify:** STUDY-056 deepen; no mainnet; no funds; Loading≠enabled
 - **Sources:** [XRPL Consensus](https://arxiv.org/abs/1802.07242) — UNL safety; no Known Amendment invent-enabled.
 
 ### BatchV1_1 / PermissionDelegationV1_1 Known Amendments note (process) · `concept` · ◐ pending
 Known Amendments: Batch disabled in v3.1.1 replaced by BatchV1_1 (XLS-56); PermissionDelegation → PermissionDelegationV1_1 (XLS-75). Loading UI ≠ enabled.
 - **Chain:** xrpl-mainnet · **XLS:** XLS-56|XLS-75 · **Amendment:** BatchV1_1|PermissionDelegationV1_1 · **Maturity:** experimental · **Use:** situational
 - **Key fields / API:** STUDY-036 Verifier ✅; invent-enabled: 0
-- **Gotchas:** Process note only. Do NOT flip amendment-pending to mainnet-live. invent-enabled: 0. No funds.
+- **Gotchas:** Process note only. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Known Amendments](https://xrpl.org/resources/known-amendments) — BatchV1_1 and PermissionDelegationV1_1 replacements; Loading ≠ enabled.
 
