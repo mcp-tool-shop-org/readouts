@@ -2,6 +2,16 @@
 
 Notable changes to the published corpus. The format follows [Keep a Changelog](https://keepachangelog.com/). readouts has no version numbers: it is a rolling corpus, so each entry is a dated publication, and the commit on `main` is its identifier.
 
+## 2026-09-25 (third publication)
+
+### Fixed
+
+- Sixteen source links in godot-knowledge and vocology-knowledge pointed at the private working repository, so every reader who followed one got a 404. They came from the two count-audit waves (godot STUDY-065, vocology STUDY-064) and had spread into the catalog pages and databases built from them. Each now points at the same file in this repository, or, for the one folder, at its tree view. No entry, verdict or verified flag changed.
+
+### Added
+
+- A fifth export gate halts on any URL into the private working repository, in any file or database cell. Text that merely names the repository still passes. The gate fails on the previous publication's tree (48 hits across waves, catalogs and databases) and passes on this one.
+
 ## 2026-09-25 (second publication)
 
 ### Changed

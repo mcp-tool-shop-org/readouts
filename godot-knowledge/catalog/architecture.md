@@ -112,56 +112,56 @@ _Godot 4 scene/node composition, autoload singletons, signals/event-bus, the Res
 - **How:** Catalog/README count honesty deepen
 - **Gotchas:** STUDY-065.
 - **Verify (shaky):** STUDY-065; default unverified [no external verdict — not checked]
-- **Sources:** [Gaps — counts align; no flips this pack](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/godot-knowledge/README.md) — README Status 155 · 88/155 · 6 waves matches DB + lane sums; 37/42/49 remain flip-cap leftovers.
+- **Sources:** [Gaps — counts align; no flips this pack](https://github.com/mcp-tool-shop-org/readouts/blob/main/godot-knowledge/README.md) — README Status 155 · 88/155 · 6 waves matches DB + lane sums; 37/42/49 remain flip-cap leftovers.
 
 ### catalog Flagged table leftovers 37/42/49 · `⚠ shaky` · Godot 4.x
 **Rows for ids 37/42/49 appear as shaky with note flips 37/42/49: 0 (not flipped to verified).**
 - **How:** Catalog/README count honesty deepen
 - **Gotchas:** STUDY-065.
 - **Verify (shaky):** STUDY-065; default unverified [no external verdict — not checked]
-- **Sources:** [catalog Flagged table leftovers 37/42/49](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/godot-knowledge/catalog/README.md) — Rows for ids 37/42/49 appear as shaky with note flips 37/42/49: 0 (not flipped to verified).
+- **Sources:** [catalog Flagged table leftovers 37/42/49](https://github.com/mcp-tool-shop-org/readouts/blob/main/godot-knowledge/catalog/README.md) — Rows for ids 37/42/49 appear as shaky with note flips 37/42/49: 0 (not flipped to verified).
 
 ### godot catalog/README generated lane sums · `⚠ shaky` · Godot 4.x
 **155 recipes · 88 verified; NEVER hand-edited; By-lane 14+29+17+33+20+42=155; Verified 11+26+9+8+8+26=88; Solid 10+23+8+6+8+25=80.**
 - **How:** Catalog/README count honesty deepen
 - **Gotchas:** STUDY-065.
 - **Verify (shaky):** STUDY-065; default unverified [no external verdict — not checked]
-- **Sources:** [godot catalog/README generated lane sums](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/godot-knowledge/catalog/README.md) — 155 recipes · 88 verified; NEVER hand-edited; By-lane 14+29+17+33+20+42=155; Verified 11+26+9+8+8+26=88; Solid 10+23+8+6+8+25=80.
+- **Sources:** [godot catalog/README generated lane sums](https://github.com/mcp-tool-shop-org/readouts/blob/main/godot-knowledge/catalog/README.md) — 155 recipes · 88 verified; NEVER hand-edited; By-lane 14+29+17+33+20+42=155; Verified 11+26+9+8+8+26=88; Solid 10+23+8+6+8+25=80.
 
 ### godot-knowledge README Status catalog counts · `⚠ shaky` · Godot 4.x
 **Catalog 155 · 88/155 · 6 waves; wave 5 = 23 recipes verified=0; wave 6 = 22 recipes verified=0.**
 - **How:** Catalog/README count honesty deepen
 - **Gotchas:** STUDY-065.
 - **Verify (shaky):** STUDY-065; default unverified [no external verdict — not checked]
-- **Sources:** [godot-knowledge README Status catalog counts](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/godot-knowledge/README.md) — Catalog 155 · 88/155 · 6 waves; wave 5 = 23 recipes verified=0; wave 6 = 22 recipes verified=0.
+- **Sources:** [godot-knowledge README Status catalog counts](https://github.com/mcp-tool-shop-org/readouts/blob/main/godot-knowledge/README.md) — Catalog 155 · 88/155 · 6 waves; wave 5 = 23 recipes verified=0; wave 6 = 22 recipes verified=0.
 
 ### godot.db recipe and verified counts · `⚠ shaky` · Godot 4.x
 **recipes 155; verified=1 88 / verified=0 67; waves 6; categories 6; sources 259.**
 - **How:** Catalog/README count honesty deepen
 - **Gotchas:** STUDY-065.
 - **Verify (shaky):** STUDY-065; default unverified [no external verdict — not checked]
-- **Sources:** [godot.db recipe and verified counts](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/godot-knowledge/godot.db) — recipes 155; verified=1 88 / verified=0 67; waves 6; categories 6; sources 259.
+- **Sources:** [godot.db recipe and verified counts](https://github.com/mcp-tool-shop-org/readouts/blob/main/godot-knowledge/godot.db) — recipes 155; verified=1 88 / verified=0 67; waves 6; categories 6; sources 259.
 
 ### scripts/gen_catalog.py never hand-edit · `⚠ shaky` · Godot 4.x
 **Generate catalog/*.md from godot.db; NEVER hand-edit catalog/; currency map solid/plausible/shaky/godot3_stale/wrong.**
 - **How:** Catalog/README count honesty deepen
 - **Gotchas:** STUDY-065.
 - **Verify (shaky):** STUDY-065; default unverified [no external verdict — not checked]
-- **Sources:** [scripts/gen_catalog.py never hand-edit](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/godot-knowledge/scripts/gen_catalog.py) — Generate catalog/*.md from godot.db; NEVER hand-edit catalog/; currency map solid/plausible/shaky/godot3_stale/wrong.
+- **Sources:** [scripts/gen_catalog.py never hand-edit](https://github.com/mcp-tool-shop-org/readouts/blob/main/godot-knowledge/scripts/gen_catalog.py) — Generate catalog/*.md from godot.db; NEVER hand-edit catalog/; currency map solid/plausible/shaky/godot3_stale/wrong.
 
 ### wave-05 STUDY-044 dispatch flip-cap · `⚠ shaky` · Godot 4.x
 **Deepen leftovers 37/42/49; (hard); leave recipes 37/42/49 verified=0.**
 - **How:** Catalog/README count honesty deepen
 - **Gotchas:** STUDY-065.
 - **Verify (shaky):** STUDY-065; default unverified [no external verdict — not checked]
-- **Sources:** [wave-05 STUDY-044 dispatch flip-cap](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/godot-knowledge/waves/wave-05-study-044-leftover-deepen/dispatch.md) — Deepen leftovers 37/42/49; (hard); leave recipes 37/42/49 verified=0.
+- **Sources:** [wave-05 STUDY-044 dispatch flip-cap](https://github.com/mcp-tool-shop-org/readouts/blob/main/godot-knowledge/waves/wave-05-study-044-leftover-deepen/dispatch.md) — Deepen leftovers 37/42/49; (hard); leave recipes 37/42/49 verified=0.
 
 ### wave-06 STUDY-045 dispatch APIs invented 0 · `⚠ shaky` · Godot 4.x
 **— no YSort node / bare Light2D / Godot-3 TileMap.**
 - **How:** Catalog/README count honesty deepen
 - **Gotchas:** STUDY-065.
 - **Verify (shaky):** STUDY-065; default unverified [no external verdict — not checked]
-- **Sources:** [wave-06 STUDY-045 dispatch APIs invented 0](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/godot-knowledge/waves/wave-06-study-045-25d-lighting/dispatch.md) — — no YSort node / bare Light2D / Godot-3 TileMap.
+- **Sources:** [wave-06 STUDY-045 dispatch APIs invented 0](https://github.com/mcp-tool-shop-org/readouts/blob/main/godot-knowledge/waves/wave-06-study-045-25d-lighting/dispatch.md) — — no YSort node / bare Light2D / Godot-3 TileMap.
 
 ### Godot 4.7.2 maintenance release · `?` · Godot 4.7.2
 **Current stable is Godot 4.7.2 (maintenance of the 4.7 line); not a 5.x cut.**

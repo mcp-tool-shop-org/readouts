@@ -98,7 +98,7 @@ _auto-created from wave lane_ · wave 13 · 2026-09-14 · [‹ catalog index](RE
 - **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `file://vocology-knowledge/gaps-accept-flip-cap`
 - **Verify:** no external verdict — not yet swept
-- **Sources:** [Gaps: ACCEPT 23/30/50 flip-cap only; Flips beyond ACCEPT: 0; Nodes: 0](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/vocology-knowledge/README.md)
+- **Sources:** [Gaps: ACCEPT 23/30/50 flip-cap only; Flips beyond ACCEPT: 0; Nodes: 0](https://github.com/mcp-tool-shop-org/readouts/blob/main/vocology-knowledge/README.md)
 
 ### Git Internals · `directional`
 **Analog: content-addressable store — insert bytes, retrieve by SHA-1 key. Holds for Cloud upload key / lock.wav identity (hash-addressed input, not a mutable path). Limit: git object DB ≠ Comfy Cloud storage API.**
@@ -140,47 +140,47 @@ _auto-created from wave lane_ · wave 13 · 2026-09-14 · [‹ catalog index](RE
 - **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `file://vocology-knowledge/catalog-parenthetical-lag`
 - **Verify:** no external verdict — not yet swept
-- **Sources:** [README vs catalog: 12 matches; parenthetical nine lag vs 12 (report only)](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/vocology-knowledge/catalog/README.md)
+- **Sources:** [README vs catalog: 12 matches; parenthetical nine lag vs 12 (report only)](https://github.com/mcp-tool-shop-org/readouts/blob/main/vocology-knowledge/catalog/README.md)
 
 ### README.md Catalog 175 · 12/175 · 9 waves · `directional`
 **Catalog 175 · 12/175 · 9 waves; waves 7–9 cite 21/21/22 findings verified=0.**
 - **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `file://vocology-knowledge/README.md`
 - **Verify:** no external verdict — not yet swept
-- **Sources:** [README.md Catalog 175 · 12/175 · 9 waves](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/vocology-knowledge/README.md)
+- **Sources:** [README.md Catalog 175 · 12/175 · 9 waves](https://github.com/mcp-tool-shop-org/readouts/blob/main/vocology-knowledge/README.md)
 
 ### catalog/README.md 175 findings · 12/175 verified · `directional`
 **175 findings · 12/175 verified; NEVER hand-edited; lane bullets 31+8+27+38+41+6+1+14+9 (=175); verified shortlist table lists 12 ✓ rows.**
 - **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `file://vocology-knowledge/catalog/README.md`
 - **Verify:** no external verdict — not yet swept
-- **Sources:** [catalog/README.md 175 findings · 12/175 verified](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/vocology-knowledge/catalog/README.md)
+- **Sources:** [catalog/README.md 175 findings · 12/175 verified](https://github.com/mcp-tool-shop-org/readouts/blob/main/vocology-knowledge/catalog/README.md)
 
 ### findings.db 175 / verified 12 / waves 9 · `directional`
 **findings 175; verified=1 12 / verified=0 163; waves 9; categories 9; finding_sources 174.**
 - **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `file://vocology-knowledge/findings.db`
 - **Verify:** no external verdict — not yet swept
-- **Sources:** [findings.db 175 / verified 12 / waves 9](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/vocology-knowledge/findings.db)
+- **Sources:** [findings.db 175 / verified 12 / waves 9](https://github.com/mcp-tool-shop-org/readouts/blob/main/vocology-knowledge/findings.db)
 
 ### scripts/gen_catalog.py never hand-edit · `directional`
 **generate catalog/*.md from findings.db; NEVER hand-edit catalog/; per-lane header emits findings · verified counts from DB.**
 - **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `file://vocology-knowledge/scripts/gen_catalog.py`
 - **Verify:** no external verdict — not yet swept
-- **Sources:** [scripts/gen_catalog.py never hand-edit](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/vocology-knowledge/scripts/gen_catalog.py)
+- **Sources:** [scripts/gen_catalog.py never hand-edit](https://github.com/mcp-tool-shop-org/readouts/blob/main/vocology-knowledge/scripts/gen_catalog.py)
 
 ### scripts/refresh_meta.py FROM DB · `directional`
 **Derive meta currency FROM the DB (MAX wave), never the ingest wave (MetaDriftError path).**
 - **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `file://vocology-knowledge/scripts/refresh_meta.py`
 - **Verify:** no external verdict — not yet swept
-- **Sources:** [scripts/refresh_meta.py FROM DB](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/vocology-knowledge/scripts/refresh_meta.py)
+- **Sources:** [scripts/refresh_meta.py FROM DB](https://github.com/mcp-tool-shop-org/readouts/blob/main/vocology-knowledge/scripts/refresh_meta.py)
 
 ### wave-07/08/09 dispatch flip-cap 0 · `directional`
 **wave-07/08/09 dispatch constraints: Flips beyond ACCEPT 23/30/50: 0; wave-09 also**
 - **Implication:** STUDY-064 catalog/README honesty.
 - **Identifier:** `file://vocology-knowledge/waves/wave-07-09-dispatch`
 - **Verify:** no external verdict — not yet swept
-- **Sources:** [wave-07/08/09 dispatch flip-cap 0](https://github.com/mcp-tool-shop-org/readouts-internal/blob/main/vocology-knowledge/waves/)
+- **Sources:** [wave-07/08/09 dispatch flip-cap 0](https://github.com/mcp-tool-shop-org/readouts/tree/main/vocology-knowledge/waves)
 
