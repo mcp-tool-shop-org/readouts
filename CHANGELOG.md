@@ -2,6 +2,18 @@
 
 Notable changes to the published corpus. The format follows [Keep a Changelog](https://keepachangelog.com/). readouts has no version numbers: it is a rolling corpus, so each entry is a dated publication, and the commit on `main` is its identifier.
 
+## 2026-09-26 (third publication)
+
+### Added
+
+- `rust-knowledge/waves/wave-03-si-rpg-engine/requests/floor-cast-retry.md` re-measures `floor-cast-miss.md`'s candidate fix on si-rpg-engine main `29e1c52`. The fix retries a character's first downward cast with a slightly larger skin when a grounded start finds nothing.
+  - It removes every sink in the flat walk at both offsets.
+  - Only the product scene moves: its golden and its record. Every fixture replay and every sweep verdict is unchanged.
+  - Wherever the retry changes a move, the start is exactly on the skin boundary.
+  - The page ends with a one-quantum red test.
+
+No entry, verdict or verified flag changed.
+
 ## 2026-09-26 (second publication)
 
 ### Added
