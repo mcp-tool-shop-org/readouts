@@ -2,6 +2,20 @@
 
 Notable changes to the published corpus. The format follows [Keep a Changelog](https://keepachangelog.com/). readouts has no version numbers: it is a rolling corpus, so each entry is a dated publication, and the commit on `main` is its identifier.
 
+## 2026-09-26 (second publication)
+
+### Added
+
+- Five answers to questions from [si-rpg-engine](https://github.com/mcp-tool-shop-org/si-rpg-engine), in `rust-knowledge/waves/wave-03-si-rpg-engine/requests/`. Each was measured on the engine's pinned toolchain and physics crates:
+  - `squeeze-launch.md`: why the engine launched a light crate at 162.7 units a second. The cause is a shared contact list in rapier 0.35.3's character-controller push, which Rapier fixed in [#1004](https://github.com/dimforge/rapier/pull/1004) (released in 0.36.0).
+  - `floor-cast-miss.md`: why a resting character's first downward cast sometimes finds no floor. When the cast starts on the skin boundary, parry's GJK ray cast takes a rounding-noise direction for a miss.
+  - `slot-alias.md`: a removed collider's slot is reused, and the queries still hit only real colliders.
+  - `law-coverage.md`: line coverage of the engine's Rust in a wasm32 build under node, on the pinned stable compiler. The instrumented build computes the same frames as the product build.
+  - `push-mass.md`: the character's push with the effective mass at the contact point, against the engine's current push. It removes a 40.9× launch of a thin, light box. With it, no pushed body in the engine's fixtures leaves faster than 0.98 times its pusher's speed. In the new thin-box world the highest is 1.32×, while the box topples.
+- These answers led to three upstream reports: [dimforge/parry#452](https://github.com/dimforge/parry/issues/452), [dimforge/rapier#1020](https://github.com/dimforge/rapier/issues/1020), and [a comment on dimforge/rapier#1009](https://github.com/dimforge/rapier/issues/1009#issuecomment-5843843411).
+
+No entry, verdict or verified flag changed.
+
 ## 2026-09-26
 
 ### Added
