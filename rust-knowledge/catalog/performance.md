@@ -1,5 +1,5 @@
 # Performance & profiling
-_Profile knobs, bounds checks, allocation reuse, layout, profilers, why a pinned artifact avoids native tuning._ · tier **advanced** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Profile knobs, bounds checks, allocation reuse, layout, profilers, why a pinned artifact avoids native tuning._ · tier **advanced** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 9 compiler-checked.
 

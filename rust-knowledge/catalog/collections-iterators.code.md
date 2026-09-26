@@ -1,5 +1,5 @@
 # Collections, iterators & closures — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](collections-iterators.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](collections-iterators.md) · [catalog index](README.md)
 
 ## Assert equal lengths before zip, handle chunks_exact remainders, and collect into the target you mean
 **`zip` ends when either input ends, without error; `windows(k)` yields len-k+1 overlapping slices; `chunks_exact(k)` omits the last len % k elements into `remainder()`; `collect` builds any `FromIterator` target: `Result<Vec<_>, E>` stops at the first Err, and a `BTreeMap` sorts by key and keeps one value per key.**

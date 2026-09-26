@@ -1,0 +1,126 @@
+{
+  "bucket": "integer-time@wave-5",
+  "verifier_note": "Checked against: rustc 1.98.1 stable docs (u128 checked_mul/div/rem, Cargo overflow-checks, operator-expr overflow, the wasm32-unknown-unknown platform page), all retrieved live via WebFetch; midly 0.5.3 src/primitive.rs read from the local cargo registry and cross-checked live on docs.rs (byte-identical: u15/u24 masks, Timing::Metrical doc comments); the signed si-jam-sessions Phase 0 lock fetched at its pinned commit e3cc85e via the GitHub API for every engine_note; the compile oracle run over the whole lane (6/6 checks PASS, exact stdout); and independent Python bigint recomputation of every numeric claim in recipes 1-4 (all 8 tuplet levels at 4 PPQs, the u128 overflow bound and its 2.44e19-day floor, the carried-remainder equality at 4 PPQs), plus one original counter-example (tick=tempo=1e15, ppq=1) proving recipe 5s u64-quotient-overflow refusal path is real and distinct from its tested ppq=0 path, with no panic. Nothing failed; all five are confirmed and solid, and PHASE-0.md explicitly cites two of these five findings (PPQ 3360s tuplet-exactness, the tick-to-sample formula) as already verified by this KB. Systemic weakness: every check in this lane is self-referential -- the same Rust program both derives and asserts its numbers, so a shared conceptual error in the generators arithmetic would compile and pass silently; the only real guard is a verifier reimplementing the arithmetic independently, which is what this pass did in Python rather than re-trusting the compilers rerun of the same code. A second, smaller weakness: 4 of 5 recipes lean on one page (doc.rust-lang.org/stable/std/primitive.u128.html) for their core API warrant, so that single page is a concentration point for the whole lanes Rust-currency claim.",
+  "verdicts": [
+    {
+      "slug": "print-whole-tick-3-2-5-4-and-7-4-durations-from-a-whole-note-through-a-128th-at-ppq-3360",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Recomputed all 8 note-levels x3 ratios in Python at PPQ 3360=2^5*3*5*7: exact match to stdout/how (128th=70/84/60). midly src confirms Timing::Metrical(u15). Oracle PASS. Lock@e3cc85e cites this exact rationale.",
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-jam-sessions/blob/main/docs/PHASE-0.md",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "supported": true,
+          "note": "Confirmed live+local: doc comment Specifies ticks/beat as a 15-bit integer; u15 macro mask=(1<<15)-1."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+          "supported": true,
+          "note": "Confirmed via doc.rust-lang.org/stable: Computes self % rhs, returning None if rhs == 0."
+        }
+      ]
+    },
+    {
+      "slug": "show-every-7-4-tuplet-from-a-whole-note-through-a-128th-is-not-a-whole-tick-at-ppq-480-960-and-3840",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "Recomputed t3/t5/t7 counts for PPQ 480/960/3840 in Python: (8,8,0) each, all eight 7:4 fail -- exact match to stdout. u15 mask 32767 >= all 4 PPQs (checked). Oracle PASS. Engine_note matches locks single fixed PPQ 3360.",
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "supported": true,
+          "note": "Confirmed: u15 doc comment wraps u16, top bit always zero = low 15 bits; Metrical(u15) at line 484."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+          "supported": true,
+          "note": "Confirmed: returns None if rhs == 0 means Some(0) is exact division, as claimed."
+        }
+      ]
+    },
+    {
+      "slug": "bound-the-largest-tick-whose-product-with-16777215-and-48000-still-fits-in-u128",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Independent Python bigint recompute: factor=805306320000, max_tick=422550225262032543670307476, overflows at +1, u64::MAX*factor fits, days=24419973467535932409 -- all exact. WebFetch confirmed checked_mul + overflow-checks docs.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+          "supported": true,
+          "note": "Confirmed: Computes self * rhs, returning None if overflow occurred (doc.rust-lang.org/stable)."
+        },
+        {
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "supported": true,
+          "note": "Confirmed: u24 macro wraps u32, top 8 bits zero, mask=(1<<24)-1, matches 0xFFFFFF tempo."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/cargo/reference/profiles.html",
+          "supported": true,
+          "note": "Confirmed: page states -C overflow-checks controls this, panics on overflow when enabled."
+        }
+      ]
+    },
+    {
+      "slug": "match-one-floor-of-a-multi-segment-span-by-carrying-the-remainder-while-independent-floors-drift",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Independent Python bigint recompute at PPQ 3360/480/960/3840: carried 479/3355/1677/419 vs independent 478/3354/1676/418, carried==floor(sum) every time -- exact match to prose+stdout. Own scenario also confirms r2<denom.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+          "supported": true,
+          "note": "Confirmed: checked_div None if rhs==0, checked_rem None if rhs==0 (doc.rust-lang.org/stable)."
+        },
+        {
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "supported": true,
+          "note": "Confirmed near-verbatim: doc comment beat is not standard, MetaMessage::Tempo should be present."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "supported": true,
+          "note": "Confirmed: page states overflow panics in debug mode, controlled by -C overflow-checks/-debug-assertions."
+        }
+      ]
+    },
+    {
+      "slug": "export-the-u128-tick-to-sample-floor-from-a-wasm32-cdylib-that-takes-and-returns-u64",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Both wasm_call checks PASS (compiler-executed, BigInt args). Hand-verified 3360*1e6*48000/(3360*1e6)=48000. Own counter-example (tick=tempo=1e15,ppq=1) proves the u64-quotient-overflow refusal is real and distinct from ppq=0, no panic.",
+      "evidence_url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html",
+          "supported": true,
+          "note": "Confirmed: page states full core/alloc support, no host stdlib imports, println! does nothing."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+          "supported": true,
+          "note": "Confirmed: checked_mul None if overflow, checked_div None if rhs==0 (doc.rust-lang.org/stable)."
+        }
+      ]
+    }
+  ]
+}

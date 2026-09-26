@@ -1,5 +1,5 @@
 # Rust → WebAssembly without bindgen — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](wasm-raw-abi.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](wasm-raw-abi.md) · [catalog index](README.md)
 
 ## Choose wasm32v1-none only for an all-no_std crate graph: MVP features, own panic handler and allocator
 **wasm32v1-none ships core and alloc built for WebAssembly 1.0 (MVP plus mutable-globals) on stable; the crate must be #![no_std] with a #[panic_handler] and needs a #[global_allocator] to use alloc - and the pinned solver graph cannot build for it.**

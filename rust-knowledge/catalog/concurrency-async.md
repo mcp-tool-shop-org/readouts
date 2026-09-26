@@ -1,5 +1,5 @@
 # Concurrency, parallelism & async
-_Send/Sync, threads, locks, atomics and orderings, parallel float reductions, async basics._ · tier **advanced** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Send/Sync, threads, locks, atomics and orderings, parallel float reductions, async basics._ · tier **advanced** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 
@@ -268,7 +268,7 @@ _Send/Sync, threads, locks, atomics and orderings, parallel float reductions, as
   - *Check 7: Without parallel the thread-pool API is compiled out (E0599 configure_thread_pool)* · `compile_fail` · edition 2024 · host · lib · deps: rapier3d_f64 · errors: E0599 · **✔ oracle pass**
   - *Check 8: PhysicsHooks must be Sync even with parallel off: a Cell counter in a hook is E0277* · `compile_fail` · edition 2024 · host · lib · deps: rapier3d_f64 · errors: E0277 · stderr has “`Cell<u32>` cannot be shared between threads safely” · stderr has “required for `CountingHooks` to implement `MaybeSync`” · **✔ oracle pass**
 
-- **Verifier (plausible):** All 8 checks compiled/ran as specified, incl. wasm_no_imports. Raw CHANGELOG.md confirms 'bitwise identical for any thread-pool size' verbatim. One source (wasip1-threads page) overclaims: no '--shared-memory'/'thread-spawn' text there.
+- **Verifier (plausible):** CORRECTED: The 'wasm32-wasip1-threads' source claims its page states '--shared-memory' linking and a 'thread-spawn' import; a full-page scan (twice) shows only atomics/bulk-memory/mutable-globals + Tier2/experimental + --import/--export-memory. True of wasi-threads generally, not sourced on this page. · All 8 checks compiled/ran as specified, incl. wasm_no_imports. Raw CHANGELOG.md confirms 'bitwise identical for any thread-pool size' verbatim. One source (wasip1-threads page) overclaims: no '--shared-memory'/'thread-spawn' text there.
 - **Compiler:** 8/8 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [rustc book: wasm32-unknown-unknown platform support](https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html) (2026) — On wasm32-unknown-unknown many std APIs return errors and std::thread::spawn will panic; building for a different feature set requires rebuilding std with nightly -Zbuild-std.

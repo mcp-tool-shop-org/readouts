@@ -1,5 +1,5 @@
 # Memory, smart pointers & layout — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](memory-layout.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](memory-layout.md) · [catalog index](README.md)
 
 ## Budget pointer widths: Box<T> is one word, Box<[T]> and &dyn Trait carry metadata, ZSTs take no space
 **Box<T> for sized T is guaranteed to be one pointer, ABI-compatible with C's T*; pointers to dynamically sized types ([T], str, dyn Trait) also carry a length or a vtable pointer and are two words today; zero-sized types occupy no memory, and a Vec of a ZST never allocates and reports capacity usize::MAX.**

@@ -1,5 +1,5 @@
 # Traits & generics — the working set — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](traits-generics.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](traits-generics.md) · [catalog index](README.md)
 
 ## Define traits with required and default methods; state generic bounds inline or in a where clause
 **A trait's body-less methods are required and its methods with bodies are defaults an implementor may override; generic code can call only what its bounds name.**

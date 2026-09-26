@@ -1,0 +1,96 @@
+{
+  "bucket": "host-audio-and-midi@wave-5",
+  "verifier_note": "Checked against rtrb 0.4.0 (src/lib.rs, arc_ring_buffer.rs, README.md), assert_no_alloc 1.1.2 (src/lib.rs, README.md) and the current GlobalAlloc/std::alloc docs, all retrieved at the pinned versions; every check in this lane was also re-run myself through compile_oracle.py (rustc 1.98.1, jam set, host target) rather than taken on trust, plus one counter-example of my own. All four matched their prose: recipe 1 printed alloc_count=0, recipe 2's negative control printed alloc_count>0 (proving the counting allocator is sensitive, not vacuous), recipe 3 printed new_allocates ops_do_not with RingBuffer::new confirmed to allocate twice (Vec::with_capacity + Box::new, via arc_ring_buffer.rs) while push/pop touch only atomics and raw pointers, and recipe 4's own check printed sum=10, confirming the non-allocating branch. The lane's one systemic weakness is in recipe 4: unlike the zero-allocation claims (recipes 1 and 3), which are backed by an explicit negative control (recipe 2) proving the measurement apparatus actually detects an allocation, the 'aborts if the callback body allocates' half of recipe 4's claim ships with no check that ever allocates inside the closure -- the provided check only exercises the return-normally path. I closed that gap myself with a counter-example (Vec::push inside assert_no_alloc with AllocDisabler registered), which aborted exactly as documented (exit 0xC0000409, stderr 'memory allocation of 8 bytes failed'), so the underlying claim holds, but the recipe's own verification story was incomplete without it.",
+  "verdicts": [
+    {
+      "slug": "count-allocations-across-a-simulated-audio-callback-popping-rtrb-into-an-f32-buffer",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Ran the exact check via compile_oracle (rustc 1.98.1, jam set): printed alloc_count=0 as claimed. rtrb 0.4.0's pop()/push() (src/lib.rs) use only atomics and raw-pointer ops -- no alloc call sites exist.",
+      "evidence_url": "https://docs.rs/crate/rtrb/0.4.0/source/src/lib.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html",
+          "supported": true,
+          "note": "Confirms alloc() is the hook #[global_allocator] invokes; matches the CountingAllocator forwarding pattern."
+        },
+        {
+          "url": "https://docs.rs/crate/rtrb/0.4.0/source/src/lib.rs",
+          "supported": true,
+          "note": "Verbatim match: 'no more memory is allocated' after construction; pop() has no alloc call sites."
+        }
+      ]
+    },
+    {
+      "slug": "negative-control-vec-push-inside-callback-body-increments-allocator-counter",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Ran the exact check: Vec::new().push(1.0) printed alloc_count>0 -- the counting allocator is demonstrably sensitive, not a vacuous control. CountingAllocator itself only does an atomic add + System forwarding.",
+      "evidence_url": "https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://doc.rust-lang.org/stable/std/alloc/index.html",
+          "supported": true,
+          "note": "Confirms #[global_allocator] routes Box/Vec allocation requests to the custom allocator object."
+        },
+        {
+          "url": "https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html",
+          "supported": true,
+          "note": "Same trait page; alloc() is the hook the counter increments on, as this negative control exercises."
+        }
+      ]
+    },
+    {
+      "slug": "create-rtrb-ringbuffer-before-the-stream-because-only-ringbuffer-new-allocates",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Ran the exact check: printed 'new_allocates ops_do_not'. Source: RingBuffer::new does Vec::with_capacity + Box::new (2 allocs, confirmed via arc_ring_buffer.rs); push/pop touch only atomics/pointers.",
+      "evidence_url": "https://docs.rs/crate/rtrb/0.4.0/source/src/lib.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/crate/rtrb/0.4.0/source/src/lib.rs",
+          "supported": true,
+          "note": "Verbatim match for the buffer-allocated-once claim; new() = Vec::with_capacity + Box::new, 2 allocations."
+        },
+        {
+          "url": "https://docs.rs/crate/rtrb/0.4.0/source/README.md",
+          "supported": true,
+          "note": "Confirms alloc crate is needed under no_std; tangential to the crux claim but accurate."
+        }
+      ]
+    },
+    {
+      "slug": "register-assert-no-alloc-allocdisabler-around-the-callback-body-to-catch-debug-allocations",
+      "verdict": "corrected",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "The check only proves the no-alloc branch (sum=10). My own counter-example (alloc inside the closure) aborted: exit 0xC0000409, stderr 'memory allocation of 8 bytes failed' -- confirms the untested abort half.",
+      "evidence_url": "https://docs.rs/crate/assert_no_alloc/1.1.2/source/src/lib.rs",
+      "corrections": {
+        "claim": "Recipe's own check exercises only the non-allocating path (sum=10). The 'aborts if it allocates' half is real -- confirmed by AllocDisabler::check()'s handle_alloc_error call and by my own compiled counter-example, which aborted -- but no check here exercises it."
+      },
+      "sources": [
+        {
+          "url": "https://docs.rs/crate/assert_no_alloc/1.1.2/source/README.md",
+          "supported": true,
+          "note": "Default-feature example: 'memory allocation of 4 bytes failed. Aborted' -- matches the abort behavior."
+        },
+        {
+          "url": "https://docs.rs/crate/assert_no_alloc/1.1.2/source/src/lib.rs",
+          "supported": true,
+          "note": "check() calls handle_alloc_error when forbidden and warn mode isn't selected -- verified by my abort run."
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 # Structs, enums & pattern matching — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](types-patterns.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](types-patterns.md) · [catalog index](README.md)
 
 ## At the raw extern "C" edge, bounds-check counts and TryFrom each mode number into an enum; refuse the rest
 **Keep the flat f64/u32 ABI, but turn each raw number into a checked Rust value at the top of the export — counts compared with capacity before they become indices, mode numbers decoded through TryFrom into an enum — and return the export's failure code for anything else.**

@@ -1,5 +1,5 @@
 # Cargo, crates, modules & editions — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](cargo-modules.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](cargo-modules.md) · [catalog index](README.md)
 
 ## Assume a Cargo feature enabled by any dependent is on for all; audit with `cargo tree -e features -i <crate>`
 **Cargo compiles a dependency with the union of the features that every package selected for the build asks for (resolver 2 keeps build-dependencies, proc-macros and dev-dependencies apart), each passed to rustc as `--cfg feature="name"`, so `default-features = false` in one manifest does not keep defaults off when another dependent enables them.**

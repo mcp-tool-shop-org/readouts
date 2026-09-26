@@ -1,5 +1,5 @@
 # Ownership, moves & borrowing — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](ownership-borrowing.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](ownership-borrowing.md) · [catalog index](README.md)
 
 ## Keep one &mut xor any number of & live at once, and end each borrow at its last use (E0499, E0502, E0506)
 **A value may have one live mutable reference or any number of live shared ones; since Rust 1.63 NLL is the borrow checker on every edition and a borrow lasts only until its last use, so most conflicts are fixed by reordering rather than by blocks, clones or RefCell.**

@@ -1,5 +1,5 @@
 # Errors, panics & arithmetic safety — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](errors-panics.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](errors-panics.md) · [catalog index](README.md)
 
 ## Derive library error enums with thiserror 2; use anyhow or `Box<dyn Error + Send + Sync>` only in binaries
 **thiserror generates the `Display`, `Error::source` and `From` impls you would write by hand and stays out of your public API; anyhow gives application code one opaque error type with `.context()` layers and a cause-chain printer.**

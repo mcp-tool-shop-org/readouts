@@ -1,5 +1,5 @@
 # Binary lint, CCD and controller limits (T3/T4)
-_Fixed memory and memory.grow, relaxed-SIMD encoding, CCD guarantees, controller limit comparisons._ · tier **si-rpg-engine** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Fixed memory and memory.grow, relaxed-SIMD encoding, CCD guarantees, controller limit comparisons._ · tier **si-rpg-engine** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 

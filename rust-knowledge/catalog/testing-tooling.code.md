@@ -1,5 +1,5 @@
 # Testing, lints & dev tooling — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](testing-tooling.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](testing-tooling.md) · [catalog index](README.md)
 
 ## Add what rustc cannot check: Miri on native tests (nightly only), cargo-deny and cargo-audit on dependencies
 **Miri interprets cargo miri test and reports out-of-bounds access, use-after-free, uninitialised reads, misalignment, invalid values and data races, but it is a nightly component (1.98.1 offers none) with no FFI; cargo-deny lints the dependency graph (advisories, bans, licenses, sources) from deny.toml, and cargo-audit checks dependencies against the RustSec Advisory Database.**

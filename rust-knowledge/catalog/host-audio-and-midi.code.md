@@ -1,5 +1,5 @@
 # Native audio and MIDI host — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](host-audio-and-midi.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](host-audio-and-midi.md) · [catalog index](README.md)
 
 ## Anchor midir microseconds to cpal StreamInstant and re-anchor for drift
 **Because midir timestamps and cpal StreamInstant come from independent clocks, the host must establish an anchor and re-anchor periodically to keep the law’s sample clock aligned.**
@@ -37,6 +37,102 @@ fn main() {
 }
 ```
 
+## Count allocations across a simulated audio callback popping rtrb into an f32 buffer
+**A counting #[global_allocator] records zero new allocations during a simulated callback that pops from an rtrb Consumer into a stack f32 buffer.**
+
+*Check 1: Counting allocator shows zero allocs in simulated callback body* · `runs` · edition 2024 · host · bin · deps: rtrb · jam dependency set · **✔ oracle pass**
+```rust
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use rtrb::RingBuffer;
+
+struct CountingAllocator;
+
+static ALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+unsafe impl GlobalAlloc for CountingAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        ALLOC_COUNT.fetch_add(1, Ordering::SeqCst);
+        System.alloc(layout)
+    }
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        System.dealloc(ptr, layout)
+    }
+}
+
+#[global_allocator]
+static GLOBAL: CountingAllocator = CountingAllocator;
+
+fn main() {
+    let (mut producer, mut consumer) = RingBuffer::<f32>::new(64);
+    for i in 0..10 {
+        producer.push(i as f32).unwrap();
+    }
+
+    ALLOC_COUNT.store(0, Ordering::SeqCst);
+
+    let mut buf = [0.0f32; 64];
+    let mut idx = 0;
+    while let Ok(v) = consumer.pop() {
+        if idx < buf.len() {
+            buf[idx] = v;
+            idx += 1;
+        } else {
+            break;
+        }
+    }
+
+    let count = ALLOC_COUNT.load(Ordering::SeqCst);
+    println!("alloc_count={}", count);
+}
+```
+Expected output: `alloc_count=0`
+
+## Create rtrb RingBuffer before the stream because only RingBuffer::new allocates
+**rtrb 0.4.0 allocates its backing buffer in RingBuffer::new, not during push or pop, so the ring must be created before the stream starts.**
+
+*Check 1: RingBuffer::new allocates but push and pop do not* · `runs` · edition 2024 · host · bin · deps: rtrb · jam dependency set · **✔ oracle pass**
+```rust
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use rtrb::RingBuffer;
+
+struct CountingAllocator;
+static ALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+unsafe impl GlobalAlloc for CountingAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        ALLOC_COUNT.fetch_add(1, Ordering::SeqCst);
+        System.alloc(layout)
+    }
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        System.dealloc(ptr, layout)
+    }
+}
+
+#[global_allocator]
+static GLOBAL: CountingAllocator = CountingAllocator;
+
+fn main() {
+    ALLOC_COUNT.store(0, Ordering::SeqCst);
+    let (mut p, mut c) = RingBuffer::<f32>::new(4);
+    let after_new = ALLOC_COUNT.load(Ordering::SeqCst);
+
+    ALLOC_COUNT.store(0, Ordering::SeqCst);
+    p.push(1.0).unwrap();
+    p.push(2.0).unwrap();
+    c.pop().unwrap();
+    let after_ops = ALLOC_COUNT.load(Ordering::SeqCst);
+
+    if after_new > 0 && after_ops == 0 {
+        println!("new_allocates ops_do_not");
+    } else {
+        println!("unexpected new={} ops={}", after_new, after_ops);
+    }
+}
+```
+Expected output: `new_allocates ops_do_not`
+
 ## Interpret midir WinMM input timestamps as microseconds since start
 **midir’s WinMM backend delivers input callback timestamps in microseconds, converted from the Windows MIDI driver’s millisecond timestamp that starts at zero when midiInStart is called.**
 
@@ -55,6 +151,74 @@ fn main() {
     );
 }
 ```
+
+## Negative control: Vec push inside callback body increments allocator counter
+**A Vec::push inside the same simulated callback body increments the counting allocator, confirming the measurement is sensitive.**
+
+*Check 1: Vec push inside callback body increments allocation counter* · `runs` · edition 2024 · host · bin · jam dependency set · **✔ oracle pass**
+```rust
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+struct CountingAllocator;
+static ALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+unsafe impl GlobalAlloc for CountingAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        ALLOC_COUNT.fetch_add(1, Ordering::SeqCst);
+        System.alloc(layout)
+    }
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        System.dealloc(ptr, layout)
+    }
+}
+
+#[global_allocator]
+static GLOBAL: CountingAllocator = CountingAllocator;
+
+fn main() {
+    let mut v = Vec::new();
+    ALLOC_COUNT.store(0, Ordering::SeqCst);
+    v.push(1.0f32);
+    let count = ALLOC_COUNT.load(Ordering::SeqCst);
+    if count > 0 {
+        println!("alloc_count>0");
+    } else {
+        println!("alloc_count=0");
+    }
+}
+```
+Expected output: `alloc_count>0`
+
+## Register assert_no_alloc AllocDisabler around the callback body to catch debug allocations
+**With AllocDisabler registered as #[global_allocator], assert_no_alloc aborts in debug if the callback body allocates and returns normally when it does not.**
+
+*Check 1: assert_no_alloc returns normally when callback body does not allocate* · `runs` · edition 2024 · host · bin · deps: rtrb, assert_no_alloc · jam dependency set · **✔ oracle pass**
+```rust
+use assert_no_alloc::{AllocDisabler, assert_no_alloc};
+use rtrb::RingBuffer;
+
+#[global_allocator]
+static A: AllocDisabler = AllocDisabler;
+
+fn main() {
+    let (mut producer, mut consumer) = RingBuffer::<f32>::new(64);
+    for i in 0..5 {
+        producer.push(i as f32).unwrap();
+    }
+
+    let sum = assert_no_alloc(move || {
+        let mut s = 0.0f32;
+        while let Ok(v) = consumer.pop() {
+            s += v;
+        }
+        s
+    });
+
+    println!("sum={}", sum);
+}
+```
+Expected output: `sum=10`
 
 ## Render oscillator voices from SPSC queue into cpal silence buffer
 **The cpal output callback buffer is pre-filled with silence, and the callback can pop committed events from an rtrb Consumer without blocking or allocating.**

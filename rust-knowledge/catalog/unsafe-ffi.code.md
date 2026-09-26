@@ -1,5 +1,5 @@
 # Unsafe Rust, UB & FFI — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](unsafe-ffi.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](unsafe-ffi.md) · [catalog index](README.md)
 
 ## Choose extern "C" (a panic aborts, 1.81+) or extern "C-unwind" (a panic unwinds) for every boundary fn
 **Since 1.81 a panic that reaches an extern "C" function aborts the process instead of unwinding into the caller; extern "C-unwind" (added in 1.71) lets it unwind; under panic=abort nothing unwinds anywhere; a foreign exception entering Rust through a "C" frame is UB.**

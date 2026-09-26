@@ -1,5 +1,5 @@
 # Macros, const evaluation & build scripts
-_macro_rules!, proc macros, build.rs, cfg/check-cfg, const fn and const floats, compile-time asserts._ · tier **advanced** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_macro_rules!, proc macros, build.rs, cfg/check-cfg, const fn and const floats, compile-time asserts._ · tier **advanced** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 
@@ -263,7 +263,7 @@ _macro_rules!, proc macros, build.rs, cfg/check-cfg, const fn and const floats, 
   - *Check 4: the same table with a slot equal to the stride fails in the macro's proof (E0080)* · `compile_fail` · edition 2024 · host · lib · errors: E0080 · stderr has “slot outside the stride” · **✔ oracle pass**
   - *Check 5: a free const _ is evaluated even inside an unused generic function (E0080)* · `compile_fail` · edition 2024 · host · errors: E0080 · **✔ oracle pass**
 
-- **Verifier (plausible):** All 5 checks reproduced exactly (17-slot proof, slot-collision E0080, macro->wasm abi_word(0)=17, macro-proof-fail E0080, unused-generic E0080). engine_note's count is wrong: build.mjs shows the write-block twice on main, not eight.
+- **Verifier (plausible):** CORRECTED: engine_note says build.mjs hard-codes view[at + 13..16] eight times. Grep on main (2026-09-25) shows this HX/HY/HZ write-block occurs exactly twice (stepBodies + writeInputs = 6 individual lines), not eight. i*17 (four) and j*10 (twice) are correct as stated. · All 5 checks reproduced exactly (17-slot proof, slot-collision E0080, macro->wasm abi_word(0)=17, macro-proof-fail E0080, unused-generic E0080). engine_note's count is wrong: build.mjs shows the write-block twice on main, not eight.
 - **Compiler:** 5/5 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [The Rust Reference: Constant items](https://doc.rust-lang.org/stable/reference/items/constant-items.html) (2026) — Free constants may be unnamed (const _) and are always evaluated at compile time to surface panics, even inside an unused function; the example is const _: () = assert!(usize::BITS == 0).

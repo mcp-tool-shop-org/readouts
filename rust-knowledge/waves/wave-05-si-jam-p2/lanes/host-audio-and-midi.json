@@ -1,0 +1,202 @@
+{
+  "laneSlug": "host-audio-and-midi",
+  "title": "The audio callback allocates nothing: proved on the callback body",
+  "tier": "si-jam-sessions",
+  "recipes": [
+    {
+      "name": "Count allocations across a simulated audio callback popping rtrb into an f32 buffer",
+      "what": "A counting #[global_allocator] records zero new allocations during a simulated callback that pops from an rtrb Consumer into a stack f32 buffer.",
+      "how": "Implement GlobalAlloc by forwarding to System and incrementing an AtomicUsize in alloc. Create the RingBuffer and pre-fill events before resetting the counter. In the callback body, pop from the Consumer into a fixed [f32; N] on the stack. Compare the counter before and after; it must be identical.",
+      "rust_version": "1.98.1, edition 2024, rtrb 0.4.0",
+      "gotchas": "Do not measure RingBuffer::new itself; it allocates. Do not use Mutex or Vec inside the GlobalAlloc impl or measuring will recurse or allocate. Reset the counter after setup but before the callback body.",
+      "engine_note": "Bears on the signed lock pin: host audio callback must allocate nothing. Use this counting-allocator pattern to verify the callback body that pops committed events from an rtrb Consumer and writes them into the cpal output buffer.",
+      "checks": [
+        {
+          "label": "Counting allocator shows zero allocs in simulated callback body",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rtrb"
+          ],
+          "oracle_set": "jam",
+          "expect": "runs",
+          "stdout": "alloc_count=0\n",
+          "source": "use std::alloc::{GlobalAlloc, Layout, System};\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse rtrb::RingBuffer;\n\nstruct CountingAllocator;\n\nstatic ALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);\n\nunsafe impl GlobalAlloc for CountingAllocator {\n    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {\n        ALLOC_COUNT.fetch_add(1, Ordering::SeqCst);\n        System.alloc(layout)\n    }\n    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {\n        System.dealloc(ptr, layout)\n    }\n}\n\n#[global_allocator]\nstatic GLOBAL: CountingAllocator = CountingAllocator;\n\nfn main() {\n    let (mut producer, mut consumer) = RingBuffer::<f32>::new(64);\n    for i in 0..10 {\n        producer.push(i as f32).unwrap();\n    }\n\n    ALLOC_COUNT.store(0, Ordering::SeqCst);\n\n    let mut buf = [0.0f32; 64];\n    let mut idx = 0;\n    while let Ok(v) = consumer.pop() {\n        if idx < buf.len() {\n            buf[idx] = v;\n            idx += 1;\n        } else {\n            break;\n        }\n    }\n\n    let count = ALLOC_COUNT.load(Ordering::SeqCst);\n    println!(\"alloc_count={}\", count);\n}"
+        }
+      ],
+      "sources": [
+        {
+          "title": "GlobalAlloc in std::alloc - Rust",
+          "url": "https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "A memory allocator can be registered as the standard library’s default through the #[global_allocator] attribute, and the alloc method is called for each heap allocation.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "rtrb 0.4.0 src/lib.rs",
+          "url": "https://docs.rs/crate/rtrb/0.4.0/source/src/lib.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "A fixed-capacity buffer is allocated on construction. After that, no more memory is allocated (unless the type T does that internally).",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "count-allocations-across-a-simulated-audio-callback-popping-rtrb-into-an-f32-buffer"
+    },
+    {
+      "name": "Negative control: Vec push inside callback body increments allocator counter",
+      "what": "A Vec::push inside the same simulated callback body increments the counting allocator, confirming the measurement is sensitive.",
+      "how": "Use the same counting allocator. After resetting the counter, call vec.push(1.0) on a Vec::new() inside the simulated callback. Read the counter afterward; it is greater than zero.",
+      "rust_version": "1.98.1, edition 2024",
+      "gotchas": "A Vec with reserved capacity may not allocate on push, so start with Vec::new(). The counting allocator must not itself allocate (e.g., no format! inside alloc).",
+      "engine_note": "Bears on the signed lock pin: host audio callback must allocate nothing. This negative control demonstrates that the counting-allocator test is sensitive to allocations, ensuring a false negative is unlikely.",
+      "checks": [
+        {
+          "label": "Vec push inside callback body increments allocation counter",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [],
+          "oracle_set": "jam",
+          "expect": "runs",
+          "stdout": "alloc_count>0\n",
+          "source": "use std::alloc::{GlobalAlloc, Layout, System};\nuse std::sync::atomic::{AtomicUsize, Ordering};\n\nstruct CountingAllocator;\nstatic ALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);\n\nunsafe impl GlobalAlloc for CountingAllocator {\n    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {\n        ALLOC_COUNT.fetch_add(1, Ordering::SeqCst);\n        System.alloc(layout)\n    }\n    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {\n        System.dealloc(ptr, layout)\n    }\n}\n\n#[global_allocator]\nstatic GLOBAL: CountingAllocator = CountingAllocator;\n\nfn main() {\n    let mut v = Vec::new();\n    ALLOC_COUNT.store(0, Ordering::SeqCst);\n    v.push(1.0f32);\n    let count = ALLOC_COUNT.load(Ordering::SeqCst);\n    if count > 0 {\n        println!(\"alloc_count>0\");\n    } else {\n        println!(\"alloc_count=0\");\n    }\n}"
+        }
+      ],
+      "sources": [
+        {
+          "title": "std::alloc - Rust",
+          "url": "https://doc.rust-lang.org/stable/std/alloc/index.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "The #[global_allocator] attribute allows configuring the choice of global allocator to route all default allocation requests to a custom object.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "GlobalAlloc in std::alloc - Rust",
+          "url": "https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "GlobalAlloc's alloc method is called for each heap allocation, enabling a counting wrapper.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "negative-control-vec-push-inside-callback-body-increments-allocator-counter"
+    },
+    {
+      "name": "Create rtrb RingBuffer before the stream because only RingBuffer::new allocates",
+      "what": "rtrb 0.4.0 allocates its backing buffer in RingBuffer::new, not during push or pop, so the ring must be created before the stream starts.",
+      "how": "Call RingBuffer::new(capacity) during setup, before the cpal stream is built. Pass only the Producer to the non-real-time thread and the Consumer into the callback. Never construct or resize the ring inside the callback.",
+      "rust_version": "1.98.1, edition 2024, rtrb 0.4.0",
+      "gotchas": "RingBuffer::new may perform multiple backing allocations; the check only asserts the total is non-zero. Do not call new, grow, or shrink in the callback. The capacity is fixed and must be chosen at setup time.",
+      "engine_note": "Bears on the signed lock pin: host audio callback must allocate nothing. Because rtrb 0.4.0 only allocates in RingBuffer::new, the ring must be created before the cpal stream starts.",
+      "checks": [
+        {
+          "label": "RingBuffer::new allocates but push and pop do not",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rtrb"
+          ],
+          "oracle_set": "jam",
+          "expect": "runs",
+          "stdout": "new_allocates ops_do_not\n",
+          "source": "use std::alloc::{GlobalAlloc, Layout, System};\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse rtrb::RingBuffer;\n\nstruct CountingAllocator;\nstatic ALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);\n\nunsafe impl GlobalAlloc for CountingAllocator {\n    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {\n        ALLOC_COUNT.fetch_add(1, Ordering::SeqCst);\n        System.alloc(layout)\n    }\n    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {\n        System.dealloc(ptr, layout)\n    }\n}\n\n#[global_allocator]\nstatic GLOBAL: CountingAllocator = CountingAllocator;\n\nfn main() {\n    ALLOC_COUNT.store(0, Ordering::SeqCst);\n    let (mut p, mut c) = RingBuffer::<f32>::new(4);\n    let after_new = ALLOC_COUNT.load(Ordering::SeqCst);\n\n    ALLOC_COUNT.store(0, Ordering::SeqCst);\n    p.push(1.0).unwrap();\n    p.push(2.0).unwrap();\n    c.pop().unwrap();\n    let after_ops = ALLOC_COUNT.load(Ordering::SeqCst);\n\n    if after_new > 0 && after_ops == 0 {\n        println!(\"new_allocates ops_do_not\");\n    } else {\n        println!(\"unexpected new={} ops={}\", after_new, after_ops);\n    }\n}"
+        }
+      ],
+      "sources": [
+        {
+          "title": "rtrb 0.4.0 src/lib.rs",
+          "url": "https://docs.rs/crate/rtrb/0.4.0/source/src/lib.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "A fixed-capacity buffer is allocated on construction. After that, no more memory is allocated (unless the type T does that internally).",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "rtrb 0.4.0 README.md",
+          "url": "https://docs.rs/crate/rtrb/0.4.0/source/README.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "This crate can be used without the standard library, but the alloc crate is needed nevertheless.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "create-rtrb-ringbuffer-before-the-stream-because-only-ringbuffer-new-allocates"
+    },
+    {
+      "name": "Register assert_no_alloc AllocDisabler around the callback body to catch debug allocations",
+      "what": "With AllocDisabler registered as #[global_allocator], assert_no_alloc aborts in debug if the callback body allocates and returns normally when it does not.",
+      "how": "Add assert_no_alloc as a dependency, register #[global_allocator] static A: AllocDisabler = AllocDisabler;, and wrap the callback body in assert_no_alloc(move || { ... }). In debug builds, any allocation inside the closure triggers an abort via handle_alloc_error.",
+      "rust_version": "1.98.1, edition 2024, rtrb 0.4.0, assert_no_alloc 1.1.2",
+      "gotchas": "Default features disable the guard in release; for debug-only protection this is correct. The closure must not drop heap-allocated types that deallocate inside the forbidden zone unless wrapped in PermitDrop. The oracle has no audio device, so this only proves the callback body, not cpal's backend thread.",
+      "engine_note": "Bears on the signed lock pin: host audio callback must allocate nothing. Use assert_no_alloc as a second, independent guard around the callback body in debug builds.",
+      "checks": [
+        {
+          "label": "assert_no_alloc returns normally when callback body does not allocate",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "rtrb",
+            "assert_no_alloc"
+          ],
+          "oracle_set": "jam",
+          "expect": "runs",
+          "stdout": "sum=10\n",
+          "source": "use assert_no_alloc::{AllocDisabler, assert_no_alloc};\nuse rtrb::RingBuffer;\n\n#[global_allocator]\nstatic A: AllocDisabler = AllocDisabler;\n\nfn main() {\n    let (mut producer, mut consumer) = RingBuffer::<f32>::new(64);\n    for i in 0..5 {\n        producer.push(i as f32).unwrap();\n    }\n\n    let sum = assert_no_alloc(move || {\n        let mut s = 0.0f32;\n        while let Ok(v) = consumer.pop() {\n            s += v;\n        }\n        s\n    });\n\n    println!(\"sum={}\", sum);\n}"
+        }
+      ],
+      "sources": [
+        {
+          "title": "assert_no_alloc 1.1.2 README.md",
+          "url": "https://docs.rs/crate/assert_no_alloc/1.1.2/source/README.md",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "With default features, the program will abort if a (de)allocation is attempted inside assert_no_alloc in debug mode.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "assert_no_alloc 1.1.2 src/lib.rs",
+          "url": "https://docs.rs/crate/assert_no_alloc/1.1.2/source/src/lib.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "AllocDisabler::check calls std::alloc::handle_alloc_error when an allocation occurs while forbidden and warn mode is not selected.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "register-assert-no-alloc-allocdisabler-around-the-callback-body-to-catch-debug-allocations"
+    }
+  ]
+}

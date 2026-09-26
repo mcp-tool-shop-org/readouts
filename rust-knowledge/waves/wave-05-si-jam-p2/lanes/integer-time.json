@@ -1,0 +1,291 @@
+{
+  "laneSlug": "integer-time",
+  "title": "PPQ 3360 and the u128 tick-to-sample rule, checked",
+  "tier": "si-jam-sessions",
+  "recipes": [
+    {
+      "name": "Print whole-tick 3:2, 5:4 and 7:4 durations from a whole note through a 128th at PPQ 3360",
+      "what": "At PPQ 3360 every 3:2, 5:4 and 7:4 tuplet of a whole, half, quarter, eighth, sixteenth, thirty-second, sixty-fourth and hundred-twenty-eighth note is a whole number of ticks.",
+      "how": "PPQ 3360 = 32*3*5*7. Note ticks for level k in 0..=7 are 3360*4/2^k (whole down to a 128th). One tuplet note is note*2/3, note*4/5 or note*4/7. Require checked_rem of that numerator to be 0 and keep the checked_div quotient: the 128th is 70, 84 and 60.",
+      "rust_version": "1.98.1, edition 2024; SMF ticks/beat is midly 0.5.3 u15",
+      "gotchas": "A 7:8 septuplet is a different ratio and is not what this grid was factored for. PPQ 960 and 3840 still have no factor of 7, so switching the written ratio to another power of two does not make those 7-tuplets whole ticks. Do not round an f64 tuplet back onto this grid.",
+      "engine_note": "Signed lock: the score is integer ticks at PPQ 3360 (2^5 * 3 * 5 * 7), with no floating point in the time path. Store that PPQ in Timing::Metrical and use these whole-tick 3:2, 5:4 and 7:4 lengths for onset and duration.",
+      "checks": [
+        {
+          "label": "PPQ 3360 divides every 3:2, 5:4 and 7:4 from a whole note through a 128th",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "factors 32 3 5 7\nwhole 13440 8960 10752 7680\nhalf 6720 4480 5376 3840\nquarter 3360 2240 2688 1920\neighth 1680 1120 1344 960\nsixteenth 840 560 672 480\nthirtysecond 420 280 336 240\nsixtyfourth 210 140 168 120\nonetwentyeighth 105 70 84 60\nexact 24\n",
+          "source": "fn main() {\n    const PPQ: u128 = 3360;\n    assert_eq!(32 * 3 * 5 * 7, PPQ);\n    println!(\"factors 32 3 5 7\");\n    let notes = [\n        \"whole\",\n        \"half\",\n        \"quarter\",\n        \"eighth\",\n        \"sixteenth\",\n        \"thirtysecond\",\n        \"sixtyfourth\",\n        \"onetwentyeighth\",\n    ];\n    let mut exact = 0u32;\n    for (shift, name) in notes.iter().enumerate() {\n        let note = PPQ * 4 / (1u128 << shift);\n        let q3 = note * 2;\n        let q5 = note * 4;\n        let q7 = note * 4;\n        assert_eq!(q3.checked_rem(3).unwrap(), 0);\n        assert_eq!(q5.checked_rem(5).unwrap(), 0);\n        assert_eq!(q7.checked_rem(7).unwrap(), 0);\n        let q3 = q3.checked_div(3).unwrap();\n        let q5 = q5.checked_div(5).unwrap();\n        let q7 = q7.checked_div(7).unwrap();\n        exact += 3;\n        println!(\"{name} {note} {q3} {q5} {q7}\");\n    }\n    println!(\"exact {exact}\");\n}\n",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 primitive.rs Timing::Metrical",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Timing::Metrical specifies ticks/beat as a 15-bit integer (u15), and u15's mask is (1 << 15) - 1.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "u128 checked_rem",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "u128::checked_rem computes self % rhs and returns None if rhs is 0.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "print-whole-tick-3-2-5-4-and-7-4-durations-from-a-whole-note-through-a-128th-at-ppq-3360"
+    },
+    {
+      "name": "Show every 7:4 tuplet from a whole note through a 128th is not a whole tick at PPQ 480, 960 and 3840",
+      "what": "At PPQ 480, 960 and 3840 the 3:2 and 5:4 tuplets of those eight note values are whole ticks, and every 7:4 tuplet of them is not.",
+      "how": "Use the same note ticks PPQ*4/2^k and the same ratios 2/3, 4/5 and 4/7. Count checked_rem == 0. Each of 480, 960 and 3840 yields 8, 8 and 0. All three PPQs, and 3360, are <= the u15 mask (1 << 15) - 1.",
+      "rust_version": "1.98.1, edition 2024; SMF ticks/beat is midly 0.5.3 u15",
+      "gotchas": "480, 960 and 3840 are common MIDI divisions and they do represent straight 128ths, because each is divisible by 32. They fail only the factor of 7. Fitting in the 15-bit header field is not the same as representing a septuplet.",
+      "engine_note": "Signed lock: integer ticks at PPQ 3360 and no f64 in the time path. Do not adopt PPQ 480, 960 or 3840 for the law; every 7:4 from a whole through a 128th is a fractional tick there. Refuse a metrical header whose PPQ is not 3360.",
+      "checks": [
+        {
+          "label": "PPQ 480, 960 and 3840 have eight exact 3:2 and 5:4 tuplets and no exact 7:4",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "u15_max 32767\n480 t3 8 t5 8 t7 0\nfail 480 t7 whole\nfail 480 t7 half\nfail 480 t7 quarter\nfail 480 t7 eighth\nfail 480 t7 sixteenth\nfail 480 t7 thirtysecond\nfail 480 t7 sixtyfourth\nfail 480 t7 onetwentyeighth\n960 t3 8 t5 8 t7 0\nfail 960 t7 whole\nfail 960 t7 half\nfail 960 t7 quarter\nfail 960 t7 eighth\nfail 960 t7 sixteenth\nfail 960 t7 thirtysecond\nfail 960 t7 sixtyfourth\nfail 960 t7 onetwentyeighth\n3840 t3 8 t5 8 t7 0\nfail 3840 t7 whole\nfail 3840 t7 half\nfail 3840 t7 quarter\nfail 3840 t7 eighth\nfail 3840 t7 sixteenth\nfail 3840 t7 thirtysecond\nfail 3840 t7 sixtyfourth\nfail 3840 t7 onetwentyeighth\n",
+          "source": "fn main() {\n    let notes = [\n        \"whole\",\n        \"half\",\n        \"quarter\",\n        \"eighth\",\n        \"sixteenth\",\n        \"thirtysecond\",\n        \"sixtyfourth\",\n        \"onetwentyeighth\",\n    ];\n    let mask = (1u32 << 15) - 1;\n    println!(\"u15_max {mask}\");\n    for ppq in [480u32, 960, 3840, 3360] {\n        assert!(ppq <= mask);\n    }\n    for ppq in [480u128, 960, 3840] {\n        let mut c3 = 0u32;\n        let mut c5 = 0u32;\n        let mut c7 = 0u32;\n        for shift in 0..8 {\n            let note = ppq * 4 / (1u128 << shift);\n            if note.checked_mul(2).unwrap().checked_rem(3).unwrap() == 0 {\n                c3 += 1;\n            }\n            if note.checked_mul(4).unwrap().checked_rem(5).unwrap() == 0 {\n                c5 += 1;\n            }\n            if note.checked_mul(4).unwrap().checked_rem(7).unwrap() == 0 {\n                c7 += 1;\n            }\n        }\n        println!(\"{ppq} t3 {c3} t5 {c5} t7 {c7}\");\n        assert_eq!(c3, 8);\n        assert_eq!(c5, 8);\n        assert_eq!(c7, 0);\n        for (shift, name) in notes.iter().enumerate() {\n            let note = ppq * 4 / (1u128 << shift);\n            if note.checked_mul(4).unwrap().checked_rem(7).unwrap() != 0 {\n                println!(\"fail {ppq} t7 {name}\");\n            }\n        }\n    }\n}\n",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 primitive.rs u15",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "u15 wraps a u16, keeps the low 15 bits, and Timing::Metrical stores ticks/beat as that u15.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "u128 checked_rem",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "u128::checked_rem computes self % rhs and returns None if rhs is 0, so a remainder of Some(0) is an exact division.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "show-every-7-4-tuplet-from-a-whole-note-through-a-128th-is-not-a-whole-tick-at-ppq-480-960-and-3840"
+    },
+    {
+      "name": "Bound the largest tick whose product with 16777215 and 48000 still fits in u128",
+      "what": "tick.checked_mul(16777215).and_then(|p| p.checked_mul(48000)) is Some for every tick through 422550225262032543670307476 and None at the next tick; at PPQ 3360 that bound is a floor of 24419973467535932409 days.",
+      "how": "Tempo is (1 << 24) - 1, which equals 0xFFFFFF. factor = tempo.checked_mul(48000). max_tick = u128::MAX.checked_div(factor). Require max_tick.checked_mul(factor) to be Some and (max_tick + 1).checked_mul(factor) to be None. Floor days are max_tick * tempo / 3360 / 1_000_000 / 86_400. The same factor times u64::MAX is still Some.",
+      "rust_version": "1.98.1, edition 2024",
+      "gotchas": "A bare * panics on overflow only when overflow-checks is enabled, and wraps when it is disabled. checked_mul returns None in either build. u64::MAX cannot reach this bound, but the sample quotient of a huge tick can still exceed u64, so the export must refuse when the quotient does not fit in the 64-bit return.",
+      "engine_note": "Signed lock: tick to sample is computed in u128 with checked_* and a refusal on None, and the release profile sets overflow-checks = true. Keep the product tick * tempo_us_per_quarter * 48000 on checked_mul; a musical take ends long before tick 422550225262032543670307476.",
+      "checks": [
+        {
+          "label": "checked_mul fits the max tick times 16777215 times 48000 and refuses the next tick",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "factor 805306320000\nmax_tick 422550225262032543670307476\nnext_overflows 1\nu64_max_fits 1\nppq3360_days 24419973467535932409\n",
+          "source": "fn main() {\n    let tempo = (1u128 << 24) - 1;\n    assert_eq!(tempo, 0x00FF_FFFF);\n    let factor = tempo.checked_mul(48_000).unwrap();\n    let tick = u128::MAX.checked_div(factor).unwrap();\n    assert!(tick.checked_mul(factor).is_some());\n    assert!(tick.checked_add(1).unwrap().checked_mul(factor).is_none());\n    let u64_fits = (u64::MAX as u128).checked_mul(factor).is_some();\n    let us = tick.checked_mul(tempo).unwrap().checked_div(3360).unwrap();\n    let days = us.checked_div(1_000_000).unwrap().checked_div(86_400).unwrap();\n    println!(\"factor {factor}\");\n    println!(\"max_tick {tick}\");\n    println!(\"next_overflows 1\");\n    println!(\"u64_max_fits {}\", u64_fits as u8);\n    println!(\"ppq3360_days {days}\");\n}\n",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "u128 checked_mul",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "u128::checked_mul computes self * rhs and returns None if overflow occurred.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "midly 0.5.3 primitive.rs u24",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "u24 wraps a u32 and keeps the low 24 bits; its mask is (1 << 24) - 1.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "Cargo profile overflow-checks",
+          "url": "https://doc.rust-lang.org/stable/cargo/reference/profiles.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The overflow-checks profile setting controls -C overflow-checks, and when overflow-checks are enabled a panic occurs on overflow.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "bound-the-largest-tick-whose-product-with-16777215-and-48000-still-fits-in-u128"
+    },
+    {
+      "name": "Match one floor of a multi-segment span by carrying the remainder while independent floors drift",
+      "what": "Flooring each tempo segment with the remainder of tick * tempo_us * 48000 divided by PPQ * 10^6 carried forward equals one floor of the summed numerators, and summing the separate floors is one sample lower for two one-tick segments at tempo 16777215 on PPQ 3360, 480, 960 and 3840.",
+      "how": "denom = ppq.checked_mul(1_000_000). numer = ticks.checked_mul(tempo).checked_mul(48000).checked_add(rem). The segment returns (numer.checked_div(denom), numer.checked_rem(denom)) and the next segment adds that remainder before dividing. For ticks = 1 and tempo = (1 << 24) - 1 the carried totals are 479, 3355, 1677 and 419; the independent sums are 478, 3354, 1676 and 418.",
+      "rust_version": "1.98.1, edition 2024",
+      "gotchas": "Cancelling 48000/10^6 down to 6/125 before the carry changes the modulus, so a remainder from the reduced fraction is not the remainder the next segment must add. Summing floor(segment) drops a sample whenever successive remainders add up to at least one denominator.",
+      "engine_note": "Signed lock: tick to sample = floor(tick * tempo_us_per_quarter * 48000 / (PPQ * 10^6)) in u128, with the remainder carried across tempo segments, checked_* and a refusal on None. Carry this unreduced remainder; do not add independent per-segment floors.",
+      "checks": [
+        {
+          "label": "Carried remainder matches one floor at four PPQs; separate floors are one sample low",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "expect": "runs",
+          "stdout": "3360 independent 478 carried 479\n480 independent 3354 carried 3355\n960 independent 1676 carried 1677\n3840 independent 418 carried 419\n",
+          "source": "fn advance(ticks: u128, tempo: u128, ppq: u128, rem: u128) -> (u128, u128) {\n    let denom = ppq.checked_mul(1_000_000).unwrap();\n    let numer = ticks\n        .checked_mul(tempo)\n        .unwrap()\n        .checked_mul(48_000)\n        .unwrap()\n        .checked_add(rem)\n        .unwrap();\n    (\n        numer.checked_div(denom).unwrap(),\n        numer.checked_rem(denom).unwrap(),\n    )\n}\n\nfn main() {\n    let tempo = (1u128 << 24) - 1;\n    for ppq in [3360u128, 480, 960, 3840] {\n        let denom = ppq.checked_mul(1_000_000).unwrap();\n        let n1 = tempo.checked_mul(48_000).unwrap();\n        let n2 = n1;\n        let independent = n1.checked_div(denom).unwrap() + n2.checked_div(denom).unwrap();\n        let whole = n1.checked_add(n2).unwrap().checked_div(denom).unwrap();\n        let (q1, r1) = advance(1, tempo, ppq, 0);\n        let (q2, r2) = advance(1, tempo, ppq, r1);\n        let carried = q1 + q2;\n        assert_eq!(carried, whole);\n        assert!(independent < carried);\n        assert!(r2 < denom);\n        println!(\"{ppq} independent {independent} carried {carried}\");\n    }\n}\n",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "u128 checked_div and checked_rem",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "u128::checked_div computes self / rhs and returns None if rhs is 0, and u128::checked_rem computes self % rhs and returns None if rhs is 0.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "midly 0.5.3 primitive.rs Tempo and Timing::Metrical",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "year": 2026,
+          "kind": "repo",
+          "identifier": "",
+          "claim": "Timing::Metrical specifies ticks/beat as a 15-bit integer, and the beat length is not standard, so a MetaMessage::Tempo event is required to describe the length of a tick.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "Integer operator overflow",
+          "url": "https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html",
+          "year": 2026,
+          "kind": "reference",
+          "identifier": "",
+          "claim": "Integer * overflows when it creates a value greater than the maximum that the type can store, and integer operators panic on overflow in debug mode, controlled by -C overflow-checks.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "match-one-floor-of-a-multi-segment-span-by-carrying-the-remainder-while-independent-floors-drift"
+    },
+    {
+      "name": "Export the u128 tick-to-sample floor from a wasm32 cdylib that takes and returns u64",
+      "what": "wasm32-unknown-unknown can export tick_to_sample(tick: u64, tempo_us_per_quarter: u64, ppq: u64) -> u64, which floors tick * tempo * 48000 / (ppq * 10^6) in u128 and returns 48000 for one quarter at 1000000 microseconds and PPQ 3360; tick_to_sample_status returns 1 when checked_div refuses a zero PPQ.",
+      "how": "Build an edition 2024 cdylib with #[unsafe(no_mangle)] extern \"C\" functions. Widen each u64 to u128, then checked_mul by the tempo, checked_mul by 48000, checked_div by ppq.checked_mul(1_000_000), and u64::try_from the quotient. tick_to_sample returns the quotient or u64::MAX on None; tick_to_sample_status returns 0 or 1. Call them from node with BigInt arguments.",
+      "rust_version": "1.98.1, edition 2024, target wasm32-unknown-unknown",
+      "gotchas": "println! does nothing on wasm32-unknown-unknown, so the sample has to be the export's return value. A JS number is not an i64 argument; node must pass a BigInt. u64::MAX as the refusal sentinel collides with a genuine quotient of 2^64-1, which is why the status export is the refusal signal.",
+      "engine_note": "Signed lock: edition 2024 cdylib for wasm32-unknown-unknown, raw extern \"C\" with #[unsafe(no_mangle)], every export argument and return at most 64 bits, status codes across the boundary and no panic. Compute the floor in u128 inside the export and return status 1 on None.",
+      "checks": [
+        {
+          "label": "wasm32 tick_to_sample(3360, 1000000, 3360) returns 48000",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "48000",
+          "wasm_exports": [
+            "tick_to_sample",
+            "tick_to_sample_status"
+          ],
+          "wasm_no_imports": true,
+          "wasm_call": {
+            "export": "tick_to_sample",
+            "args": [
+              "3360n",
+              "1000000n",
+              "3360n"
+            ]
+          },
+          "source": "#![no_std]\n\n#[panic_handler]\nfn panic(_info: &core::panic::PanicInfo) -> ! {\n    loop {}\n}\n\nfn floor_sample(tick: u64, tempo_us_per_quarter: u64, ppq: u64) -> Option<u64> {\n    let numer = (tick as u128)\n        .checked_mul(tempo_us_per_quarter as u128)?\n        .checked_mul(48_000)?;\n    let denom = (ppq as u128).checked_mul(1_000_000)?;\n    u64::try_from(numer.checked_div(denom)?).ok()\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn tick_to_sample(tick: u64, tempo_us_per_quarter: u64, ppq: u64) -> u64 {\n    floor_sample(tick, tempo_us_per_quarter, ppq).unwrap_or(u64::MAX)\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn tick_to_sample_status(tick: u64, tempo_us_per_quarter: u64, ppq: u64) -> u64 {\n    match floor_sample(tick, tempo_us_per_quarter, ppq) {\n        Some(_) => 0,\n        None => 1,\n    }\n}\n",
+          "oracle_set": "jam"
+        },
+        {
+          "label": "wasm32 tick_to_sample_status returns 1 when PPQ is 0",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_exports": [
+            "tick_to_sample_status"
+          ],
+          "wasm_call": {
+            "export": "tick_to_sample_status",
+            "args": [
+              "3360n",
+              "1000000n",
+              "0n"
+            ]
+          },
+          "source": "#![no_std]\n\n#[panic_handler]\nfn panic(_info: &core::panic::PanicInfo) -> ! {\n    loop {}\n}\n\nfn floor_sample(tick: u64, tempo_us_per_quarter: u64, ppq: u64) -> Option<u64> {\n    let numer = (tick as u128)\n        .checked_mul(tempo_us_per_quarter as u128)?\n        .checked_mul(48_000)?;\n    let denom = (ppq as u128).checked_mul(1_000_000)?;\n    u64::try_from(numer.checked_div(denom)?).ok()\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn tick_to_sample(tick: u64, tempo_us_per_quarter: u64, ppq: u64) -> u64 {\n    floor_sample(tick, tempo_us_per_quarter, ppq).unwrap_or(u64::MAX)\n}\n\n#[unsafe(no_mangle)]\npub extern \"C\" fn tick_to_sample_status(tick: u64, tempo_us_per_quarter: u64, ppq: u64) -> u64 {\n    match floor_sample(tick, tempo_us_per_quarter, ppq) {\n        Some(_) => 0,\n        None => 1,\n    }\n}\n",
+          "oracle_set": "jam"
+        }
+      ],
+      "sources": [
+        {
+          "title": "wasm32-unknown-unknown",
+          "url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html",
+          "year": 2026,
+          "kind": "book",
+          "identifier": "",
+          "claim": "wasm32-unknown-unknown is compiled with rustc --target wasm32-unknown-unknown, fully supports core and alloc, imports no host functions for the standard library, and println! does nothing.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "u128 checked_mul and checked_div",
+          "url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "u128::checked_mul returns None if self * rhs overflows, and u128::checked_div returns None if rhs is 0.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "export-the-u128-tick-to-sample-floor-from-a-wasm32-cdylib-that-takes-and-returns-u64"
+    }
+  ]
+}

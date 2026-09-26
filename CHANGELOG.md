@@ -2,6 +2,32 @@
 
 Notable changes to the published corpus. The format follows [Keep a Changelog](https://keepachangelog.com/). readouts has no version numbers: it is a rolling corpus, so each entry is a dated publication, and the commit on `main` is its identifier.
 
+## 2026-09-26
+
+### Added
+
+- **rust-knowledge wave 5** answers si-jam-sessions' questions after its design lock was signed. It adds 13 recipes across three lanes, all verified by Claude Sonnet, with every code check passing under the pinned `rustc 1.98.1`:
+  - PPQ 3360's tuplet table, the u128 overflow bound and the remainder carry;
+  - what midly's `strict` feature refuses that the alloc-only build accepts;
+  - an audio callback measured to allocate nothing, with a negative control.
+
+  Kimi k2.6 wrote two lanes. Grok 4.7 wrote the third in a chat seat that ran under the generator harness's own gates. rust-knowledge goes from 267 to 280 recipes (266 → 279 verified), and the corpus from 1,819 to 1,832 verified entries.
+- One of the new recipes is marked avoid: the wasm32 export that refuses SMPTE-timed files. As written, it panics or hangs on a MIDI division word starting 0x80. Its correction says to read bit 15 of the division word and refuse the file before calling midly.
+- Two measurement records in `rust-knowledge/verification/measurements/`:
+  - midly 0.5.3 panics on a division word starting 0x80, and what a wasm32 export does on that panic under three panic-handler setups (one hangs, two trap);
+  - how cargo unifies a dependency's features across the packages one command builds.
+
+### Changed
+
+- rust-knowledge wave 4's `parse-smf-formats-and-timing` recipe gained a note. Checking for SMPTE timing after parsing misses a division word starting 0x80, which panics inside midly 0.5.3's parser, so refuse any division word with bit 15 set before calling midly.
+
+### Fixed
+
+- rust-knowledge had not been rebuilt for two changes made after its first publication:
+  - The second publication put each verifier's correction at the front of the entry's note, but 30 corrected rust-knowledge recipes still did not show theirs. They now open with it.
+  - 32 recipes that si-jam-sessions' signed design lock took as pins carried that mark only in `verification/operator-notes.json`. It now shows on their pages and in the database.
+- rust-knowledge wave 4's verification record credited its research to Claude Opus. Kimi k2.6 and Gemini 3.1 Pro wrote it, and the record now says so.
+
 ## 2026-09-25 (third publication)
 
 ### Fixed

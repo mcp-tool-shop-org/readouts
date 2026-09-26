@@ -1,5 +1,5 @@
 # Testing, lints & dev tooling
-_Unit/integration/doc tests for a cdylib, wasm test runners, clippy, proptest, mutants._ · tier **essentials** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Unit/integration/doc tests for a cdylib, wasm test runners, clippy, proptest, mutants._ · tier **essentials** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 9 compiler-checked.
 

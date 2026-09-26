@@ -1,5 +1,5 @@
 # Rust → WebAssembly without bindgen
-_Raw extern "C" exports over linear memory, traps, views, targets and features, module inspection._ · tier **si-rpg-engine** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Raw extern "C" exports over linear memory, traps, views, targets and features, module inspection._ · tier **si-rpg-engine** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 
@@ -60,7 +60,7 @@ _Raw extern "C" exports over linear memory, traps, views, targets and features, 
   - *Check 6: #[link(wasm_import_module)] turns the same extern into a module import and links* · `compiles` · edition 2024 · wasm32-unknown-unknown · cdylib · exports memory, add · imports exactly host.host_log · **✔ oracle pass**
   - *Check 7: a tuple parameter in an extern "C" export draws improper_ctypes_definitions* · `compiles` · edition 2024 · wasm32-unknown-unknown · cdylib · lints: improper_ctypes_definitions · **✔ oracle pass**
 
-- **Verifier (solid):** Own counter-examples: public_but_not_exported is absent from exports; #[link(wasm_import_module=host)] yields import {module:host,name:host_log} exactly as claimed. True, but checks[1]/[5] assert neither themselves.
+- **Verifier (solid):** CORRECTED: checks[1] (pub-fn-not-exported) and checks[5] (extern becomes a real import) don't machine-assert the specific claim their own label makes; true only via my counter-examples, not the shipped checks. · Own counter-examples: public_but_not_exported is absent from exports; #[link(wasm_import_module=host)] yields import {module:host,name:host_log} exactly as claimed. True, but checks[1]/[5] assert neither themselves. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 1 (wasm-raw-abi): extern "C" + #[unsafe(no_mangle)], status codes not panics, every export argument and return at most 64 bits. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** 7/7 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [Application Binary Interface: no_mangle, export_name, link_section (The Rust Reference)](https://doc.rust-lang.org/reference/abi.html) (2026) — no_mangle disables mangling and publicly exports the item like `used`; export_name sets the exported symbol name; both are unsafe attributes that may be written bare only before edition 2024.
@@ -104,7 +104,7 @@ _Raw extern "C" exports over linear memory, traps, views, targets and features, 
   - *Check 1: wasmparser 0.259 reads exports, memory limits and a custom section, and rejects a bad export index* · `runs` · edition 2024 · host · bin · deps: wasmparser · **✔ oracle pass**
   - *Check 2: -C strip=symbols keeps the export names (exports are not a custom section)* · `runs` · edition 2024 · wasm32-unknown-unknown · cdylib · exports memory, law_version · node calls law_version() · **✔ oracle pass**
 
-- **Verifier (solid):** solver/build.mjs (main) never calls wasm-opt/wasm-pack; solver/Cargo.toml has no explicit strip key, so Rust 1.77+'s implicit strip=debuginfo applies as claimed. wasmparser/wasm-tools/binaryen/wasm-pack sources all confirmed verbatim.
+- **Verifier (solid):** solver/build.mjs (main) never calls wasm-opt/wasm-pack; solver/Cargo.toml has no explicit strip key, so Rust 1.77+'s implicit strip=debuginfo applies as claimed. wasmparser/wasm-tools/binaryen/wasm-pack sources all confirmed verbatim. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 5 (ci-reproducible-builds): digest re-pinned only from x86_64 Linux, --locked, path remapping, clippy -D warnings, wasm-opt only if pinned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** 2/2 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [wasmparser 0.259.0: struct Parser (docs.rs)](https://docs.rs/wasmparser/0.259.0/wasmparser/struct.Parser.html) (2026) — wasmparser 0.259.0: Parser::new(offset) and parse_all(self, data) iterate Payloads (ExportSection, MemorySection, CustomSection, CodeSectionEntry, ...) of an in-memory module.
@@ -131,7 +131,7 @@ _Raw extern "C" exports over linear memory, traps, views, targets and features, 
   - *Check 4: --export=__heap_base / --export=__data_end expose the linker symbols as exported globals* · `compiles` · edition 2024 · wasm32-unknown-unknown · cdylib · exports memory, add, __heap_base, __data_end · **✔ oracle pass**
   - *Check 5: -C link-arg=--import-memory links (the module then imports env.memory; see how)* · `compiles` · edition 2024 · wasm32-unknown-unknown · cdylib · exports add · **✔ oracle pass**
 
-- **Verifier (solid):** Rebuilt solver from main: 18 initial pages match. __heap_base/__data_end confirmed kind=global (node) though checks[3] tests names only. My addresses differ by a constant offset; FLAGS.md documents host/remap-path dependence.
+- **Verifier (solid):** CORRECTED: checks[3] only asserts __heap_base/__data_end appear among export names, not that they are kind=global as "how" claims. Confirmed true myself (node reports kind:'global' for both). · Rebuilt solver from main: 18 initial pages match. __heap_base/__data_end confirmed kind=global (node) though checks[3] tests names only. My addresses differ by a constant offset; FLAGS.md documents host/remap-path dependence.
 - **Compiler:** 5/5 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [compiler/rustc_target/src/spec/base/wasm.rs at tag 1.98.1 (rust-lang/rust)](https://github.com/rust-lang/rust/blob/1.98.1/compiler/rustc_target/src/spec/base/wasm.rs) (2026) — At 1.98.1 rustc passes -z stack-size=1048576 because LLD's default is one 64k page, and --stack-first so the stack sits before static data and an overflow traps.
@@ -194,7 +194,7 @@ _Raw extern "C" exports over linear memory, traps, views, targets and features, 
   - *Check 4: the same export accepts an in-range slot with status 1* · `runs` · edition 2024 · wasm32-unknown-unknown · cdylib · node calls write_slot(2, 1.5) · **✔ oracle pass**
   - *Check 5: an unchecked export that indexes out of range panics, and under panic=abort the panic is a WebAssembly trap (RuntimeError: unreachable)* · `runs` · edition 2024 · wasm32-unknown-unknown · cdylib · the trap message has “unreachable” · node calls write_slot_unchecked(9, 1.5), which must trap · **✔ oracle pass**
 
-- **Verifier (solid):** Own counter-example (real OOB-index panic): threw RuntimeError "unreachable" in V8; a counter/buffer write made before the panic survived it, exactly as claimed. No check in this recipe triggers an actual trap.
+- **Verifier (solid):** CORRECTED: All 4 checks test the checked-return-code avoidance pattern; none trigger a real panic/trap, so the recipe's central claims (RuntimeError 'unreachable', post-trap state persistence) are untested by checks[]. Confirmed true independently. · Own counter-example (real OOB-index panic): threw RuntimeError "unreachable" in V8; a counter/buffer write made before the panic survived it, exactly as claimed. No check in this recipe triggers an actual trap. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 1 (wasm-raw-abi): extern "C" + #[unsafe(no_mangle)], status codes not panics, every export argument and return at most 64 bits. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** 5/5 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [wasm32-unknown-unknown (The rustc book, Platform Support)](https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html) (2026) — wasm32-unknown-unknown is compiled with -Cpanic=abort by default and the precompiled std is abort-only; unwinding requires -Zbuild-std.

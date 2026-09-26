@@ -1,5 +1,5 @@
 # What changed in Rust 1.80 → 1.98
-_Edition 2024 and every stabilization since 1.80 that changes how engine code is written._ · tier **advanced** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Edition 2024 and every stabilization since 1.80 that changes how engine code is written._ · tier **advanced** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 9 compiler-checked.
 

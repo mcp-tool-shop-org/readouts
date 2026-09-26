@@ -1,5 +1,5 @@
 # Collections, iterators & closures
-_Vec, BTreeMap vs HashMap order, sorting and ties, iterator laziness, closures, float sums._ · tier **essentials** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Vec, BTreeMap vs HashMap order, sorting and ties, iterator laziness, closures, float sums._ · tier **essentials** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 

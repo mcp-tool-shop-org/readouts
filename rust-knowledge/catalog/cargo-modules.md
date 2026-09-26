@@ -1,5 +1,5 @@
 # Cargo, crates, modules & editions
-_Manifests, the lockfile, feature unification, profiles, editions, toolchain and rustflags precedence._ · tier **essentials** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Manifests, the lockfile, feature unification, profiles, editions, toolchain and rustflags precedence._ · tier **essentials** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 7 compiler-checked.
 
@@ -49,7 +49,7 @@ _Manifests, the lockfile, feature unification, profiles, editions, toolchain and
   - *Check 2: the same source builds as a native cdylib for the host* · `compiles` · edition 2021 · host · cdylib · no warnings · **✔ oracle pass**
   - *Check 3: the same source builds as a staticlib for a C/C++ linker* · `compiles` · edition 2021 · host · staticlib · no warnings · **✔ oracle pass**
 
-- **Verifier (solid):** Rebuilt the real solver (rapier3d-f64 0.35.3) in scratch: adding rlib changed the wasm SHA-256, delta +28 bytes matching the recipe's claimed delta exactly; dep graph counts (45 lib/4 proc-macro/8 bin) matched exactly. · [operator 2026-09-25: VOID CORRECTION: the check this verdict calls ungated carries the gate in the lane file. The staged input omitted no_warnings and wasm_no_imports (an assemble_lanes.py staging defect, fixed 2026-09-25), and the oracle enforced the gate in run compile-2026-09-25.]
+- **Verifier (solid):** CORRECTED: Check 1's label says the wasm cdylib 'imports nothing' but the check body omits wasm_no_imports:true, so the oracle never asserts it (only exports+wasm_call are checked). Verified true myself: building the exact check source gave wasm_imports: []. · Rebuilt the real solver (rapier3d-f64 0.35.3) in scratch: adding rlib changed the wasm SHA-256, delta +28 bytes matching the recipe's claimed delta exactly; dep graph counts (45 lib/4 proc-macro/8 bin) matched exactly. · [operator 2026-09-25: VOID CORRECTION: the check this verdict calls ungated carries the gate in the lane file. The staged input omitted no_warnings and wasm_no_imports (an assemble_lanes.py staging defect, fixed 2026-09-25), and the oracle enforced the gate in run compile-2026-09-25.]
 - **Compiler:** 3/3 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [The Cargo Book: Cargo Targets (the crate-type field)](https://doc.rust-lang.org/cargo/reference/cargo-targets.html) (2026) — crate-type is an array settable only for libraries and examples; the library default is "lib"; options are bin, lib, rlib, dylib, cdylib, staticlib and proc-macro.
@@ -164,7 +164,7 @@ _Manifests, the lockfile, feature unification, profiles, editions, toolchain and
   - *Check 2: under forbid, #[allow(unsafe_code)] is itself an error, E0453* · `compile_fail` · edition 2021 · host · lib · errors: E0453 · stderr has “incompatible with previous forbid” · **✔ oracle pass**
   - *Check 3: under deny, #[allow(unsafe_code)] on the item is accepted without a warning* · `compiles` · edition 2021 · host · lib · no warnings · **✔ oracle pass**
 
-- **Verifier (solid):** Reproduced the virtual-workspace resolver warning and the [workspace.lints] to --forbid=unsafe_code mapping verbatim on 1.98.1, incl. the unsafe-block rejection and E0453 under forbid. · [operator 2026-09-25: VOID CORRECTION: the check this verdict calls ungated carries the gate in the lane file. The staged input omitted no_warnings and wasm_no_imports (an assemble_lanes.py staging defect, fixed 2026-09-25), and the oracle enforced the gate in run compile-2026-09-25.]
+- **Verifier (solid):** CORRECTED: Check 3's label says allow-under-deny compiles 'without a warning' but the check body omits no_warnings:true, so the oracle doesn't assert it (only expect:compiles is checked). Verified true myself: raw rustc stderr was 0 bytes for that exact source. · Reproduced the virtual-workspace resolver warning and the [workspace.lints] to --forbid=unsafe_code mapping verbatim on 1.98.1, incl. the unsafe-block rejection and E0453 under forbid. · [operator 2026-09-25: VOID CORRECTION: the check this verdict calls ungated carries the gate in the lane file. The staged input omitted no_warnings and wasm_no_imports (an assemble_lanes.py staging defect, fixed 2026-09-25), and the oracle enforced the gate in run compile-2026-09-25.]
 - **Compiler:** 3/3 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [The Cargo Book: Workspaces](https://doc.rust-lang.org/cargo/reference/workspaces.html) (2026) — Members share one Cargo.lock and output directory at the root; [patch], [replace] and [profile.*] are recognised only in the root manifest; a virtual workspace must set resolver explicitly; [workspace.dependencies] features are additive; [workspace.lints] is inherited with [lints] workspace = true.

@@ -1,5 +1,5 @@
 # Rapier state for restore (T2)
-_Warm-start impulses, activation and islands, broad-phase order, serde canonicality — what solver_restore must carry._ · tier **si-rpg-engine** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Warm-start impulses, activation and islands, broad-phase order, serde canonicality — what solver_restore must carry._ · tier **si-rpg-engine** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 

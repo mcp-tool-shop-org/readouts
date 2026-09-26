@@ -1,5 +1,5 @@
 # Binary lint, CCD and controller limits (T3/T4) — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](binary-and-limits.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](binary-and-limits.md) · [catalog index](README.md)
 
 ## Allow ~1,200 quanta for a walker started 0.1 inside the floor: Rapier depenetrates only on a zero desired move
 **move_shape runs its depenetration pass only for a zero desired translation, and the engine always passes gravity, so a walker started 0.1 inside the floor rises only by the 1e-4 normal nudge per quantum and stands after about 1,200 quanta.**

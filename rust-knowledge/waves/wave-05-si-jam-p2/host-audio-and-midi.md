@@ -1,0 +1,5 @@
+# The audio callback allocates nothing: proved on the callback body — generator packet
+
+Written by `kimi-k2.6:cloud` through `scripts/openrouter_lane.py`; unverified until the wave's verification record says otherwise.
+
+Register a counting #[global_allocator] that wraps System and increments an AtomicUsize on every alloc; create the rtrb::RingBuffer before the measured section because its ::new allocates the backing buffer, while push and pop do not. In the simulated callback body, pop from the Consumer into a stack-allocated [f32; N] and read the counter before and after: it is unchanged. A negative control that calls vec.push or format! inside the same body shows the counter increase. Separately, register assert_no_alloc::AllocDisabler as #[global_allocator] and wrap the body in assert_no_alloc; in the oracle's debug build this aborts on any allocation and returns normally when the body is allocation-free. This proves only the callback body and rtrb operations; it does not prove that cpal 0.18.2's WASAPI backend or its stream thread are allocation-free, because the oracle has no audio device and host checks touching cpal streams are compile-only.

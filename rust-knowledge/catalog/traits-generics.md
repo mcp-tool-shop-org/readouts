@@ -1,5 +1,5 @@
 # Traits & generics — the working set
-_Standard trait contracts, f64 and PartialOrd, generics vs dyn, operator traits, the orphan rule._ · tier **essentials** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Standard trait contracts, f64 and PartialOrd, generics vs dyn, operator traits, the orphan rule._ · tier **essentials** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 

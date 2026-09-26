@@ -1,5 +1,5 @@
 # Macros, const evaluation & build scripts — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](macros-const.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](macros-const.md) · [catalog index](README.md)
 
 ## Compute tables in const fn with while, match and &mut; expect E0015 on for-loops, trait calls and formatting
 **On 1.98.1 const code runs loop/while/if/match, takes &mut (1.83), does float arithmetic (1.82) and panics with literal messages (1.57); for-loops, iterator methods, trait operators on your own types, PartialEq on str, heap allocation and formatted panic messages are refused.**

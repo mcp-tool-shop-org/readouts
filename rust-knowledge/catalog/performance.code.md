@@ -1,5 +1,5 @@
 # Performance & profiling — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](performance.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](performance.md) · [catalog index](README.md)
 
 ## Benchmark before tuning: criterion or divan with harness = false, black_box on every input and output
 **Stable Rust has no built-in bench harness (#[bench] is nightly-only), so time work with criterion 0.8 or divan 0.1 under [[bench]] harness = false and route inputs and results through std::hint::black_box so the optimizer cannot fold the measured work away.**

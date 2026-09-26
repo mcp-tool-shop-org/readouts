@@ -1,5 +1,5 @@
 # Unsafe Rust, UB & FFI
-_The UB catalogue, &raw, static mut under 2024, unsafe attributes, C ABI and unwinding, Miri._ · tier **advanced** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_The UB catalogue, &raw, static mut under 2024, unsafe attributes, C ABI and unwinding, Miri._ · tier **advanced** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 

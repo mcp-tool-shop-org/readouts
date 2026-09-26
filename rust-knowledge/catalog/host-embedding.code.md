@@ -1,5 +1,5 @@
 # Embedding the law in hosts — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](host-embedding.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](host-embedding.md) · [catalog index](README.md)
 
 ## Accept a new host only when its T1 trace equals node's in 16-hex-digit IEEE bits, never in decimals
 **solver/build.mjs under node is the reference binding: a Godot or Unreal host proves it runs the same law by printing the T1 trace for the same seed and log and passing harness/first-difference.js against node's trace, which writes every body field as its IEEE bit pattern.**

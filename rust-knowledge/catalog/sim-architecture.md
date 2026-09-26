@@ -1,5 +1,5 @@
 # Deterministic simulation architecture
-_Save/restore/rerun, canonical encoding, stable hashes, handles and order, law versioning._ · tier **si-rpg-engine** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Save/restore/rerun, canonical encoding, stable hashes, handles and order, law versioning._ · tier **si-rpg-engine** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 
@@ -32,7 +32,7 @@ _Save/restore/rerun, canonical encoding, stable hashes, handles and order, law v
   - *Check 3: bytemuck derive(Pod) refuses a struct with padding: E0080 at compile time* · `compile_fail` · edition 2021 · host · lib · deps: bytemuck · errors: E0080 · stderr has “derive(Pod) was applied to a type with padding” · **✔ oracle pass**
   - *Check 4: Padding spelled as a zeroed field makes the record Pod, and its 16 bytes are explicit* · `runs` · edition 2021 · host · bin · deps: bytemuck · **✔ oracle pass**
 
-- **Verifier (solid):** f64.rs/Reference/bytemuck/WASM spec verbatim. rapier_law.rs read directly: field order, pair sort, 7 warm-start f64s, no magic/version all match.
+- **Verifier (solid):** f64.rs/Reference/bytemuck/WASM spec verbatim. rapier_law.rs read directly: field order, pair sort, 7 warm-start f64s, no magic/version all match. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 3 (sim-architecture): integer quanta from a host-owned accumulator; snapshot bytes explicit LE, declared order, sorted, versioned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** 4/4 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [core f64 doc comments, rust-lang/rust tag 1.98.1 (library/core/src/num/f64.rs)](https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/core/src/num/f64.rs) (2026) — to_le_bytes returns the memory representation in little-endian byte order; to_ne_bytes uses native order and 'portable code should use to_be_bytes or to_le_bytes'; is_finite returns true if the number is neither infinite nor NaN.
@@ -270,7 +270,7 @@ _Save/restore/rerun, canonical encoding, stable hashes, handles and order, law v
   - *Check 3: Presentation writing a smoothed pose back through &State is E0594* · `compile_fail` · edition 2021 · host · lib · errors: E0594 · stderr has “which is behind a `&` reference” · **✔ oracle pass**
   - *Check 4: Interpolating between two committed states through shared references compiles clean* · `compiles` · edition 2021 · host · lib · no warnings · **✔ oracle pass**
 
-- **Verifier (plausible):** bevy_time/E0594/book verbatim. Duration claim misattributes 'f64 can't represent every Duration' to from_secs_f64; that prose is on mul_f64's docs.
+- **Verifier (plausible):** CORRECTED: The 'f64 does not have enough bits to represent...Duration...rounding may occur' sentence is on Duration::mul_f64's docs, not from_secs_f64's. · bevy_time/E0594/book verbatim. Duration claim misattributes 'f64 can't represent every Duration' to from_secs_f64; that prose is on mul_f64's docs. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 3 (sim-architecture): integer quanta from a host-owned accumulator; snapshot bytes explicit LE, declared order, sorted, versioned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** 4/4 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [bevy_time 0.19.1 — struct Fixed](https://docs.rs/bevy_time/0.19.1/bevy_time/struct.Fixed.html) (2026) — Time<Fixed> defaults to 64 hertz (15625 microseconds), chosen over 60 Hz to avoid alternating two and zero fixed steps per frame; the fixed schedule may run 0, 1 or more times per update and delta() equals timestep().

@@ -1,5 +1,5 @@
 # Floating point & cross-platform determinism
-_What is bit-identical across hosts, contraction, libm, NaN/zero canonicalisation, deterministic maps._ · tier **si-rpg-engine** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_What is bit-identical across hosts, contraction, libm, NaN/zero canonicalisation, deterministic maps._ · tier **si-rpg-engine** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 
@@ -111,7 +111,7 @@ _What is bit-identical across hosts, contraction, libm, NaN/zero canonicalisatio
   - *Check 3: the toolchain's hypot on wasm32 returns the next double up for the same input* · `runs` · edition 2021 · wasm32-unknown-unknown · cdylib · exports memory, hypot_bits · node calls hypot_bits(5.854078790883641, 1.8152787006269886) · **✔ oracle pass**
   - *Check 4: a libm canary test passes at the pinned version and would fail by name after a change* · `runs` · edition 2021 · host · test · deps: libm · output has “test libm_bits_are_pinned ... ok” · output has “test result: ok. 1 passed” · **✔ oracle pass**
 
-- **Verifier (solid):** libm CHANGELOG.md confirms both cited entries verbatim (0.2.12 CORE-MATH cbrt+fma sign fix; 0.2.16 2025-12-07 fminimum/fmaximum fix). The recipe's two hypot bit values are internally consistent (...85, then +1 ULP = ...86).
+- **Verifier (solid):** libm CHANGELOG.md confirms both cited entries verbatim (0.2.12 CORE-MATH cbrt+fma sign fix; 0.2.16 2025-12-07 fminimum/fmaximum fix). The recipe's two hypot bit values are internally consistent (...85, then +1 ULP = ...86). · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 4 (float-determinism): no transcendental functions in anything hashed; toolchain and lockfile bumps gated on goldens. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** 4/4 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [Primitive type f64 (std docs, Rust 1.98.1)](https://doc.rust-lang.org/stable/std/primitive.f64.html) (2026) — Transcendental methods have unspecified precision that varies by platform and Rust version.
@@ -160,7 +160,7 @@ _What is bit-identical across hosts, contraction, libm, NaN/zero canonicalisatio
   - *Check 3: wasm32 std f64::sin equals libm 0.2.16 over the sweep and the module imports nothing* · `runs` · edition 2021 · wasm32-unknown-unknown · cdylib · exports memory, std_sin · imports nothing · node calls std_sin(100000) · **✔ oracle pass**
   - *Check 4: wasm32 std f64::hypot differs from libm 0.2.16 over the same sweep (toolchain's CORE-MATH port)* · `runs` · edition 2021 · wasm32-unknown-unknown · cdylib · exports memory, std_hypot · node calls std_hypot(100000) · **✔ oracle pass**
 
-- **Verifier (solid):** Fetched compiler-builtins mod.rs myself (a WebFetch summary botched the cfg's boolean logic): wasm32-unknown-unknown is in the libm_math set. Local libm-0.2.16 hypot.rs is the SPLIT/sq algorithm as claimed.
+- **Verifier (solid):** Fetched compiler-builtins mod.rs myself (a WebFetch summary botched the cfg's boolean logic): wasm32-unknown-unknown is in the libm_math set. Local libm-0.2.16 hypot.rs is the SPLIT/sq algorithm as claimed. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 4 (float-determinism): no transcendental functions in anything hashed; toolchain and lockfile bumps gated on goldens. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** 4/4 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [Primitive type f64 (std docs, Rust 1.98.1)](https://doc.rust-lang.org/stable/std/primitive.f64.html) (2026) — sin, cos, exp, ln, powf, atan2 and hypot carry 'Unspecified precision: ... varies by platform, Rust version, and can even differ within the same execution'.

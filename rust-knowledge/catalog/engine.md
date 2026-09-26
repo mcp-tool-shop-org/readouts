@@ -8,4 +8,4 @@ Each note is a recipe's `engine_note`: the file, function, pin or slice of si-rp
 | Essentials — the Rust a builder must never get wrong | 64 | [engine-essentials.md](engine-essentials.md) |
 | Advanced — the parts of the language that decide design | 67 | [engine-advanced.md](engine-advanced.md) |
 | si-rpg-engine — how Rust is and will be used in the engine | 90 | [engine-si-rpg-engine.md](engine-si-rpg-engine.md) |
-| si-jam-sessions — Rust for a deterministic music law (P1) | 37 | [engine-si-jam-sessions.md](engine-si-jam-sessions.md) |
+| si-jam-sessions — Rust for a deterministic music law (P1) | 50 | [engine-si-jam-sessions.md](engine-si-jam-sessions.md) |

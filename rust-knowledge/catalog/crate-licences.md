@@ -1,5 +1,5 @@
 # Crate licences for a shipped MIT/Apache product
-_Licence allowlists, weak copyleft decisions, attribution output, and which licences reach a shipped binary._ · tier **si-jam-sessions** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Licence allowlists, weak copyleft decisions, attribution output, and which licences reach a shipped binary._ · tier **si-jam-sessions** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 0 compiler-checked.
 
@@ -27,7 +27,7 @@ _Licence allowlists, weak copyleft decisions, attribution output, and which lice
 - **Gotchas:** GNU licences are treated pedantically; SPDX identifiers must match exactly. No MPL-2.0 is in the current set, so it need not be allowed yet.
 - **In si-jam-sessions:** Bears on CI/licence scanning for both wasm and native targets; configure cargo-deny to enforce the product's MIT/Apache allowlist.
 
-- **Verifier (solid):** cfg.html: 'Licenses not in this list are denied by default.' Gotcha 'GNU licences treated pedantically' is a literal current-docs quote. confidence-threshold is real (default 0.8); 0.95 is valid stricter config, not a false default.
+- **Verifier (solid):** cfg.html: 'Licenses not in this list are denied by default.' Gotcha 'GNU licences treated pedantically' is a literal current-docs quote. confidence-threshold is real (default 0.8); 0.95 is valid stricter config, not a false default. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 8 (crate-licences): cargo-deny allowlist MIT / Apache-2.0 / Unlicense / BSD-1-Clause plus one scoped exception for unicode-ident. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** no code check (a claim code cannot show)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [config - cargo-deny](https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html) (2026) — All licenses are denied unless explicitly allowed in the allow list.
@@ -117,7 +117,7 @@ _Licence allowlists, weak copyleft decisions, attribution output, and which lice
 - **Gotchas:** Unused allowed licences trigger warnings by default; exceptions keep the global allowlist minimal.
 - **In si-jam-sessions:** Bears on CI/licence scanning; use exceptions to isolate non-global licences like BSD-1-Clause or Unlicense.
 
-- **Verifier (shaky):** Mechanism confirmed by both sources, but the worked example's `crate = "assert_no_alloc"` key does not exist in cargo-deny's schema. The docs' own example uses `name = "adler32"` -- the PackageSpec key is `name`, not `crate`.
+- **Verifier (shaky):** CORRECTED: how's example used `crate = "assert_no_alloc"`; the real PackageSpec key is `name` (docs' own literal example: `name = "adler32", version = "0.1.1"`). The per-crate exception concept is correct; only the field name is wrong. · Mechanism confirmed by both sources, but the worked example's `crate = "assert_no_alloc"` key does not exist in cargo-deny's schema. The docs' own example uses `name = "adler32"` -- the PackageSpec key is `name`, not `crate`. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 8 (crate-licences): cargo-deny allowlist MIT / Apache-2.0 / Unlicense / BSD-1-Clause plus one scoped exception for unicode-ident. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** no code check (a claim code cannot show)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [config - cargo-deny](https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html) (2026) — The exceptions field is meant to allow additional licenses only for particular crates.
@@ -132,7 +132,7 @@ _Licence allowlists, weak copyleft decisions, attribution output, and which lice
 - **Gotchas:** Clarifications are temporary patches; if the crate updates and the file changes, the hash mismatch will fail the check.
 - **In si-jam-sessions:** Bears on CI/licence scanning; use clarify for crates with missing SPDX metadata.
 
-- **Verifier (shaky):** Concept confirmed by both sources, but how's 'provide expression, path, and hash' omits the required `name` key and misstates structure: real schema is top-level name+expression, with path/hash nested in `license-files = [{path,hash}]`.
+- **Verifier (shaky):** CORRECTED: how omits the required `name` key (target crate) and lists path/hash as flat keys. Real schema: `name`+`expression` top-level, `license-files = [{ path = "...", hash = 0x... }]` nested (docs' own `ring` example). · Concept confirmed by both sources, but how's 'provide expression, path, and hash' omits the required `name` key and misstates structure: real schema is top-level name+expression, with path/hash nested in `license-files = [{path,hash}]`.
 - **Compiler:** no code check (a claim code cannot show)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [config - cargo-deny](https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html) (2026) — Clarify lets you manually assign an SPDX expression based on one or more files in the crate's source, valid as long as the source files exactly match the clarification's hashes.
@@ -162,7 +162,7 @@ _Licence allowlists, weak copyleft decisions, attribution output, and which lice
 - **Gotchas:** Assumption: the measured dependency graph correctly identifies these as normal (binary-linked) edges for wasm32-unknown-unknown.
 - **In si-jam-sessions:** Bears on the shipped wasm32 law binary; verify that all linked crate licences are permissive and documented.
 
-- **Verifier (plausible):** midly Cargo.toml: license="Unlicense"; abc-parser Cargo.toml: license="MIT" -- both confirmed live+local, exact match. Wasm-cdylib linkage itself is self-flagged 'Assumption' in gotchas, not independently checkable pre-lock.
+- **Verifier (plausible):** midly Cargo.toml: license="Unlicense"; abc-parser Cargo.toml: license="MIT" -- both confirmed live+local, exact match. Wasm-cdylib linkage itself is self-flagged 'Assumption' in gotchas, not independently checkable pre-lock. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 8 (crate-licences): cargo-deny allowlist MIT / Apache-2.0 / Unlicense / BSD-1-Clause plus one scoped exception for unicode-ident. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** no code check (a claim code cannot show)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [midly 0.5.3 Cargo.toml](https://docs.rs/crate/midly/0.5.3/source/Cargo.toml) (2026) — midly 0.5.3 declares license = "Unlicense".

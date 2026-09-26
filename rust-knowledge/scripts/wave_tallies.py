@@ -21,6 +21,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--wave-dir", required=True)
     ap.add_argument("--date", required=True)
+    # Wave 5 reused wave 4's lane slugs on the same date, so its verdicts live in their own sweep
+    # folder; without this the tallies silently read wave 4's files (as assemble_lanes --sweep).
+    ap.add_argument("--sweep", help="sweep folder under verification/ (default sweep-<date>)")
     a = ap.parse_args()
     lanes = [os.path.splitext(os.path.basename(p))[0]
              for p in sorted(glob.glob(os.path.join(ROOT, "waves", a.wave_dir, "lanes", "*.json")))]
@@ -36,7 +39,7 @@ def main():
           f"  {'src+':>4s} {'src-':>4s} {'src?':>4s}  {'checks':>6s} {'fail':>4s} {'rec/chk':>7s}")
     tot = collections.Counter()
     for lane in lanes:
-        vp = os.path.join(ROOT, "verification", f"sweep-{a.date}", "lanes", f"{lane}.json")
+        vp = os.path.join(ROOT, "verification", a.sweep or f"sweep-{a.date}", "lanes", f"{lane}.json")
         if not os.path.isfile(vp):
             print(f"{lane:24s} (no verifier file yet)")
             continue

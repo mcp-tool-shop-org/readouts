@@ -1,0 +1,46 @@
+{
+  "date": "2026-09-25",
+  "subject": "cargo feature unification: whether one workspace member's midly/strict reaches another member",
+  "lead": "noted by the si-jam-sessions coordinator session, whose workspace builds a strict ingest crate beside crates that would measure non-strict behaviour; measured here",
+  "tool": "cargo 1.98.1 (797e8a9bc 2026-08-05), resolver 3, --offline, midly 0.5.3 from the local registry",
+  "workspace": {
+    "Cargo.toml": "[workspace]\nresolver = \"3\"\nmembers = [\"strict-member\", \"plain-member\"]\n",
+    "strict-member/Cargo.toml": "[package]\nname = \"strict-member\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nmidly = { version = \"=0.5.3\", default-features = false, features = [\"alloc\", \"strict\"] }\n",
+    "plain-member/Cargo.toml": "[package]\nname = \"plain-member\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nmidly = { version = \"=0.5.3\", default-features = false, features = [\"alloc\"] }\n"
+  },
+  "runs": [
+    {
+      "command": "cargo +1.98.1 tree -e features -i midly -p plain-member --offline",
+      "midly_features": [
+        "alloc"
+      ],
+      "output": "midly v0.5.3\n└── midly feature \"alloc\"\n    └── plain-member v0.1.0 (<ws>\\plain-member)\n        └── plain-member feature \"default\" (command-line)\n"
+    },
+    {
+      "command": "cargo +1.98.1 tree -e features -i midly --workspace --offline",
+      "midly_features": [
+        "alloc",
+        "strict"
+      ],
+      "output": "midly v0.5.3\n├── midly feature \"alloc\"\n│   ├── plain-member v0.1.0 (<ws>\\plain-member)\n│   │   └── plain-member feature \"default\" (command-line)\n│   └── strict-member v0.1.0 (<ws>\\strict-member)\n│       └── strict-member feature \"default\" (command-line)\n└── midly feature \"strict\"\n    └── strict-member v0.1.0 (<ws>\\strict-member) (*)\n"
+    },
+    {
+      "command": "cargo +1.98.1 tree -e features -i midly --offline   (no package flag, at the virtual workspace root)",
+      "midly_features": [
+        "alloc",
+        "strict"
+      ],
+      "output": "midly v0.5.3\n├── midly feature \"alloc\"\n│   ├── plain-member v0.1.0 (<ws>\\plain-member)\n│   │   └── plain-member feature \"default\" (command-line)\n│   └── strict-member v0.1.0 (<ws>\\strict-member)\n│       └── strict-member feature \"default\" (command-line)\n└── midly feature \"strict\"\n    └── strict-member v0.1.0 (<ws>\\strict-member) (*)\n"
+    }
+  ],
+  "source": {
+    "title": "The Cargo Book: Features, Feature unification",
+    "url": "https://doc.rust-lang.org/cargo/reference/features.html#feature-unification"
+  },
+  "applies_to": [
+    "reject-track-count-mismatch-under-midly-strict",
+    "reject-truncated-mtrk-chunk-under-midly-strict",
+    "reject-out-of-range-midichannel-meta-event-under-midly-strict"
+  ],
+  "conclusion": "Cargo resolves features once per command, over the packages that command selects. With -p plain-member, midly is built with alloc only. With --workspace, or with no package flag at a virtual workspace root, midly is built once with alloc + strict for every member. A non-strict measurement in a workspace that has a strict member must run with -p, or in its own workspace."
+}

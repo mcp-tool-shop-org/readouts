@@ -1,5 +1,5 @@
 # Rapier state for restore (T2) — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](restore-internals.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](restore-internals.md) · [catalog index](README.md)
 
 ## Copy RigidBodyActivation whole or not at all: its pub(crate) sleep_prev_pose restarts the sleep timer
 **RigidBodyActivation has five pub fields plus pub(crate) sleep_prev_pose (the pose at the previous energy update); rebuilding it from the pub fields resets time_since_can_sleep to 0 on the next step for any body not at the origin.**

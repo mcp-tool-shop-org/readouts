@@ -1,5 +1,5 @@
 # Errors, panics & arithmetic safety
-_Result and ?, error enums, panic=abort, overflow behaviour, status codes at an FFI edge._ · tier **essentials** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Result and ?, error enums, panic=abort, overflow behaviour, status codes at an FFI edge._ · tier **essentials** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 

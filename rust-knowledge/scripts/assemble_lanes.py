@@ -233,6 +233,27 @@ def oracle_results(date: str, wave_dirname: str) -> tuple[dict, str | None]:
     return {(r["slug"], r["index"]): r for r in payload.get("results", [])}, payload.get("rustc")
 
 
+def research_seats(wave_no: int) -> str:
+    """Who wrote the wave, from briefs/lanes.json's per-wave `seats` line.
+
+    This sentence was a constant, "Research: Claude Opus, one seat per lane", written when waves 1-3
+    were the only waves. Wave 4 (Kimi k2.6 and Gemini 3.1 Pro) shipped under it, although its own
+    `seats` line said otherwise. A wave with no `seats` line is one of those Claude Opus waves.
+    """
+    with open(os.path.join(ROOT, "briefs", "lanes.json"), encoding="utf-8") as fh:
+        waves = json.load(fh).get("waves") or []
+    seats = next((w.get("seats") for w in waves if w.get("wave") == wave_no), None)
+    if seats:
+        return f"Seats: {seats.rstrip('.')}."
+    return "Research: Claude Opus, one seat per lane (briefs/LANE-BRIEF.md + briefs/lanes.json)."
+
+
+def verifier_brief(wave_no: int) -> str:
+    """The brief a wave's verifiers read: its own (briefs/VERIFIER-BRIEF-W5.md) when it has one."""
+    own = f"briefs/VERIFIER-BRIEF-W{wave_no}.md"
+    return own if os.path.isfile(os.path.join(ROOT, own)) else "briefs/VERIFIER-BRIEF.md"
+
+
 def finalize(lanes: list[dict], sweep_dir: str, wave_no: int, date: str, wave_dir: str) -> int:
     orc, rustc = oracle_results(date, os.path.basename(wave_dir))
     missing_v, missing_o = [], []
@@ -316,8 +337,8 @@ def finalize(lanes: list[dict], sweep_dir: str, wave_no: int, date: str, wave_di
         "title": f"Wave {wave_no} — {WAVE_TITLES.get(wave_no, '')}: {n} recipes across {len(lanes_out)} lanes",
         "domain_scope": ", ".join(l["laneSlug"] for l in lanes_out),
         "agent_count": 2 * len(lanes_out),
-        "verifier_note": (f"Research: Claude Opus, one seat per lane (briefs/LANE-BRIEF.md + briefs/lanes.json). "
-                          f"Verifier: Claude Sonnet, one reasoning-stripped seat per lane (briefs/VERIFIER-BRIEF.md): "
+        "verifier_note": (f"{research_seats(wave_no)} "
+                          f"Verifier: Claude Sonnet, one reasoning-stripped seat per lane ({verifier_brief(wave_no)}): "
                           f"{tallies['confirmed']} confirmed, {tallies['corrected']} corrected, {tallies['refuted']} refuted, "
                           f"{tallies['unfindable']} unfindable. Compiler (non-model): {rustc} ran {n_checks} checks, "
                           f"{n_fail} failed. verified = ledger (external verdict AND compile gate)."),

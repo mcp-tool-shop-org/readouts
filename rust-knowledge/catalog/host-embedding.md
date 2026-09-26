@@ -1,5 +1,5 @@
 # Embedding the law in hosts
-_One pinned wasm in wasmtime/Wasmer/WAMR vs native gdext/C ABI builds, for Godot and Unreal._ · tier **si-rpg-engine** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_One pinned wasm in wasmtime/Wasmer/WAMR vs native gdext/C ABI builds, for Godot and Unreal._ · tier **si-rpg-engine** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 7 compiler-checked.
 

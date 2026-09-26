@@ -1,5 +1,5 @@
 # Structs, enums & pattern matching
-_Sum types over flags, exhaustive match, let-else, let chains, newtypes, casts vs TryFrom._ · tier **essentials** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Sum types over flags, exhaustive match, let-else, let chains, newtypes, casts vs TryFrom._ · tier **essentials** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 

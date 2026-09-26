@@ -1,5 +1,5 @@
 # Floating point & cross-platform determinism — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](float-determinism.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](float-determinism.md) · [catalog index](README.md)
 
 ## Build hashed math from f64 + - * / and sqrt: the same bits on IEEE CPUs, wasm engines and in const eval
 **The IEEE 754 basic operations (+, -, *, /, sqrt) are correctly rounded (round to nearest, ties to even) in Rust and in WebAssembly, neither flushes subnormals, and rustc's const evaluator computes them in a host-independent soft-float, so a computation built only from them has one bit pattern natively, in every wasm engine and at compile time; only NaN bit patterns may differ.**

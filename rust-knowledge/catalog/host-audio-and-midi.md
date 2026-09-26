@@ -1,13 +1,17 @@
 # Native audio and MIDI host
-_cpal output on WASAPI, lock-free event delivery to the audio callback, midir input timestamps mapped onto the law clock._ · tier **si-jam-sessions** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_cpal output on WASAPI, lock-free event delivery to the audio callback, midir input timestamps mapped onto the law clock._ · tier **si-jam-sessions** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
-10 recipes · 10 verified · 10 compiler-checked.
+14 recipes · 14 verified · 14 compiler-checked.
 
 | Recipe | Rust | Currency | ✓ | Code | What |
 |--------|------|----------|---|------|------|
 | Anchor midir microseconds to cpal StreamInstant and re-anchor for drift | midir 0.11.0, cpal 0.18.2 | ✅ solid | ✓ | ✔ | Because midir timestamps and cpal StreamInstant come from independent clocks, the host mus |
 | Build cpal output stream in f32 for highest real-time priority | cpal 0.18.2 | ✅ solid | ✓ | ✔ | cpal ranks F32 highest in its default-format heuristic because it is the universal real-ti |
+| Count allocations across a simulated audio callback popping rtrb into an f32 buffer | 1.98.1, edition 2024, rtrb 0.4.0 | ✅ solid | ✓ | ✔ | A counting #[global_allocator] records zero new allocations during a simulated callback th |
+| Create rtrb RingBuffer before the stream because only RingBuffer::new allocates | 1.98.1, edition 2024, rtrb 0.4.0 | ✅ solid | ✓ | ✔ | rtrb 0.4.0 allocates its backing buffer in RingBuffer::new, not during push or pop, so the |
 | Interpret midir WinMM input timestamps as microseconds since start | midir 0.11.0 | ✅ solid | ✓ | ✔ | midir’s WinMM backend delivers input callback timestamps in microseconds, converted from t |
+| Negative control: Vec push inside callback body increments allocator counter | 1.98.1, edition 2024 | ✅ solid | ✓ | ✔ | A Vec::push inside the same simulated callback body increments the counting allocator, con |
+| Register assert_no_alloc AllocDisabler around the callback body to catch debug allocations | 1.98.1, edition 2024, rtrb 0.4.0, assert_no_alloc 1.1.2 | ✅ solid | ✓ | ✔ | With AllocDisabler registered as #[global_allocator], assert_no_alloc aborts in debug if t |
 | Render oscillator voices from SPSC queue into cpal silence buffer | cpal 0.18.2, rtrb 0.4.0 | ✅ solid | ✓ | ✔ | The cpal output callback buffer is pre-filled with silence, and the callback can pop commi |
 | Request cpal BufferSize::Fixed on WASAPI shared-mode output | cpal 0.18.2 | ✅ solid | ✓ | ✔ | cpal’s WASAPI backend always creates shared-mode streams, and BufferSize::Fixed only reque |
 | Use OutputCallbackInfo playback timestamp for latency alignment | cpal 0.18.2 | ✅ solid | ✓ | ✔ | cpal output callbacks receive an OutputCallbackInfo whose timestamp contains a callback in |
@@ -29,7 +33,7 @@ _cpal output on WASAPI, lock-free event delivery to the audio callback, midir in
 - **Code checks** ([source](host-audio-and-midi.code.md#anchor-midir-microseconds-to-cpal-streaminstant-and-re-anchor-for-drift)):
   - *Check 1: midir timestamp and cpal StreamInstant types can be combined* · `compiles` · edition 2024 · host · bin · deps: cpal, midir · jam dependency set · **✔ oracle pass**
 
-- **Verifier (solid):** handler.rs confirms the ms*1000 conversion; timestamp.rs table confirms WASAPI/QueryPerformanceCounter(). Check's delta_us/sample arithmetic matches 'how' exactly and type-checks (StreamInstant::ZERO exists).
+- **Verifier (solid):** handler.rs confirms the ms*1000 conversion; timestamp.rs table confirms WASAPI/QueryPerformanceCounter(). Check's delta_us/sample arithmetic matches 'how' exactly and type-checks (StreamInstant::ZERO exists). · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** 1/1 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [midir 0.11.0 src/backend/winmm/handler.rs](https://docs.rs/crate/midir/0.11.0/source/src/backend/winmm/handler.rs) (2026) — WinMM timestamps are in milliseconds beginning at zero when midiInStart was called, and midir multiplies by 1000 to produce microseconds.
@@ -52,6 +56,40 @@ _cpal output on WASAPI, lock-free event delivery to the audio callback, midir in
   - ✓ [cpal 0.18.2 src/lib.rs](https://docs.rs/crate/cpal/0.18.2/source/src/lib.rs) (2026) — In cmp_default_heuristics, SampleFormat::F32 is ranked highest as the universal realtime audio format.
   - ✓ [cpal 0.18.2 src/traits.rs](https://docs.rs/crate/cpal/0.18.2/source/src/traits.rs) (2026) — build_output_stream::<f32> creates an output stream with compile-time sample type f32.
 
+### Count allocations across a simulated audio callback popping rtrb into an f32 buffer
+`✅ solid` · ✓ verified · ✔ compiles as claimed · Rust 1.98.1, edition 2024, rtrb 0.4.0
+
+**A counting #[global_allocator] records zero new allocations during a simulated callback that pops from an rtrb Consumer into a stack f32 buffer.**
+
+- **How:** Implement GlobalAlloc by forwarding to System and incrementing an AtomicUsize in alloc. Create the RingBuffer and pre-fill events before resetting the counter. In the callback body, pop from the Consumer into a fixed [f32; N] on the stack. Compare the counter before and after; it must be identical.
+- **Gotchas:** Do not measure RingBuffer::new itself; it allocates. Do not use Mutex or Vec inside the GlobalAlloc impl or measuring will recurse or allocate. Reset the counter after setup but before the callback body.
+- **In si-jam-sessions:** Bears on the signed lock pin: host audio callback must allocate nothing. Use this counting-allocator pattern to verify the callback body that pops committed events from an rtrb Consumer and writes them into the cpal output buffer.
+- **Code checks** ([source](host-audio-and-midi.code.md#count-allocations-across-a-simulated-audio-callback-popping-rtrb-into-an-f32-buffer)):
+  - *Check 1: Counting allocator shows zero allocs in simulated callback body* · `runs` · edition 2024 · host · bin · deps: rtrb · jam dependency set · **✔ oracle pass**
+
+- **Verifier (solid):** Ran the exact check via compile_oracle (rustc 1.98.1, jam set): printed alloc_count=0 as claimed. rtrb 0.4.0's pop()/push() (src/lib.rs) use only atomics and raw-pointer ops -- no alloc call sites exist.
+- **Compiler:** 1/1 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
+- **Sources** (✓ supported · ✗ not supported · · unchecked):
+  - ✓ [GlobalAlloc in std::alloc - Rust](https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html) (2026) — A memory allocator can be registered as the standard library’s default through the #[global_allocator] attribute, and the alloc method is called for each heap allocation.
+  - ✓ [rtrb 0.4.0 src/lib.rs](https://docs.rs/crate/rtrb/0.4.0/source/src/lib.rs) (2026) — A fixed-capacity buffer is allocated on construction. After that, no more memory is allocated (unless the type T does that internally).
+
+### Create rtrb RingBuffer before the stream because only RingBuffer::new allocates
+`✅ solid` · ✓ verified · ✔ compiles as claimed · Rust 1.98.1, edition 2024, rtrb 0.4.0
+
+**rtrb 0.4.0 allocates its backing buffer in RingBuffer::new, not during push or pop, so the ring must be created before the stream starts.**
+
+- **How:** Call RingBuffer::new(capacity) during setup, before the cpal stream is built. Pass only the Producer to the non-real-time thread and the Consumer into the callback. Never construct or resize the ring inside the callback.
+- **Gotchas:** RingBuffer::new may perform multiple backing allocations; the check only asserts the total is non-zero. Do not call new, grow, or shrink in the callback. The capacity is fixed and must be chosen at setup time.
+- **In si-jam-sessions:** Bears on the signed lock pin: host audio callback must allocate nothing. Because rtrb 0.4.0 only allocates in RingBuffer::new, the ring must be created before the cpal stream starts.
+- **Code checks** ([source](host-audio-and-midi.code.md#create-rtrb-ringbuffer-before-the-stream-because-only-ringbuffernew-allocates)):
+  - *Check 1: RingBuffer::new allocates but push and pop do not* · `runs` · edition 2024 · host · bin · deps: rtrb · jam dependency set · **✔ oracle pass**
+
+- **Verifier (solid):** Ran the exact check: printed 'new_allocates ops_do_not'. Source: RingBuffer::new does Vec::with_capacity + Box::new (2 allocs, confirmed via arc_ring_buffer.rs); push/pop touch only atomics/pointers.
+- **Compiler:** 1/1 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
+- **Sources** (✓ supported · ✗ not supported · · unchecked):
+  - ✓ [rtrb 0.4.0 src/lib.rs](https://docs.rs/crate/rtrb/0.4.0/source/src/lib.rs) (2026) — A fixed-capacity buffer is allocated on construction. After that, no more memory is allocated (unless the type T does that internally).
+  - ✓ [rtrb 0.4.0 README.md](https://docs.rs/crate/rtrb/0.4.0/source/README.md) (2026) — This crate can be used without the standard library, but the alloc crate is needed nevertheless.
+
 ### Interpret midir WinMM input timestamps as microseconds since start
 `✅ solid` · ✓ verified · ✔ compiles as claimed · Rust midir 0.11.0
 
@@ -63,11 +101,45 @@ _cpal output on WASAPI, lock-free event delivery to the audio callback, midir in
 - **Code checks** ([source](host-audio-and-midi.code.md#interpret-midir-winmm-input-timestamps-as-microseconds-since-start)):
   - *Check 1: midir input callback signature and timestamp type compile* · `compiles` · edition 2024 · host · bin · deps: midir · jam dependency set · **✔ oracle pass**
 
-- **Verifier (solid):** handler.rs: 'timestamp = timestamp as u64 * 1000' verbatim. MS Learn MIM_DATA page independently confirms dwTimestamp is ms 'beginning at zero when the midiInStart function was called'; connect() calls midiInStart once (mod.rs:329).
+- **Verifier (solid):** handler.rs: 'timestamp = timestamp as u64 * 1000' verbatim. MS Learn MIM_DATA page independently confirms dwTimestamp is ms 'beginning at zero when the midiInStart function was called'; connect() calls midiInStart once (mod.rs:329). · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** 1/1 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [midir 0.11.0 README.md](https://docs.rs/crate/midir/0.11.0/source/README.md) (2026) — midir supports the WinMM backend on Windows.
   - ✓ [midir 0.11.0 src/backend/winmm/handler.rs](https://docs.rs/crate/midir/0.11.0/source/src/backend/winmm/handler.rs) (2026) — The WinMM input handler sets data.message.timestamp = timestamp as u64 * 1000, converting the dwTimestamp (milliseconds since midiInStart) to microseconds.
+
+### Negative control: Vec push inside callback body increments allocator counter
+`✅ solid` · ✓ verified · ✔ compiles as claimed · Rust 1.98.1, edition 2024
+
+**A Vec::push inside the same simulated callback body increments the counting allocator, confirming the measurement is sensitive.**
+
+- **How:** Use the same counting allocator. After resetting the counter, call vec.push(1.0) on a Vec::new() inside the simulated callback. Read the counter afterward; it is greater than zero.
+- **Gotchas:** A Vec with reserved capacity may not allocate on push, so start with Vec::new(). The counting allocator must not itself allocate (e.g., no format! inside alloc).
+- **In si-jam-sessions:** Bears on the signed lock pin: host audio callback must allocate nothing. This negative control demonstrates that the counting-allocator test is sensitive to allocations, ensuring a false negative is unlikely.
+- **Code checks** ([source](host-audio-and-midi.code.md#negative-control-vec-push-inside-callback-body-increments-allocator-counter)):
+  - *Check 1: Vec push inside callback body increments allocation counter* · `runs` · edition 2024 · host · bin · jam dependency set · **✔ oracle pass**
+
+- **Verifier (solid):** Ran the exact check: Vec::new().push(1.0) printed alloc_count>0 -- the counting allocator is demonstrably sensitive, not a vacuous control. CountingAllocator itself only does an atomic add + System forwarding.
+- **Compiler:** 1/1 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
+- **Sources** (✓ supported · ✗ not supported · · unchecked):
+  - ✓ [std::alloc - Rust](https://doc.rust-lang.org/stable/std/alloc/index.html) (2026) — The #[global_allocator] attribute allows configuring the choice of global allocator to route all default allocation requests to a custom object.
+  - ✓ [GlobalAlloc in std::alloc - Rust](https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html) (2026) — GlobalAlloc's alloc method is called for each heap allocation, enabling a counting wrapper.
+
+### Register assert_no_alloc AllocDisabler around the callback body to catch debug allocations
+`✅ solid` · ✓ verified · ✔ compiles as claimed · Rust 1.98.1, edition 2024, rtrb 0.4.0, assert_no_alloc 1.1.2
+
+**With AllocDisabler registered as #[global_allocator], assert_no_alloc aborts in debug if the callback body allocates and returns normally when it does not.**
+
+- **How:** Add assert_no_alloc as a dependency, register #[global_allocator] static A: AllocDisabler = AllocDisabler;, and wrap the callback body in assert_no_alloc(move || { ... }). In debug builds, any allocation inside the closure triggers an abort via handle_alloc_error.
+- **Gotchas:** Default features disable the guard in release; for debug-only protection this is correct. The closure must not drop heap-allocated types that deallocate inside the forbidden zone unless wrapped in PermitDrop. The oracle has no audio device, so this only proves the callback body, not cpal's backend thread.
+- **In si-jam-sessions:** Bears on the signed lock pin: host audio callback must allocate nothing. Use assert_no_alloc as a second, independent guard around the callback body in debug builds.
+- **Code checks** ([source](host-audio-and-midi.code.md#register-assert_no_alloc-allocdisabler-around-the-callback-body-to-catch-debug-allocations)):
+  - *Check 1: assert_no_alloc returns normally when callback body does not allocate* · `runs` · edition 2024 · host · bin · deps: rtrb, assert_no_alloc · jam dependency set · **✔ oracle pass**
+
+- **Verifier (solid):** CORRECTED: Recipe's own check exercises only the non-allocating path (sum=10). The 'aborts if it allocates' half is real -- confirmed by AllocDisabler::check()'s handle_alloc_error call and by my own compiled counter-example, which aborted -- but no check here exercises it. · The check only proves the no-alloc branch (sum=10). My own counter-example (alloc inside the closure) aborted: exit 0xC0000409, stderr 'memory allocation of 8 bytes failed' -- confirms the untested abort half.
+- **Compiler:** 1/1 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
+- **Sources** (✓ supported · ✗ not supported · · unchecked):
+  - ✓ [assert_no_alloc 1.1.2 README.md](https://docs.rs/crate/assert_no_alloc/1.1.2/source/README.md) (2026) — With default features, the program will abort if a (de)allocation is attempted inside assert_no_alloc in debug mode.
+  - ✓ [assert_no_alloc 1.1.2 src/lib.rs](https://docs.rs/crate/assert_no_alloc/1.1.2/source/src/lib.rs) (2026) — AllocDisabler::check calls std::alloc::handle_alloc_error when an allocation occurs while forbidden and warn mode is not selected.
 
 ### Render oscillator voices from SPSC queue into cpal silence buffer
 `✅ solid` · ✓ verified · ✔ compiles as claimed · Rust cpal 0.18.2, rtrb 0.4.0
@@ -97,7 +169,7 @@ _cpal output on WASAPI, lock-free event delivery to the audio callback, midir in
 - **Code checks** ([source](host-audio-and-midi.code.md#request-cpal-buffersizefixed-on-wasapi-shared-mode-output)):
   - *Check 1: cpal BufferSize::Fixed and shared mode compile* · `compiles` · edition 2024 · host · bin · deps: cpal · jam dependency set · **✔ oracle pass**
 
-- **Verifier (solid):** lib.rs BufferSize doc: host may round, no size guaranteed (verbatim). wasapi/device.rs: 'always create voices in shared mode'. No AUDCLNT_SHAREMODE_EXCLUSIVE anywhere in cpal src/. Check's SampleRate/FrameCount are u32 aliases; compiles.
+- **Verifier (solid):** lib.rs BufferSize doc: host may round, no size guaranteed (verbatim). wasapi/device.rs: 'always create voices in shared mode'. No AUDCLNT_SHAREMODE_EXCLUSIVE anywhere in cpal src/. Check's SampleRate/FrameCount are u32 aliases; compiles. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** 1/1 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [cpal 0.18.2 src/lib.rs](https://docs.rs/crate/cpal/0.18.2/source/src/lib.rs) (2026) — When BufferSize::Fixed(x) is specified, the host may round to hardware-supported values and no guarantees can be made about the actual callback size.
@@ -131,7 +203,7 @@ _cpal output on WASAPI, lock-free event delivery to the audio callback, midir in
 - **Code checks** ([source](host-audio-and-midi.code.md#enumerate-midir-winmm-input-ports-by-interface-id)):
   - *Check 1: midir port enumeration compiles on Windows host* · `compiles` · edition 2024 · host · bin · deps: midir · jam dependency set · **✔ oracle pass**
 
-- **Verifier (plausible):** common.rs: MidiInputPorts = Vec<MidiInputPort> exact. mod.rs source's claim (midiInGetNumDevs+midiInGetDevCapsW) is true but incomplete for what the recipe actually relies on (id()); see corrections.
+- **Verifier (plausible):** CORRECTED: Source 2 covers count+display-name enumeration but not id(): MidiInputPort::id() returns interface_id, populated via midiInMessage(DRV_QUERYDEVICEINTERFACESIZE/DRV_QUERYDEVICEINTERFACE) -- a 3rd WinMM call neither source names. midiInGetDevCapsW supplies only port_name()'s string. · common.rs: MidiInputPorts = Vec<MidiInputPort> exact. mod.rs source's claim (midiInGetNumDevs+midiInGetDevCapsW) is true but incomplete for what the recipe actually relies on (id()); see corrections.
 - **Compiler:** 1/1 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [midir 0.11.0 src/common.rs](https://docs.rs/crate/midir/0.11.0/source/src/common.rs) (2026) — MidiInput::ports returns a Vec<MidiInputPort> and port_name returns the port name string.
@@ -148,7 +220,7 @@ _cpal output on WASAPI, lock-free event delivery to the audio callback, midir in
 - **Code checks** ([source](host-audio-and-midi.code.md#handle-cpal-wasapi-xruns-and-device-changes-in-error-callback)):
   - *Check 1: cpal error callback handles ErrorKind* · `compiles` · edition 2024 · host · bin · deps: cpal · jam dependency set · **✔ oracle pass**
 
-- **Verifier (wrong):** cpal's error-code mapping is exact, and Xrun-input-only gotcha is confirmed (process_output has zero Xrun logic). But 'StreamInvalidated when the default device changes' is wrong per MS Learn; see corrections.
+- **Verifier (wrong):** CORRECTED: 'StreamInvalidated when the default device changes' is wrong. MS Learn: AUDCLNT_E_RESOURCES_INVALIDATED fires when the stream is suspended, an exclusive/offload stream disconnects, a packaged app is quiesced, or a protected-output stream closes -- not on default-device change. · cpal's error-code mapping is exact, and Xrun-input-only gotcha is confirmed (process_output has zero Xrun logic). But 'StreamInvalidated when the default device changes' is wrong per MS Learn; see corrections. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** 1/1 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [cpal 0.18.2 src/host/wasapi/stream.rs](https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/stream.rs) (2026) — In process_input, the WASAPI stream emits ErrorKind::Xrun when the AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY flag is set.
@@ -165,7 +237,7 @@ _cpal output on WASAPI, lock-free event delivery to the audio callback, midir in
 - **Code checks** ([source](host-audio-and-midi.code.md#send-events-to-audio-callback-via-lock-free-rtrb-or-ringbuf-queue)):
   - *Check 1: rtrb SPSC queue works across threads without blocking* · `runs` · edition 2024 · host · bin · deps: rtrb · jam dependency set · **✔ oracle pass**
 
-- **Verifier (plausible):** Core 'what' fully sourced: rtrb lib.rs says lock-free/wait-free, alloc-once; ringbuf lib.rs literally says 'Lock-free SPSC'; SharedRb uses AtomicUsize+Acquire/Release. Two gotcha-level naming/feature claims need fixing; see corrections.
+- **Verifier (plausible):** CORRECTED: 'requires std feature for HeapRb' is imprecise: alias.rs/macros.rs gate HeapRb::new() on feature="alloc" only; std enables alloc by default but alloc alone suffices. Also 'try_push and try_pop (or pop)' overstates rtrb: rtrb only has push()/pop(); try_push/try_pop is ringbuf-only naming. · Core 'what' fully sourced: rtrb lib.rs says lock-free/wait-free, alloc-once; ringbuf lib.rs literally says 'Lock-free SPSC'; SharedRb uses AtomicUsize+Acquire/Release. Two gotcha-level naming/feature claims need fixing; see corrections. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** 1/1 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [rtrb 0.4.0 src/lib.rs](https://docs.rs/crate/rtrb/0.4.0/source/src/lib.rs) (2026) — Reading from and writing into the ring buffer is lock-free and wait-free; a fixed-capacity buffer is allocated on construction and no more memory is allocated afterwards.
@@ -183,7 +255,7 @@ _cpal output on WASAPI, lock-free event delivery to the audio callback, midir in
   - *Check 1: assert_no_alloc wraps cpal callback pattern compiles* · `compiles` · edition 2024 · host · bin · deps: cpal, assert_no_alloc · jam dependency set · **✔ oracle pass**
   - *Check 2: with AllocDisabler as #[global_allocator], an allocation inside assert_no_alloc aborts (debug build); one outside it is allowed* · `runs` · edition 2024 · host · bin · deps: assert_no_alloc · jam dependency set · exit code 3221226505 · **✔ oracle pass**
 
-- **Verifier (plausible):** Both sources exact: README 'abort or print a warning'; wasapi/stream.rs fill_equilibrium() runs before data_callback() (line 886 vs 894). But the check never registers AllocDisabler as #[global_allocator]; see corrections.
+- **Verifier (plausible):** CORRECTED: Check omits '#[global_allocator] static A: AllocDisabler', which the recipe's own 'how' and README step 2 require. Without it, assert_no_alloc(||...) compiles/runs but checks nothing -- it only proves the closure nests inside a cpal callback, not that allocation is caught. · Both sources exact: README 'abort or print a warning'; wasapi/stream.rs fill_equilibrium() runs before data_callback() (line 886 vs 894). But the check never registers AllocDisabler as #[global_allocator]; see corrections. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]
 - **Compiler:** 2/2 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [assert_no_alloc 1.1.2 README.md](https://docs.rs/crate/assert_no_alloc/1.1.2/source/README.md) (2026) — If a (de)allocation is attempted inside the forbidden zone, the program will abort or print a warning.

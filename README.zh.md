@@ -34,7 +34,7 @@ readouts 是一系列知识库，内容是关于一家小型游戏工作室所�
 | [docker-knowledge](docker-knowledge/) | gpu-container 产品背后的知识库——如何以诚实的方式打包、衡量和放置模型到单个 GPU 上。 | **160 条发现 · 6 个领域 · 9 个阶段 · 73/160 已验证** |
 | [godot-knowledge](godot-knowledge/) | 当前，用于构建 2.5D 回合制战术 RPG 的、经过对抗验证的 Godot 4 开发知识。 | **177 条配方 · 6 个领域 · 7 个阶段 · 108/177 已验证** |
 | [model-knowledge](model-knowledge/) | 针对 RTX 5090 平台的、按用途划分的最佳本地生成式 AI 模型（图像/编辑/控制/视频/3D/音频/LLM/字幕）的已验证知识库——首先考虑商业许可。 | **129 个模型 · 9 个领域 · 19 个阶段 · 126/129 已验证** |
-| [rust-knowledge](rust-knowledge/) | 用于构建 si-rpg-engine（基本、高级以及引擎如何使用它：原始 WASM ABI、浮点数确定性、Rapier 0.35 状态和恢复、可重现字节）的已验证 Rust 代码，以及 si-jam-sessions 音乐法律的第一层，所有代码检查均由固定的 rustc 1.98.1 运行。 | **267 条配方 · 27 个领域 · 4 个阶段 · 266/267 已验证** |
+| [rust-knowledge](rust-knowledge/) | 用于构建 si-rpg-engine（基本、高级以及引擎如何使用它：原始 WASM ABI、浮点数确定性、Rapier 0.35 状态和恢复、可重现字节）的已验证 Rust 代码，以及 si-jam-sessions 音乐法律的第一层，所有代码检查均由固定的 rustc 1.98.1 运行。 | **280 条配方 · 27 个领域 · 5 个阶段 · 279/280 已验证** |
 | [sprite-motion-knowledge](sprite-motion-knowledge/) | 适用于该平台的、可移植的精灵动画制作技术 | **246 条配方 · 19 个领域 · 8 个阶段 · 170/246 已验证** |
 | [sprites-knowledge](sprites-knowledge/) | 适用于该平台的、可移植的概念艺术 → 游戏可用 2.5D JRPG 精灵制作技术 | **215 条配方 · 8 个领域 · 6 个阶段 · 182/215 已验证** |
 | [tensor-engine-knowledge](tensor-engine-knowledge/) | 在 RTX 5090 平台上运行和训练 AI 模型的引擎的已验证知识库（Blackwell / sm_120 / Windows）。 | **193 个引擎 · 10 个领域 · 17 个阶段 · 134/193 已验证** |

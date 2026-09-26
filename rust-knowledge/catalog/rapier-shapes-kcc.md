@@ -1,5 +1,5 @@
 # Rapier shapes, meshes & the character controller
-_Parry shapes, trimesh flags, hulls, heightfields, the controller end to end, sight queries._ · tier **si-rpg-engine** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Parry shapes, trimesh flags, hulls, heightfields, the controller end to end, sight queries._ · tier **si-rpg-engine** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 
@@ -210,7 +210,7 @@ _Parry shapes, trimesh flags, hulls, heightfields, the controller end to end, si
   - *Check 1: every shape family builds at parry3d-f64 0.30.2, voxels included* · `runs` · edition 2021 · host · bin · deps: parry3d_f64 · exit code 0 · **✔ oracle pass**
   - *Check 2: an open trimesh has mass 0 and ccd_thickness 0; a closed one matches its hull* · `runs` · edition 2021 · host · bin · deps: parry3d_f64 · exit code 0 · **✔ oracle pass**
 
-- **Verifier (plausible):** engine_note wrong: rapier_law.rs:425-431 on main builds ColliderBuilder::capsule_y for driven+shape==1 bodies, not only cuboid. All parry/rapier API claims confirmed on docs.rs + the rapier.rs colliders guide.
+- **Verifier (plausible):** CORRECTED: engine_note says rapier_law.rs 'builds only ColliderBuilder::cuboid colliders ... every body'. False on current main: driven bodies with shape==1 get ColliderBuilder::capsule_y as their registered collider (lines 425-431), not just as character_shape's raw KCC shape. · engine_note wrong: rapier_law.rs:425-431 on main builds ColliderBuilder::capsule_y for driven+shape==1 bodies, not only cuboid. All parry/rapier API claims confirmed on docs.rs + the rapier.rs colliders guide.
 - **Compiler:** 2/2 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [parry3d-f64 0.30.2: SharedShape](https://docs.rs/parry3d-f64/0.30.2/parry3d_f64/shape/struct.SharedShape.html) (2026) — Lists the SharedShape constructors at the pin: ball, cuboid, round_*, capsule(_x/_y/_z), cylinder, cone, halfspace, segment, triangle, polyline, trimesh(_with_flags), voxels, voxels_from_points, voxelized_mesh, convex_decomposition(_with_params), convex_hull, convex_mesh, heightfield(_with_flags), compound.

@@ -1,0 +1,105 @@
+{
+  "bucket": "midi-notation-ingest@wave-5",
+  "verifier_note": "Checked all 4 recipes against midly 0.5.3's own source (src/smf.rs, error.rs, event.rs, primitive.rs, lib.rs, riff.rs), read both from the local cargo registry and freshly via WebFetch against every cited docs.rs source URL (5 unique URLs, all resolved, all midly 0.5.3, all byte-identical to the local copy). Re-ran all 9 given checks through compile_oracle.py under the jam and jam-strict oracle sets (9/9 pass originally); cross-checked every engine_note against the signed lock quoted in VERIFIER-BRIEF-W5.md, independently reconfirmed against the live docs/PHASE-0.md on GitHub. RE-ADJUDICATED export-smpte-refusal-and-error-kind-mapping-from-wasm32-strict-cdylib on coordinator-relayed evidence: reproduced myself that Timing::read (primitive.rs:495, `-(bit_range!(raw,8..16) as i8)`) negates i8::MIN and panics when the header's division high byte is exactly 0x80, under both strict and non-strict alike (Timing::read has no strict gate) - host exit 101 'attempt to negate with overflow'; the recipe's own wasm ingest() pattern does not trap on this input either, it hangs indefinitely (my wasm_call timed out at 20s, no return, no RuntimeError), worse than 'without panicking' implies. Also independently confirmed the boundary bytes: 0x81->Err(Invalid), 0xE8/E7/E3/E2->Fps24/25/29/30 - the defect is the single byte value 0x80. Separately confirmed (smf.rs, riff.rs) that strict gates neither the unknown-top-level-chunk skip (Chunk::read's `_=>()` arm) nor riff::unwrap's RMID-only/data-chunk-only RIFF handling - both unconditional in both modes - but none of this lane's other 3 recipes or their engine_notes claim otherwise, so no other verdict changed on that point. Original, still-standing finding on the other two: on the non-strict ('jam') side, 2 of 4 recipes' 'how' prose claims a specific permissive outcome (an empty resulting track after silent truncation; 0xFF masked to exactly 0x0F) that the paired check only asserts as bare res.is_ok(), never the specific value - I closed both gaps myself with independent oracle runs (tracks[0].len()==0; channel.as_int()==15) and confirmed both claims true, so those two stayed corrected rather than refuted.",
+  "verdicts": [
+    {
+      "slug": "reject-track-count-mismatch-under-midly-strict",
+      "verdict": "confirmed",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "validate_smf's message matches smf.rs verbatim. Oracle ran both checks: jam->Ok, jam-strict->Malformed with the exact quoted string. Confirmed live on docs.rs 0.5.3, byte-identical to the local registry copy.",
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/smf.rs",
+      "corrections": null,
+      "sources": [
+        {
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/smf.rs",
+          "supported": true,
+          "note": "validate_smf matches verbatim; message text and both ensure! conditions confirmed."
+        },
+        {
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/error.rs",
+          "supported": true,
+          "note": "Malformed's doc comment (non-fatal, strict-only) matches docs.rs 0.5.3 verbatim."
+        }
+      ]
+    },
+    {
+      "slug": "reject-truncated-mtrk-chunk-under-midly-strict",
+      "verdict": "corrected",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "Chunk::read (smf.rs) bails 'reached eof before chunk ended' under strict; TrackIter::next() re-wraps it as 'invalid chunk', which check 1 tests. I independently confirmed the non-strict path yields tracks=1, track0 len=0.",
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/smf.rs",
+      "corrections": {
+        "claim": "Check 0 only asserts res.is_ok(), not the 'how' claim of an empty resulting track. Verified independently: parsing these bytes under jam gives tracks=1, tracks[0].len()=0 - claim holds, but the check wouldn't catch a regression that kept partial events."
+      },
+      "sources": [
+        {
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/smf.rs",
+          "supported": true,
+          "note": "Chunk::read's err_malformed message matches verbatim; it is the inner cause, wrapped as 'invalid chunk' upstream."
+        },
+        {
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/error.rs",
+          "supported": true,
+          "note": "Same ErrorKind::Malformed variant/doc comment confirmed as recipe 1's source."
+        }
+      ]
+    },
+    {
+      "slug": "reject-out-of-range-midichannel-meta-event-under-midly-strict",
+      "verdict": "corrected",
+      "currency": "solid",
+      "verified": 1,
+      "status": "load-bearing",
+      "verify_note": "event.rs: MidiChannel reads via u4::read, confirmed verbatim. primitive.rs int_feature 'read' arm: strict uses try_from->Malformed. Check 1 confirms 'malformed event' after two context wraps; I confirmed non-strict masks 0xFF->15.",
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/event.rs",
+      "corrections": {
+        "claim": "Check 0 only asserts res.is_ok(), not the 'how' claim that 0xFF masks to 0x0F. Verified independently: channel.as_int()==15 under jam - claim holds, but the check wouldn't catch a regression that stored a different masked channel value."
+      },
+      "sources": [
+        {
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/event.rs",
+          "supported": true,
+          "note": "Exact line confirmed: '0x20 if data.len()>=1 => MidiChannel(u4::read(&mut data)?)'."
+        },
+        {
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "supported": true,
+          "note": "int_feature's 'read' arm matches verbatim: strict->try_from->err_malformed on overflow."
+        }
+      ]
+    },
+    {
+      "slug": "export-smpte-refusal-and-error-kind-mapping-from-wasm32-strict-cdylib",
+      "verdict": "corrected",
+      "currency": "wrong",
+      "verified": 1,
+      "status": "avoid",
+      "verify_note": "Reproduced independently: byte 0x80 in the division field makes Timing::read (primitive.rs:495) negate i8::MIN and panic, in both strict and non-strict. The wasm ingest() export doesn't trap on it either - it hangs (20s timeout, no return).",
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+      "corrections": {
+        "claim": "FALSE AS WRITTEN: division high byte 0x80 makes Timing::read negate i8::MIN, panicking (primitive.rs:495) in strict and non-strict alike; the recipe's own wasm export hangs, not returns 1/2/3. Fix: inspect the raw division word's bit 15 and refuse as status 3 before calling Smf::parse."
+      },
+      "sources": [
+        {
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "supported": true,
+          "note": "Matches verbatim, but the negation at primitive.rs:495 panics for high byte 0x80 (i8::MIN negation)."
+        },
+        {
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/error.rs",
+          "supported": true,
+          "note": "ErrorKind has exactly Invalid and Malformed; no third variant exists."
+        },
+        {
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/lib.rs",
+          "supported": true,
+          "note": "Near-verbatim match of the crate-level doc comment describing the strict feature."
+        }
+      ]
+    }
+  ]
+}

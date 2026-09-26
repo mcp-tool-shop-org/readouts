@@ -1,5 +1,5 @@
 # Advanced traits & the type system — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](traits-advanced.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](traits-advanced.md) · [catalog index](README.md)
 
 ## Apply the whole orphan rule: a local type before any uncovered type parameter, and no overlapping impls
 **For `impl<P1..=Pn> Trait<T1..=Tn> for T0` with a foreign trait, one of T0..=Tn must be local and no uncovered type parameter may appear before the first local one (RFC 2451); `&`, `&mut`, `Box` and `Pin` are fundamental, so `&Local` and `Box<Local>` count as local; overlapping impls are E0119, including overlap that only a future upstream impl could create.**

@@ -1,0 +1,226 @@
+{
+  "date": "2026-09-25",
+  "subject": "midly 0.5.3: a timecode division word whose high byte is 0x80",
+  "lead": "reported by the si-jam-sessions ingest agent (agent-measured), then reproduced here under the compile oracle and read in midly's source; the std-unnamed setup (checks 7-11) is the si-jam-sessions law crate's root at 19d8c29 (#![no_std], extern crate alloc, extern crate std as _, no handler, no allocator, panic = \"abort\" in dev and release), a design reading there, measured here",
+  "compiler": "rustc 1.98.1, oracle set jam-strict (midly 0.5.3, alloc + strict; the prebuilt rlibs are debug builds, so overflow checks are on inside midly, as the si-jam lock's release profile requires)",
+  "source": [
+    {
+      "file": "src/primitive.rs",
+      "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+      "fact": "Timing::read computes `let fps = -(bit_range!(raw, 8..16) as i8);`: a high byte of 0x80 is -128i8, whose negation overflows"
+    },
+    {
+      "file": "src/smf.rs",
+      "url": "https://docs.rs/crate/midly/0.5.3/source/src/smf.rs",
+      "fact": "parse unwraps a RIFF file to its RMID data chunk (`Some(b\"RIFF\") => riff::unwrap(raw)?`) before any strict logic, and Chunk::read skips an unknown chunk id (`_ => ()`) in both builds"
+    }
+  ],
+  "checks": [
+    {
+      "label": "strict parse of division 0x80 0x00 panics: attempt to negate with overflow",
+      "target": "host",
+      "oracle_set": "jam-strict",
+      "expect": "runs",
+      "stdout": "panicked: attempt to negate with overflow\n",
+      "stdout_contains": null,
+      "wasm_call": null,
+      "wasm_trap": null,
+      "source": "fn main() {\n    std::panic::set_hook(Box::new(|_| {}));\n    let smf: &[u8] = &[0x4D,0x54,0x68,0x64, 0,0,0,6, 0,0, 0,1, 0x80, 0x00, 0x4D,0x54,0x72,0x6B, 0,0,0,4, 0x00,0xFF,0x2F,0x00];\n    match std::panic::catch_unwind(|| midly::Smf::parse(smf).is_ok()) {\n        Ok(v) => println!(\"returned {}\", v),\n        Err(p) => {\n            let msg = p.downcast_ref::<&str>().map(|s| s.to_string())\n                .or_else(|| p.downcast_ref::<String>().cloned()).unwrap_or_default();\n            println!(\"panicked: {}\", msg);\n        }\n    }\n}\n",
+      "result": {
+        "ok": true,
+        "note": "ran as expected"
+      }
+    },
+    {
+      "label": "0x80 as i8 has no checked negation; wrapping gives 128",
+      "target": "host",
+      "oracle_set": null,
+      "expect": "runs",
+      "stdout": "checked_neg None\nwrapping_neg as u8 128\n",
+      "stdout_contains": null,
+      "wasm_call": null,
+      "wasm_trap": null,
+      "source": "fn main() {\n    let b = 0x80u8 as i8;\n    println!(\"checked_neg {:?}\", b.checked_neg());\n    println!(\"wrapping_neg as u8 {}\", b.wrapping_neg() as u8);\n}\n",
+      "result": {
+        "ok": true,
+        "note": "ran as expected"
+      }
+    },
+    {
+      "label": "0x81 returns Err and 0xE8 0xE7 0xE3 0xE2 parse; none of them panic",
+      "target": "host",
+      "oracle_set": "jam-strict",
+      "expect": "runs",
+      "stdout": null,
+      "stdout_contains": [
+        "81 err invalid midi",
+        "E8 ok Timecode(Fps24, 0)",
+        "E7 ok Timecode(Fps25, 0)",
+        "E3 ok Timecode(Fps29, 0)",
+        "E2 ok Timecode(Fps30, 0)"
+      ],
+      "wasm_call": null,
+      "wasm_trap": null,
+      "source": "fn div(hi: u8) -> String {\n    let smf = [0x4D,0x54,0x68,0x64, 0,0,0,6, 0,0, 0,1, hi, 0x00, 0x4D,0x54,0x72,0x6B, 0,0,0,4, 0x00,0xFF,0x2F,0x00];\n    match midly::Smf::parse(&smf) {\n        Ok(s) => format!(\"{:02X} ok {:?}\", hi, s.header.timing),\n        Err(e) => format!(\"{:02X} err {}\", hi, e),\n    }\n}\nfn main() {\n    for hi in [0x81u8, 0xE8, 0xE7, 0xE3, 0xE2] {\n        println!(\"{}\", div(hi));\n    }\n}\n",
+      "result": {
+        "ok": true,
+        "note": "ran as expected"
+      }
+    },
+    {
+      "label": "a wasm32 export that parses division 0x80 traps instead of returning a status",
+      "target": "wasm32-unknown-unknown",
+      "oracle_set": "jam-strict",
+      "expect": "runs",
+      "stdout": null,
+      "stdout_contains": null,
+      "wasm_call": {
+        "export": "probe",
+        "args": []
+      },
+      "wasm_trap": true,
+      "source": "#[unsafe(no_mangle)]\npub extern \"C\" fn probe() -> u64 {\n    let smf: &[u8] = &[0x4D,0x54,0x68,0x64, 0,0,0,6, 0,0, 0,1, 0x80,0x00, 0x4D,0x54,0x72,0x6B, 0,0,0,4, 0x00,0xFF,0x2F,0x00];\n    match midly::Smf::parse(smf) {\n        Ok(_) => 0,\n        Err(_) => 1,\n    }\n}\n",
+      "result": {
+        "ok": true,
+        "note": "ran as expected"
+      }
+    },
+    {
+      "label": "strict parse skips an unknown chunk and unwraps an RMID RIFF file",
+      "target": "host",
+      "oracle_set": "jam-strict",
+      "expect": "runs",
+      "stdout": "unknown chunk: ok, tracks 1\nrmid: ok, tracks 1\n",
+      "stdout_contains": null,
+      "wasm_call": null,
+      "wasm_trap": null,
+      "source": "fn main() {\n    // An unknown chunk carrying text, between MThd and MTrk.\n    let mut a: Vec<u8> = vec![0x4D,0x54,0x68,0x64, 0,0,0,6, 0,0, 0,1, 0x00, 0x60];\n    a.extend_from_slice(b\"LIC \");\n    a.extend_from_slice(&[0, 0, 0, 4]);\n    a.extend_from_slice(b\"(c)!\");\n    a.extend_from_slice(&[0x4D,0x54,0x72,0x6B, 0,0,0,4, 0x00,0xFF,0x2F,0x00]);\n    let s = midly::Smf::parse(&a).unwrap();\n    println!(\"unknown chunk: ok, tracks {}\", s.tracks.len());\n    // A RIFF RMID wrapper with a LIST chunk ahead of the data chunk.\n    let smf: [u8; 26] = [0x4D,0x54,0x68,0x64, 0,0,0,6, 0,0, 0,1, 0x00, 0x60, 0x4D,0x54,0x72,0x6B, 0,0,0,4, 0x00,0xFF,0x2F,0x00];\n    let list: &[u8] = b\"INFOICOP\\x04\\x00\\x00\\x00(c)!\";\n    let mut body: Vec<u8> = Vec::new();\n    body.extend_from_slice(b\"RMID\");\n    body.extend_from_slice(b\"LIST\");\n    body.extend_from_slice(&(list.len() as u32).to_le_bytes());\n    body.extend_from_slice(list);\n    body.extend_from_slice(b\"data\");\n    body.extend_from_slice(&(smf.len() as u32).to_le_bytes());\n    body.extend_from_slice(&smf);\n    let mut riff: Vec<u8> = Vec::new();\n    riff.extend_from_slice(b\"RIFF\");\n    riff.extend_from_slice(&(body.len() as u32).to_le_bytes());\n    riff.extend_from_slice(&body);\n    let s = midly::Smf::parse(&riff).unwrap();\n    println!(\"rmid: ok, tracks {}\", s.tracks.len());\n}\n",
+      "result": {
+        "ok": true,
+        "note": "ran as expected"
+      }
+    },
+    {
+      "label": "recipe 4's export with a trapping panic handler traps on division 0x80",
+      "target": "wasm32-unknown-unknown",
+      "oracle_set": "jam-strict",
+      "expect": "runs",
+      "wasm_call": {
+        "export": "ingest",
+        "args": []
+      },
+      "wasm_trap": true,
+      "source": "#![no_std]\nextern crate alloc;\nuse core::alloc::{GlobalAlloc, Layout};\nuse core::cell::UnsafeCell;\nuse core::sync::atomic::{AtomicUsize, Ordering};\nconst HEAP_SIZE: usize = 65536;\nstruct SyncUnsafeCell<T>(UnsafeCell<T>);\nunsafe impl<T> Sync for SyncUnsafeCell<T> {}\nstatic HEAP: SyncUnsafeCell<[u8; HEAP_SIZE]> = SyncUnsafeCell(UnsafeCell::new([0; HEAP_SIZE]));\nstatic NEXT: AtomicUsize = AtomicUsize::new(0);\nstruct BumpAlloc;\nunsafe impl GlobalAlloc for BumpAlloc {\n    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {\n        let align = layout.align();\n        let size = (layout.size() + align - 1) & !(align - 1);\n        let start = NEXT.fetch_add(size, Ordering::SeqCst);\n        if start + size > HEAP_SIZE { core::ptr::null_mut() } else { unsafe { (HEAP.0.get() as *mut u8).add(start) } }\n    }\n    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {}\n}\n#[global_allocator]\nstatic ALLOC: BumpAlloc = BumpAlloc;\n#[panic_handler]\nfn panic(_info: &core::panic::PanicInfo) -> ! { core::arch::wasm32::unreachable() }\nstatic SMF: [u8; 26] = [\n    0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,\n    0x00, 0x00, 0x00, 0x01, 0x80, 0x00,\n    0x4D, 0x54, 0x72, 0x6B, 0x00, 0x00, 0x00, 0x04,\n    0x00, 0xFF, 0x2F, 0x00,\n];\n#[unsafe(no_mangle)]\npub extern \"C\" fn ingest() -> u64 {\n    match midly::Smf::parse(&SMF) {\n        Ok(smf) => if matches!(smf.header.timing, midly::Timing::Timecode(_, _)) { 3 } else { 0 },\n        Err(e) => match e.kind() {\n            midly::ErrorKind::Invalid(_) => 1,\n            midly::ErrorKind::Malformed(_) => 2,\n        },\n    }\n}",
+      "result": {
+        "ok": true,
+        "note": "ran as expected"
+      }
+    },
+    {
+      "label": "dev profile: std linked unnamed, recipe 4's export traps on division 0x80",
+      "target": "wasm32-unknown-unknown",
+      "oracle_set": "jam-strict",
+      "expect": "runs",
+      "rustc_flags": [
+        "-Cpanic=abort"
+      ],
+      "wasm_call": {
+        "export": "ingest",
+        "args": []
+      },
+      "wasm_trap": true,
+      "wasm_no_imports": true,
+      "source": "#![no_std]\nextern crate alloc;\n// std is linked for its wasm32 allocator and panic handler only, bound to `_`.\nextern crate std as _;\nstatic SMF: [u8; 26] = [\n    0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,\n    0x00, 0x00, 0x00, 0x01, 0x80, 0x00,\n    0x4D, 0x54, 0x72, 0x6B, 0x00, 0x00, 0x00, 0x04,\n    0x00, 0xFF, 0x2F, 0x00,\n];\n#[unsafe(no_mangle)]\npub extern \"C\" fn ingest() -> u64 {\n    match midly::Smf::parse(&SMF) {\n        Ok(smf) => if matches!(smf.header.timing, midly::Timing::Timecode(_, _)) { 3 } else { 0 },\n        Err(e) => match e.kind() {\n            midly::ErrorKind::Invalid(_) => 1,\n            midly::ErrorKind::Malformed(_) => 2,\n        },\n    }\n}\n",
+      "result": {
+        "ok": true,
+        "note": "ran as expected",
+        "stdout": "RuntimeError: unreachable",
+        "wasm_imports": []
+      }
+    },
+    {
+      "label": "release profile: std linked unnamed, recipe 4's export traps on division 0x80",
+      "target": "wasm32-unknown-unknown",
+      "oracle_set": "jam-strict",
+      "expect": "runs",
+      "rustc_flags": [
+        "-Cpanic=abort",
+        "-Copt-level=3",
+        "-Coverflow-checks=on",
+        "-Ccodegen-units=1"
+      ],
+      "wasm_call": {
+        "export": "ingest",
+        "args": []
+      },
+      "wasm_trap": true,
+      "wasm_no_imports": true,
+      "source": "#![no_std]\nextern crate alloc;\n// std is linked for its wasm32 allocator and panic handler only, bound to `_`.\nextern crate std as _;\nstatic SMF: [u8; 26] = [\n    0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,\n    0x00, 0x00, 0x00, 0x01, 0x80, 0x00,\n    0x4D, 0x54, 0x72, 0x6B, 0x00, 0x00, 0x00, 0x04,\n    0x00, 0xFF, 0x2F, 0x00,\n];\n#[unsafe(no_mangle)]\npub extern \"C\" fn ingest() -> u64 {\n    match midly::Smf::parse(&SMF) {\n        Ok(smf) => if matches!(smf.header.timing, midly::Timing::Timecode(_, _)) { 3 } else { 0 },\n        Err(e) => match e.kind() {\n            midly::ErrorKind::Invalid(_) => 1,\n            midly::ErrorKind::Malformed(_) => 2,\n        },\n    }\n}\n",
+      "result": {
+        "ok": true,
+        "note": "ran as expected",
+        "stdout": "RuntimeError: unreachable",
+        "wasm_imports": []
+      }
+    },
+    {
+      "label": "control: the same crate parses a 96-PPQ file and returns 0, with no imports",
+      "target": "wasm32-unknown-unknown",
+      "oracle_set": "jam-strict",
+      "expect": "runs",
+      "rustc_flags": [
+        "-Cpanic=abort"
+      ],
+      "stdout": "0",
+      "wasm_call": {
+        "export": "ingest",
+        "args": []
+      },
+      "wasm_no_imports": true,
+      "source": "#![no_std]\nextern crate alloc;\n// std is linked for its wasm32 allocator and panic handler only, bound to `_`.\nextern crate std as _;\nstatic SMF: [u8; 26] = [\n    0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,\n    0x00, 0x00, 0x00, 0x01, 0x00, 0x60,\n    0x4D, 0x54, 0x72, 0x6B, 0x00, 0x00, 0x00, 0x04,\n    0x00, 0xFF, 0x2F, 0x00,\n];\n#[unsafe(no_mangle)]\npub extern \"C\" fn ingest() -> u64 {\n    match midly::Smf::parse(&SMF) {\n        Ok(smf) => if matches!(smf.header.timing, midly::Timing::Timecode(_, _)) { 3 } else { 0 },\n        Err(e) => match e.kind() {\n            midly::ErrorKind::Invalid(_) => 1,\n            midly::ErrorKind::Malformed(_) => 2,\n        },\n    }\n}\n",
+      "result": {
+        "ok": true,
+        "note": "ran as expected",
+        "stdout": "0",
+        "wasm_imports": []
+      }
+    },
+    {
+      "label": "a std path does not resolve in a crate that binds std to _",
+      "target": "wasm32-unknown-unknown",
+      "oracle_set": "jam-strict",
+      "expect": "compile_fail",
+      "rustc_flags": [
+        "-Cpanic=abort"
+      ],
+      "error_codes": [
+        "E0433"
+      ],
+      "source": "#![no_std]\nextern crate alloc;\n// std is linked for its wasm32 allocator and panic handler only, bound to `_`.\nextern crate std as _;\n#[unsafe(no_mangle)]\npub extern \"C\" fn clock() -> u64 {\n    // The law must not reach a clock: with std bound to `_`, this path has no name to resolve.\n    let _ = std::time::Instant::now();\n    0\n}\n",
+      "result": {
+        "ok": true,
+        "note": "failed as expected",
+        "error_codes": [
+          "E0433"
+        ]
+      }
+    },
+    {
+      "label": "an extern crate std line inside a module binds std there and compiles",
+      "target": "wasm32-unknown-unknown",
+      "oracle_set": "jam-strict",
+      "expect": "compiles",
+      "rustc_flags": [
+        "-Cpanic=abort"
+      ],
+      "source": "#![no_std]\nextern crate alloc;\n// std is linked for its wasm32 allocator and panic handler only, bound to `_`.\nextern crate std as _;\nmod leak {\n    // One line in any module binds the name again, so the `_` binding is a review boundary.\n    extern crate std;\n    pub fn now() { let _ = std::time::Instant::now(); }\n}\n#[unsafe(no_mangle)]\npub extern \"C\" fn clock() -> u64 {\n    leak::now();\n    0\n}\n",
+      "result": {
+        "ok": true,
+        "note": "compiled",
+        "wasm_imports": []
+      }
+    }
+  ],
+  "conclusion": "Smf::parse panics ('attempt to negate with overflow') on a division word starting 0x80 when overflow checks are on, and a wasm32 export that parses it traps. 0x81 returns an Err, and 0xE8/0xE7/0xE3/0xE2 parse as 24/25/29/30 fps. Rejecting Timing::Timecode after parsing cannot catch it: refuse a timecode division word (bit 15 set) before calling midly. Even with strict, midly unwraps RIFF RMID files and skips unknown chunks. A no_std panic handler that loops turns this, or any, panic into a hang; one that calls core::arch::wasm32::unreachable() traps. So does a crate that links std unnamed (`extern crate std as _;`) with panic=abort and no handler of its own.",
+  "panic_handler": "Wave 5's recipe 4 (export-smpte-refusal-and-error-kind-mapping-from-wasm32-strict-cdylib) is #![no_std] with `#[panic_handler] fn panic(..) -> ! { loop {} }`. Its verifier ran the recipe's own export on division 0x80: it hung (no return within 20 s), not a trap. The same export with the handler body `core::arch::wasm32::unreachable()` traps (check 6), so the host sees a RuntimeError instead of a call that never returns. A crate with no handler of its own that links std unnamed (`extern crate std as _;`, panic=abort) traps too, under dev and release flags, and its module imports nothing; a 96-PPQ control returns 0, so std's allocator works there. A std path in that crate does not resolve (E0433), but one `extern crate std;` line in any module binds the name again and compiles, so the `_` binding is a review boundary."
+}

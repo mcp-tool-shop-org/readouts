@@ -1,5 +1,5 @@
 # Ownership, moves & borrowing
-_Moves, Copy/Clone, the borrow rule, NLL, reborrowing, elision, and the borrow errors with their fixes._ · tier **essentials** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Moves, Copy/Clone, the borrow rule, NLL, reborrowing, elision, and the borrow errors with their fixes._ · tier **essentials** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 
@@ -221,7 +221,7 @@ _Moves, Copy/Clone, the borrow rule, NLL, reborrowing, elision, and the borrow e
   - *Check 5: Indexing in a closure captures the whole Vec field: &s.rows[1] is E0502 (edition 2021)* · `compile_fail` · edition 2021 · host · bin · errors: E0502 · **✔ oracle pass**
   - *Check 6: integrate()'s shape: destructure &mut PhysicsWorld into four field borrows for one call* · `runs` · edition 2021 · host · deps: rapier3d_f64 · **✔ oracle pass**
 
-- **Verifier (plausible):** Nomicon and Edition-Guide-2021 confirmed verbatim (field splitting, drop/Send/Clone, cargo fix+lint) but the Guide omits indexing. RFC2229(2017) is sole source for indexing-is-impure; ran the closure example on 1.98.1: still E0502.
+- **Verifier (plausible):** CORRECTED: RFC 2229 (2017) is the sole warrant for 'indexing/function calls are impure for capture, so the whole base is captured'; Edition Guide 2021 covers field capture but omits indexing. Verified via compile_oracle on 1.98.1: indexing s.rows[0] in a closure still forces whole-field capture (E0502). · Nomicon and Edition-Guide-2021 confirmed verbatim (field splitting, drop/Send/Clone, cargo fix+lint) but the Guide omits indexing. RFC2229(2017) is sole source for indexing-is-impure; ran the closure example on 1.98.1: still E0502.
 - **Compiler:** 6/6 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [The Rustonomicon: Splitting Borrows](https://doc.rust-lang.org/nomicon/borrow-splitting.html) (2026) — borrowck understands structs well enough to allow simultaneous borrows of disjoint fields (the `Foo { a, b, c }` example).
@@ -245,7 +245,7 @@ _Moves, Copy/Clone, the borrow rule, NLL, reborrowing, elision, and the borrow e
   - *Check 5: Indexing activates the borrow: v[0].push_str(&format!("{}", v.len())) is E0502* · `compile_fail` · edition 2024 · host · bin · errors: E0502 · **✔ oracle pass**
   - *Check 6: Hoisting the argument into a local fixes each case* · `runs` · edition 2024 · host · no warnings · **✔ oracle pass**
 
-- **Verifier (plausible):** rustc-dev-guide confirms the 3-case rule + mem::replace example verbatim but omits indexing. RFC2025(2017) is the sole source for indexing-activates-immediately; I ran that exact example on 1.98.1 myself: still E0502 today.
+- **Verifier (plausible):** CORRECTED: RFC 2025 (2017) is the sole warrant for 'indexing activates the borrow immediately' (the v[0].push_str example); rustc-dev-guide (current) covers two-phase borrows generally but omits indexing. Verified via compile_oracle on pinned 1.98.1: still E0502 today. · rustc-dev-guide confirms the 3-case rule + mem::replace example verbatim but omits indexing. RFC2025(2017) is the sole source for indexing-activates-immediately; I ran that exact example on 1.98.1 myself: still E0502 today.
 - **Compiler:** 6/6 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [rustc-dev-guide: Two-phase borrows](https://rustc-dev-guide.rust-lang.org/borrow-check/two-phase-borrows.html) (2026) — Two-phase borrows allow `vec.push(vec.len())`; only certain implicit mutable borrows qualify (method autoref, a mutable reborrow in function arguments, overloaded compound assignment) and any `&mut` in source never does; between reservation and activation the borrow acts as a shared borrow.
@@ -270,7 +270,7 @@ _Moves, Copy/Clone, the borrow rule, NLL, reborrowing, elision, and the borrow e
   - *Check 8: An array field's elements borrow as a whole (E0502) while tuple fields split* · `compile_fail` · edition 2024 · host · bin · errors: E0502 · **✔ oracle pass**
   - *Check 9: split_first_mut splits the array so both elements can be lent* · `runs` · edition 2024 · host · no warnings · **✔ oracle pass**
 
-- **Verifier (plausible):** Slice/GetDisjointMutError/1.86.0-blog/Nomicon confirmed verbatim incl. exact versions (1.0.0/1.80.0/1.5.0/1.86.0/1.88.0/1.31.0). Paper is right about Fig.1/E0502/split_first_mut but mislabels the finding number (read PDF text directly).
+- **Verifier (plausible):** CORRECTED: Source claim cites 'finding 6' for the array/tuple participant-confusion result. The paper's own text reads 'explaining Finding 5 in Section 3.3'; its Finding 6 is unrelated (compiler messages lacking information). Rest of the claim (Figure 1 code, E0502, split_first_mut fix) is accurate. · Slice/GetDisjointMutError/1.86.0-blog/Nomicon confirmed verbatim incl. exact versions (1.0.0/1.80.0/1.5.0/1.86.0/1.88.0/1.31.0). Paper is right about Fig.1/E0502/split_first_mut but mislabels the finding number (read PDF text directly).
 - **Compiler:** 9/9 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [std primitive slice: split_at_mut, split_at_mut_checked, split_first_mut, get_disjoint_mut, as_chunks_mut, chunks_exact_mut](https://doc.rust-lang.org/stable/std/primitive.slice.html) (2026) — split_at_mut 1.0.0 (panics if mid > len), split_at_mut_checked 1.80.0, split_first_mut 1.5.0, get_disjoint_mut 1.86.0 (usize/Range/RangeInclusive indices, O(n^2) overlap check, Err on overlap or out-of-bounds), get_disjoint_unchecked_mut 1.86.0 (UB on bad indices), as_chunks_mut 1.88.0, chunks_exact_mut 1.31.0.

@@ -1,8 +1,8 @@
 # Catalog — Rust for building si-rpg-engine
 
-Generated from `rust.db` · wave 4 · 2026-09-25. NEVER hand-edited — regenerated from the DB.
+Generated from `rust.db` · wave 5 · 2026-09-25. NEVER hand-edited — regenerated from the DB.
 
-267 recipes · 266 verified · 970 code checks, 970 passing under the pinned compiler (rustc 1.98.1). Two independent verdicts per recipe: **currency** from an adversarial retrieval verifier (a different model than the author, reasoning-stripped) and **compile** from the compiler itself. `verified` needs both. The engine-facing index is [engine.md](engine.md).
+280 recipes · 279 verified · 989 code checks, 989 passing under the pinned compiler (rustc 1.98.1). Two independent verdicts per recipe: **currency** from an adversarial retrieval verifier (a different model than the author, reasoning-stripped) and **compile** from the compiler itself. `verified` needs both. The engine-facing index is [engine.md](engine.md).
 
 ## Essentials — the Rust a builder must never get wrong
 
@@ -46,19 +46,20 @@ Generated from `rust.db` · wave 4 · 2026-09-25. NEVER hand-edited — regenera
 
 | Lane | Recipes | Solid | Verified | Code ✔ | Code ✘ |
 |---|---|---|---|---|---|
-| [Score ingest inside a wasm law: SMF, MusicXML, ABC](midi-notation-ingest.md) | 7 | 4 | 6 | 7 | 0 |
-| [Integer musical time: ticks, tempo maps, samples](integer-time.md) | 10 | 3 | 10 | 9 | 0 |
-| [Native audio and MIDI host](host-audio-and-midi.md) | 10 | 6 | 10 | 10 | 0 |
+| [Score ingest inside a wasm law: SMF, MusicXML, ABC](midi-notation-ingest.md) | 11 | 7 | 10 | 11 | 0 |
+| [Integer musical time: ticks, tempo maps, samples](integer-time.md) | 15 | 8 | 15 | 14 | 0 |
+| [Native audio and MIDI host](host-audio-and-midi.md) | 14 | 10 | 14 | 14 | 0 |
 | [Crate licences for a shipped MIT/Apache product](crate-licences.md) | 10 | 6 | 10 | 0 | 0 |
 
 ## Flagged — needs care (never silently trusted)
 
 | Tier | Lane | Recipe | Currency | Code | Status | Note |
 |---|---|---|---|---|---|---|
+| si-jam-sessions | Score ingest inside a wasm law: SMF, MusicXML, ABC | Export SMPTE refusal and error-kind mapping from wasm32 strict cdylib | ✗ wrong | pass | avoid | CORRECTED: FALSE AS WRITTEN: division high byte 0x80 makes Timing::read negate i8::MIN, panicking (primitive.r |
 | si-jam-sessions | Score ingest inside a wasm law: SMF, MusicXML, ABC | Parse ABC notation with abc-parser | ✗ wrong | pass | avoid | README/datatypes confirm parsing + Length(f32). engine_note's '(length*base_ticks).round()==...' is impossible |
-| si-jam-sessions | Native audio and MIDI host | Handle cpal WASAPI xruns and device changes in error callback | ✗ wrong | pass | avoid | cpal's error-code mapping is exact, and Xrun-input-only gotcha is confirmed (process_output has zero Xrun logi |
-| si-jam-sessions | Crate licences for a shipped MIT/Apache product | Add per-crate licence exceptions in cargo-deny | ⚠ shaky | none | situational | Mechanism confirmed by both sources, but the worked example's `crate = "assert_no_alloc"` key does not exist i |
-| si-jam-sessions | Crate licences for a shipped MIT/Apache product | Clarify ambiguous crate licences with hashed file assertions | ⚠ shaky | none | situational | Concept confirmed by both sources, but how's 'provide expression, path, and hash' omits the required `name` ke |
+| si-jam-sessions | Native audio and MIDI host | Handle cpal WASAPI xruns and device changes in error callback | ✗ wrong | pass | avoid | CORRECTED: 'StreamInvalidated when the default device changes' is wrong. MS Learn: AUDCLNT_E_RESOURCES_INVALID |
+| si-jam-sessions | Crate licences for a shipped MIT/Apache product | Add per-crate licence exceptions in cargo-deny | ⚠ shaky | none | situational | CORRECTED: how's example used `crate = "assert_no_alloc"`; the real PackageSpec key is `name` (docs' own liter |
+| si-jam-sessions | Crate licences for a shipped MIT/Apache product | Clarify ambiguous crate licences with hashed file assertions | ⚠ shaky | none | situational | CORRECTED: how omits the required `name` key (target crate) and lists path/hash as flat keys. Real schema: `na |
 
 ## Legend
 

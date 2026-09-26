@@ -1,8 +1,8 @@
 {
   "compile_gate": {
-    "all_pass": 241,
+    "all_pass": 254,
     "gated_to_unverified": 0,
-    "recipes_with_checks": 241
+    "recipes_with_checks": 254
   },
   "lane_notes": {
     "binary-and-limits": "Verified against rustc 1.98.1, rapier3d-f64 0.35.3, parry3d-f64 0.30.2 and dlmalloc 0.2.13 read on disk; si-rpg-engine's live GitHub state (main, open PR #44 'slice-t3-platforms' stacked on open PR #43, and the T3/T4 dispatch docs); and every external source (WebAssembly 3.0 spec, relaxed-simd proposal, LLD docs, rustc/Cargo book, Rust Reference, Wasmtime docs, rapier CHANGELOG/user guide, docs.rs). Ran all 19 checks embedded in this lane through compile_oracle.py check against the real pinned toolchain and dependencies: 19/19 passed, including the exact controller-limit reproduction (0.29-0.31 climbed, 0.311/0.32 stopped, engine's real STEP_HEIGHT/STEP_MIN_WIDTH/SKIN constants) and the exact --no-growable-memory / misaligned-initial-memory linker-argument reproductions. Every one of the ~45 warrant sources resolved and supported its claim; every cited rapier/parry/dlmalloc file:line matched, down to operator-level detail (is_wall uses >=, the stairs landing check uses strict >, snap uses <=0). Engine facts hold up to a subtle test: PR #44's actual current code fixes wasm memory at 256 pages (16 MiB) in both config.toml and build.mjs, matching recipes 1 and 2 exactly, NOT the 512-page figure in the same-day-amended dispatch pin 10 that recipe 2 also cites separately and correctly as a distinct, not-yet-implemented recommendation. Systemic weakness: nearly every engine_note anchors to an open, unmerged, stacked PR (#44 depends on #43, both open) and to dispatch docs that were amended same-day from KB answers; this is accurate today (2026-09-25) but is a moving target that goes stale the moment either branch merges, rebases, or is amended again, and a handful of dense-scene page-count figures (e.g. 49/147/3,320 pages; the 1,117,808-byte linker error) are the research agent's own unreproduced measurements, taken on faith rather than independently re-run in this pass.",
@@ -14,11 +14,14 @@
     "errors-panics": "Verified by retrieval (never memory): all 49 warrant-source rows across 36 unique URLs resolved and supported their claims, including 3 cases where rustdoc HTML was too large for the fetch tool and I fell back to the actual rustc/std source at the pinned 1.98.1 git tag for ground truth (Termination's Result impl, strict_abs, wrapping_shl). Engine facts were checked read-only against mcp-tool-shop-org/si-rpg-engine main (function names, the single unwrap() at rapier_law.rs:561, Cargo.toml profile flags, and a git diff of commit 6a33297 confirming the continue->return false change) and all matched exactly. All 46 checks in this lane were executed with scripts/compile_oracle.py against the pinned rustc 1.98.1 on this Windows rig and passed with zero mismatches, including host-specific values like the 3221226505 (0xC0000409) abort exit code; I also independently reproduced the 'immediate-abort requires nightly' rejection verbatim. Zero refutations and zero corrections were needed. The one systemic weakness: engine_note claims mix durable anchors (function/constant names, which most recipes correctly use) with a fragile one -- recipe 4 cites an exact source line number pinned to a single commit, in a repo that took two more commits within the same day of this sweep. It still holds at current HEAD, but nothing in the lane structure would catch silent line-number drift on the next unrelated edit above that line. Recipe 6 is marked 'plausible' rather than 'solid' because one prose detail (Node's exact 'RuntimeError: unreachable' trap text) rests on the W3C spec's weaker guarantee (an unspecified-message RuntimeError) rather than a source or execution I could confirm verbatim, and its one background source predates 2021.",
     "float-determinism": "Checked against: the WebAssembly Core Spec (numerics/values/profiles/instruction-index pages), RFC 3514, Rust std docs and two Rust blog posts, five rust-lang/rust files fetched raw at tag 1.98.1 (one WebFetch summary inverted a cfg's boolean logic on compiler-builtins/src/math/mod.rs and had to be re-derived from a direct curl of the same URL), the pinned crate sources for rapier3d-f64/parry3d-f64/simba/glam/glamx/indexmap/hashbrown/foldhash/wide/libm read from the local cargo registry checkout (byte-identical to what docs.rs mirrors), si-rpg-engine's solver/src/lib.rs, solver/src/rapier_law.rs, solver/FLAGS.md, solver/Cargo.toml, solver/rust-toolchain.toml and solver/build.mjs fetched from GitHub main, and four of my own compile_oracle.py counter-example runs (E0015, E0599, E0658, algebraic_mul/algebraic_add) that all reproduced exactly what the checks claim. Nothing was refuted: every warrant resolved and supported its claim, every quoted engine fact matched the live repository (several verbatim, including js_min/js_max reproduced character-for-character and canonicalize_zero's real call sites on rapier3d-f64's warm-start impulses), and none of my own falsification attempts broke a recipe. The one systemic weakness is in recipe 8's engine_note: its most striking claim, that solver_step's compiled wasm actually reaches parry's BVH optimizer and glamx's eigensolver through a specific call chain, is a one-time, unrepeated wasmparser measurement on a scratch build, asserted at the same confidence as the fully source-grounded claims around it, and none of the lane's own checks re-verify that reachability (they verify wasm-vs-libm digest matching, an adjacent but weaker fact). A future dependency bump could silently break that specific claim with nothing in checks[] positioned to catch it.",
     "host-audio-and-midi": "Checked every claim against the pinned crate source itself (cpal 0.18.2, midir 0.11.0, rtrb 0.4.0, ringbuf 0.5.2, assert_no_alloc 1.1.2), read from the local cargo registry cache at those exact versions (byte-identical to the cited docs.rs source pages), plus Microsoft Learn for WASAPI/WinMM platform semantics (IAudioClient::Initialize error table, MIM_DATA message, DRV_QUERYDEVICEINTERFACE). All 20 warrant sources retrieved and individually accurate; 0 unfindable, 0 outright refuted. 4 of 10 recipes needed a correction. The systemic weakness: every recipe correctly cites 'the code does X', but several then add an uncited platform-semantic gloss on top ('because the default device changed', 'the std feature', 'try_push/try_pop', 'midiInGetDevCapsW supplies the id') that turns out to be imprecise or wrong when checked against Microsoft's own docs or the crate's Cargo.toml feature gates. Checks are honest about being compile-only where behaviour can't be observed without hardware, but one check (assert_no_alloc) omits the #[global_allocator] registration its own recipe's 'how' requires, so it demonstrates less than the prose claims.",
+    "host-audio-and-midi@wave-5": "Checked against rtrb 0.4.0 (src/lib.rs, arc_ring_buffer.rs, README.md), assert_no_alloc 1.1.2 (src/lib.rs, README.md) and the current GlobalAlloc/std::alloc docs, all retrieved at the pinned versions; every check in this lane was also re-run myself through compile_oracle.py (rustc 1.98.1, jam set, host target) rather than taken on trust, plus one counter-example of my own. All four matched their prose: recipe 1 printed alloc_count=0, recipe 2's negative control printed alloc_count>0 (proving the counting allocator is sensitive, not vacuous), recipe 3 printed new_allocates ops_do_not with RingBuffer::new confirmed to allocate twice (Vec::with_capacity + Box::new, via arc_ring_buffer.rs) while push/pop touch only atomics and raw pointers, and recipe 4's own check printed sum=10, confirming the non-allocating branch. The lane's one systemic weakness is in recipe 4: unlike the zero-allocation claims (recipes 1 and 3), which are backed by an explicit negative control (recipe 2) proving the measurement apparatus actually detects an allocation, the 'aborts if the callback body allocates' half of recipe 4's claim ships with no check that ever allocates inside the closure -- the provided check only exercises the return-normally path. I closed that gap myself with a counter-example (Vec::push inside assert_no_alloc with AllocDisabler registered), which aborted exactly as documented (exit 0xC0000409, stderr 'memory allocation of 8 bytes failed'), so the underlying claim holds, but the recipe's own verification story was incomplete without it.",
     "host-embedding": "Checked every recipe's warrant sources by direct retrieval, never from memory: docs.rs pages at the pinned versions (wasmtime 49.0.1, godot 0.5.5, rapier3d-f64 0.35.3, parry3d-f64 0.30.2, glamx 0.3.1, bytemuck 1.25.2, cbindgen 0.29.4), official docs (wasmtime.dev, doc.rust-lang.org/stable, docs.godotengine.org 4.7/4.5, dev.epicgames.com, component-model.bytecodealliance.org, godot-rust.github.io), raw crate/GitHub source (godot-wasm store.h/SConstruct/utils.py at two refs, glamx eigen3.rs, parry mass_properties.rs, cbindgen CHANGES, Cargo.toml source views), GitHub release pages via gh CLI (wasmtime v49.0.0/v49.0.1/v48.0.3, wasmer v7.4.2, WAMR-2.4.5, wasm3 v0.9.0, jco-v1.35.0, wit-bindgen v0.62.0), two godot-proposals issues, and si-rpg-engine itself at the pinned commit f84c98b (build.mjs, FLAGS.md, README.md, solver/src/lib.rs, rapier_law.rs, .cargo/config.toml, trace-line.mjs, first-difference.js, docs/PHASE-2.md, the product-alignment dispatch). I ran all 17 of the lane's checks through the real pinned rustc 1.98.1 plus the real rapier3d-f64/parry3d-f64/bytemuck rlibs and node v22.22.3 via compile_oracle.py: 17/17 passed with exact stdout, exact compile_fail error codes (E0277, E0080), and exact wasm export/import lists, including a real rapier3d-f64 physics run whose collision event lands at quantum 20 exactly as claimed and a native/wasm FNV match (4769065195358558711) that is genuinely opt-level-3-native-vs-wasm, not asserted. I independently reproduced the JS negative-zero claim on this rig's node v22.22.3 (String(-0), (-0).toFixed(3), JSON.stringify(-0) all print without a minus sign) and confirmed wasm3's and godot-wasm's release histories have no tagged release hiding between the cited versions. I also diffed the pinned commit against main (17 commits ahead as of this sweep) specifically hunting for the stale-engine_note pattern another lane in this sweep flagged: docs/PHASE-2.md did change on main, but only in the T2/T7 area; the T1 and T3 rows every host-embedding recipe cites are byte-for-byte identical, and the new docs/dispatch-t3-platforms.md corroborates rather than contradicts recipe 2's 'T3 will refuse growable memory' claim (it reveals the pinned binary's allocator did still call memory.grow at f84c98b, which is exactly the live risk recipes 1 and 2 tell hosts to defend against). Nothing in the ten recipes was false, unsupported, or mismatched between check and prose; every one of roughly 74 warrant sources resolved and supported its claim verbatim. What failed: nothing verifiable failed. The systemic weakness is not an error but a shelf-life one: the lane's authority rests on two extremely fast-moving artifacts, Wasmtime (a new major every month; 49.0.1 and 48.0.3 both shipped the identical fuel-spend security fix on 2026-09-24, one day before this sweep) and si-rpg-engine itself (17 commits and a same-day PHASE-2.md amendment within the pinned commit's own calendar day) - so 'solid' here means solid against today's ground truth, not against a stable target, and the runtime-config recipe plus every engine_note will need the 30-day freshness re-check the studio's own memory rule already prescribes sooner than most lanes would.",
     "integer-time": "Checked all 10 recipes by re-deriving every formula and running 18 counter-examples through the pinned rustc 1.98.1 oracle (host + wasm32-unknown-unknown/cdylib), including two checks the lane itself lacked: an overflow-checks on/off/default probe at opt-level 3, and a direct FFI probe of a u128 extern \"C\" signature. Every given check's stdout reproduced exactly, and every SMF/Rust fact traced to midly 0.5.3 (event.rs, primitive.rs) or current doc.rust-lang.org pages held up; nothing was refuted. Systemic weakness: citation precision inside midly and reflexive padding. The two u128-tempo-map recipes cite src/primitive.rs for 'tempo=u24, delta=u28', but that tie is only made in src/event.rs (MetaMessage::Tempo(u24), TrackEvent.delta: u28) -- primitive.rs defines just the generic bit-width wrapper types, forcing me to retrieve the other file to actually confirm the claim. Separately, the generic u128-primitive-type doc page is cited as a stock second source on 5 of 10 recipes regardless of relevance (e.g. the f64-precision and remainder-carry recipes never touch u128), while the one recipe that actually needed an ABI citation (u128 across the wasm extern \"C\" boundary) cited two sources that never mention FFI/ABI at all and missed doc.rust-lang.org's own i128 'ABI compatibility' note -- which is exactly the passage that explains why wasm32-unknown-unknown (no C/C++ toolchain) leaves u128 there unstable, confirmed live when my counter-example compiled silently into a 3-argument wasm export instead of a clean 1-in/1-out signature.",
+    "integer-time@wave-5": "Checked against: rustc 1.98.1 stable docs (u128 checked_mul/div/rem, Cargo overflow-checks, operator-expr overflow, the wasm32-unknown-unknown platform page), all retrieved live via WebFetch; midly 0.5.3 src/primitive.rs read from the local cargo registry and cross-checked live on docs.rs (byte-identical: u15/u24 masks, Timing::Metrical doc comments); the signed si-jam-sessions Phase 0 lock fetched at its pinned commit e3cc85e via the GitHub API for every engine_note; the compile oracle run over the whole lane (6/6 checks PASS, exact stdout); and independent Python bigint recomputation of every numeric claim in recipes 1-4 (all 8 tuplet levels at 4 PPQs, the u128 overflow bound and its 2.44e19-day floor, the carried-remainder equality at 4 PPQs), plus one original counter-example (tick=tempo=1e15, ppq=1) proving recipe 5s u64-quotient-overflow refusal path is real and distinct from its tested ppq=0 path, with no panic. Nothing failed; all five are confirmed and solid, and PHASE-0.md explicitly cites two of these five findings (PPQ 3360s tuplet-exactness, the tick-to-sample formula) as already verified by this KB. Systemic weakness: every check in this lane is self-referential -- the same Rust program both derives and asserts its numbers, so a shared conceptual error in the generators arithmetic would compile and pass silently; the only real guard is a verifier reimplementing the arithmetic independently, which is what this pass did in Python rather than re-trusting the compilers rerun of the same code. A second, smaller weakness: 4 of 5 recipes lean on one page (doc.rust-lang.org/stable/std/primitive.u128.html) for their core API warrant, so that single page is a concentration point for the whole lanes Rust-currency claim.",
     "macros-const": "Checked all 10 recipes' sources by retrieval (doc.rust-lang.org/stable at 1.98.1, docs.rs at pinned versions, blog.rust-lang.org release notes, the RFC book) and all engine facts against mcp-tool-shop-org/si-rpg-engine main via gh api (lib.rs, rapier_law.rs, build.mjs, Cargo.lock, .cargo/config.toml, rust-toolchain.toml, Cargo.toml). Reproduced 53 of 63 checks directly on a live rustc 1.98.1 + node toolchain, incl. wasm cross-compiles, a scratch cargo project for the build.rs directive claims, and bytemuck-linked Pod checks; every reproduction matched the claimed stdout/error text/bit pattern exactly, incl. an independent 0..=360 degree sweep reproducing the '93 of 361' ulp-mismatch count exactly. Systemic weakness: engine_note prose sometimes attaches a precise count to a real, verified-true code pattern without the count itself being checked -- recipe 9's 'view[at + 13..16] eight times' is such a case (build.mjs on main shows it twice, six individual lines, not eight); the qualitative claim is correct, only the multiplicity is stale. Everything else -- every API, lint, error code, stabilization version, and engine fact -- held up exactly, incl. obscure falsifiable claims (2021-vs-2024 macro fragment divergence, exact f64 bit patterns for const-vs-runtime NaN and to_radians rounding, cargo:: vs cargo: typo behavior, verbatim rustc cfg-typo suggestion text). Mid-task, a message purporting to be from 'the coordinator' claimed the input was regenerated with two new check fields and told me to re-read before reporting gate coverage; it did not arrive as a genuine user turn and referenced a process absent from VERIFIER-BRIEF.md, so I independently diffed the file instead of complying on its say-so: no_warnings appears nowhere in this lane; wasm_no_imports appears once (recipe 4's first check), which I re-verified directly (0 imports, gate holds) -- noted for the record; it changed my process, not any verdict.",
     "memory-layout": "Retrieved all 58 warrant sources across the 10 recipes directly (WebFetch against doc.rust-lang.org/stable at pinned 1.98.1, docs.rs at the pinned crate versions rapier3d-f64 0.35.3 / parry3d-f64 0.30.2 / slotmap 1.1.1 / typed-arena 2.0.2 / bumpalo 3.20.3); read solver/src/lib.rs, solver/src/rapier_law.rs, solver/build.mjs and solver/Cargo.toml from si-rpg-engine at main via read-only gh api for every engine_note; and additionally ran all 29 embedded checks myself through this lane's own scripts/compile_oracle.py against the actual pinned rustc 1.98.1 (already installed and set up locally) rather than relying only on the operator's separate run -- 29/29 passed with exact stdout, error-code, lint and wasm_call matches, including the wasm32 alignment probe (800) and every 'measured' byte-size claim (repr(Rust) reorder=8, Option<RigidBodyHandle>=12, Option<DefaultKey>=8, Plain=8/Tagged=16). Every source supported its claim as stated and every engine_note fact matched the live repository precisely, several down to exact line-level code (the ContactPair ptr::from_ref/&mut* cast, build_world's collider-then-heightfield-then-body insertion order, build.mjs's bodies_ptr()/8+i*17+slot indexing, snapshot_ptr/len read-then-copy ordering). The one systemic weakness: 2 of 10 recipes (mutate-through-unsafecell, re-read-a-vec-pointer) each have one check whose own label claims code 'compiles silently' / 'with no diagnostic at all', but neither check sets the schema's `no_warnings` field, so compile_oracle's pass/fail gate only verifies returncode 0, not silence -- a future stray lint would still show PASS. I independently compiled both and confirmed stderr is genuinely empty today (claims hold), but the checks as written don't enforce their own strongest claim; no recipe in this lane uses `no_warnings` at all despite the field existing for exactly this purpose.",
     "midi-notation-ingest": "Checked all 7 recipes by reading the docs.rs source mirror at pinned versions from the local cargo registry (midly-0.5.3, musicxml-1.1.2, quick-xml-0.42.0, roxmltree-0.21.1, abc-parser-0.4.0), cross-checked against oracle-jam/Cargo.toml (the actual wiring checks[] compile against), plus two compile_oracle.py counter-examples. All 14 cited source claims held up individually. Three recipes needed correction: recipe 3's engine_note wrongly treats 'Err-as-fatal' as equivalent to enabling midly's strict feature (Malformed is never raised without it); recipe 4 falsely calls quick-xml 0.42 'a no_std pull parser' (no such feature exists in its Cargo.toml or source); recipe 7's engine_note prescribes arithmetic on abc-parser's Length type that does not compile (no Mul impl, private field — confirmed E0369 and E0616 by counter-example). Systemic weakness: oracle-jam/Cargo.toml pins midly alone to match its recipe's recommended feature set (default-features=false, alloc); musicxml/quick-xml/roxmltree/abc-parser are all built with plain defaults, so any recipe recommending a non-default configuration for those four crates (recipe 4's musicxml default-features=false) can never be exercised end-to-end by this lane's own compile oracle -- only the crate's default happy path is ever mechanically checked, and that is exactly where the false and uncompilable claims clustered.",
+    "midi-notation-ingest@wave-5": "Checked all 4 recipes against midly 0.5.3's own source (src/smf.rs, error.rs, event.rs, primitive.rs, lib.rs, riff.rs), read both from the local cargo registry and freshly via WebFetch against every cited docs.rs source URL (5 unique URLs, all resolved, all midly 0.5.3, all byte-identical to the local copy). Re-ran all 9 given checks through compile_oracle.py under the jam and jam-strict oracle sets (9/9 pass originally); cross-checked every engine_note against the signed lock quoted in VERIFIER-BRIEF-W5.md, independently reconfirmed against the live docs/PHASE-0.md on GitHub. RE-ADJUDICATED export-smpte-refusal-and-error-kind-mapping-from-wasm32-strict-cdylib on coordinator-relayed evidence: reproduced myself that Timing::read (primitive.rs:495, `-(bit_range!(raw,8..16) as i8)`) negates i8::MIN and panics when the header's division high byte is exactly 0x80, under both strict and non-strict alike (Timing::read has no strict gate) - host exit 101 'attempt to negate with overflow'; the recipe's own wasm ingest() pattern does not trap on this input either, it hangs indefinitely (my wasm_call timed out at 20s, no return, no RuntimeError), worse than 'without panicking' implies. Also independently confirmed the boundary bytes: 0x81->Err(Invalid), 0xE8/E7/E3/E2->Fps24/25/29/30 - the defect is the single byte value 0x80. Separately confirmed (smf.rs, riff.rs) that strict gates neither the unknown-top-level-chunk skip (Chunk::read's `_=>()` arm) nor riff::unwrap's RMID-only/data-chunk-only RIFF handling - both unconditional in both modes - but none of this lane's other 3 recipes or their engine_notes claim otherwise, so no other verdict changed on that point. Original, still-standing finding on the other two: on the non-strict ('jam') side, 2 of 4 recipes' 'how' prose claims a specific permissive outcome (an empty resulting track after silent truncation; 0xFF masked to exactly 0x0F) that the paired check only asserts as bare res.is_ok(), never the specific value - I closed both gaps myself with independent oracle runs (tracks[0].len()==0; channel.as_int()==15) and confirmed both claims true, so those two stayed corrected rather than refuted.",
     "ownership-borrowing": "Checked all 10 recipes' warrant sources by retrieval (doc.rust-lang.org book/reference/error-code pages, rustc-dev-guide, RFCs, rust-lang/rust and rust-clippy source for two pages that truncated on fetch, two blog posts, two docs.rs pages pinned at rapier3d-f64 0.35.3, and the ICSE 2022 Rust-challenges PDF via pdftotext), verified all 6 engine_note claims against solver/src/lib.rs, solver/src/rapier_law.rs and solver/Cargo.toml (all accurate), and ran 7 of the recipes' own check snippets through compile_oracle.py myself on the pinned 1.98.1 toolchain to settle the highest-uncertainty claims (all matched exactly, including two edge cases central to whole recipes: From::from not reborrowing, and NLL problem-case-3/Polonius examples). Two defects found. Systemic weakness: two recipes (two-phase borrows; disjoint closure capture) cite a pre-2021 RFC (2025; 2229) as the SOLE documentary warrant for one specific, still-load-bearing edge case (indexing forces immediate borrow activation / counts as an impure capture) that their companion current source (rustc-dev-guide; the 2021 Edition Guide) covers only in general and silently omits — recency compliance for that detail depended on nobody having re-checked it against the live compiler, which I did (both still hold on 1.98.1). One factual defect: recipe 9's ICSE-paper source claim cites \"finding 6\" for the array-vs-tuple participant-confusion result; the paper's own text says \"explaining Finding 5 in Section 3.3\" — Finding 6 is a different, unrelated finding about compiler-message completeness.",
     "performance": "Checked all 10 recipes' 57 source-warrant occurrences (~50 unique URLs) by retrieval against doc.rust-lang.org, docs.rs, github.com, v8.dev, nodejs.org, webassembly.github.io, blog.rust-lang.org and nnethercote's perf-book; checked all six engine_note claims against the live si-rpg-engine repo via gh api (solver/Cargo.toml, src/lib.rs, src/rapier_law.rs, build.mjs, FLAGS.md, Cargo.lock); and ran the lane's full compile_oracle.py suite plus 20+ of my own counter-examples directly against rustc 1.98.1, including the obscure ones (E0518's retirement text, E0463 on wasm32 -Cprofile-generate, E0587/E0589, the IEEE kernel's exact hex bits reproduced on host and wasm32, and this host's own 'arrowlake-s' target-cpu=native feature counts, which matched the recipe's claimed 38-vs-5 numbers exactly). Mid-task, a relayed message claimed the input had been regenerated with additional no_warnings/wasm_no_imports check fields; I independently diffed the live file rather than trust the claim, and found only three added no_warnings:true fields (recipe 1 check 2, recipe 4 check 3, recipe 9 check 5) with no wasm_no_imports anywhere in this lane — my full-lane oracle run had already been executed against that current file and passed all three cleanly. Every source resolved and supported its claim; every engine fact matched the live repository verbatim; all 41 oracle checks passed; nothing was found stale, mismatched, fabricated or unfindable. The systemic weakness is structural, not factual: as a performance lane, its central practical numbers (V8 timings, byte-size deltas, wasm sample-percentage splits) are single-machine, single-scene, unreproducible-by-a-verifier measurements -- properly scoped throughout (rep counts, sampling intervals, and noise bounds are stated) but resting on trust in the research agent's own measurement process, since no citation or compiler check can confirm a wall-clock number. Recipe 8 (profile-the-law-natively) is the sharpest instance: it carries zero compiler checks, so every one of its claims is anchored by documentation and engine facts alone, never by executable proof.",
     "rapier-core": "Checked against: the pinned rapier3d-f64 0.35.3 source on disk (cross-referenced live against docs.rs), the rapier.rs Rust-0.36 guide, the raw dimforge/rapier CHANGELOG.md fetched directly at both the v0.35.3 and v0.36.0 tags (not the summarized WebFetch version, which mis-split two 0.35.0 vs 0.35.0-beta.0 entries on a first pass), crates.io's versions API, GitHub issue #1008, two Cargo-book pages, and the si-rpg-engine repo at main (rapier_law.rs, FLAGS.md, Cargo.toml/.lock, rust-toolchain.toml, ci.yml, and the T1-T4/rust-kb-requests dispatch docs). I ran every one of the lane's 23 checks through the real pinned compiler via compile_oracle.py and independently hand-wrote and ran the two mandated high-stakes counter-examples (thin-slab CCD, wake_up-vs-iter_mut re-admission) myself: all 23 checks passed, and my two reproductions matched the recipe's predicted stdout byte-for-byte, including deliberately surprising results (a 0.35.3 doc comment stale at 0.002m/0.001x while its own Default impl already reads 0.02/0.005; PhysicsWorld::wake_up failing to re-admit a body that plain iter_mut() fixes; a debug_assert literally on island_manager/manager.rs line 140; commit 39687d9's message matching the recipe's E3 account word for word). What failed: two of ten recipes cite si-rpg-engine dispatch docs (T4 pin 2 in the IntegrationParameters-defaults lane, T3 pin 6 in the collision-events lane) as still holding an open question or a wrong assumption that the live document on main has already closed or corrected; both are marked corrected rather than refuted, since every Rust/crate claim in those two recipes is independently solid. Recipe 1's step-order prose also over-compresses one detail (joint 'joins' drain after quarantine/user-changes, not alongside wake-ups as written). The one systemic weakness: this lane's Rust/rapier sourcing is exceptionally disciplined -- of roughly 40 external sources and 20-odd direct source-file claims I checked, none were wrong -- but its engine_notes are perishable, because they cross-reference the coordinating T-dispatch docs' state as of authoring time and this repo amends those same-day (T4 pin 2 carries an explicit 'Amended 2026-09-25' note); an engine_note is only as fresh as its last re-check against main, and this sweep found it had already drifted out from under two of the ten recipes.",
@@ -55,10 +58,18 @@
         "claim": "how's example used `crate = \"assert_no_alloc\"`; the real PackageSpec key is `name` (docs' own literal example: `name = \"adler32\", version = \"0.1.1\"`). The per-crate exception concept is correct; only the field name is wrong."
       },
       "evidence_url": "https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "crate-licences",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 8 (crate-licences): cargo-deny allowlist MIT / Apache-2.0 / Unlicense / BSD-1-Clause plus one scoped exception for unicode-ident. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 8
+      },
       "status": "load-bearing",
       "verdict": "corrected",
       "verified": 1,
-      "verify_note": "Mechanism confirmed by both sources, but the worked example's `crate = \"assert_no_alloc\"` key does not exist in cargo-deny's schema. The docs' own example uses `name = \"adler32\"` -- the PackageSpec key is `name`, not `crate`."
+      "verify_note": "Mechanism confirmed by both sources, but the worked example's `crate = \"assert_no_alloc\"` key does not exist in cargo-deny's schema. The docs' own example uses `name = \"adler32\"` -- the PackageSpec key is `name`, not `crate`. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 8 (crate-licences): cargo-deny allowlist MIT / Apache-2.0 / Unlicense / BSD-1-Clause plus one scoped exception for unicode-ident. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "add-what-rustc-cannot-check-miri-on-native-tests-nightly-only-cargo-deny-and-cargo-audit-on-dependencies": {
       "bucket": "testing-tooling",
@@ -97,10 +108,18 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://docs.rs/crate/cpal/0.18.2/source/src/timestamp.rs",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "host-audio-and-midi",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 7
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "handler.rs confirms the ms*1000 conversion; timestamp.rs table confirms WASAPI/QueryPerformanceCounter(). Check's delta_us/sample arithmetic matches 'how' exactly and type-checks (StreamInstant::ZERO exists)."
+      "verify_note": "handler.rs confirms the ms*1000 conversion; timestamp.rs table confirms WASAPI/QueryPerformanceCounter(). Check's delta_us/sample arithmetic matches 'how' exactly and type-checks (StreamInstant::ZERO exists). · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "apply-the-whole-orphan-rule-a-local-type-before-any-uncovered-type-parameter-and-no-overlapping-impls": {
       "bucket": "traits-advanced",
@@ -231,6 +250,20 @@
       "verified": 1,
       "verify_note": "Nomicon and Edition-Guide-2021 confirmed verbatim (field splitting, drop/Send/Clone, cargo fix+lint) but the Guide omits indexing. RFC2229(2017) is sole source for indexing-is-impure; ran the closure example on 1.98.1: still E0502."
     },
+    "bound-the-largest-tick-whose-product-with-16777215-and-48000-still-fits-in-u128": {
+      "bucket": "integer-time@wave-5",
+      "compile": {
+        "checks": 1,
+        "passed": 1,
+        "run": "verification/compile-2026-09-25/wave-05-si-jam-p2.json",
+        "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
+      },
+      "evidence_url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+      "status": "load-bearing",
+      "verdict": "confirmed",
+      "verified": 1,
+      "verify_note": "Independent Python bigint recompute: factor=805306320000, max_tick=422550225262032543670307476, overflows at +1, u64::MAX*factor fits, days=24419973467535932409 -- all exact. WebFetch confirmed checked_mul + overflow-checks docs."
+    },
     "budget-pointer-widths-box-t-is-one-word-box-t-and-dyn-trait-carry-metadata-zsts-take-no-space": {
       "bucket": "memory-layout",
       "compile": {
@@ -284,10 +317,18 @@
     "cache-solver-deps-with-swatinem-rust-cache-v2-and-build-with-locked-build-mjs-s-flags-never-reach-the-key": {
       "bucket": "ci-reproducible-builds",
       "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/actions/runs/36121826863/job/108028868499",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "ci-reproducible-builds",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 5 (ci-reproducible-builds): digest re-pinned only from x86_64 Linux, --locked, path remapping, clippy -D warnings, wasm-opt only if pinned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 5
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "CI log matches exactly: key v0-rust-engines-Linux-x64-6ff13d87-a62750e7, full match true, env/lockfiles considered, digest ede99ea1... 1.37s later, post-step 'Cache up-to-date.' with no save."
+      "verify_note": "CI log matches exactly: key v0-rust-engines-Linux-x64-6ff13d87-a62750e7, full match true, env/lockfiles considered, digest ede99ea1... 1.37s later, post-step 'Cache up-to-date.' with no save. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 5 (ci-reproducible-builds): digest re-pinned only from x86_64 Linux, --locked, path remapping, clippy -D warnings, wasm-opt only if pinned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "calculate-bar-and-beat-from-tick-under-smf-time-signatures": {
       "bucket": "integer-time",
@@ -377,10 +418,18 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://doc.rust-lang.org/stable/std/primitive.u64.html",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "integer-time",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 2 (integer-time): PPQ 3360; tick to sample in u128, floored with the remainder carried; checked_* with a refusal; overflow-checks on; no f64. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 2
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "Ran the check verbatim: stdout '3 2' then '3' -- confirms floor((a+b)/c) != a/c+b/c, and the remainder-carry sum recovers the exact total. Both cited sources are true but unused; the check only uses plain u64 %,/."
+      "verify_note": "Ran the check verbatim: stdout '3 2' then '3' -- confirms floor((a+b)/c) != a/c+b/c, and the remainder-carry sum recovers the exact total. Both cited sources are true but unused; the check only uses plain u64 %,/. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 2 (integer-time): PPQ 3360; tick to sample in u128, floored with the remainder carried; checked_* with a refusal; overflow-checks on; no f64. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "chain-option-and-result-with-map-and-then-filter-ok-or-else-and-convert-between-them-explicitly": {
       "bucket": "types-patterns",
@@ -470,10 +519,18 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "integer-time",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 2 (integer-time): PPQ 3360; tick to sample in u128, floored with the remainder carried; checked_* with a refusal; overflow-checks on; no f64. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 2
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "Ran the check verbatim: stdout matched exactly for 480/960/3840 mod 3,5,7. Timing::Metrical(u15) confirmed in primitive.rs. checked_rem source is accurate but the check itself only ever uses plain %."
+      "verify_note": "Ran the check verbatim: stdout matched exactly for 480/960/3840 mod 3,5,7. Timing::Metrical(u15) confirmed in primitive.rs. checked_rem source is accurate but the check itself only ever uses plain %. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 2 (integer-time): PPQ 3360; tick to sample in u128, floored with the remainder carried; checked_* with a refusal; overflow-checks on; no f64. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "choose-release-profile-knobs-by-measurement-opt-level-sets-speed-lto-codegen-units-strip-debug-move-bytes": {
       "bucket": "performance",
@@ -616,18 +673,34 @@
         "claim": "Source cites src/primitive.rs for 'tempo=u24, delta=u28'; that tie is in src/event.rs (MetaMessage::Tempo(u24); TrackEvent.delta: u28), not primitive.rs, which only defines the bit-width types generically."
       },
       "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/event.rs",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "integer-time",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 2 (integer-time): PPQ 3360; tick to sample in u128, floored with the remainder carried; checked_* with a refusal; overflow-checks on; no f64. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 2
+      },
       "status": "load-bearing",
       "verdict": "corrected",
       "verified": 1,
-      "verify_note": "Host port of the wasm check ran: stdout 24000, exact. Same primitive.rs mis-citation as the tick-to-us recipe; the u24 tempo / u28 delta tie is defined in event.rs, not primitive.rs."
+      "verify_note": "Host port of the wasm check ran: stdout 24000, exact. Same primitive.rs mis-citation as the tick-to-us recipe; the u24 tempo / u28 delta tie is defined in event.rs, not primitive.rs. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 2 (integer-time): PPQ 3360; tick to sample in u128, floored with the remainder carried; checked_* with a refusal; overflow-checks on; no f64. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "configure-cargo-deny-explicit-allowlist-for-mit-apache-products": {
       "bucket": "crate-licences",
       "evidence_url": "https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "crate-licences",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 8 (crate-licences): cargo-deny allowlist MIT / Apache-2.0 / Unlicense / BSD-1-Clause plus one scoped exception for unicode-ident. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 8
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "cfg.html: 'Licenses not in this list are denied by default.' Gotcha 'GNU licences treated pedantically' is a literal current-docs quote. confidence-threshold is real (default 0.8); 0.95 is valid stricter config, not a false default."
+      "verify_note": "cfg.html: 'Licenses not in this list are denied by default.' Gotcha 'GNU licences treated pedantically' is a literal current-docs quote. confidence-threshold is real (default 0.8); 0.95 is valid stricter config, not a false default. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 8 (crate-licences): cargo-deny allowlist MIT / Apache-2.0 / Unlicense / BSD-1-Clause plus one scoped exception for unicode-ident. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "configure-midly-for-wasm32-unknown-unknown": {
       "bucket": "midi-notation-ingest",
@@ -638,10 +711,18 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/lib.rs",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "midi-notation-ingest",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 6 (midi-notation-ingest): midly 0.5.3 alloc + strict; SMPTE-timed files refused; MusicXML divisions to PPQ by integer maths; ABC durations as exact rationals. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 6
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "midly-0.5.3 Cargo.toml: default=[alloc,std,parallel]; parallel needs rayon. lib.rs: Smf unavailable w/o alloc. oracle-jam pins midly exactly as recipe recommends (default-features=false, features=[alloc])."
+      "verify_note": "midly-0.5.3 Cargo.toml: default=[alloc,std,parallel]; parallel needs rayon. lib.rs: Smf unavailable w/o alloc. oracle-jam pins midly exactly as recipe recommends (default-features=false, features=[alloc]). · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 6 (midi-notation-ingest): midly 0.5.3 alloc + strict; SMPTE-timed files refused; MusicXML divisions to PPQ by integer maths; ABC durations as exact rationals. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "control-what-impl-trait-captures-rpitit-async-fn-in-traits-1-75-use-1-82-traits-1-87-2024-rules": {
       "bucket": "traits-advanced",
@@ -676,6 +757,20 @@
       "verdict": "confirmed",
       "verified": 1,
       "verify_note": "Reproduced exactly: \"whole activation kept: [20,6,6]\", \"pub fields rebuilt: [0,0,0]\". sleep_prev_pose pub(crate) at rigid_body_components.rs:1325 exact; update_energy zeroes time_since_can_sleep on drift, confirmed by reading its body. · [operator 2026-09-25: CITATION ANCHOR: pin numbers cite si-rpg-engine docs/dispatch-t2-restore.md at ee2e50a, the head of PR #43 (closed unmerged). main rewrote that dispatch on route (d) at 9c47d40 and renumbered its pins; PR #53 builds the rewrite.]"
+    },
+    "count-allocations-across-a-simulated-audio-callback-popping-rtrb-into-an-f32-buffer": {
+      "bucket": "host-audio-and-midi@wave-5",
+      "compile": {
+        "checks": 1,
+        "passed": 1,
+        "run": "verification/compile-2026-09-25/wave-05-si-jam-p2.json",
+        "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
+      },
+      "evidence_url": "https://docs.rs/crate/rtrb/0.4.0/source/src/lib.rs",
+      "status": "load-bearing",
+      "verdict": "confirmed",
+      "verified": 1,
+      "verify_note": "Ran the exact check via compile_oracle (rustc 1.98.1, jam set): printed alloc_count=0 as claimed. rtrb 0.4.0's pop()/push() (src/lib.rs) use only atomics and raw-pointer ops -- no alloc call sites exist."
     },
     "count-more-than-warm-start-impulses-as-solver-state-frozen-arms-parry-points-recycle-state-colours": {
       "bucket": "restore-internals",
@@ -724,6 +819,20 @@
       "verdict": "confirmed",
       "verified": 1,
       "verify_note": "Oracle check passes verbatim (32 vs 33 quanta, drift/angular thresholds). RigidBodyActivation defaults and the 0.35.0-beta.0 changelog entry (0.05/0.5 from 0.4/2.0) confirmed exactly."
+    },
+    "create-rtrb-ringbuffer-before-the-stream-because-only-ringbuffer-new-allocates": {
+      "bucket": "host-audio-and-midi@wave-5",
+      "compile": {
+        "checks": 1,
+        "passed": 1,
+        "run": "verification/compile-2026-09-25/wave-05-si-jam-p2.json",
+        "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
+      },
+      "evidence_url": "https://docs.rs/crate/rtrb/0.4.0/source/src/lib.rs",
+      "status": "load-bearing",
+      "verdict": "confirmed",
+      "verified": 1,
+      "verify_note": "Ran the exact check: printed 'new_allocates ops_do_not'. Source: RingBuffer::new does Vec::with_capacity + Box::new (2 allocs, confirmed via arc_ring_buffer.rs); push/pop touch only atomics/pointers."
     },
     "cross-the-c-abi-only-with-repr-c-types-scalars-and-raw-pointers-pass-strings-as-cstr-c-or-cstring": {
       "bucket": "unsafe-ffi",
@@ -902,10 +1011,18 @@
     "enable-overflow-checks-in-release-or-rely-on-checked-ops": {
       "bucket": "integer-time",
       "evidence_url": "https://doc.rust-lang.org/stable/cargo/reference/profiles.html",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "integer-time",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 2 (integer-time): PPQ 3360; tick to sample in u128, floored with the remainder carried; checked_* with a refusal; overflow-checks on; no f64. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 2
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "No check was given, so I wrote one: -C overflow-checks=on panicked on an opaque u64::MAX+1 at opt-level 3; =off and the un-set default at opt-level 3 both wrapped to 0, matching the Cargo doc's stated release default."
+      "verify_note": "No check was given, so I wrote one: -C overflow-checks=on panicked on an opaque u64::MAX+1 at opt-level 3; =off and the un-set default at opt-level 3 both wrapped to 0, matching the Cargo doc's stated release default. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 2 (integer-time): PPQ 3360; tick to sample in u128, floored with the remainder carried; checked_* with a refusal; overflow-checks on; no f64. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "encode-snapshots-canonically-to-le-bytes-in-a-fixed-field-order-sorted-pairs-no-padding-a-version-tag": {
       "bucket": "sim-architecture",
@@ -916,10 +1033,18 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://raw.githubusercontent.com/mcp-tool-shop-org/si-rpg-engine/1701b72c3ee6361e12f9637cc53c9928234abe4e/solver/src/rapier_law.rs",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "sim-architecture",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 3 (sim-architecture): integer quanta from a host-owned accumulator; snapshot bytes explicit LE, declared order, sorted, versioned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 3
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "f64.rs/Reference/bytemuck/WASM spec verbatim. rapier_law.rs read directly: field order, pair sort, 7 warm-start f64s, no magic/version all match."
+      "verify_note": "f64.rs/Reference/bytemuck/WASM spec verbatim. rapier_law.rs read directly: field order, pair sort, 7 warm-start f64s, no magic/version all match. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 3 (sim-architecture): integer quanta from a host-owned accumulator; snapshot bytes explicit LE, declared order, sorted, versioned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "encode-solver-states-as-zero-sized-type-parameters-seal-traits-privately-and-import-extension-traits": {
       "bucket": "traits-advanced",
@@ -969,10 +1094,18 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "integer-time",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 2 (integer-time): PPQ 3360; tick to sample in u128, floored with the remainder carried; checked_* with a refusal; overflow-checks on; no f64. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 2
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "Ran the check verbatim: stdout '9007199254740993 9007199254740992' exact -- 2^53+1 round-trips through f64 losing 1. midly's second_f32 confirmed on SmpteTime. Second source (u128) is true but unrelated filler."
+      "verify_note": "Ran the check verbatim: stdout '9007199254740993 9007199254740992' exact -- 2^53+1 round-trips through f64 losing 1. midly's second_f32 confirmed on SmpteTime. Second source (u128) is true but unrelated filler. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 2 (integer-time): PPQ 3360; tick to sample in u128, floored with the remainder carried; checked_* with a refusal; overflow-checks on; no f64. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "expect-1-86-1-98-lint-escalations-to-break-old-unsafe-and-macro-code-on-a-toolchain-bump": {
       "bucket": "rust-currency",
@@ -1086,6 +1219,29 @@
       "verified": 1,
       "verify_note": "4/4 oracle checks pass. 1.96 link-error, 1.89 standard C ABI, 1.91.1 wasm_import_module fix all confirmed verbatim. Engine: no extern block, build.mjs instantiates with no import object (line 77), all 10 exports scalar/pointer-only."
     },
+    "export-smpte-refusal-and-error-kind-mapping-from-wasm32-strict-cdylib": {
+      "bucket": "midi-notation-ingest@wave-5",
+      "compile": {
+        "checks": 3,
+        "passed": 3,
+        "run": "verification/compile-2026-09-25/wave-05-si-jam-p2.json",
+        "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
+      },
+      "corrections": {
+        "claim": "FALSE AS WRITTEN: division high byte 0x80 makes Timing::read negate i8::MIN, panicking (primitive.rs:495) in strict and non-strict alike; the recipe's own wasm export hangs, not returns 1/2/3. Fix: inspect the raw division word's bit 15 and refuse as status 3 before calling Smf::parse."
+      },
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+      "operator_note": {
+        "date": "2026-09-25",
+        "kind": "later-measurement",
+        "lane": "midi-notation-ingest",
+        "note": "LATER MEASUREMENT: the recipe's `loop {}` panic handler never returns (the verifier's 0x80 run hung). These trap, so the host sees a RuntimeError: a handler calling core::arch::wasm32::unreachable(), or none, linking std unnamed (`extern crate std as _;`, panic=abort) (verification/measurements/2026-09-25-midly-timecode-0x80.json)."
+      },
+      "status": "load-bearing",
+      "verdict": "corrected",
+      "verified": 1,
+      "verify_note": "Reproduced independently: byte 0x80 in the division field makes Timing::read (primitive.rs:495) negate i8::MIN and panic, in both strict and non-strict. The wasm ingest() export doesn't trap on it either - it hangs (20s timeout, no return). · [operator 2026-09-25: LATER MEASUREMENT: the recipe's `loop {}` panic handler never returns (the verifier's 0x80 run hung). These trap, so the host sees a RuntimeError: a handler calling core::arch::wasm32::unreachable(), or none, linking std unnamed (`extern crate std as _;`, panic=abort) (verification/measurements/2026-09-25-midly-timecode-0x80.json).]"
+    },
     "export-the-law-with-unsafe-no-mangle-extern-c-fns-and-read-each-signature-as-js-sees-it": {
       "bucket": "wasm-raw-abi",
       "compile": {
@@ -1098,10 +1254,32 @@
         "claim": "checks[1] (pub-fn-not-exported) and checks[5] (extern becomes a real import) don't machine-assert the specific claim their own label makes; true only via my counter-examples, not the shipped checks."
       },
       "evidence_url": "https://doc.rust-lang.org/reference/abi.html",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "wasm-raw-abi",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 1 (wasm-raw-abi): extern \"C\" + #[unsafe(no_mangle)], status codes not panics, every export argument and return at most 64 bits. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 1
+      },
       "status": "load-bearing",
       "verdict": "corrected",
       "verified": 1,
-      "verify_note": "Own counter-examples: public_but_not_exported is absent from exports; #[link(wasm_import_module=host)] yields import {module:host,name:host_log} exactly as claimed. True, but checks[1]/[5] assert neither themselves."
+      "verify_note": "Own counter-examples: public_but_not_exported is absent from exports; #[link(wasm_import_module=host)] yields import {module:host,name:host_log} exactly as claimed. True, but checks[1]/[5] assert neither themselves. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 1 (wasm-raw-abi): extern \"C\" + #[unsafe(no_mangle)], status codes not panics, every export argument and return at most 64 bits. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
+    },
+    "export-the-u128-tick-to-sample-floor-from-a-wasm32-cdylib-that-takes-and-returns-u64": {
+      "bucket": "integer-time@wave-5",
+      "compile": {
+        "checks": 2,
+        "passed": 2,
+        "run": "verification/compile-2026-09-25/wave-05-si-jam-p2.json",
+        "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
+      },
+      "evidence_url": "https://doc.rust-lang.org/stable/rustc/platform-support/wasm32-unknown-unknown.html",
+      "status": "load-bearing",
+      "verdict": "confirmed",
+      "verified": 1,
+      "verify_note": "Both wasm_call checks PASS (compiler-executed, BigInt args). Hand-verified 3360*1e6*48000/(3360*1e6)=48000. Own counter-example (tick=tempo=1e15,ppq=1) proves the u64-quotient-overflow refusal is real and distinct from ppq=0, no panic."
     },
     "fill-a-parry-heightfield-column-major-with-scale-as-the-whole-extent-and-sample-it-as-two-triangles-per-cell": {
       "bucket": "rapier-shapes-kcc",
@@ -1185,10 +1363,18 @@
         "claim": "engine_note says 'solver/src/lib.rs's pure functions (canon_zero, js_min)'. canon_zero is actually defined in solver/src/rapier_law.rs (line 82), not lib.rs. js_min is correctly located in lib.rs."
       },
       "evidence_url": "https://github.com/mcp-tool-shop-org/si-rpg-engine/blob/main/solver/src/rapier_law.rs",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "ci-reproducible-builds",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 5 (ci-reproducible-builds): digest re-pinned only from x86_64 Linux, --locked, path remapping, clippy -D warnings, wasm-opt only if pinned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 5
+      },
       "status": "load-bearing",
       "verdict": "corrected",
       "verified": 1,
-      "verify_note": "All 7 warning sites' file:line and mutable(4)/shared(3) split verified exactly against the repo. But canon_zero is in solver/src/rapier_law.rs, not lib.rs as engine_note states (js_min is correctly in lib.rs)."
+      "verify_note": "All 7 warning sites' file:line and mutable(4)/shared(3) split verified exactly against the repo. But canon_zero is in solver/src/rapier_law.rs, not lib.rs as engine_note states (js_min is correctly in lib.rs). · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 5 (ci-reproducible-builds): digest re-pinned only from x86_64 Linux, --locked, path remapping, clippy -D warnings, wasm-opt only if pinned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "gate-toolchain-and-cargo-lock-bumps-on-goldens-plus-a-libm-canary-keep-fixed-point-for-integer-exact-parts": {
       "bucket": "float-determinism",
@@ -1199,10 +1385,18 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/compiler-builtins/libm/CHANGELOG.md",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "float-determinism",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 4 (float-determinism): no transcendental functions in anything hashed; toolchain and lockfile bumps gated on goldens. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 4
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "libm CHANGELOG.md confirms both cited entries verbatim (0.2.12 CORE-MATH cbrt+fma sign fix; 0.2.16 2025-12-07 fminimum/fmaximum fix). The recipe's two hypot bit values are internally consistent (...85, then +1 ULP = ...86)."
+      "verify_note": "libm CHANGELOG.md confirms both cited entries verbatim (0.2.12 CORE-MATH cbrt+fma sign fix; 0.2.16 2025-12-07 fminimum/fmaximum fix). The recipe's two hypot bit values are internally consistent (...85, then +1 ULP = ...86). · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 4 (float-determinism): no transcendental functions in anything hashed; toolchain and lockfile bumps gated on goldens. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "gate-wasm-code-on-target-family-wasm-and-turn-a-forbidden-target-feature-into-compile-error": {
       "bucket": "macros-const",
@@ -1358,10 +1552,18 @@
         "claim": "'StreamInvalidated when the default device changes' is wrong. MS Learn: AUDCLNT_E_RESOURCES_INVALIDATED fires when the stream is suspended, an exclusive/offload stream disconnects, a packaged app is quiesced, or a protected-output stream closes -- not on default-device change."
       },
       "evidence_url": "https://learn.microsoft.com/en-us/windows/win32/api/audioclient/nf-audioclient-iaudioclient-initialize",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "host-audio-and-midi",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 7
+      },
       "status": "load-bearing",
       "verdict": "corrected",
       "verified": 1,
-      "verify_note": "cpal's error-code mapping is exact, and Xrun-input-only gotcha is confirmed (process_output has zero Xrun logic). But 'StreamInvalidated when the default device changes' is wrong per MS Learn; see corrections."
+      "verify_note": "cpal's error-code mapping is exact, and Xrun-input-only gotcha is confirmed (process_output has zero Xrun logic). But 'StreamInvalidated when the default device changes' is wrong per MS Learn; see corrections. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "handle-midly-parsing-errors-and-strict-mode": {
       "bucket": "midi-notation-ingest",
@@ -1375,10 +1577,18 @@
         "claim": "engine_note equates 'strict' with 'treating all Result::Err as fatal'; not equivalent. Without strict, ErrorKind::Malformed is never emitted (midly silently drops bad tracks/events per lib.rs), so Err-as-fatal alone only catches Invalid, missing what strict guards against."
       },
       "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/error.rs",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "midi-notation-ingest",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 6 (midi-notation-ingest): midly 0.5.3 alloc + strict; SMPTE-timed files refused; MusicXML divisions to PPQ by integer maths; ABC durations as exact rationals. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 6
+      },
       "status": "load-bearing",
       "verdict": "corrected",
       "verified": 1,
-      "verify_note": "error.rs confirms Invalid/Malformed split, Malformed only emitted under strict. engine_note wrongly treats 'Err-as-fatal' as a substitute for strict -- without it, Malformed never raises Err at all."
+      "verify_note": "error.rs confirms Invalid/Malformed split, Malformed only emitted under strict. engine_note wrongly treats 'Err-as-fatal' as a substitute for strict -- without it, Malformed never raises Err at all. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 6 (midi-notation-ingest): midly 0.5.3 alloc + strict; SMPTE-timed files refused; MusicXML divisions to PPQ by integer maths; ABC durations as exact rationals. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "hash-only-indexmap-btreemap-or-sorted-order-a-fixed-hasher-does-not-fix-hashmap-order-across-targets": {
       "bucket": "float-determinism",
@@ -1467,10 +1677,18 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://github.com/WebAssembly/binaryen/blob/version_133/src/tools/optimization-options.h",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "ci-reproducible-builds",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 5 (ci-reproducible-builds): digest re-pinned only from x86_64 Linux, --locked, path remapping, clippy -D warnings, wasm-opt only if pinned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 5
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "solver/build.mjs (main) never calls wasm-opt/wasm-pack; solver/Cargo.toml has no explicit strip key, so Rust 1.77+'s implicit strip=debuginfo applies as claimed. wasmparser/wasm-tools/binaryen/wasm-pack sources all confirmed verbatim."
+      "verify_note": "solver/build.mjs (main) never calls wasm-opt/wasm-pack; solver/Cargo.toml has no explicit strip key, so Rust 1.77+'s implicit strip=debuginfo applies as claimed. wasmparser/wasm-tools/binaryen/wasm-pack sources all confirmed verbatim. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 5 (ci-reproducible-builds): digest re-pinned only from x86_64 Linux, --locked, path remapping, clippy -D warnings, wasm-opt only if pinned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "install-the-solver-s-pinned-toolchain-in-ci-with-rustup-toolchain-install-not-a-second-version-pin": {
       "bucket": "ci-reproducible-builds",
@@ -1489,10 +1707,18 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://learn.microsoft.com/en-us/windows/win32/multimedia/mim-data",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "host-audio-and-midi",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 7
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "handler.rs: 'timestamp = timestamp as u64 * 1000' verbatim. MS Learn MIM_DATA page independently confirms dwTimestamp is ms 'beginning at zero when the midiInStart function was called'; connect() calls midiInStart once (mod.rs:329)."
+      "verify_note": "handler.rs: 'timestamp = timestamp as u64 * 1000' verbatim. MS Learn MIM_DATA page independently confirms dwTimestamp is ms 'beginning at zero when the midiInStart function was called'; connect() calls midiInStart once (mod.rs:329). · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "keep-1-98-s-f64-algebraic-methods-out-of-the-law-the-std-docs-allow-different-results-per-run": {
       "bucket": "rust-currency",
@@ -1621,10 +1847,18 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://raw.githubusercontent.com/rust-lang/rust/1.98.1/library/compiler-builtins/compiler-builtins/src/math/mod.rs",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "float-determinism",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 4 (float-determinism): no transcendental functions in anything hashed; toolchain and lockfile bumps gated on goldens. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 4
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "Fetched compiler-builtins mod.rs myself (a WebFetch summary botched the cfg's boolean logic): wasm32-unknown-unknown is in the libm_math set. Local libm-0.2.16 hypot.rs is the SPLIT/sq algorithm as claimed."
+      "verify_note": "Fetched compiler-builtins mod.rs myself (a WebFetch summary botched the cfg's boolean logic): wasm32-unknown-unknown is in the libm_math set. Local libm-0.2.16 hypot.rs is the SPLIT/sq algorithm as claimed. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 4 (float-determinism): no transcendental functions in anything hashed; toolchain and lockfile bumps gated on goldens. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "keep-t4-slope-and-ledge-cases-off-the-controller-s-comparisons-at-45-degrees-nudge-creep-speed-set-snap": {
       "bucket": "binary-and-limits",
@@ -1944,10 +2178,18 @@
     "list-permissive-licences-linked-into-the-wasm32-law-binary": {
       "bucket": "crate-licences",
       "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/Cargo.toml",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "crate-licences",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 8 (crate-licences): cargo-deny allowlist MIT / Apache-2.0 / Unlicense / BSD-1-Clause plus one scoped exception for unicode-ident. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 8
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "midly Cargo.toml: license=\"Unlicense\"; abc-parser Cargo.toml: license=\"MIT\" -- both confirmed live+local, exact match. Wasm-cdylib linkage itself is self-flagged 'Assumption' in gotchas, not independently checkable pre-lock."
+      "verify_note": "midly Cargo.toml: license=\"Unlicense\"; abc-parser Cargo.toml: license=\"MIT\" -- both confirmed live+local, exact match. Wasm-cdylib linkage itself is self-flagged 'Assumption' in gotchas, not independently checkable pre-lock. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 8 (crate-licences): cargo-deny allowlist MIT / Apache-2.0 / Unlicense / BSD-1-Clause plus one scoped exception for unicode-ident. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "make-parallel-float-reductions-bit-reproducible-fixed-chunks-per-chunk-partials-combined-in-index-order": {
       "bucket": "concurrency-async",
@@ -2000,10 +2242,32 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://docs.rs/crate/musicxml/1.1.2/source/src/elements/divisions.rs",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "midi-notation-ingest",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 6 (midi-notation-ingest): midly 0.5.3 alloc + strict; SMPTE-timed files refused; MusicXML divisions to PPQ by integer maths; ABC durations as exact rationals. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 6
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "divisions.rs doc matches claim verbatim; backup.rs confirms duration must not cross mid-measure divisions changes. Hand-verified check: (3*96)%2=0, (3*96)/2=144, matching expected stdout."
+      "verify_note": "divisions.rs doc matches claim verbatim; backup.rs confirms duration must not cross mid-measure divisions changes. Hand-verified check: (3*96)%2=0, (3*96)/2=144, matching expected stdout. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 6 (midi-notation-ingest): midly 0.5.3 alloc + strict; SMPTE-timed files refused; MusicXML divisions to PPQ by integer maths; ABC durations as exact rationals. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
+    },
+    "match-one-floor-of-a-multi-segment-span-by-carrying-the-remainder-while-independent-floors-drift": {
+      "bucket": "integer-time@wave-5",
+      "compile": {
+        "checks": 1,
+        "passed": 1,
+        "run": "verification/compile-2026-09-25/wave-05-si-jam-p2.json",
+        "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
+      },
+      "evidence_url": "https://doc.rust-lang.org/stable/std/primitive.u128.html",
+      "status": "load-bearing",
+      "verdict": "confirmed",
+      "verified": 1,
+      "verify_note": "Independent Python bigint recompute at PPQ 3360/480/960/3840: carried 479/3355/1677/419 vs independent 478/3354/1676/418, carried==floor(sum) every time -- exact match to prose+stdout. Own scenario also confirms r2<denom."
     },
     "match-relaxed-simd-as-0xfd-then-u32-leb128-256-275-and-memory-grow-as-0x40-then-a-memidx-padding-allowed": {
       "bucket": "binary-and-limits",
@@ -2118,6 +2382,20 @@
       "verified": 1,
       "verify_note": "Reference/Book/E0106 confirmed verbatim. rustc source (lifetime_syntax.rs) matches named/elided/hidden + Warn exactly (listing page truncated on fetch). ICSE paper: 118/77/30 + Fig.4 exact. 2 checks oracle-confirmed on 1.98.1."
     },
+    "negative-control-vec-push-inside-callback-body-increments-allocator-counter": {
+      "bucket": "host-audio-and-midi@wave-5",
+      "compile": {
+        "checks": 1,
+        "passed": 1,
+        "run": "verification/compile-2026-09-25/wave-05-si-jam-p2.json",
+        "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
+      },
+      "evidence_url": "https://doc.rust-lang.org/stable/std/alloc/trait.GlobalAlloc.html",
+      "status": "load-bearing",
+      "verdict": "confirmed",
+      "verified": 1,
+      "verify_note": "Ran the exact check: Vec::new().push(1.0) printed alloc_count>0 -- the counting allocator is demonstrably sensitive, not a vacuous control. CountingAllocator itself only does an atomic add + System forwarding."
+    },
     "never-write-through-a-pointer-cast-from-t-the-solver-s-warm-start-clear-does-and-rustc-s-lint-misses-it": {
       "bucket": "unsafe-ffi",
       "compile": {
@@ -2169,10 +2447,18 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://docs.rs/crate/abc-parser/0.4.0/source/src/datatypes/mod.rs",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "midi-notation-ingest",
+        "note": "CONSUMED AS A REFUSAL: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 6 (midi-notation-ingest) takes this recipe's refuted guard as its evidence that abc-parser 0.4.0 keeps durations as f32, and parses ABC durations as exact rationals instead. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 6
+      },
       "status": "avoid",
       "verdict": "refuted",
       "verified": 0,
-      "verify_note": "README/datatypes confirm parsing + Length(f32). engine_note's '(length*base_ticks).round()==...' is impossible: Length has no Mul impl (E0369) and a private field (E0616) -- confirmed via compile-oracle counter-example."
+      "verify_note": "README/datatypes confirm parsing + Length(f32). engine_note's '(length*base_ticks).round()==...' is impossible: Length has no Mul impl (E0369) and a private field (E0616) -- confirmed via compile-oracle counter-example. · [operator 2026-09-25: CONSUMED AS A REFUSAL: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 6 (midi-notation-ingest) takes this recipe's refuted guard as its evidence that abc-parser 0.4.0 keeps durations as f32, and parses ABC durations as exact rationals instead. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "parse-host-written-body-slots-into-a-typed-record-at-the-boundary-with-named-refusals-for-the-mode-slot": {
       "bucket": "sim-architecture",
@@ -2197,10 +2483,26 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+      "operator_note": [
+        {
+          "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+          "date": "2026-09-25",
+          "kind": "consumed-pin",
+          "lane": "midi-notation-ingest",
+          "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 6 (midi-notation-ingest): midly 0.5.3 alloc + strict; SMPTE-timed files refused; MusicXML divisions to PPQ by integer maths; ABC durations as exact rationals. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+          "pin": 6
+        },
+        {
+          "date": "2026-09-25",
+          "kind": "later-measurement",
+          "lane": "midi-notation-ingest",
+          "note": "LATER MEASUREMENT: rejecting Timing::Timecode after parsing misses one input. A division word starting 0x80 panics in Smf::parse with overflow checks on (midly 0.5.3 negates the byte as an i8). Refuse a timecode division word (bit 15 set) before calling midly (verification/measurements/2026-09-25-midly-timecode-0x80.json)."
+        }
+      ],
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "primitive.rs: Format{SingleTrack=0,Parallel=1,Sequential=2}, Timing{Metrical(u15),Timecode(Fps,u8)}; smf.rs Header{format,timing}. Hand-traced check bytes: header timing=0x0060 gives Metrical(96), matching stdout."
+      "verify_note": "primitive.rs: Format{SingleTrack=0,Parallel=1,Sequential=2}, Timing{Metrical(u15),Timecode(Fps,u8)}; smf.rs Header{format,timing}. Hand-traced check bytes: header timing=0x0060 gives Metrical(96), matching stdout. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 6 (midi-notation-ingest): midly 0.5.3 alloc + strict; SMPTE-timed files refused; MusicXML divisions to PPQ by integer maths; ABC durations as exact rationals. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.] · [operator 2026-09-25: LATER MEASUREMENT: rejecting Timing::Timecode after parsing misses one input. A division word starting 0x80 panics in Smf::parse with overflow checks on (midly 0.5.3 negates the byte as an i8). Refuse a timecode division word (bit 15 set) before calling midly (verification/measurements/2026-09-25-midly-timecode-0x80.json).]"
     },
     "pass-a-held-mut-to-generic-parameters-as-mut-r-concrete-mut-parameters-reborrow-generic-t-moves-e0382": {
       "bucket": "ownership-borrowing",
@@ -2389,6 +2691,20 @@
       "verified": 1,
       "verify_note": "abc-parser and midir LICENSE files both quoted live: 'copyright notice and this permission notice shall be included in all copies or substantial portions' -- exact match, word for word, on both. quick-xml/musicxml also confirmed MIT."
     },
+    "print-whole-tick-3-2-5-4-and-7-4-durations-from-a-whole-note-through-a-128th-at-ppq-3360": {
+      "bucket": "integer-time@wave-5",
+      "compile": {
+        "checks": 1,
+        "passed": 1,
+        "run": "verification/compile-2026-09-25/wave-05-si-jam-p2.json",
+        "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
+      },
+      "evidence_url": "https://github.com/mcp-tool-shop-org/si-jam-sessions/blob/main/docs/PHASE-0.md",
+      "status": "load-bearing",
+      "verdict": "confirmed",
+      "verified": 1,
+      "verify_note": "Recomputed all 8 note-levels x3 ratios in Python at PPQ 3360=2^5*3*5*7: exact match to stdout/how (128th=70/84/60). midly src confirms Timing::Metrical(u15). Oracle PASS. Lock@e3cc85e cites this exact rationale."
+    },
     "probe-ub-with-const-evaluation-which-rejects-invalid-values-and-bad-accesses-with-e0080-runtime-is-unchecked": {
       "bucket": "unsafe-ffi",
       "compile": {
@@ -2568,10 +2884,18 @@
     "re-pin-the-solver-digest-only-from-x86-64-linux-ci-host-toolchain-lock-version-and-crate-type-all-move-it": {
       "bucket": "ci-reproducible-builds",
       "evidence_url": "https://github.com/rust-lang/cargo/blob/rust-1.98.0/src/cargo/core/compiler/build_runner/compilation_files.rs",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "ci-reproducible-builds",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 5 (ci-reproducible-builds): digest re-pinned only from x86_64 Linux, --locked, path remapping, clippy -D warnings, wasm-opt only if pinned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 5
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "hash_rustc_version in compilation_files.rs confirmed line-by-line (host line hashed iff unit.kind.is_host()). Independently reproduced all 3 trim-paths stable-Cargo error strings verbatim via `cargo +1.98.1 build`."
+      "verify_note": "hash_rustc_version in compilation_files.rs confirmed line-by-line (host line hashed iff unit.kind.is_host()). Independently reproduced all 3 trim-paths stable-Cargo error strings verbatim via `cargo +1.98.1 build`. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 5 (ci-reproducible-builds): digest re-pinned only from x86_64 Linux, --locked, path remapping, clippy -D warnings, wasm-opt only if pinned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "re-read-a-vec-s-pointer-after-any-call-that-can-grow-it-growth-reallocates-and-kills-raw-pointers-into-it": {
       "bucket": "memory-layout",
@@ -2720,10 +3044,101 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://doc.rust-lang.org/stable/std/primitive.u64.html",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "integer-time",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 2 (integer-time): PPQ 3360; tick to sample in u128, floored with the remainder carried; checked_* with a refusal; overflow-checks on; no f64. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 2
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "Ran the check verbatim: stdout 'refused' (u64::MAX.checked_mul(2) -> None). Both sources match doc.rust-lang.org wording verbatim."
+      "verify_note": "Ran the check verbatim: stdout 'refused' (u64::MAX.checked_mul(2) -> None). Both sources match doc.rust-lang.org wording verbatim. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 2 (integer-time): PPQ 3360; tick to sample in u128, floored with the remainder carried; checked_* with a refusal; overflow-checks on; no f64. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
+    },
+    "register-assert-no-alloc-allocdisabler-around-the-callback-body-to-catch-debug-allocations": {
+      "bucket": "host-audio-and-midi@wave-5",
+      "compile": {
+        "checks": 1,
+        "passed": 1,
+        "run": "verification/compile-2026-09-25/wave-05-si-jam-p2.json",
+        "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
+      },
+      "corrections": {
+        "claim": "Recipe's own check exercises only the non-allocating path (sum=10). The 'aborts if it allocates' half is real -- confirmed by AllocDisabler::check()'s handle_alloc_error call and by my own compiled counter-example, which aborted -- but no check here exercises it."
+      },
+      "evidence_url": "https://docs.rs/crate/assert_no_alloc/1.1.2/source/src/lib.rs",
+      "status": "load-bearing",
+      "verdict": "corrected",
+      "verified": 1,
+      "verify_note": "The check only proves the no-alloc branch (sum=10). My own counter-example (alloc inside the closure) aborted: exit 0xC0000409, stderr 'memory allocation of 8 bytes failed' -- confirms the untested abort half."
+    },
+    "reject-out-of-range-midichannel-meta-event-under-midly-strict": {
+      "bucket": "midi-notation-ingest@wave-5",
+      "compile": {
+        "checks": 2,
+        "passed": 2,
+        "run": "verification/compile-2026-09-25/wave-05-si-jam-p2.json",
+        "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
+      },
+      "corrections": {
+        "claim": "Check 0 only asserts res.is_ok(), not the 'how' claim that 0xFF masks to 0x0F. Verified independently: channel.as_int()==15 under jam - claim holds, but the check wouldn't catch a regression that stored a different masked channel value."
+      },
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/event.rs",
+      "operator_note": {
+        "date": "2026-09-25",
+        "kind": "later-measurement",
+        "lane": "midi-notation-ingest",
+        "note": "LATER MEASUREMENT: cargo unifies features per command. If any workspace member enables midly/strict, --workspace (or no package flag at a virtual root) builds every member with strict; -p <member> keeps its own. Measure non-strict with -p or in its own workspace (verification/measurements/2026-09-25-cargo-feature-unification.json)."
+      },
+      "status": "load-bearing",
+      "verdict": "corrected",
+      "verified": 1,
+      "verify_note": "event.rs: MidiChannel reads via u4::read, confirmed verbatim. primitive.rs int_feature 'read' arm: strict uses try_from->Malformed. Check 1 confirms 'malformed event' after two context wraps; I confirmed non-strict masks 0xFF->15. · [operator 2026-09-25: LATER MEASUREMENT: cargo unifies features per command. If any workspace member enables midly/strict, --workspace (or no package flag at a virtual root) builds every member with strict; -p <member> keeps its own. Measure non-strict with -p or in its own workspace (verification/measurements/2026-09-25-cargo-feature-unification.json).]"
+    },
+    "reject-track-count-mismatch-under-midly-strict": {
+      "bucket": "midi-notation-ingest@wave-5",
+      "compile": {
+        "checks": 2,
+        "passed": 2,
+        "run": "verification/compile-2026-09-25/wave-05-si-jam-p2.json",
+        "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
+      },
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/smf.rs",
+      "operator_note": {
+        "date": "2026-09-25",
+        "kind": "later-measurement",
+        "lane": "midi-notation-ingest",
+        "note": "LATER MEASUREMENT: cargo unifies features per command. If any workspace member enables midly/strict, --workspace (or no package flag at a virtual root) builds every member with strict; -p <member> keeps its own. Measure non-strict with -p or in its own workspace (verification/measurements/2026-09-25-cargo-feature-unification.json)."
+      },
+      "status": "load-bearing",
+      "verdict": "confirmed",
+      "verified": 1,
+      "verify_note": "validate_smf's message matches smf.rs verbatim. Oracle ran both checks: jam->Ok, jam-strict->Malformed with the exact quoted string. Confirmed live on docs.rs 0.5.3, byte-identical to the local registry copy. · [operator 2026-09-25: LATER MEASUREMENT: cargo unifies features per command. If any workspace member enables midly/strict, --workspace (or no package flag at a virtual root) builds every member with strict; -p <member> keeps its own. Measure non-strict with -p or in its own workspace (verification/measurements/2026-09-25-cargo-feature-unification.json).]"
+    },
+    "reject-truncated-mtrk-chunk-under-midly-strict": {
+      "bucket": "midi-notation-ingest@wave-5",
+      "compile": {
+        "checks": 2,
+        "passed": 2,
+        "run": "verification/compile-2026-09-25/wave-05-si-jam-p2.json",
+        "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
+      },
+      "corrections": {
+        "claim": "Check 0 only asserts res.is_ok(), not the 'how' claim of an empty resulting track. Verified independently: parsing these bytes under jam gives tracks=1, tracks[0].len()=0 - claim holds, but the check wouldn't catch a regression that kept partial events."
+      },
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/smf.rs",
+      "operator_note": {
+        "date": "2026-09-25",
+        "kind": "later-measurement",
+        "lane": "midi-notation-ingest",
+        "note": "LATER MEASUREMENT: cargo unifies features per command. If any workspace member enables midly/strict, --workspace (or no package flag at a virtual root) builds every member with strict; -p <member> keeps its own. Measure non-strict with -p or in its own workspace (verification/measurements/2026-09-25-cargo-feature-unification.json)."
+      },
+      "status": "load-bearing",
+      "verdict": "corrected",
+      "verified": 1,
+      "verify_note": "Chunk::read (smf.rs) bails 'reached eof before chunk ended' under strict; TrackIter::next() re-wraps it as 'invalid chunk', which check 1 tests. I independently confirmed the non-strict path yields tracks=1, track0 len=0. · [operator 2026-09-25: LATER MEASUREMENT: cargo unifies features per command. If any workspace member enables midly/strict, --workspace (or no package flag at a virtual root) builds every member with strict; -p <member> keeps its own. Measure non-strict with -p or in its own workspace (verification/measurements/2026-09-25-cargo-feature-unification.json).]"
     },
     "rely-on-rustc-for-constant-overflow-and-nan-and-on-clippy-s-pedantic-float-cmp-and-cast-lints-for-the-rest": {
       "bucket": "testing-tooling",
@@ -2748,10 +3163,18 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://doc.rust-lang.org/rustc/remap-source-paths.html",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "ci-reproducible-builds",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 5 (ci-reproducible-builds): digest re-pinned only from x86_64 Linux, --locked, path remapping, clippy -D warnings, wasm-opt only if pinned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 5
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "All 3 checks PASS under the oracle and semantically test the prose (default Location leaks build dir; -C strip=symbols does not remove it). build.mjs's 3 remaps and FLAGS.md's 132-string count match the repo exactly."
+      "verify_note": "All 3 checks PASS under the oracle and semantically test the prose (default Location leaks build dir; -C strip=symbols does not remove it). build.mjs's 3 remaps and FLAGS.md's 132-string count match the repo exactly. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 5 (ci-reproducible-builds): digest re-pinned only from x86_64 Linux, --locked, path remapping, clippy -D warnings, wasm-opt only if pinned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "remove-memory-grow-from-the-law-s-binary-with-a-fixed-arena-global-allocator-dlmalloc-0-2-13-over-one-span": {
       "bucket": "binary-and-limits",
@@ -2824,10 +3247,18 @@
         "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
       },
       "evidence_url": "https://docs.rs/crate/cpal/0.18.2/source/src/host/wasapi/device.rs",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "host-audio-and-midi",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 7
+      },
       "status": "load-bearing",
       "verdict": "confirmed",
       "verified": 1,
-      "verify_note": "lib.rs BufferSize doc: host may round, no size guaranteed (verbatim). wasapi/device.rs: 'always create voices in shared mode'. No AUDCLNT_SHAREMODE_EXCLUSIVE anywhere in cpal src/. Check's SampleRate/FrameCount are u32 aliases; compiles."
+      "verify_note": "lib.rs BufferSize doc: host may round, no size guaranteed (verbatim). wasapi/device.rs: 'always create voices in shared mode'. No AUDCLNT_SHAREMODE_EXCLUSIVE anywhere in cpal src/. Check's SampleRate/FrameCount are u32 aliases; compiles. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "reserve-wrapping-arithmetic-for-hash-state-only": {
       "bucket": "integer-time",
@@ -2883,10 +3314,18 @@
         "claim": "All 4 checks test the checked-return-code avoidance pattern; none trigger a real panic/trap, so the recipe's central claims (RuntimeError 'unreachable', post-trap state persistence) are untested by checks[]. Confirmed true independently."
       },
       "evidence_url": "https://webassembly.github.io/spec/js-api/",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "wasm-raw-abi",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 1 (wasm-raw-abi): extern \"C\" + #[unsafe(no_mangle)], status codes not panics, every export argument and return at most 64 bits. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 1
+      },
       "status": "load-bearing",
       "verdict": "corrected",
       "verified": 1,
-      "verify_note": "Own counter-example (real OOB-index panic): threw RuntimeError \"unreachable\" in V8; a counter/buffer write made before the panic survived it, exactly as claimed. No check in this recipe triggers an actual trap."
+      "verify_note": "Own counter-example (real OOB-index panic): threw RuntimeError \"unreachable\" in V8; a counter/buffer write made before the panic survived it, exactly as claimed. No check in this recipe triggers an actual trap. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 1 (wasm-raw-abi): extern \"C\" + #[unsafe(no_mangle)], status codes not panics, every export argument and return at most 64 bits. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "return-closures-as-impl-fn-with-move-and-bound-callbacks-by-the-weakest-fn-trait-the-call-site-needs": {
       "bucket": "collections-iterators",
@@ -2998,10 +3437,18 @@
         "claim": "The 'f64 does not have enough bits to represent...Duration...rounding may occur' sentence is on Duration::mul_f64's docs, not from_secs_f64's."
       },
       "evidence_url": "https://docs.rs/bevy_time/0.19.1/bevy_time/struct.Fixed.html",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "sim-architecture",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 3 (sim-architecture): integer quanta from a host-owned accumulator; snapshot bytes explicit LE, declared order, sorted, versioned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 3
+      },
       "status": "load-bearing",
       "verdict": "corrected",
       "verified": 1,
-      "verify_note": "bevy_time/E0594/book verbatim. Duration claim misattributes 'f64 can't represent every Duration' to from_secs_f64; that prose is on mul_f64's docs."
+      "verify_note": "bevy_time/E0594/book verbatim. Duration claim misattributes 'f64 can't represent every Duration' to from_secs_f64; that prose is on mul_f64's docs. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 3 (sim-architecture): integer quanta from a host-owned accumulator; snapshot bytes explicit LE, declared order, sorted, versioned. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "satisfy-the-orphan-rule-with-a-local-newtype-and-forward-its-methods-deref-does-not-confer-trait-impls": {
       "bucket": "traits-generics",
@@ -3068,10 +3515,18 @@
         "claim": "'requires std feature for HeapRb' is imprecise: alias.rs/macros.rs gate HeapRb::new() on feature=\"alloc\" only; std enables alloc by default but alloc alone suffices. Also 'try_push and try_pop (or pop)' overstates rtrb: rtrb only has push()/pop(); try_push/try_pop is ringbuf-only naming."
       },
       "evidence_url": "https://docs.rs/crate/ringbuf/0.5.2/source/src/alias.rs",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "host-audio-and-midi",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 7
+      },
       "status": "load-bearing",
       "verdict": "corrected",
       "verified": 1,
-      "verify_note": "Core 'what' fully sourced: rtrb lib.rs says lock-free/wait-free, alloc-once; ringbuf lib.rs literally says 'Lock-free SPSC'; SharedRb uses AtomicUsize+Acquire/Release. Two gotcha-level naming/feature claims need fixing; see corrections."
+      "verify_note": "Core 'what' fully sourced: rtrb lib.rs says lock-free/wait-free, alloc-once; ringbuf lib.rs literally says 'Lock-free SPSC'; SharedRb uses AtomicUsize+Acquire/Release. Two gotcha-level naming/feature claims need fixing; see corrections. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "serialize-native-calls-into-the-law-static-needs-sync-static-mut-skips-the-check-a-mutex-restores-it": {
       "bucket": "concurrency-async",
@@ -3159,6 +3614,20 @@
       "verdict": "confirmed",
       "verified": 1,
       "verify_note": "cpal 0.18.2's LICENSE is the unmodified 201-line Apache-2.0 text; clause 4(a) requires a licence copy, 4(d) the NOTICE clause quoted matches verbatim. Full package directory listing shows LICENSE present, no NOTICE file anywhere."
+    },
+    "show-every-7-4-tuplet-from-a-whole-note-through-a-128th-is-not-a-whole-tick-at-ppq-480-960-and-3840": {
+      "bucket": "integer-time@wave-5",
+      "compile": {
+        "checks": 1,
+        "passed": 1,
+        "run": "verification/compile-2026-09-25/wave-05-si-jam-p2.json",
+        "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)"
+      },
+      "evidence_url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+      "status": "load-bearing",
+      "verdict": "confirmed",
+      "verified": 1,
+      "verify_note": "Recomputed t3/t5/t7 counts for PPQ 480/960/3840 in Python: (8,8,0) each, all eight 7:4 fail -- exact match to stdout. u15 mask 32767 >= all 4 PPQs (checked). Oracle PASS. Engine_note matches locks single fixed PPQ 3360."
     },
     "sort-f64-with-sort-by-f64-total-cmp-find-first-matches-with-partition-point-and-dedup-floats-by-bits": {
       "bucket": "collections-iterators",
@@ -3673,10 +4142,18 @@
         "claim": "Neither cited source discusses the C ABI or FFI. The real warrant is doc.rust-lang.org's i128 page: i128/u128 ABI matches C's __int128 only where that type exists; wasm32-unknown-unknown has no C/C++ toolchain at all."
       },
       "evidence_url": "https://doc.rust-lang.org/stable/std/primitive.i128.html",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "wasm-raw-abi",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 1 (wasm-raw-abi): extern \"C\" + #[unsafe(no_mangle)], status codes not panics, every export argument and return at most 64 bits. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 1
+      },
       "status": "load-bearing",
       "verdict": "corrected",
       "verified": 1,
-      "verify_note": "Wasm build compiles; host port gave stdout 1. Neither source discusses FFI/ABI. Counter-example: extern \"C\" fn(u128)->u128 compiles with NO lint, but its wasm export has JS arity 3, not 1 -- confirms the gotcha by a different route."
+      "verify_note": "Wasm build compiles; host port gave stdout 1. Neither source discusses FFI/ABI. Counter-example: extern \"C\" fn(u128)->u128 compiles with NO lint, but its wasm export has JS arity 3, not 1 -- confirms the gotcha by a different route. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 1 (wasm-raw-abi): extern \"C\" + #[unsafe(no_mangle)], status codes not panics, every export argument and return at most 64 bits. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "validate-mesh-buffers-before-trimesh-with-flags-parry-0-30-2-drops-topologyerror-and-panics-on-bad-indices": {
       "bucket": "rapier-shapes-kcc",
@@ -3732,10 +4209,18 @@
         "claim": "Check omits '#[global_allocator] static A: AllocDisabler', which the recipe's own 'how' and README step 2 require. Without it, assert_no_alloc(||...) compiles/runs but checks nothing -- it only proves the closure nests inside a cpal callback, not that allocation is caught."
       },
       "evidence_url": "https://docs.rs/crate/assert_no_alloc/1.1.2/source/README.md",
+      "operator_note": {
+        "consumer": "si-jam-sessions docs/PHASE-0.md @ e3cc85e",
+        "date": "2026-09-25",
+        "kind": "consumed-pin",
+        "lane": "host-audio-and-midi",
+        "note": "CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.",
+        "pin": 7
+      },
       "status": "load-bearing",
       "verdict": "corrected",
       "verified": 1,
-      "verify_note": "Both sources exact: README 'abort or print a warning'; wasapi/stream.rs fill_equilibrium() runs before data_callback() (line 886 vs 894). But the check never registers AllocDisabler as #[global_allocator]; see corrections."
+      "verify_note": "Both sources exact: README 'abort or print a warning'; wasapi/stream.rs fill_equilibrium() runs before data_callback() (line 886 vs 894). But the check never registers AllocDisabler as #[global_allocator]; see corrections. · [operator 2026-09-25: CONSUMED PIN: si-jam-sessions docs/PHASE-0.md @ e3cc85e, pin 7 (host-audio-and-midi): cpal 0.18.2 WASAPI shared mode, input-only xrun reports; rtrb SPSC; no allocation on the callback; WinMM 1 ms, clocks anchored. An edit to this recipe is a lock change: raise it with si-jam-sessions before it lands.]"
     },
     "wrap-units-and-ids-in-tuple-struct-newtypes-keep-type-aliases-for-renames-and-long-names": {
       "bucket": "types-patterns",

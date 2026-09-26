@@ -1,5 +1,5 @@
 # Rust CI, reproducible binaries & supply chain — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](ci-reproducible-builds.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](ci-reproducible-builds.md) · [catalog index](README.md)
 
 ## Gate the solver in ci.yml with fmt --check, clippy -D warnings for wasm32 and host cargo test --lib
 **Rust gates need no new push-triggered workflow file. rustfmt --check, clippy with -D warnings for the wasm32 target and host unit tests of pure functions all fit in ci.yml, and `cargo test --lib` works on a cdylib-only crate. But today's solver fails -D warnings on seven static_mut_refs warnings, and integration tests or doctests would need "rlib", which moves the digest.**

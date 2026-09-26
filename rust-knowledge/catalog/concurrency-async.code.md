@@ -1,5 +1,5 @@
 # Concurrency, parallelism & async — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](concurrency-async.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](concurrency-async.md) · [catalog index](README.md)
 
 ## Borrow stack data in worker threads with thread::scope (1.63); thread::spawn needs move and 'static
 **std::thread::spawn requires F: FnOnce() -> T + Send + 'static, so a closure borrowing a local is E0373, while std::thread::scope (stable 1.63.0) joins every scoped thread before returning, so workers can borrow slices and write disjoint chunks without Arc.**

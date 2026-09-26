@@ -1,5 +1,5 @@
 # Advanced traits & the type system
-_Associated types, GATs, dyn compatibility, coherence, auto traits, variance, upcasting, precise capture._ · tier **advanced** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_Associated types, GATs, dyn compatibility, coherence, auto traits, variance, upcasting, precise capture._ · tier **advanced** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 

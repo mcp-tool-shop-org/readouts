@@ -1,5 +1,5 @@
 # Rapier shapes, meshes & the character controller — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](rapier-shapes-kcc.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](rapier-shapes-kcc.md) · [catalog index](README.md)
 
 ## Bake glTF collision meshes offline with the gltf crate and refuse what the deterministic law cannot reproduce
 **The glTF 2.0 spec fixes meters, radians, +Y up, float32 POSITION with min/max, unit quaternions and in-range indices, but files can still break it; the gltf crate (1.4.1) exposes f32 transforms, Mode, positions, indices and skins. Converting belongs in a host tool that writes baked f64 triangles, not in the wasm law.**

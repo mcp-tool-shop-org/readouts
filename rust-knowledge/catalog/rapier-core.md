@@ -1,5 +1,5 @@
 # Rapier 0.35: pipeline, determinism & upgrades
-_The step, integration parameters, body types, events, features, the determinism promise, bump policy._ · tier **si-rpg-engine** · wave 4 · 2026-09-25 · [‹ catalog index](README.md)
+_The step, integration parameters, body types, events, features, the determinism promise, bump policy._ · tier **si-rpg-engine** · wave 5 · 2026-09-25 · [‹ catalog index](README.md)
 
 10 recipes · 10 verified · 10 compiler-checked.
 
@@ -32,7 +32,7 @@ _The step, integration parameters, body types, events, features, the determinism
   - *Check 3: contacts after a step are start-of-step; the query BVH already has end-of-step poses* · `runs` · edition 2021 · host · bin · deps: rapier3d_f64 · **✔ oracle pass**
   - *Check 4: an infinite velocity is quarantined: body disabled, state finite, report gone next step* · `runs` · edition 2021 · host · bin · deps: rapier3d_f64 · **✔ oracle pass**
 
-- **Verifier (solid):** Compile-oracle: all 4 checks pass verbatim (12-arg step, 13-arg guide fails E0433/E0061, contact-timing + quarantine stdout exact). Minor: step_inner drains to_join AFTER quarantine/modifications, not alongside wake-ups.
+- **Verifier (solid):** CORRECTED: 'drain joint wake-ups and joins' (how) implies both precede quarantine. In substep.rs, to_wake_up drains first, then quarantine.detect_user_changes, then user changes apply to colliders/bodies; to_join and island-join events drain only afterward, not alongside wake-ups. · Compile-oracle: all 4 checks pass verbatim (12-arg step, 13-arg guide fails E0433/E0061, contact-timing + quarantine stdout exact). Minor: step_inner drains to_join AFTER quarantine/modifications, not alongside wake-ups.
 - **Compiler:** 4/4 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [PhysicsPipeline in rapier3d_f64::pipeline (0.35.3)](https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/struct.PhysicsPipeline.html) (2026) — At 0.35.3 step takes gravity: Vector by value, &IntegrationParameters, &mut IslandManager, &mut BroadPhaseBvh, &mut NarrowPhase, the four sets, &mut CCDSolver, &dyn PhysicsHooks and &dyn EventHandler, and the pipeline exposes quarantine().
@@ -53,7 +53,7 @@ _The step, integration parameters, body types, events, features, the determinism
   - *Check 1: a Cell-based EventHandler is rejected: EventHandler requires MaybeSync (= Sync) at 0.35.3* · `compile_fail` · edition 2021 · host · lib · deps: rapier3d_f64 · errors: E0277 · stderr has “MaybeSync” · **✔ oracle pass**
   - *Check 2: one Started and one Stopped with COLLISION_EVENTS, via atomics or the channel; none without* · `runs` · edition 2021 · host · bin · deps: rapier3d_f64 · **✔ oracle pass**
 
-- **Verifier (solid):** Oracle checks pass (Cell rejected E0277/MaybeSync; Started/Stopped counts exact). EventHandler/MaybeSync/guide/changelog confirmed. But T3 pin 6 (main) already says 'No new hash' for event order.
+- **Verifier (solid):** CORRECTED: engine_note: 'T3's plan... so T3 must measure that order before hashing it.' False of current main: docs/dispatch-t3-platforms.md pin 6 already closed this -- single thread + sorted pairs 'is enough... No new hash.' · Oracle checks pass (Cell rejected E0277/MaybeSync; Started/Stopped counts exact). EventHandler/MaybeSync/guide/changelog confirmed. But T3 pin 6 (main) already says 'No new hash' for event order.
 - **Compiler:** 2/2 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [EventHandler in rapier3d_f64::pipeline (0.35.3)](https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/pipeline/trait.EventHandler.html) (2026) — EventHandler: MaybeSync has two required methods, handle_collision_event and handle_contact_force_event, is implemented by () and ChannelEventCollector, and needs COLLISION_EVENTS or CONTACT_FORCE_EVENTS on at least one collider.
@@ -197,7 +197,7 @@ _The step, integration parameters, body types, events, features, the determinism
   - *Check 3: ccd_enabled(false) is still swept against a fixed slab; max_ccd_substeps = 0 turns CCD off* · `runs` · edition 2021 · host · bin · deps: rapier3d_f64 · **✔ oracle pass**
   - *Check 4: contact_recycling changes result bits on a box pile; contact_clustering does not there* · `runs` · edition 2021 · host · bin · deps: rapier3d_f64 · **✔ oracle pass**
 
-- **Verifier (solid):** 23/23 oracle checks pass; I reproduced the thin-slab CCD claim myself (x=0.921 vs 4.900, exact). Source/guide/changelog all match. But T4 pin 2 (main, amended today) no longer assumes tunnelling.
+- **Verifier (solid):** CORRECTED: engine_note: 'T4 pin 2 assumes the thin fast body passes through today.' False of current main: pin 2 (amended 2026-09-25) already states the KB's own finding -- it stops at x 0.921, not tunnelling -- and needs no law change. · 23/23 oracle checks pass; I reproduced the thin-slab CCD claim myself (x=0.921 vs 4.900, exact). Source/guide/changelog all match. But T4 pin 2 (main, amended today) no longer assumes tunnelling.
 - **Compiler:** 4/4 checks pass under rustc 1.98.1 (48a229cea 2026-09-01)
 - **Sources** (✓ supported · ✗ not supported · · unchecked):
   - ✓ [IntegrationParameters in rapier3d_f64::dynamics (0.35.3)](https://docs.rs/rapier3d-f64/0.35.3/rapier3d_f64/dynamics/struct.IntegrationParameters.html) (2026) — Lists the 0.35.3 fields; its doc comments still give 0.002m for normalized_prediction_distance and 0.001 × length_unit for allowed_linear_error().

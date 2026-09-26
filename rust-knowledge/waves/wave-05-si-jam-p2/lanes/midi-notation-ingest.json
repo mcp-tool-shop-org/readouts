@@ -1,0 +1,296 @@
+{
+  "laneSlug": "midi-notation-ingest",
+  "title": "midly with strict: what the law's parser rejects, compiled",
+  "tier": "si-jam-sessions",
+  "recipes": [
+    {
+      "name": "Reject track-count mismatch under midly strict",
+      "what": "midly 0.5.3 strict rejects an SMF whose header track-count hint does not match the number of MTrk chunks, while alloc-only accepts it.",
+      "how": "Build an SMF with header format Parallel, track count 2, but supply only one EndOfTrack track. Parse with Smf::parse. Under jam the result is Ok; under jam-strict validate_smf returns ErrorKind::Malformed(\"file has a different amount of tracks than declared\").",
+      "rust_version": "midly 0.5.3 (alloc + strict), edition 2024",
+      "gotchas": "Without strict, midly silently ignores the mismatch and returns the tracks it found. Do not assume header counts are validated unless strict is enabled.",
+      "engine_note": "Signed lock (si-jam-sessions docs/PHASE-0.md @ e3cc85e): midly 0.5.3 is built with default-features = false, features = [\"alloc\", \"strict\"]. Use Smf::parse in the ingest path; any Malformed error from strict mode must be mapped to a refusal code and returned across the wasm boundary, never panicked.",
+      "checks": [
+        {
+          "label": "alloc-only accepts track-count mismatch",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "midly"
+          ],
+          "oracle_set": "jam",
+          "expect": "runs",
+          "stdout": "ok",
+          "source": "fn main() {\n    let bytes: [u8; 26] = [\n        0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,\n        0x00, 0x01, 0x00, 0x02, 0x00, 0x60,\n        0x4D, 0x54, 0x72, 0x6B, 0x00, 0x00, 0x00, 0x04,\n        0x00, 0xFF, 0x2F, 0x00,\n    ];\n    let res = midly::Smf::parse(&bytes);\n    assert!(res.is_ok(), \"expected ok, got {:?}\", res);\n    println!(\"ok\");\n}"
+        },
+        {
+          "label": "strict rejects track-count mismatch",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "midly"
+          ],
+          "oracle_set": "jam-strict",
+          "expect": "runs",
+          "stdout_contains": [
+            "file has a different amount of tracks than declared"
+          ],
+          "source": "fn main() {\n    let bytes: [u8; 26] = [\n        0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,\n        0x00, 0x01, 0x00, 0x02, 0x00, 0x60,\n        0x4D, 0x54, 0x72, 0x6B, 0x00, 0x00, 0x00, 0x04,\n        0x00, 0xFF, 0x2F, 0x00,\n    ];\n    let res = midly::Smf::parse(&bytes);\n    assert!(res.is_err(), \"expected err\");\n    let kind = res.unwrap_err().kind();\n    assert!(matches!(kind, midly::ErrorKind::Malformed(_)), \"expected Malformed, got {}\", kind);\n    println!(\"{}\", kind);\n}"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 src/smf.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/smf.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "validate_smf under strict ensures track_count_hint equals the collected track count, returning err_malformed if they differ.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "midly 0.5.3 src/error.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/error.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "ErrorKind::Malformed carries a static message describing non-fatal corruption detected when strict is enabled.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "reject-track-count-mismatch-under-midly-strict"
+    },
+    {
+      "name": "Reject truncated MTrk chunk under midly strict",
+      "what": "midly 0.5.3 strict rejects an SMF whose MTrk chunk length exceeds the remaining file bytes, while alloc-only silently uses the remainder.",
+      "how": "Build a single-track SMF with an MTrk header declaring length 16 but only 2 bytes of data following. Under jam, Chunk::read uses the remainder and Smf::parse returns Ok with an empty track. Under jam-strict, Chunk::read returns err_malformed and Smf::parse fails.",
+      "rust_version": "midly 0.5.3 (alloc + strict), edition 2024",
+      "gotchas": "Non-strict silently truncates the chunk and may return an empty track or partial events. This hides file corruption.",
+      "engine_note": "Signed lock (si-jam-sessions docs/PHASE-0.md @ e3cc85e): midly 0.5.3 strict must reject truncated chunks. Map the resulting Malformed error to a refusal status code in the wasm export.",
+      "checks": [
+        {
+          "label": "alloc-only accepts truncated MTrk chunk",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "midly"
+          ],
+          "oracle_set": "jam",
+          "expect": "runs",
+          "stdout": "ok",
+          "source": "fn main() {\n    let bytes: [u8; 24] = [\n        0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,\n        0x00, 0x00, 0x00, 0x01, 0x00, 0x60,\n        0x4D, 0x54, 0x72, 0x6B, 0x00, 0x00, 0x00, 0x10,\n        0x00, 0xFF,\n    ];\n    let res = midly::Smf::parse(&bytes);\n    assert!(res.is_ok(), \"expected ok, got {:?}\", res);\n    println!(\"ok\");\n}"
+        },
+        {
+          "label": "strict rejects truncated MTrk chunk",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "midly"
+          ],
+          "oracle_set": "jam-strict",
+          "expect": "runs",
+          "stdout_contains": [
+            "invalid chunk"
+          ],
+          "source": "fn main() {\n    let bytes: [u8; 24] = [\n        0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,\n        0x00, 0x00, 0x00, 0x01, 0x00, 0x60,\n        0x4D, 0x54, 0x72, 0x6B, 0x00, 0x00, 0x00, 0x10,\n        0x00, 0xFF,\n    ];\n    let res = midly::Smf::parse(&bytes);\n    assert!(res.is_err(), \"expected err\");\n    let kind = res.unwrap_err().kind();\n    assert!(matches!(kind, midly::ErrorKind::Malformed(_)), \"expected Malformed, got {}\", kind);\n    println!(\"{}\", kind);\n}"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 src/smf.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/smf.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "In Chunk::read, when raw.split_checked(len as usize) returns None and the strict feature is enabled, the parser returns err_malformed with message \"reached eof before chunk ended\".",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "midly 0.5.3 src/error.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/error.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "ErrorKind::Malformed carries a static message describing non-fatal corruption detected by strict mode.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "reject-truncated-mtrk-chunk-under-midly-strict"
+    },
+    {
+      "name": "Reject out-of-range MidiChannel meta-event under midly strict",
+      "what": "midly 0.5.3 strict rejects a MidiChannel meta-event (type 0x20) whose data byte exceeds 0x0F, while alloc-only masks it to a valid u4.",
+      "how": "Construct a single-track SMF containing the track event FF 20 01 FF. Under jam, u4::read masks 0xFF to 0x0F and Smf::parse returns Ok. Under jam-strict, u4::try_from fails and Smf::parse returns ErrorKind::Malformed.",
+      "rust_version": "midly 0.5.3 (alloc + strict), edition 2024",
+      "gotchas": "Without strict, midly applies a lossy mask to restricted integers. A parse success does not mean the file is standards-compliant.",
+      "engine_note": "Signed lock (si-jam-sessions docs/PHASE-0.md @ e3cc85e): midly 0.5.3 strict must reject out-of-range integers. Map the resulting Malformed error to a refusal status code in the wasm export.",
+      "checks": [
+        {
+          "label": "alloc-only accepts MidiChannel 0xFF meta-event",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "midly"
+          ],
+          "oracle_set": "jam",
+          "expect": "runs",
+          "stdout": "ok",
+          "source": "fn main() {\n    let bytes: [u8; 27] = [\n        0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,\n        0x00, 0x00, 0x00, 0x01, 0x00, 0x60,\n        0x4D, 0x54, 0x72, 0x6B, 0x00, 0x00, 0x00, 0x05,\n        0x00, 0xFF, 0x20, 0x01, 0xFF,\n    ];\n    let res = midly::Smf::parse(&bytes);\n    assert!(res.is_ok(), \"expected ok, got {:?}\", res);\n    println!(\"ok\");\n}"
+        },
+        {
+          "label": "strict rejects MidiChannel 0xFF as Malformed",
+          "edition": "2024",
+          "target": "host",
+          "crate_type": "bin",
+          "deps": [
+            "midly"
+          ],
+          "oracle_set": "jam-strict",
+          "expect": "runs",
+          "stdout_contains": [
+            "malformed event"
+          ],
+          "source": "fn main() {\n    let bytes: [u8; 27] = [\n        0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,\n        0x00, 0x00, 0x00, 0x01, 0x00, 0x60,\n        0x4D, 0x54, 0x72, 0x6B, 0x00, 0x00, 0x00, 0x05,\n        0x00, 0xFF, 0x20, 0x01, 0xFF,\n    ];\n    let res = midly::Smf::parse(&bytes);\n    assert!(res.is_err(), \"expected err\");\n    let kind = res.unwrap_err().kind();\n    assert!(matches!(kind, midly::ErrorKind::Malformed(_)), \"expected Malformed, got {}\", kind);\n    println!(\"{}\", kind);\n}"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 src/event.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/event.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "MetaMessage::read reads a MidiChannel meta-event using u4::read on the data byte.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "midly 0.5.3 src/primitive.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The int_feature macro implements IntRead::read for restricted integers so that under strict, try_from is used and returns ErrorKind::Malformed if the raw value exceeds the allowed mask.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "reject-out-of-range-midichannel-meta-event-under-midly-strict"
+    },
+    {
+      "name": "Export SMPTE refusal and error-kind mapping from wasm32 strict cdylib",
+      "what": "midly 0.5.3 strict compiles and runs in a wasm32-unknown-unknown cdylib; a raw extern \"C\" export reads SMF bytes and returns 0 for Ok, 1 for Invalid, 2 for Malformed, and 3 for SMPTE Timecode timing, without panicking.",
+      "how": "Write a #![no_std] cdylib with a bump allocator and panic handler. Expose #[unsafe(no_mangle)] pub extern \"C\" fn ingest() -> u64. Match Smf::parse result: Ok with Timing::Timecode => 3, Ok otherwise => 0, Err with Invalid => 1, Err with Malformed => 2.",
+      "rust_version": "midly 0.5.3 (alloc + strict), edition 2024, wasm32-unknown-unknown",
+      "gotchas": "wasm32-unknown-unknown has no default allocator; you must supply a #[global_allocator] and a #[panic_handler]. Keep the export panic-free and return only u64.",
+      "engine_note": "Signed lock (si-jam-sessions docs/PHASE-0.md @ e3cc85e): the wasm32 cdylib export must parse SMF bytes with midly strict and return a u64 status code. SMPTE-timed files are refused with status 3. ErrorKind::Invalid maps to 1 and ErrorKind::Malformed maps to 2.",
+      "checks": [
+        {
+          "label": "wasm strict export returns 1 for Invalid",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [
+            "midly"
+          ],
+          "oracle_set": "jam-strict",
+          "expect": "runs",
+          "stdout": "1",
+          "wasm_call": {
+            "export": "ingest",
+            "args": []
+          },
+          "source": "#![no_std]\nextern crate alloc;\nuse core::alloc::{GlobalAlloc, Layout};\nuse core::cell::UnsafeCell;\nuse core::sync::atomic::{AtomicUsize, Ordering};\nconst HEAP_SIZE: usize = 65536;\nstruct SyncUnsafeCell<T>(UnsafeCell<T>);\nunsafe impl<T> Sync for SyncUnsafeCell<T> {}\nstatic HEAP: SyncUnsafeCell<[u8; HEAP_SIZE]> = SyncUnsafeCell(UnsafeCell::new([0; HEAP_SIZE]));\nstatic NEXT: AtomicUsize = AtomicUsize::new(0);\nstruct BumpAlloc;\nunsafe impl GlobalAlloc for BumpAlloc {\n    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {\n        let align = layout.align();\n        let size = (layout.size() + align - 1) & !(align - 1);\n        let start = NEXT.fetch_add(size, Ordering::SeqCst);\n        if start + size > HEAP_SIZE { core::ptr::null_mut() } else { unsafe { (HEAP.0.get() as *mut u8).add(start) } }\n    }\n    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {}\n}\n#[global_allocator]\nstatic ALLOC: BumpAlloc = BumpAlloc;\n#[panic_handler]\nfn panic(_info: &core::panic::PanicInfo) -> ! { loop {} }\nstatic SMF: [u8; 4] = [0x00, 0x00, 0x00, 0x00];\n#[unsafe(no_mangle)]\npub extern \"C\" fn ingest() -> u64 {\n    match midly::Smf::parse(&SMF) {\n        Ok(_) => 0,\n        Err(e) => match e.kind() {\n            midly::ErrorKind::Invalid(_) => 1,\n            midly::ErrorKind::Malformed(_) => 2,\n        },\n    }\n}"
+        },
+        {
+          "label": "wasm strict export returns 2 for Malformed",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [
+            "midly"
+          ],
+          "oracle_set": "jam-strict",
+          "expect": "runs",
+          "stdout": "2",
+          "wasm_call": {
+            "export": "ingest",
+            "args": []
+          },
+          "source": "#![no_std]\nextern crate alloc;\nuse core::alloc::{GlobalAlloc, Layout};\nuse core::cell::UnsafeCell;\nuse core::sync::atomic::{AtomicUsize, Ordering};\nconst HEAP_SIZE: usize = 65536;\nstruct SyncUnsafeCell<T>(UnsafeCell<T>);\nunsafe impl<T> Sync for SyncUnsafeCell<T> {}\nstatic HEAP: SyncUnsafeCell<[u8; HEAP_SIZE]> = SyncUnsafeCell(UnsafeCell::new([0; HEAP_SIZE]));\nstatic NEXT: AtomicUsize = AtomicUsize::new(0);\nstruct BumpAlloc;\nunsafe impl GlobalAlloc for BumpAlloc {\n    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {\n        let align = layout.align();\n        let size = (layout.size() + align - 1) & !(align - 1);\n        let start = NEXT.fetch_add(size, Ordering::SeqCst);\n        if start + size > HEAP_SIZE { core::ptr::null_mut() } else { unsafe { (HEAP.0.get() as *mut u8).add(start) } }\n    }\n    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {}\n}\n#[global_allocator]\nstatic ALLOC: BumpAlloc = BumpAlloc;\n#[panic_handler]\nfn panic(_info: &core::panic::PanicInfo) -> ! { loop {} }\nstatic SMF: [u8; 27] = [\n    0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,\n    0x00, 0x00, 0x00, 0x01, 0x00, 0x60,\n    0x4D, 0x54, 0x72, 0x6B, 0x00, 0x00, 0x00, 0x05,\n    0x00, 0xFF, 0x20, 0x01, 0xFF,\n];\n#[unsafe(no_mangle)]\npub extern \"C\" fn ingest() -> u64 {\n    match midly::Smf::parse(&SMF) {\n        Ok(_) => 0,\n        Err(e) => match e.kind() {\n            midly::ErrorKind::Invalid(_) => 1,\n            midly::ErrorKind::Malformed(_) => 2,\n        },\n    }\n}"
+        },
+        {
+          "label": "wasm strict export returns 3 for SMPTE timing",
+          "edition": "2024",
+          "target": "wasm32-unknown-unknown",
+          "crate_type": "cdylib",
+          "deps": [
+            "midly"
+          ],
+          "oracle_set": "jam-strict",
+          "expect": "runs",
+          "stdout": "3",
+          "wasm_call": {
+            "export": "ingest",
+            "args": []
+          },
+          "source": "#![no_std]\nextern crate alloc;\nuse core::alloc::{GlobalAlloc, Layout};\nuse core::cell::UnsafeCell;\nuse core::sync::atomic::{AtomicUsize, Ordering};\nconst HEAP_SIZE: usize = 65536;\nstruct SyncUnsafeCell<T>(UnsafeCell<T>);\nunsafe impl<T> Sync for SyncUnsafeCell<T> {}\nstatic HEAP: SyncUnsafeCell<[u8; HEAP_SIZE]> = SyncUnsafeCell(UnsafeCell::new([0; HEAP_SIZE]));\nstatic NEXT: AtomicUsize = AtomicUsize::new(0);\nstruct BumpAlloc;\nunsafe impl GlobalAlloc for BumpAlloc {\n    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {\n        let align = layout.align();\n        let size = (layout.size() + align - 1) & !(align - 1);\n        let start = NEXT.fetch_add(size, Ordering::SeqCst);\n        if start + size > HEAP_SIZE { core::ptr::null_mut() } else { unsafe { (HEAP.0.get() as *mut u8).add(start) } }\n    }\n    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {}\n}\n#[global_allocator]\nstatic ALLOC: BumpAlloc = BumpAlloc;\n#[panic_handler]\nfn panic(_info: &core::panic::PanicInfo) -> ! { loop {} }\nstatic SMF: [u8; 26] = [\n    0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06,\n    0x00, 0x00, 0x00, 0x01, 0xE8, 0x00,\n    0x4D, 0x54, 0x72, 0x6B, 0x00, 0x00, 0x00, 0x04,\n    0x00, 0xFF, 0x2F, 0x00,\n];\n#[unsafe(no_mangle)]\npub extern \"C\" fn ingest() -> u64 {\n    match midly::Smf::parse(&SMF) {\n        Ok(smf) => if matches!(smf.header.timing, midly::Timing::Timecode(_, _)) { 3 } else { 0 },\n        Err(e) => match e.kind() {\n            midly::ErrorKind::Invalid(_) => 1,\n            midly::ErrorKind::Malformed(_) => 2,\n        },\n    }\n}"
+        }
+      ],
+      "sources": [
+        {
+          "title": "midly 0.5.3 src/primitive.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/primitive.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "Timing::read returns Timing::Timecode when bit 15 of the timing word is set, parsing fps and subframe from the lower bits.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "midly 0.5.3 src/error.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/error.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "midly defines exactly two error kinds: ErrorKind::Invalid for fatal errors and ErrorKind::Malformed for non-fatal strict-mode errors.",
+          "tag": "opened",
+          "retrieved": true
+        },
+        {
+          "title": "midly 0.5.3 src/lib.rs",
+          "url": "https://docs.rs/crate/midly/0.5.3/source/src/lib.rs",
+          "year": 2026,
+          "kind": "docs",
+          "identifier": "",
+          "claim": "The strict feature causes the parser to reject uncompliant data, throwing errors of the kind ErrorKind::Malformed.",
+          "tag": "opened",
+          "retrieved": true
+        }
+      ],
+      "background_sources": [],
+      "currency": null,
+      "verify_note": null,
+      "slug": "export-smpte-refusal-and-error-kind-mapping-from-wasm32-strict-cdylib"
+    }
+  ]
+}

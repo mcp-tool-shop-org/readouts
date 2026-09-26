@@ -1,5 +1,5 @@
 # Deterministic simulation architecture — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](sim-architecture.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](sim-architecture.md) · [catalog index](README.md)
 
 ## Encode snapshots canonically: to_le_bytes in a fixed field order, sorted pairs, no padding, a version tag
 **A snapshot is a byte string the law defines — explicit little-endian numbers in a declared order, collections sorted by a total key, and a header with a magic, a law version and counts — never a struct's memory image, whose field order and padding belong to the compiler.**

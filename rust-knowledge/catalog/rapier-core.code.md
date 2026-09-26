@@ -1,5 +1,5 @@
 # Rapier 0.35: pipeline, determinism & upgrades — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](rapier-core.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](rapier-core.md) · [catalog index](README.md)
 
 ## Call PhysicsPipeline::step at 0.35.3 with its 12 arguments and read contacts as start-of-step state
 **One 0.35.3 step applies queued user changes, runs broad and narrow phase once, solves and integrates per CCD substep, then only refreshes broad-phase AABBs; a non-finite body is quarantined, not reported as an error.**

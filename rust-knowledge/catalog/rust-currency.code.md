@@ -1,5 +1,5 @@
 # What changed in Rust 1.80 → 1.98 — code checks
-Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 4 · 2026-09-25 · [‹ lane page](rust-currency.md) · [catalog index](README.md)
+Every check below was run by the pinned compiler (rustc 1.98.1) through `scripts/compile_oracle.py`; its verdict is on the caption. Wave 5 · 2026-09-25 · [‹ lane page](rust-currency.md) · [catalog index](README.md)
 
 ## Expect 1.86-1.98 lint escalations to break old unsafe and macro code on a toolchain bump
 **Lints tightened in the period, in every edition: dangerous_implicit_autorefs (added 1.88, deny 1.89), missing_fragment_specifier (hard error 1.89), semicolon_in_expressions_from_macros (deny 1.91), never_type_fallback_flowing_into_unsafe and dependency_on_unit_never_type_fallback (deny 1.92), deref_nullptr (deny 1.93), invalid_runtime_symbol_definitions (new, deny 1.98); new warn-by-default lints include missing_abi (1.86), mismatched_lifetime_syntaxes (1.89), dangling_pointers_from_locals (1.91) and linker_messages (1.97, outside the `warnings` group).**
