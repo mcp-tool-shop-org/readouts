@@ -2,6 +2,16 @@
 
 Notable changes to the published corpus. The format follows [Keep a Changelog](https://keepachangelog.com/). readouts has no version numbers: it is a rolling corpus, so each entry is a dated publication, and the commit on `main` is its identifier.
 
+## 2026-09-27
+
+### Added
+
+- `rust-knowledge/waves/wave-03-si-rpg-engine/requests/crate-eject.md` is the measurement behind the engine's drop clearance and the 0.25 step-up. A carried body ends at speed 0. An overlapping box, or a box that meets the character's head, leaves near 16 m/s.
+- `requests/character-throw.md` relays the stored-squeeze reading for the in-place switch, beside that step-up measurement.
+- `requests/engine-queue-2026-09-27.md` is a check of the engine's working queue. The T7c safety bar passes and the value bar fails, so the instrument role stays frozen.
+
+No entry, verdict or verified flag changed.
+
 ## 2026-09-26 (third publication)
 
 ### Added

@@ -89,6 +89,8 @@ Every finding went to the coordinator session as it landed, marked with its evid
       - `up = (0, 1, 1e-12)`: one line, 0 stalls, but only inside a measured window from 1e-16 to 1e-10;
       - an engine-owned `move_shape` copy with one extra `decompose_hit` branch: 0 stalls, no window, about 500 lines to own.
     - **The KB's own drop threshold is narrowed.** The binary-and-limits recipe's 0.2105 holds only for its own geometry, and the 0.200–0.2105 band is bit-sensitive. Both the stall and the threshold are recorded as `later-measurement` operator notes on the two recipes.
+13. **Answered, private until a publication: `requests/crate-eject.md`.** Issue #114's drop at the step's edge, and the mechanism behind #121. A 0.25 kinematic step becomes about 16 m/s through `interpolate_velocity`, written onto an overlapping box or a box that meets the head. A carried body is not in the solver and ends at speed 0. The engine's `docs/dispatch-114-drop-clearance.md` links the public path, which does not have the file yet.
+14. **Relay, 2026-09-27: `requests/character-throw.md`.** The overseer's #128 replay (a stored squeeze released at the in-place switch) beside the crate-eject reading. Dispatch 128's "overlaps or carries" sentence does not match the carried case. The working queue checked the same day is `requests/engine-queue-2026-09-27.md`. It is a check against the engine's `docs/HANDOFF.md`, not a measurement.
 
 ## Advisor measurements (the coordinating session, recorded here, not in a lane)
 
