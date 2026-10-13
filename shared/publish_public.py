@@ -105,12 +105,19 @@ def npx():
     return found
 
 
-def deleted(clone):
+def porcelain_deletions(text):
+    """Deleted paths from `git status --porcelain` output, read raw: each line is two status
+    columns, a space, then the path. Stripping the whole output first would eat the first
+    line's leading space and cut a character off its path (the 2026-10-13 halt on 'tlas/')."""
     out = []
-    for line in git(clone, "status", "--porcelain").splitlines():
-        if line[:2].strip().startswith("D"):
+    for line in text.splitlines():
+        if len(line) > 3 and "D" in line[:2]:
             out.append(line[3:].strip().strip('"'))
     return out
+
+
+def deleted(clone):
+    return porcelain_deletions(run(["git", "status", "--porcelain"], clone).stdout)
 
 
 def identity_clean(clone):
@@ -122,9 +129,59 @@ def identity_clean(clone):
     return bool(last) and last[-1].strip() == "RESULT CLEAN"
 
 
+def lock_path(clone):
+    return os.path.join(git(clone, "rev-parse", "--absolute-git-dir"), "publish_public.lock")
+
+
+def take_lock(clone):
+    """One publish at a time per clone. The first scheduled run met a manual publish mid-export
+    and halted on the clone's half-written tree; a lock names that case instead."""
+    path = lock_path(clone)
+    try:
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        raise Halt(f"another publish holds {path}; if no publish is running, remove it and re-run")
+    with os.fdopen(fd, "w") as fh:
+        fh.write(str(os.getpid()))
+    return path
+
+
 def publish(clone, push, allow_delete):
     report = {"clone": os.path.basename(os.path.normpath(clone)), "pushed": False}
+    lock = take_lock(clone)
+    try:
+        return _publish(clone, push, allow_delete, report)
+    finally:
+        try:
+            os.remove(lock)
+        except OSError:
+            pass
+
+
+def site_audit():
+    """The public Pages workflow runs `npm audit --audit-level=high` before it builds, so a new
+    advisory against a site dependency fails the deploy whatever the content (2026-10-13:
+    sharp and source-map-js). Read the same audit from the lockfile here and report it; a
+    failing audit doesn't stop the content publish, but the report says Pages will fail."""
+    site = os.path.join(ROOT, "public", "site")
+    if not os.path.isfile(os.path.join(site, "package-lock.json")):
+        return "no site lockfile"
+    npm = shutil.which("npm") or shutil.which("npm.cmd")
+    if not npm:
+        return "unknown: npm is not on PATH"
+    try:
+        got = run([npm, "audit", "--audit-level=high", "--json"], site, check=False)
+        data = json.loads(got.stdout or "{}")
+    except (Halt, ValueError):
+        return "unknown: npm audit did not run"
+    counts = (data.get("metadata") or {}).get("vulnerabilities") or {}
+    high = int(counts.get("high", 0)) + int(counts.get("critical", 0))
+    return "ok" if high == 0 else f"failing: {high} high or critical advisories; run npm audit fix in public/site"
+
+
+def _publish(clone, push, allow_delete, report):
     preflight(clone)
+    report["site_audit"] = site_audit()
     head = git(ROOT, "rev-parse", "HEAD")
     since = last_published(clone)
     report.update(internal=head, last_published=since)
