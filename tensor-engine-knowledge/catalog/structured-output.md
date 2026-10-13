@@ -1,5 +1,5 @@
 # Structured output & constrained decoding
-_Grammar/JSON/tool-call engines that force LLMs to emit reliable structured output_ · wave 17 · 2026-09-07 · [‹ catalog index](README.md)
+_Grammar/JSON/tool-call engines that force LLMs to emit reliable structured output_ · wave 18 · 2026-10-13 · [‹ catalog index](README.md)
 
 8 engines · 3 recommended · 7 confirmed Blackwell/Windows-ready. Narrative + install plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

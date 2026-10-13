@@ -1,5 +1,5 @@
 # Serving, batching & routing
-_Production serving / batching / routing / multi-model + embedding & reranker servers_ · wave 17 · 2026-09-07 · [‹ catalog index](README.md)
+_Production serving / batching / routing / multi-model + embedding & reranker servers_ · wave 18 · 2026-10-13 · [‹ catalog index](README.md)
 
 36 engines · 5 recommended · 35 confirmed Blackwell/Windows-ready. Narrative + install plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

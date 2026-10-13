@@ -27,6 +27,10 @@ export default defineConfig({
           label: 'Handbook',
           items: [{ autogenerate: { directory: 'handbook' } }],
         },
+        {
+          label: "What's new",
+          items: [{ autogenerate: { directory: 'newsletter' } }],
+        },
       ],
       customCss: ['./src/styles/starlight-custom.css'],
     }),

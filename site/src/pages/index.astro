@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import { getCollection } from 'astro:content';
 import BaseLayout from '@mcptoolshop/site-theme/components/BaseLayout.astro';
 import Hero from '@mcptoolshop/site-theme/components/Hero.astro';
 import Section from '@mcptoolshop/site-theme/components/Section.astro';
@@ -8,6 +9,35 @@ import DataTable from '@mcptoolshop/site-theme/components/DataTable.astro';
 import CodeCardGrid from '@mcptoolshop/site-theme/components/CodeCardGrid.astro';
 import ApiList from '@mcptoolshop/site-theme/components/ApiList.astro';
 import { config } from '../site-config';
+// The corpus map, generated from the databases by shared/gen_root_index.py, so the index
+// below cannot drift from the data it describes.
+import corpus from '../../../index.json';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const REPO = 'https://github.com/mcp-tool-shop-org/readouts';
+const n = (x: number) => x.toLocaleString('en-US');
+const clip = (s: string, max = 170) => {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  return `${cut.slice(0, cut.lastIndexOf(' '))}…`;
+};
+
+// What's new: the newsletter, newest issue first.
+const docs = await getCollection('docs');
+const issues = docs
+  .filter((d) => d.id.startsWith('newsletter/') && d.data.date)
+  .sort((a, b) => (b.data.date ?? '').localeCompare(a.data.date ?? ''));
+const latest = issues[0];
+const earlier = issues.slice(1);
+
+const kbs = [...corpus.knowledge_bases].sort((a, b) => a.kb.localeCompare(b.kb));
+const t = corpus.totals;
+
+const nav = [
+  { href: '#whats-new', label: "What's new" },
+  { href: '#knowledge-bases', label: 'The index' },
+  ...config.sections.map((s) => ({ href: `#${s.id}`, label: s.title })),
+];
 ---
 
 <BaseLayout
@@ -20,9 +50,50 @@ import { config } from '../site-config';
   packageLabel={config.packageLabel}
   npmUrl={config.npmUrl}
   footerText={config.footerText}
-  nav={config.sections.map(s => ({ href: `#${s.id}`, label: s.title }))}
+  nav={nav}
 >
   <Hero {...config.hero} />
+
+  <Section id="whats-new" title="What's new" subtitle="What each publication adds to the knowledge bases, in a short issue whenever something lands.">
+    {latest ? (
+      <div class="mt-6 rounded-2xl border border-edge p-6">
+        <p class="text-xs uppercase tracking-wider text-dim">{latest.data.date}</p>
+        <h3 class="mt-1 text-lg font-semibold text-heading">{latest.data.title}</h3>
+        <ul class="mt-3 list-disc space-y-2 pl-5 text-body">
+          {(latest.data.highlights ?? []).map((h) => <li set:html={h} />)}
+        </ul>
+        <a href={`${base}/${latest.id}/`} class="mt-6 inline-flex rounded-xl border border-edge px-5 py-2.5 text-sm font-medium text-heading hover:bg-surface-raised/50">
+          Read the issue
+        </a>
+        {earlier.length > 0 && (
+          <p class="mt-4 text-sm text-muted">Earlier issues: {earlier.map((w, i) => (
+            <span>{i > 0 && ' · '}<a class="text-accent underline" href={`${base}/${w.id}/`}>{w.data.date}</a></span>
+          ))}</p>
+        )}
+      </div>
+    ) : (
+      <p class="mt-6 text-muted">The first issue is in preparation.</p>
+    )}
+  </Section>
+
+  <Section id="knowledge-bases" title="The index" subtitle={`${t.knowledge_bases} knowledge bases · ${n(t.entries)} entries · ${n(t.verified)} verified. Counts come from the databases (index.json, ${corpus.generated}). Verified means a separate verifier confirmed the entry.`}>
+    <div class="mt-6 grid gap-4 md:grid-cols-2">
+      {kbs.map((k) => (
+        <div class="min-w-0 rounded-2xl border border-edge p-5">
+          <h3 class="text-lg font-semibold text-heading">{k.kb}</h3>
+          <p class="mt-2 text-sm text-muted">{clip(k.what)}</p>
+          <p class="mt-3 text-xs uppercase tracking-wider text-dim">
+            {n(k.entries)} {k.noun} · {n(k.verified)} verified · {k.domains} domains · {k.waves} waves
+          </p>
+          <p class="mt-3 text-sm">
+            <a class="text-accent underline" href={`${REPO}/blob/main/${k.index_md}`}>Catalog</a>
+            <span class="text-dim"> · </span>
+            <a class="text-accent underline" href={`${REPO}/tree/main/${k.kb}`}>Folder</a>
+          </p>
+        </div>
+      ))}
+    </div>
+  </Section>
 
   {config.sections.map((s) => (
     <Section id={s.id} title={s.title} subtitle={s.subtitle}>

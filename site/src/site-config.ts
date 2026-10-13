@@ -6,12 +6,6 @@ import corpus from '../../index.json';
 const n = (x: number) => x.toLocaleString('en-US');
 const t = corpus.totals;
 
-const clip = (s: string, max = 150) => {
-  if (s.length <= max) return s;
-  const cut = s.slice(0, max);
-  return `${cut.slice(0, cut.lastIndexOf(' '))}…`;
-};
-
 const REPO = 'https://github.com/mcp-tool-shop-org/readouts';
 
 export const config: SiteConfig = {
@@ -41,21 +35,9 @@ export const config: SiteConfig = {
     ],
   },
 
+  // The newsletter ("What's new") and the index of knowledge bases ("The index", id
+  // knowledge-bases) are rendered by pages/index.astro above these sections.
   sections: [
-    {
-      kind: 'data-table',
-      id: 'knowledge-bases',
-      title: 'The knowledge bases',
-      subtitle: `Generated from index.json on ${corpus.generated}. Verified means an external verdict confirmed the entry.`,
-      // Three columns, not five: the theme's table clips rather than scrolls, and five
-      // columns cut off the numbers on a phone.
-      columns: ['Knowledge base', 'What it covers', 'Status'],
-      rows: corpus.knowledge_bases.map((k) => [
-        k.kb,
-        clip(k.what, 120),
-        `${n(k.entries)} ${k.noun} · ${n(k.verified)} verified · ${k.waves} waves`,
-      ]),
-    },
     {
       kind: 'features',
       id: 'how-it-works',

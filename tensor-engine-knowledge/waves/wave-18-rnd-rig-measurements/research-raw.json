@@ -1,0 +1,120 @@
+{
+  "date": "2026-10-13",
+  "wave": 18,
+  "lanes": [
+    {
+      "slug": "profiling-bench",
+      "name": "Profiling, benchmarking & observability",
+      "research": {
+        "domain": "profiling-bench",
+        "notes": "Rig measurements from interlock (E4b, E5), via rnd.",
+        "engines": [],
+        "extras": [
+          {
+            "kind": "baseline",
+            "name": "BASELINE: largest context window that stays on the RTX 5090, per Ollama model (E5 method)",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-e5-fill-card.md",
+            "note": "For each model, the largest num_ctx whose confirm (a prompt filling about 90% of the window, one generated token) stays fully on the card, under the ceiling, with no spill into shared (system) memory. The search loads windows on a 2,048-token grid from the trained cap down, then confirms upward from the floor. A slope predictor built from two measured loads skips windows forecast over the ceiling. The shared-memory gate applies only near the ceiling (peak at least 28,452 MiB), because Windows counts the pinned host buffers each load reserves (CUDA_Host) as shared GPU memory: about 352 MiB for qwen3:8b and 1,128 MiB for gemma4:31b. Ollama 0.35.1, NVIDIA driver 617.42, CUDA 13.4, f16 KV cache with flash attention, Q4_K_M weights, idle card, 30,500 MiB ceiling. Measured by interlock's E5 (fill-card) on 2026-10-13; trimmed records in rnd's experiments/e5, receipts in interlock's receipts/."
+          },
+          {
+            "kind": "baseline",
+            "name": "BASELINE: llama3.1:8b holds 131,072 tokens: its full trained window on the RTX 5090 (E5)",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-e5-fill-card.md",
+            "note": "llama3.1:8b: largest resident window 131,072 tokens: its full trained window. Peak 23,962 MiB at 131,072; shared memory rose 271 MiB over the floor window, which is host-side scaling, not a spill. Plenty of headroom: about 6.5 GB under the ceiling. Ollama 0.35.1, NVIDIA driver 617.42, CUDA 13.4, f16 KV cache with flash attention, Q4_K_M weights, idle card, 30,500 MiB ceiling. Measured by interlock's E5 (fill-card) on 2026-10-13; trimmed records in rnd's experiments/e5, receipts in interlock's receipts/."
+          },
+          {
+            "kind": "baseline",
+            "name": "BASELINE: gemma4:31b holds 86,016 of its 262,144 trained tokens on the RTX 5090 (E5)",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-e5-fill-card.md",
+            "note": "gemma4:31b: largest resident window 86,016 of its 262,144 trained tokens. The next window, 88,064, measured 30,544 MiB, 44 MiB over the ceiling. Neighbouring readings vary by about ±250 MiB, so the true edge lies between 86,016 and 88,064. A sliding-window attention model: memory grows far more slowly per token than a full-attention estimate predicts. The largest absolute context on the card. Ollama 0.35.1, NVIDIA driver 617.42, CUDA 13.4, f16 KV cache with flash attention, Q4_K_M weights, idle card, 30,500 MiB ceiling. Measured by interlock's E5 (fill-card) on 2026-10-13; trimmed records in rnd's experiments/e5, receipts in interlock's receipts/."
+          },
+          {
+            "kind": "baseline",
+            "name": "BASELINE: granite4.1:30b holds 43,008 of its 131,072 trained tokens on the RTX 5090 (E5)",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-e5-fill-card.md",
+            "note": "granite4.1:30b: largest resident window 43,008 of its 131,072 trained tokens. 43,008 confirmed at 30,386 MiB, 114 MiB under the ceiling. 45,056 was forecast over from the measured slope (about +523 MiB per 2,048 tokens), and 49,152 measured over (31,582 MiB). A hybrid model. Ollama 0.35.1, NVIDIA driver 617.42, CUDA 13.4, f16 KV cache with flash attention, Q4_K_M weights, idle card, 30,500 MiB ceiling. Measured by interlock's E5 (fill-card) on 2026-10-13; trimmed records in rnd's experiments/e5, receipts in interlock's receipts/."
+          },
+          {
+            "kind": "baseline",
+            "name": "BASELINE: qwen3:14b holds 40,960 tokens: its full trained window on the RTX 5090 (E5)",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-e5-fill-card.md",
+            "note": "qwen3:14b: largest resident window 40,960 tokens: its full trained window. Confirmed at the trained cap. Ollama 0.35.1, NVIDIA driver 617.42, CUDA 13.4, f16 KV cache with flash attention, Q4_K_M weights, idle card, 30,500 MiB ceiling. Measured by interlock's E5 (fill-card) on 2026-10-13; trimmed records in rnd's experiments/e5, receipts in interlock's receipts/."
+          },
+          {
+            "kind": "baseline",
+            "name": "BASELINE: qwen3:8b holds 40,960 tokens: its full trained window on the RTX 5090 (E5)",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-e5-fill-card.md",
+            "note": "qwen3:8b: largest resident window 40,960 tokens: its full trained window. Confirmed at the trained cap. Ollama 0.35.1, NVIDIA driver 617.42, CUDA 13.4, f16 KV cache with flash attention, Q4_K_M weights, idle card, 30,500 MiB ceiling. Measured by interlock's E5 (fill-card) on 2026-10-13; trimmed records in rnd's experiments/e5, receipts in interlock's receipts/."
+          },
+          {
+            "kind": "baseline",
+            "name": "BASELINE: mistral-small:24b holds 32,768 tokens: its full trained window on the RTX 5090 (E5)",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-e5-fill-card.md",
+            "note": "mistral-small:24b: largest resident window 32,768 tokens: its full trained window. Confirmed at the trained cap. Ollama 0.35.1, NVIDIA driver 617.42, CUDA 13.4, f16 KV cache with flash attention, Q4_K_M weights, idle card, 30,500 MiB ceiling. Measured by interlock's E5 (fill-card) on 2026-10-13; trimmed records in rnd's experiments/e5, receipts in interlock's receipts/."
+          },
+          {
+            "kind": "baseline",
+            "name": "BASELINE: the RTX 5090 keeps its decode speed beside the Intel NPU or iGPU (E4b)",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-12-e4b-block-2.md",
+            "note": "Interlock's E4b ran alone, paired, alone triplets and scored each as a log-ratio: Hodges-Lehmann estimate, exact Wilcoxon 90% interval, pre-registered as free when the interval lies inside +/-10%. All four pairs are free. The 5090's decode rate changed -0.83% [-1.20, -0.46] beside the NPU and +0.57% [+0.24, +1.38] beside the iGPU. With a 5090 companion decoding steadily, NPU latency changed -0.61% [-1.31, +0.06] and iGPU latency +2.48% [-0.99, +4.82]. So a router can treat the 5090 and the Intel devices as independent lanes. Clock tolerance and steady band 22.5 MHz; NVML probe at 0.206 s; peak VRAM about 12.6 GB. Measured 2026-10-12 (receipts e4b-block-2 and e4b-block-3)."
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": []
+      }
+    },
+    {
+      "slug": "llm-inference",
+      "name": "LLM inference engines",
+      "research": {
+        "domain": "llm-inference",
+        "notes": "Ollama behaviour measured on the rig, via rnd.",
+        "engines": [],
+        "extras": [
+          {
+            "kind": "recipe",
+            "name": "RECIPE: Ollama - num_predict 0, null or missing means no completion limit",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-12-ollama-num-predict-zero-is-no-limit.md",
+            "note": "On Ollama 0.35.1, a generate request with num_predict 0 (or null, or missing) does not mean count the prompt only: the model generates until end of turn or a full context. Measured on the RTX 5090: num_predict 0 gave no reply within 90 s, while num_predict 1 returned prompt_eval_count 221 in 3.0 s. Missing, null and 0 each generated 144 tokens on qwen3:8b against 1 for num_predict 1, and a small num_ctx (64) did not bound it. To count a prompt's tokens, ask for one token and read prompt_eval_count. Refuse a num_predict that is 0, null, missing or not a positive integer before the request is sent. A test fake that accepts 0 hides this."
+          },
+          {
+            "kind": "recipe",
+            "name": "RECIPE: counting a long prompt's tokens through Ollama - estimate, then bisect the tail",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-12-prefix-fit-count-cost.md",
+            "note": "Each token count is a model call that re-reads the whole prompt. Growing a prompt one seed sentence per count took thousands of counts for a 118k-token target and over 30 minutes, though Ollama prefilled 122k tokens in 19.6 s on the RTX 5090. Estimate the repeats from the seed's own count, check one repeat below, then bisect only the remaining tail: 25 counts or fewer at 118k, with the same result. Keep a cold re-count of the final prefix, because a prompt cache can undercount. Test a search against a live model for how many calls it makes, not only for its answer."
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": []
+      }
+    },
+    {
+      "slug": "runtime-foundations",
+      "name": "Foundational runtimes & compilers",
+      "research": {
+        "domain": "runtime-foundations",
+        "notes": "CUDA stack and rented-host checks, via rnd.",
+        "engines": [],
+        "extras": [
+          {
+            "kind": "baseline",
+            "name": "BASELINE: the studio rig's CUDA stack (RTX 5090, sm_120)",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-07-robot-rig-cuda-stack.md",
+            "note": "Measured 2026-10-07: NVIDIA GeForce RTX 5090, compute capability 12.0 (consumer Blackwell, sm_120), driver 617.14 (617.42 by 2026-10-13), nvcc 13.4.59. On 617.x, nvidia-smi prints 'CUDA UMD Version: 13.4' instead of the older 'CUDA Version:', so a parser must accept both forms. ComfyUI's embedded torch 2.12.0+cu130 includes sm_120. A separate Python 3.12 environment with torch 2.14.1+cu130 reaches about 223 TFLOPS on an 8192x8192 fp16 matmul. The system's default Python carries a CPU-only torch build. Re-measure after a driver or toolkit upgrade."
+          },
+          {
+            "kind": "recipe",
+            "name": "RECIPE: check a rented GPU host's driver and download speed before paying",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-07-pod-host-checks-driver-and-download.md",
+            "note": "On rented RunPod hosts two properties vary per host, not per GPU type: the driver, and /workspace and Hugging Face download speed. torch 2.13.0+cu130 (pulled by vllm 0.31.0) needs an R580+ driver: it failed with 'driver too old' on an A100 host on 570.195.03 and worked on one on 580.126.16. Within one data centre, /workspace writes ranged from 32 MB/s to 238-540 MB/s an hour apart, and one Hugging Face stream from 1.9 to 74 MB/s. A container disk (180 GB, with HF_HOME on it) wrote at about 1.3 GB/s. In the first 30 seconds, read the driver (accepting both nvidia-smi print forms; refuse a CUDA 13 wheel below R580) and measure a /workspace write and one HF stream. Abort and re-rent a slow host, and gate on time-to-ready as well."
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": []
+      }
+    }
+  ]
+}

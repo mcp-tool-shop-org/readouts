@@ -1,6 +1,6 @@
 # Catalog — tensor / inference / training engines
 
-Generated from `engines.db` · wave 17 · 2026-09-07. Narrative + install plan: [wave-01 dispatch](../waves/wave-01-foundation/dispatch.md). Verification receipt: [verification.md](../waves/wave-01-foundation/verification.md).
+Generated from `engines.db` · wave 18 · 2026-10-13. Narrative + install plan: [wave-01 dispatch](../waves/wave-01-foundation/dispatch.md). Verification receipt: [verification.md](../waves/wave-01-foundation/verification.md).
 
 The engines that **run and train** models on this rig (RTX 5090 · Blackwell · 32 GB VRAM · 64 GB RAM · Win 11). Sibling KB [model-knowledge](../../model-knowledge/catalog/README.md) catalogs the *models*; this one catalogs the *engines*.
 

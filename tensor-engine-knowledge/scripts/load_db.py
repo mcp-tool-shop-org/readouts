@@ -29,6 +29,7 @@ WAVE_TITLES = {
     2: "Deep — close the verifier queue + version-pinned config recipes",
     3: "Expansion — 3 new lanes (structured-output, speech, profiling) + deepen kernels & training",
     4: "Measured rig baseline — RTX 5090 thermals / power / throughput via Ollama",
+    18: "Promoted from rnd — rig measurements (E4b, E5) and Ollama / CUDA / rented-host recipes",
 }
 
 # maturity tier -> install-priority rank (lower = grab first)

@@ -2,7 +2,7 @@
 
 > Verified knowledge base of the ENGINES that run & train AI models locally on the RTX 5090 (Blackwell / sm_120 / Windows) rig.
 >
-> **193 engines · 134 verified · 491 sources · 17 waves · generated 2026-09-25.**  
+> **193 engines · 134 verified · 491 sources · 18 waves · generated 2026-10-13.**  
 > Decisive axis: native-Windows Blackwell survivability + commercial license (a LoRA/app inherits its engine's license).
 
 ## Domains
@@ -52,4 +52,4 @@
 
 ## Provenance
 
-Every fact carries a **wave id** and a **verified** flag; sources are retrieval-checked by a different-family verifier. 17 waves; 134/193 engines verified.
+Every fact carries a **wave id** and a **verified** flag; sources are retrieval-checked by a different-family verifier. 18 waves; 134/193 engines verified.

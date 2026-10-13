@@ -1,6 +1,6 @@
 # readouts — tensor-engine-knowledge · wave dispatches
 
-> The research log: how this KB was built, wave by wave. 17 waves · generated 2026-09-25.
+> The research log: how this KB was built, wave by wave. 18 waves · generated 2026-10-13.
 
 ## Wave 1 — Foundation — best tensor / inference / training engines per lane (2026-06-02)
 
@@ -121,5 +121,11 @@ _all (llm-inference, llm-serving, quantization, attention-kernels, training, dif
 ## Wave 17 — Wave 17 (2026-09-07)
 
 _all (llm-inference, llm-serving, quantization, attention-kernels, training, diffusion-engines, runtime-foundations) · 8 agents · synthesized · +22 engines · +22 sources · +0 recipes_
+
+**Verifier:** Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch as retrieval oracle (existence/license/specs/currency). Family-different prism/roleos path deferred to a later wave.
+
+## Wave 18 — Promoted from rnd — rig measurements (E4b, E5) and Ollama / CUDA / rented-host recipes (2026-10-13)
+
+_all (llm-inference, llm-serving, quantization, attention-kernels, training, diffusion-engines, runtime-foundations) · 6 agents · synthesized · +0 engines · +0 sources · +12 recipes_
 
 **Verifier:** Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch as retrieval oracle (existence/license/specs/currency). Family-different prism/roleos path deferred to a later wave.

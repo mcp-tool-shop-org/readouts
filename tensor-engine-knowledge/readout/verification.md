@@ -1,6 +1,6 @@
 # readouts — tensor-engine-knowledge · verification receipt
 
-> **134/193 engines verified · 491 sources (388 resolve) · 17 waves · generated 2026-09-25.**  
+> **134/193 engines verified · 491 sources (388 resolve) · 18 waves · generated 2026-10-13.**  
 > Verdicts: 26 confirmed clean · 107 confirmed-with-fixes · 59 unverified.
 
 ## Verification method, by wave
@@ -22,6 +22,7 @@
 - **Wave 15** (Wave 15): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch as retrieval oracle (existence/license/specs/currency). Family-different prism/roleos path deferred to a later wave.
 - **Wave 16** (Wave 16): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch as retrieval oracle (existence/license/specs/currency). Family-different prism/roleos path deferred to a later wave.
 - **Wave 17** (Wave 17): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch as retrieval oracle (existence/license/specs/currency). Family-different prism/roleos path deferred to a later wave.
+- **Wave 18** (Promoted from rnd — rig measurements (E4b, E5) and Ollama / CUDA / rented-host recipes): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch as retrieval oracle (existence/license/specs/currency). Family-different prism/roleos path deferred to a later wave.
 
 ## Corrections — confirmed with fixes (107)
 
