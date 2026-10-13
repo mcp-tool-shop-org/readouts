@@ -1,10 +1,10 @@
 # readouts: how it works
 
-Mapped at 2026-10-01 from commit 85e5452 by Atlas 1.24.0.
+Mapped at 2026-10-13 from commit e07d5c3 by Atlas 1.24.0.
 
 ## What this is
 
-20 parts, mostly Python (161 files), HTML (57), Rust (6), JavaScript (3), CSS (2), TypeScript (2) and Astro (1). Work enters through 2 doors; verify and Deploy site to GitHub Pages each reach 2 parts, and verify is followed because a pull request goes through it. It deploys a site to GitHub Pages.
+20 parts, mostly Python (163 files), HTML (57), Rust (6), JavaScript (3), CSS (2), PowerShell (2), TypeScript (2) and Astro (1). Work enters through 2 doors; verify and Deploy site to GitHub Pages each reach 2 parts, and verify is followed because a pull request goes through it. It deploys a site to GitHub Pages.
 
 ## What changed since the last map
 
@@ -62,7 +62,7 @@ tensor-engine-knowledge/baselines/_triton_test.py runs in no workflow.
 - **godot-knowledge/.claude/loadout/index.json** is written by godot-knowledge/scripts/gen_loadout.py and read by nothing else in this repository.
 - **godot-knowledge/godot.db** is written by godot-knowledge (4 files) and read by nothing else in this repository.
 
-And 37 more places.
+And 38 more places.
 
 ## Helpers that look duplicated
 
@@ -146,6 +146,7 @@ And 15 more candidates.
 - **vocology-knowledge/.claude/loadout/index.json** is written by vocology-knowledge/scripts/gen_loadout.py.
 - **vocology-knowledge/catalog/** is written by vocology-knowledge/scripts/gen_catalog.py.
 - **vocology-knowledge/findings.db** is written by vocology-knowledge (4 files).
+- **vocology-knowledge/scripts/zed-speech/kokoro_gen.py** is written by vocology-knowledge/scripts/zed-speech/speak.ps1.
 - **xrpl-knowledge/.claude/loadout/index.json** is written by xrpl-knowledge/scripts/gen_loadout.py.
 - **xrpl-knowledge/catalog/** is written by xrpl-knowledge/scripts/gen_catalog.py.
 - **xrpl-knowledge/module-drafts/** is written by xrpl-knowledge/scripts/gen_module_drafts.py.
@@ -172,7 +173,7 @@ Read those in order to follow one pull request end to end.
 - 1 import site names a path outside this repository, so what it loads is not followed.
 - 31 writes and 29 reads use paths built at run time and are not named here.
 - 10 writes go to places this repository does not track, so they are not listed as generated.
-- 23 writes and 61 reads go to a path their caller passes, not to this repository.
+- 23 writes and 63 reads go to a path their caller passes, not to this repository.
 - 6 writes and 2 reads go to a temporary directory, not to this repository.
 - 3 reads go to the directory the command is run in, not to this repository.
 - 1 read goes to the home directory (.cargo/), not to this repository.

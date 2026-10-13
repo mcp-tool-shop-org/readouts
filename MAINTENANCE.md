@@ -164,6 +164,39 @@ generated file as modified after a checkout; that is `core.autocrlf`, not a real
 
 ---
 
+## Publishing: daily, through one script
+
+The Director ruled on 2026-10-13 that readouts is updated and published **daily when there is something to
+publish**: first in readouts-internal, then to the public repo through the allow-list.
+`shared/publish_public.py` runs the whole flow and stops at the first gate that fails:
+
+```powershell
+python shared/publish_public.py --clone <public clone>          # build and check; nothing pushed
+python shared/publish_public.py --clone <public clone> --push   # publish
+```
+
+- **Where it runs:** from a clean worktree of `origin/main`, never from a working tree with
+  uncommitted edits, because the export copies from disk.
+- **The clone:** a clean clone of `mcp-tool-shop-org/readouts`. The script refuses an origin
+  that is not the public repository.
+- **Nothing to do:** if the public repo's last publish commit names this internal commit in
+  its `Internal-Commit:` trailer, the script exits without exporting.
+- **The gates:**
+  1. the export's own gates;
+  2. no deletion from the public repo, except Atlas's generated map files;
+  3. `atlas map` and `atlas check` on the published tree;
+  4. the identity scan on the final tree.
+- **The commit:** one commit, `readouts: publish internal <sha>`, listing the internal
+  commits it carries. Never a force push.
+
+**The public repo keeps an Atlas map** under the org rule (a map, plus `atlas check` in CI).
+Its `boundaries.yaml` and the verify workflow's check live in the `public/` overlay. The
+generated map files are rebuilt by the script on every publish, and amended into the publish
+commit.
+- **Why:** the fleet's Atlas adoption (2026-09-30) was committed to the public repo directly.
+  The next export would have deleted it, because everything outside the allow-list is pruned.
+- **Never commit to the public repo directly.** Change the overlay here, and publish.
+
 ## Before publishing anything
 
 `shared/export_public.py` builds the public mirror and refuses to finish unless four

@@ -1,8 +1,9 @@
 # training-knowledge
 
-**Status:** Waves through 15 (STUDY-061 still-current 2026-09-07). Catalog **193 · 90/193 · 15 waves**. Recipes invented: 0. Metrics invented: 0.
+**Status:** Waves through 17 (STUDY-061 still-current 2026-09-07). Catalog **193 · 90/193 · 17 waves**. Recipes invented: 0. Metrics invented: 0.
 
 - **Wave 15 (STUDY-061 still-current)** — [dispatch](waves/wave-15-study-061-still-current/dispatch.md) · [research-raw](waves/wave-15-study-061-still-current/research-raw.json) — recipes invented: 0; metrics invented: 0.
+- **Wave 17 (STUDY-dataset-production-doctrine)** — [dispatch](waves/wave-17-study-dataset-production-doctrine/dispatch.md) · [research-raw](waves/wave-17-study-dataset-production-doctrine/research-raw.json) · [verification](waves/wave-17-study-dataset-production-doctrine/verification.md) — 5 dataset types; format schism resolved; Croissant backbone; 5 quality gates; 4 open questions.
 
 - **Wave 14 (STUDY-055 eval judges)** — [dispatch](waves/wave-14-study-055-eval-judges/dispatch.md) · [research-raw](waves/wave-14-study-055-eval-judges/research-raw.json) — metrics invented: 0; recipes invented: 0.
 

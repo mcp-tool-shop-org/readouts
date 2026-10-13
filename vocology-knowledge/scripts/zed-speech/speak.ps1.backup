@@ -1,0 +1,58 @@
+# Read text aloud with the Windows voice. Zed tasks pass -Text or -Clipboard.
+param(
+    [string]$Text = "",
+    [switch]$Clipboard
+)
+
+$ErrorActionPreference = "Stop"
+
+$pidFile = Join-Path $PSScriptRoot "speaker.pid"
+if (Test-Path $pidFile) {
+    $oldId = Get-Content $pidFile -ErrorAction SilentlyContinue
+    if ($oldId -and [int]$oldId -ne $PID) {
+        Stop-Process -Id ([int]$oldId) -Force -ErrorAction SilentlyContinue
+    }
+}
+Set-Content -Path $pidFile -Value $PID
+
+if ($Clipboard) {
+    $Text = Get-Clipboard -Raw
+} elseif ([string]::IsNullOrWhiteSpace($Text)) {
+    $Text = $env:ZED_SELECTED_TEXT
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        $Text = Get-Clipboard -Raw
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($Text)) {
+    Write-Output "Nothing to read. Select some text, or copy a reply, then try again."
+    exit 1
+}
+
+# Drop fence markers so a copied code block is listenable.
+$Text = $Text -replace '```+', ' '
+
+Add-Type -AssemblyName System.Speech
+$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
+
+$voice = if ($env:ZED_SPEAK_VOICE) { $env:ZED_SPEAK_VOICE } else { "Microsoft Zira Desktop" }
+$installed = @($synth.GetInstalledVoices() | ForEach-Object { $_.VoiceInfo.Name })
+if ($installed -contains $voice) {
+    $synth.SelectVoice($voice)
+}
+
+$rate = 0
+if ($env:ZED_SPEAK_RATE -match '^-?\d+$') {
+    $rate = [int]$env:ZED_SPEAK_RATE
+}
+if ($rate -lt -10) { $rate = -10 }
+if ($rate -gt 10) { $rate = 10 }
+$synth.Rate = $rate
+
+try {
+    $synth.Speak($Text)
+} finally {
+    if ((Get-Content $pidFile -ErrorAction SilentlyContinue) -eq "$PID") {
+        Remove-Item $pidFile -Force -ErrorAction SilentlyContinue
+    }
+}
