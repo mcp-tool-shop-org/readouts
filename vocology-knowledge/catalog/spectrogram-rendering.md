@@ -1,5 +1,5 @@
 # How to draw it so a vision model can read it
-_auto-created from wave lane_ · wave 13 · 2026-09-14 · [‹ catalog index](README.md)
+_auto-created from wave lane_ · wave 14 · 2026-10-13 · [‹ catalog index](README.md)
 
 9 findings · 9 verified (abstract-supported accept).
 

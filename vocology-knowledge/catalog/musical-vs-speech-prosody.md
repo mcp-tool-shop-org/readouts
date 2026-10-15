@@ -1,5 +1,5 @@
 # Musical vs speech prosody
-_Duration, F0, and prosody differences that break speech-TTS copied onto lyrics_ · wave 13 · 2026-09-14 · [‹ catalog index](README.md)
+_Duration, F0, and prosody differences that break speech-TTS copied onto lyrics_ · wave 14 · 2026-10-13 · [‹ catalog index](README.md)
 
 8 findings · 7 verified (abstract-supported accept).
 

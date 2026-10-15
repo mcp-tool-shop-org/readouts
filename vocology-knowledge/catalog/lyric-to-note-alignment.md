@@ -1,5 +1,5 @@
 # Lyric-to-note alignment
-_Vowel-on-beat, phoneme×MIDI×duration, melisma and onset timing_ · wave 13 · 2026-09-14 · [‹ catalog index](README.md)
+_Vowel-on-beat, phoneme×MIDI×duration, melisma and onset timing_ · wave 14 · 2026-10-13 · [‹ catalog index](README.md)
 
 27 findings · 20 verified (abstract-supported accept).
 

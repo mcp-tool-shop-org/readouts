@@ -1,5 +1,5 @@
 # What a vision model can read off a spectrogram
-_auto-created from wave lane_ · wave 13 · 2026-09-14 · [‹ catalog index](README.md)
+_auto-created from wave lane_ · wave 14 · 2026-10-13 · [‹ catalog index](README.md)
 
 10 findings · 10 verified (abstract-supported accept).
 

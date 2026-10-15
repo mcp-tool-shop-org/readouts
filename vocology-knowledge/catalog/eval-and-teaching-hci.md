@@ -1,5 +1,5 @@
 # Singing eval and teaching HCI
-_MUSHRA/MOS for singing, vocal-model identity, teaching / practice HCI_ · wave 13 · 2026-09-14 · [‹ catalog index](README.md)
+_MUSHRA/MOS for singing, vocal-model identity, teaching / practice HCI_ · wave 14 · 2026-10-13 · [‹ catalog index](README.md)
 
 49 findings · 15 verified (abstract-supported accept).
 

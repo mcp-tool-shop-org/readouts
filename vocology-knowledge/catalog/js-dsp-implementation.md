@@ -1,5 +1,5 @@
 # Building it in TypeScript, license-safe
-_auto-created from wave lane_ · wave 13 · 2026-09-14 · [‹ catalog index](README.md)
+_auto-created from wave lane_ · wave 14 · 2026-10-13 · [‹ catalog index](README.md)
 
 11 findings · 11 verified (abstract-supported accept).
 

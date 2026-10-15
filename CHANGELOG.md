@@ -2,6 +2,18 @@
 
 Notable changes to the published corpus. The format follows [Keep a Changelog](https://keepachangelog.com/). readouts has no version numbers: it is a rolling corpus, so each entry is a dated publication, and the commit on `main` is its identifier.
 
+## 2026-10-15
+
+### Added
+
+- `vocology-knowledge`, wave 14 (promoted from rnd): five findings in the music-as-seconds-grid lane on piano arrangements a model wrote and machine checks accepted. Each is confirmed against the committed receipts in ai-jam-sessions (both arrangements' `meta.json`, PR 109) and the Kimi K3 licence, re-read at source on 2026-10-13.
+  - Two statements were corrected from the rnd bench copy: only America the Beautiful's brief was generated (Amazing Grace's was written by hand), and the billed input rate was $3.00 per million tokens, not $0.72.
+- The newsletter for 2026-10-14.
+
+### Security
+
+- The readout pages escape both quote characters in every value they write into HTML, and they link only `http` and `https` URLs. Before, a source URL holding a quote or a `javascript:` scheme could break out of its attribute. This closes the code-scanning alerts on the readout pages.
+
 ## 2026-09-27
 
 ### Added

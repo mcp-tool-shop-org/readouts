@@ -95,7 +95,8 @@
   document.getElementById('s-tot').textContent = items.length;
   document.getElementById('s-ver').textContent = items.filter(x=>x.verified).length+'/'+items.length;
 
-  function esc(s){return (s==null?'':String(s)).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+  function esc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+  function safeUrl(u){const s=String(u==null?'':u).trim();return /^https?:\/\//i.test(s)?s:''}
   function meter(n){let h='<span class="meter">';for(let i=0;i<5;i++)h+=`<i class="${i<(n||0)?'f':''}"></i>`;return h+'</span>'}
   function commChip(v){const m={yes:['c-yes','commercial'],conditional:['c-conditional','conditional'],no:['c-no','non-comm']}[v]||['','—'];return `<span class="chip ${m[0]}">${m[1]}</span>`}
 
@@ -118,13 +119,13 @@
   }
   function detail(x){
     const bf=(x.best_for||[]).map(b=>`<div class="row2"><span class="rk">#${b.rank||'·'}</span><span class="pn">${esc(b.purpose)}</span>${meter(b.fitness||0)}</div>${b.note?`<div class="note">${esc(b.note)}</div>`:''}`).join('');
-    const srcs=(x.sources||[]).map(s=>`<div class="src"><div class="t">${s.url?`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title||s.url)}</a>`:esc(s.title)}</div>${s.claim?`<div class="cl">${esc(s.claim)}</div>`:''}<div class="meta"><span>${esc(s.kind||'source')}</span>${s.verified?'<span class="tick">✓ resolves</span>':'<span class="tickno">○ unverified</span>'}${s.finding_supported?'<span class="tick">✓ supports</span>':''}</div></div>`).join('')||'<div class="cl">No sources recorded.</div>';
+    const srcs=(x.sources||[]).map(s=>`<div class="src"><div class="t">${safeUrl(s.url)?`<a href="${esc(safeUrl(s.url))}" target="_blank" rel="noopener">${esc(s.title||s.url)}</a>`:esc(s.title)}</div>${s.claim?`<div class="cl">${esc(s.claim)}</div>`:''}<div class="meta"><span>${esc(s.kind||'source')}</span>${s.verified?'<span class="tick">✓ resolves</span>':'<span class="tickno">○ unverified</span>'}${s.finding_supported?'<span class="tick">✓ supports</span>':''}</div></div>`).join('')||'<div class="cl">No sources recorded.</div>';
     const spec=SPEC.map(r=>[r[1],x[r[0]]]).filter(r=>r[1]!=null&&r[1]!=='').map(r=>`<div class="k">${esc(r[0])}</div><div class="v">${esc(r[1])}</div>`).join('');
     return `<div class="det"><div>
       <div class="sum">${esc(x.summary)}</div>
       ${x.speed_note?`<h3>Speed &amp; notes</h3><div class="sum" style="font-size:13.5px">${esc(x.speed_note)}</div>`:''}
       <h3>Best for</h3><div class="bf">${bf||'<div class="note">—</div>'}</div>
-      ${x.repo_url?`<a class="repo" href="${esc(x.repo_url)}" target="_blank" rel="noopener">repository ↗</a>`:''}
+      ${safeUrl(x.repo_url)?`<a class="repo" href="${esc(safeUrl(x.repo_url))}" target="_blank" rel="noopener">repository ↗</a>`:''}
     </div><div>
       <div class="card"><h3>Verification</h3><div class="verify"><span class="vbadge">${x.verified?'confirmed':'unverified'}</span><span style="color:var(--muted);font-size:12px">wave ${x.wave_id||'·'} · ${(x.sources||[]).length} sources</span></div>${x.verify_note?`<div class="cl">${esc(x.verify_note)}</div>`:''}</div>
       ${spec?`<div class="card"><h3>Spec</h3><div class="kv">${spec}</div></div>`:''}
