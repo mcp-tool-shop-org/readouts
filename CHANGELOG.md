@@ -13,6 +13,7 @@ Notable changes to the published corpus. The format follows [Keep a Changelog](h
 ### Security
 
 - The readout pages escape both quote characters in every value they write into HTML, and they link only `http` and `https` URLs. Before, a source URL holding a quote or a `javascript:` scheme could break out of its attribute. This closes the code-scanning alerts on the readout pages.
+- The rank, the status class, the best-for rank and the wave id are escaped as well. They were the last four values the readout pages wrote into HTML without escaping.
 
 ## 2026-09-27
 
