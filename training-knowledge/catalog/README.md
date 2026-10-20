@@ -1,6 +1,6 @@
 # Catalog — training craft (methods · recipes · datasets · eval · debug)
 
-Generated from `training.db` · wave 18 · 2026-10-20. Narrative + plan: [wave-01 dispatch](../waves/wave-01-foundation/dispatch.md). Verification receipt: [verification.md](../waves/wave-01-foundation/verification.md).
+Generated from `training.db` · wave 19 · 2026-10-20. Narrative + plan: [wave-01 dispatch](../waves/wave-01-foundation/dispatch.md). Verification receipt: [verification.md](../waves/wave-01-foundation/verification.md).
 
 The portable **how-to-train** layer for this rig (RTX 5090 · Blackwell · 32 GB · Win 11 / WSL2). Sibling KBs: [model-knowledge](../../model-knowledge/catalog/README.md) (the *weights*) · [tensor-engine-knowledge](../../tensor-engine-knowledge/catalog/README.md) (the *software* + rig-measured receipts). This one owns the *methods, recipes, hyperparameter values, dataset & eval craft* — and points at the measured numbers via `engine_recipe_ref`, never restates them.
 
@@ -40,9 +40,9 @@ Top `recommended` picks per lane, by try-first order. `Evidence` ▣ measured-on
 | Trl Grpo Mechanics | 1 | [clip_ratio is identically zero at the default num_iterations=1](trl-grpo-mechanics.md) | grpo | text | ▣ measured | ✅ yes | ✓ |
 | Trl Grpo Mechanics | 5 | [A group-constant reward term has exactly zero gradient under GRPO](trl-grpo-mechanics.md) | grpo | text | measured-in-source | ✅ yes | ✓ |
 | Trl Grpo Mechanics | 5 | [GRPOConfig.seed does not control LoRA initialisation](trl-grpo-mechanics.md) | peft | both | measured-in-source | ✅ yes | ✓ |
+| Rl Measurement Methodology | 1 | [A critic's initial weights can invert it, and the run seed also moves it: both carry the ASPIRE critic's spread](rl-measurement-methodology.md) | evaluation | text | ▣ measured |  | ✓ |
 | Rl Measurement Methodology | 1 | [A learned critic's accuracy is a distribution: SFT before ASPIRE showed no reliable effect over three seeds](rl-measurement-methodology.md) | evaluation | text | ▣ measured |  | ✓ |
-| Rl Measurement Methodology | 1 | [Generations per item, not items, is usually the cheap lever on eval power](rl-measurement-methodology.md) | eval | both | ▣ measured | ✅ yes | ✓ |
-| Rl Measurement Methodology | 1 | [Pooled eval statistics measure the item mix as well as the behaviour](rl-measurement-methodology.md) | eval | both | ▣ measured | ✅ yes | ✓ |
+| Rl Measurement Methodology | 1 | [Four times the training prompts lifts an ASPIRE critic's accuracy but leaves its spread between seeds unchanged](rl-measurement-methodology.md) | evaluation | text | ▣ measured |  | ✓ |
 | Rlvr Sharpening And Latent Capability | 5 | [An RLVR pass-rate lift is not licensed to be called new capability](rlvr-sharpening-and-latent-capability.md) | rl | text | paper | ✅ yes | ✓ |
 | Rlvr Sharpening And Latent Capability | 5 | [Plain GRPO sharpens the output prior rather than flattening it](rlvr-sharpening-and-latent-capability.md) | grpo | text | paper+measured | ✅ yes | ✓ |
 | Rlvr Sharpening And Latent Capability | 5 | [Verbalized Sampling as a $0 probe for capability the policy has but never samples](rlvr-sharpening-and-latent-capability.md) | prompting | text | paper+measured | ✅ yes | ✓ |
@@ -55,12 +55,12 @@ Top `recommended` picks per lane, by try-first order. `Evidence` ▣ measured-on
 - [Dataset construction & caption craft](dataset-caption.md) — The inputs that drive outcome more than hyperparameters: curation/dedup, caption format keyed to base model, style-vs-subject pruning, regularization sets, real:synthetic discipline, and Datasheets-style license/provenance (commercial-clean gate). Captioner weights->model-knowledge; pipeline tooling->tensor-engine. (17 techniques)
 - [Local LLM fine-tuning (SFT + preference + RL)](llm-finetune.md) — 24-34B at Q-quant on one 32 GB GPU: QLoRA-NF4 SFT + chat templates, then the preference/RL family selected by the DATA you have — DPO/ORPO/KTO/SimPO and GRPO/RLVR. Light reverse-KL/on-policy distillation lives here too. (19 techniques)
 - [Single-GPU efficiency & training-VRAM technique](efficiency.md) — Fitting TRAINING on one 32 GB Blackwell GPU — the binding constraint, orthogonal to method choice. The training-VRAM arithmetic (optimizer-state + gradient + activation sizing) and the decision heuristics; paged/8-bit optimizers, gradient checkpointing/accumulation, FSDP2 CPU-offload, NF4 vs fp8 training. Measured peaks->tensor-engine; inference placement->docker-knowledge. (12 techniques)
-- [Training evaluation & validation methodology](evaluation.md) — How to attest a trained adapter with receipts. Diffusion STYLE eval (CMMD/HPSv2/PickScore/LPIPS + ai-eyes A/B, not DreamBooth subject metrics); LLM eval via pinned lm-eval-harness + a bias-controlled DIFFERENT-FAMILY judge. Never a bare FID/CLIP scalar. Eval tool-as-software->tensor-engine. (45 techniques)
+- [Training evaluation & validation methodology](evaluation.md) — How to attest a trained adapter with receipts. Diffusion STYLE eval (CMMD/HPSv2/PickScore/LPIPS + ai-eyes A/B, not DreamBooth subject metrics); LLM eval via pinned lm-eval-harness + a bias-controlled DIFFERENT-FAMILY judge. Never a bare FID/CLIP scalar. Eval tool-as-software->tensor-engine. (46 techniques)
 - [Failure modes & debugging](debugging.md) — The symptom->cause->fix taxonomy that closes the recipe->result->fix loop, portable across engines: overfit/replication, frying/saturation, style-bleed, NaN/loss-spike, catastrophic forgetting, OOM-on-32GB, reward-hacking. Each maps back to the recipe field that causes and cures it. Engine-version crash receipts->tensor-engine. (4 techniques)
 - [Diffusion Qwen Lora](diffusion-qwen-lora.md) — auto-created from wave lane (5 techniques)
 - [Still Current](still-current.md) — auto-created from wave lane (22 techniques)
 - [Trl Grpo Mechanics](trl-grpo-mechanics.md) — auto-created from wave lane (4 techniques)
-- [Rl Measurement Methodology](rl-measurement-methodology.md) — auto-created from wave lane (5 techniques)
+- [Rl Measurement Methodology](rl-measurement-methodology.md) — auto-created from wave lane (7 techniques)
 - [Rlvr Sharpening And Latent Capability](rlvr-sharpening-and-latent-capability.md) — auto-created from wave lane (3 techniques)
 
 ## Legend

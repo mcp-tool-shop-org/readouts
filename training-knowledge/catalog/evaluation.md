@@ -1,7 +1,7 @@
 # Training evaluation & validation methodology
-_How to attest a trained adapter with receipts. Diffusion STYLE eval (CMMD/HPSv2/PickScore/LPIPS + ai-eyes A/B, not DreamBooth subject metrics); LLM eval via pinned lm-eval-harness + a bias-controlled DIFFERENT-FAMILY judge. Never a bare FID/CLIP scalar. Eval tool-as-software->tensor-engine._ · wave 18 · 2026-10-20 · [‹ catalog index](README.md)
+_How to attest a trained adapter with receipts. Diffusion STYLE eval (CMMD/HPSv2/PickScore/LPIPS + ai-eyes A/B, not DreamBooth subject metrics); LLM eval via pinned lm-eval-harness + a bias-controlled DIFFERENT-FAMILY judge. Never a bare FID/CLIP scalar. Eval tool-as-software->tensor-engine._ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
 
-45 techniques · 11 recommended · 2 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
+46 techniques · 11 recommended · 3 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 
 | ↓ | Technique | Method | Applies | Evidence | Comm | Rig | Studio | ✓ |
 |---|-----------|--------|---------|----------|------|-----|--------|---|
@@ -15,6 +15,7 @@ _How to attest a trained adapter with receipts. Diffusion STYLE eval (CMMD/HPSv2
 | 2 | Overfitting & memorization detection (SSCD copy-detection + train-vs-novel-prompt divergence) | diffusion-overfit-detection | diffusion | ▸ reproduced | ✅ yes | 4 | 5 | ✓ |
 | 2 | Pinned lm-eval-harness LLM evaluation (task_version / prompt / n_shot / precision / seed) | qlora | llm | ▸ reproduced | ✅ yes | 5 | 4 | ✓ |
 | 2 | XY-grid candidate selection (frozen prompt+seed across epochs/ranks/weights) | diffusion-lora-checkpoint-selection | diffusion | ▸ reproduced | ✅ yes | 5 | 5 | ✓ |
+| 6 | An inverted ASPIRE critic, found by chance, still prefers the flawed answer on fresh pairs | evaluation | text | ▣ measured |  | 4 | 4 | ✓ |
 | 6 | Style-fidelity vs prompt-adherence tradeoff (the LoRA-weight frontier curve) | diffusion-tradeoff-measurement | diffusion | · community | ⚠ cond | 5 | 5 | ✓ |
 | 6 | ai-eyes A/B rubric as the bias-controlled visual arbiter (order-swap + criterion-split) | diffusion-human-model-arbiter | diffusion | · community | ✅ yes | 4 | 5 | ✓ |
 | 9 | AlpacaEval | evaluation | both | paper | check | 3 | 3 | · |
@@ -415,6 +416,27 @@ The concrete winner-selection workflow that wave-1's eval panel assumed but did 
 - **Best for:** pick the ship checkpoint from a style-LoRA training run (checkpoint-selection, fit 5) ; choose the inference LoRA weight to recommend with the adapter (weight-tuning, fit 5)
 - **Verify:** verdict=confirmed | currency=current | All three sources verified real and correctly cited. kohya-ss save_every_n_epochs, AUTOMATIC1111 XYZ-plot, and CMMD arXiv:2401.09603 all confirmed. Not in wave-1 (wave-1 names the eval panel metrics but not the XY-grid checkpoint-selection methodology). Evidence_strength 'reproduced-from-source' is justified: the XY grid approach is a mechanization of documented trainer + webui features. No boundary violation, no overclaim.
 - **Sources:** [kohya-ss sd-scripts — checkpoint saving (save_every_n_epochs) for post-run epoch selection](https://github.com/kohya-ss/sd-scripts) (kohya-ss, 2024) — trainer saves intermediate LoRA checkpoints per N epochs, enabling a post-run epoch sweep rather than trusting a loss curve ; [AUTOMATIC1111 stable-diffusion-webui — X/Y/Z plot script (fixed seed, vary one axis)](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Features) (AUTOMATIC1111 contributors, 2024) — native XYZ-plot generates a grid varying one parameter (e.g. checkpoint/weight) with prompt and seed held fixed, the mechanization of the candidate-comparison grid ; [Rethinking FID: Towards a Better Evaluation Metric for Image Generation (CMMD)](https://arxiv.org/abs/2401.09603) (Sadeep Jayasumana, Srikumar Ramalingam, Andreas Veit, Daniel Glasner, Ayan Chakrabarti, Sanjiv Kumar, 2024) — CMMD is sample-efficient (stable at ~1000 samples) and monotone with quality, so it can rank the small per-cell generated sets a single-GPU grid produces where FID is unreliable
+
+### An inverted ASPIRE critic, found by chance, still prefers the flawed answer on fresh pairs · `experimental` · ▣ measured
+**The inverted critic from the critic-init test (run 42, critic seed 43) ranks the flawed answer above the strong one on 0.678 [0.582, 0.763] of 149 fresh confirmation pairs it was never read on, against 0.685 on the 127 pairs where it was found, so it barely regressed. Its per-decision margins are tiny (mean |gap| about 0.01).**
+aspire-si Auditor plan, 2026-10-08, readout committed in #45 and #46 before anything ran; local RTX 5090, $0. Re-scored locally, its judge-set accuracy matches the pod exactly (0.315 as a critic), with 123 of 127 decisions matching and a median per-answer score difference of 0.002. 24% of judge pairs fall within that local-versus-pod difference; with a 0.002 noise band its validation accuracy reads 0.681. The same plan's trained-head readings were all stopped: the shuffled-label control failed in all three feature sources, so no role reading of trained heads was made.
+- **For the pipeline:** A critic init trained with no auditor objective can reliably rank planted errors higher, so inverted critics are detectable and even usable as auditors. 0.678 on validation is the bar a trained Auditor must beat, with a paired interval. Its tiny margins make it consistent but weak per decision.
+- **Method:** evaluation · **Applies to:** text · **Base:** Qwen · **Kind:** finding
+- **Seed:** run 42 : critic 43 · **Runs:** 1
+- **Variance:** One found critic; fresh-pair interval [0.582, 0.763].
+- **Validated under:** aspire-si Auditor plan step 1 on the local RTX 5090, 2026-10-08; 149 confirmation pairs and the 127-pair judge set.
+- **Output license:** commercial **?**
+- **Fit:** rig 4/5 · studio 4/5
+
+**Evaluation**
+
+| Kind | Metric | Result | Threshold | Pass | Judge family |
+|---|---|---|---|---|---|
+| pairwise-planted-error | flaw-detection accuracy | 0.678 [0.582, 0.763] on 149 fresh pairs; 0.685 on the 127 it was found on | above 0.5 on validation | — |  |
+| reproducibility | local vs pod re-score | 0.315 identical; 123 of 127 decisions match; median score difference 0.002 |  | — |  |
+
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family.
+- **Sources:** [aspire-si: critics with chosen attributes, the Auditor and the Advocate](https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-08-auditor.md) — The found Auditor's validation and judge-set accuracy, the local re-score, the margins, and the failed shuffled-label control. ; [rnd: more prompts raise the ASPIRE critic's accuracy but not its spread](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-more-prompts-raise-the-aspire-critic-s-accuracy-but-not-its-.md) — The bench entry this row is promoted from.
 
 ### Style-fidelity vs prompt-adherence tradeoff (the LoRA-weight frontier curve) · `recommended` · · community
 **Style fidelity and prompt adherence trade off along LoRA application weight: as weight rises the style locks in (style metric improves) but the base model's prompt-following degrades (CLIP/ImageReward adherence drops), so the adapter is accepted at the KNEE of a measured weight-sweep frontier, not at the single weight that maximizes style.**

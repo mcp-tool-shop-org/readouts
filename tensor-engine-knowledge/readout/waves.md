@@ -1,6 +1,6 @@
 # readouts — tensor-engine-knowledge · wave dispatches
 
-> The research log: how this KB was built, wave by wave. 19 waves · generated 2026-10-20.
+> The research log: how this KB was built, wave by wave. 20 waves · generated 2026-10-20.
 
 ## Wave 1 — Foundation — best tensor / inference / training engines per lane (2026-06-02)
 
@@ -135,3 +135,9 @@ _all (llm-inference, llm-serving, quantization, attention-kernels, training, dif
 _runtime-foundations (rnd promotion) · hands-on · synthesized · +0 engines · +4 sources · +0 recipes_
 
 **Verifier:** Promotion, not a research swarm. Re-sourced by the R&D seat on 2026-10-20 from NVIDIA's CUDA Toolkit 13.4 release notes (GA, 13.4.1, archived) and the nvcc 13.4 documentation; the rnd entry's livestream-slide claims that neither source states are not loaded. Retrieval against NVIDIA's pages only; no second model family. See verification.md.
+
+## Wave 20 — Wave 20 (2026-10-20)
+
+_runtime-foundations (rnd promotion) · hands-on · synthesized · +0 engines · +3 sources · +0 recipes_
+
+**Verifier:** Promotion, not a research swarm. The R&D seat ran the rung itself and re-read its committed results on 2026-10-20; the bench's one unverified claim (CuPy's runtime) was settled by a DLL listing under the Publisher's GPU grant and merged in rnd 1.1.23.1.5 before this wave. No second model family. See verification.md.

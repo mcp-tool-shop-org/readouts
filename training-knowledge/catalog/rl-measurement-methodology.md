@@ -1,17 +1,40 @@
 # Rl Measurement Methodology
-_auto-created from wave lane_ · wave 18 · 2026-10-20 · [‹ catalog index](README.md)
+_auto-created from wave lane_ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
 
-5 techniques · 5 recommended · 4 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
+7 techniques · 7 recommended · 6 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 
 | ↓ | Technique | Method | Applies | Evidence | Comm | Rig | Studio | ✓ |
 |---|-----------|--------|---------|----------|------|-----|--------|---|
+| 1 | A critic's initial weights can invert it, and the run seed also moves it: both carry the ASPIRE critic's spread | evaluation | text | ▣ measured |  | 4 | 4 | ✓ |
 | 1 | A learned critic's accuracy is a distribution: SFT before ASPIRE showed no reliable effect over three seeds | evaluation | text | ▣ measured |  | 4 | 4 | ✓ |
+| 1 | Four times the training prompts lifts an ASPIRE critic's accuracy but leaves its spread between seeds unchanged | evaluation | text | ▣ measured |  | 4 | 4 | ✓ |
 | 1 | Generations per item, not items, is usually the cheap lever on eval power | eval | both | ▣ measured | ✅ yes | 5 | 5 | ✓ |
 | 1 | Pooled eval statistics measure the item mix as well as the behaviour | eval | both | ▣ measured | ✅ yes | 5 | 5 | ✓ |
 | 1 | Run-to-run variance can exceed the effect being measured | rl | text | ▣ measured | ✅ yes | 5 | 5 | ✓ |
 | 5 | Aggregate an interval over runs; do not require each run to clear significance | rl | both | paper+measured | ✅ yes | 5 | 5 | ✓ |
 
 ## Detail
+
+### A critic's initial weights can invert it, and the run seed also moves it: both carry the ASPIRE critic's spread · `recommended` · ▣ measured
+**Seeding the ASPIRE critic's initial weights apart from the run showed that one initial draw can invert the critic (critic seed 43: 0.315, interval [0.227, 0.406], wholly below 0.5), and that both the critic's init (range 0.488) and the run seed (range 0.283) exceed a 0.055 noise floor. Generation on the pod GPU was not reproducible: 0 of 32 dialogues were identical between identical-seed runs.**
+aspire-si critic-init test, 2026-10-08, readout committed before the run (aspire-si #43). Control-local, 32 prompts. Run seed : critic seed gave 42:42 0.803, its identical repeat 0.858, 42:43 0.315, 42:44 0.787, 43:42 0.543 and 44:42 0.827. The critic-init range of 0.488 is one draw: the 0.315 run makes all of it, and the other two critic seeds differ by 0.016. The run-seed arm bundles adapter initialisation, data order and sampling, and also carries generation noise, which this test can't separate. Of the 15 critics trained earlier, only one has a point estimate below 0.5 (0.425 [0.333, 0.516]), so it may have been an inverted draw. Cost $3.85 (offrig plan 20).
+- **For the pipeline:** Never ship a single ASPIRE critic unchecked: train several critic inits, select or ensemble on a held-out validation set of planted pairs (never the judge set), and reject any critic below 0.5 there. Because generation is nondeterministic on the GPU, compare runs with repeats, not just matched seeds.
+- **Method:** evaluation · **Applies to:** text · **Base:** Qwen · **Kind:** finding
+- **Seed:** run 42/43/44 x critic 42/43/44 · **Runs:** 6
+- **Variance:** Noise floor 0.055 from one identical repeat, so the ranges are rough; arm A's 0.488 rests on a single inverted draw.
+- **Validated under:** aspire-si on a rented pod, offrig plan 20, 2026-10-08; 32 training prompts; 127 planted-error judge pairs.
+- **Output license:** commercial **?**
+- **Fit:** rig 4/5 · studio 4/5
+
+**Evaluation**
+
+| Kind | Metric | Result | Threshold | Pass | Judge family |
+|---|---|---|---|---|---|
+| pairwise-planted-error | pairwise accuracy per run:critic seed | 0.803 / 0.858 / 0.315 [0.227, 0.406] / 0.787 / 0.543 / 0.827; arm A range 0.488, arm B 0.283, noise floor 0.055 | noise floor at most 0.09; an arm contributes above 0.09 | — |  |
+| reproducibility | identical dialogues between runs | 0 of 32, including the two identical-seed runs |  | — |  |
+
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family.
+- **Sources:** [aspire-si: which seed carries the critic's spread](https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-08-critic-init.md) — The six accuracies with intervals, the arm ranges and noise floor, the one-draw caveat, the 0 of 32 dialogues and the earlier critics. ; [rnd: more prompts raise the ASPIRE critic's accuracy but not its spread](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-more-prompts-raise-the-aspire-critic-s-accuracy-but-not-its-.md) — The bench entry this row is promoted from.
 
 ### A learned critic's accuracy is a distribution: SFT before ASPIRE showed no reliable effect over three seeds · `recommended` · ▣ measured
 **With 32 training prompts, ASPIRE's learned critic varied more between seeds than between treatments: SFT on teacher answers before ASPIRE gave no reliable change in critic accuracy (mean drops 0.06 composite, 0.008 local, under the pre-registered 0.10), while one control critic ranged from 0.425 to 0.866.**
@@ -33,6 +56,27 @@ aspire-si, 2026-10-07. Qwen2.5-1.5B student, LoRA r16, critic head on the last h
 
 - **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family.
 - **Sources:** [aspire-si run 1: seeds 42-44](https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-07-run-1-seeds.md) — Per-seed critic accuracies, mean drops 0.06 and 0.008, the seed ranges, the rising loss, and the drift table. ; [aspire-si runs 2-3](https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-07-runs-2-3.md) — The SFT's held-out gain, +0.109 [+0.016, +0.203], under the 0.2 bar. ; [aspire-si: SFT then ASPIRE (seed 42, with its correction note)](https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-07-sft-then-aspire.md) — Seed 42: 0.866 [0.787, 0.929] against 0.646 [0.559, 0.732], one run each; corrected by run 1. ; [rnd: SFT before ASPIRE has no reliable effect on the critic](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-07-sft-before-aspire-weakens-critic.md) — The bench entry this row is promoted from.
+
+### Four times the training prompts lifts an ASPIRE critic's accuracy but leaves its spread between seeds unchanged · `recommended` · ▣ measured
+**Training the ASPIRE critic on 128 prompts instead of 32 raised pairwise accuracy on 127 planted-error pairs for every seed (0.827, 0.646, 0.764 against 0.724, 0.543, 0.638; mean 0.745 against 0.635), but the range between seeds stayed 0.181 at both prompt counts: the pre-registered spread rule failed and the level rule passed.**
+aspire-si step 2, 2026-10-08, rules committed before the run (aspire-si #35). Control-local arm: Qwen2.5-1.5B student, bf16 Qwen2.5-32B teacher, seeds 42/43/44, judged on the 127-pair planted-error set (pairwise accuracy). Every seed rose by 0.10 to 0.13, and the seed order 42 > 44 > 43 held at both prompt counts. The run cost $8.03 on a rented pod, plus $4.10 on two stopped attempts (a teacher download too slow for the deadline, and a wrong time estimate). Epoch 1, where ASPIRE generates its dialogues online, set the run time: 3 h 30 min for 128 dialogues per seed with three seeds side by side, about 1.67 min per dialogue per seed; epochs 2 and 3 took about 5 min.
+- **For the pipeline:** More prompts are worth having for the critic's level, but they don't make a single seed trustworthy: keep three seeds per arm and a pre-registered rule. Plan rented-GPU time from epoch 1's generation rate, and time a real model-shard download before planning.
+- **Method:** evaluation · **Applies to:** text · **Base:** Qwen · **Kind:** finding
+- **Seed:** 42, 43, 44 · **Runs:** 3
+- **Variance:** Range 0.181 at 128 prompts and at 32 prompts; intervals at 128 prompts [0.754, 0.896], [0.556, 0.732], [0.677, 0.844].
+- **Validated under:** aspire-si step 2 on a rented pod, offrig plan 19, 2026-10-08; 128 training prompts; 127 planted-error judge pairs.
+- **Output license:** commercial **?**
+- **Fit:** rig 4/5 · studio 4/5
+
+**Evaluation**
+
+| Kind | Metric | Result | Threshold | Pass | Judge family |
+|---|---|---|---|---|---|
+| pairwise-planted-error | pairwise accuracy per seed | 128 prompts 0.827 / 0.646 / 0.764 (mean 0.745); 32 prompts 0.724 / 0.543 / 0.638 (mean 0.635); range 0.181 both | rule 1: range at most 0.09; rule 2: all above 0.635 and mean at least 0.70 | — |  |
+| cost-and-timing | pod spend and epoch-1 rate | $8.03 completed run plus $1.86 and $2.24 stopped attempts; about 1.67 min per dialogue per seed in epoch 1 |  | — |  |
+
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family.
+- **Sources:** [aspire-si step 2: 128 prompts, seeds 42-44](https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-08-step-2.md) — Per-seed accuracies at both prompt counts, the two rule readings, the cost table and the epoch timings. ; [rnd: more prompts raise the ASPIRE critic's accuracy but not its spread](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-more-prompts-raise-the-aspire-critic-s-accuracy-but-not-its-.md) — The bench entry this row is promoted from.
 
 ### Generations per item, not items, is usually the cheap lever on eval power · `recommended` · ▣ measured
 **At G=16 completions per item, 80% of the per-item paired-lift variance was binomial sampling noise rather than genuine item heterogeneity — and sampling noise is purchasable with generation.**

@@ -1,6 +1,6 @@
 # readouts — training-knowledge · wave dispatches
 
-> The research log: how this KB was built, wave by wave. 17 waves · generated 2026-10-20.
+> The research log: how this KB was built, wave by wave. 18 waves · generated 2026-10-20.
 
 ## Wave 1 — Foundation — the SDXL spine + cross-cutting method/dataset/eval/debug craft (thin pass, prove the partition) (2026-06-06)
 
@@ -103,3 +103,9 @@ _GRPO/RLVR mechanics in TRL 1.13.0, run-variance and eval-power methodology, and
 _rnd promotion: aspire-si critic and judge measurements · 2 agents · synthesized · +2 techniques · +7 sources_
 
 **Verifier:** Promoted from rnd entries 2026-10-07-sft-before-aspire-weakens-critic and 2026-10-07-qwen32b-judge-position-bias. Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family. One correction: the single-choice baseline on the 127 judge-set pairs is 0.701, not 0.685 (0.685 is the 149 fresh pairs). See verification.md.
+
+## Wave 19 — promoted from rnd: more prompts, the critic's initial weights, and a found Auditor (2026-10-20)
+
+_rnd promotion: aspire-si critic measurements, 2026-10-08 · 2 agents · synthesized · +3 techniques · +6 sources_
+
+**Verifier:** Promoted from rnd entry 2026-10-08-more-prompts-raise-the-aspire-critic-s-accuracy-but-not-its-. Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family. The entry's epoch-1 timing claim, unverified on the bench, is in the step-2 report and loads; its superseded hypothesis does not. See verification.md.

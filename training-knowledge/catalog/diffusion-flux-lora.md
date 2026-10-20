@@ -1,5 +1,5 @@
 # Flux-family style-LoRA recipes
-_A SEPARATE recipe space from SDXL (flow-matching, not DDPM). Commercial-safe Apache-2.0 bases only (FLUX.2 [klein], Chroma1-HD); FLUX.1-dev/FLUX.2-dev are non-commercial and must not be a training base here. Higher rank, NL captions, frozen T5, fp8 base, no prior-preservation by default._ · wave 18 · 2026-10-20 · [‹ catalog index](README.md)
+_A SEPARATE recipe space from SDXL (flow-matching, not DDPM). Commercial-safe Apache-2.0 bases only (FLUX.2 [klein], Chroma1-HD); FLUX.1-dev/FLUX.2-dev are non-commercial and must not be a training base here. Higher rank, NL captions, frozen T5, fp8 base, no prior-preservation by default._ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
 
 14 techniques · 10 recommended · 5 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

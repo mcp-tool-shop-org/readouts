@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-20",
+  "wave": 20,
+  "title": "Wave 20 - promoted from rnd: CUDA Python libraries on the RTX 5090 (smoke rung)",
+  "domain_scope": "runtime-foundations (rnd promotion)",
+  "agent_count": 0,
+  "verifier_note": "Promotion, not a research swarm. The R&D seat ran the rung itself and re-read its committed results on 2026-10-20; the bench's one unverified claim (CuPy's runtime) was settled by a DLL listing under the Publisher's GPU grant and merged in rnd 1.1.23.1.5 before this wave. No second model family. See verification.md.",
+  "lanes": [
+    {
+      "slug": "runtime-foundations",
+      "name": "Runtime foundations",
+      "research": {
+        "domain": "runtime-foundations",
+        "notes": "Promoted from rnd entry 2026-10-20-cuda-python-on-5090 and its rung folder experiments/cuda-python-5090-rung. Rig measurements on the studio's RTX 5090.",
+        "engines": [],
+        "extras": [
+          {
+            "kind": "rig-measurement",
+            "name": "Six CUDA Python libraries run a correct kernel on the RTX 5090 (compute capability 12.0)",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/tree/main/experiments/cuda-python-5090-rung",
+            "note": "Smoke rung on the studio rig, 2026-10-19: in one fresh environment (Python 3.12.13, driver 617.42, CUDA 13.4.92 runtime wheels), each library imported, read compute capability 12.0 and ran one small kernel whose result matched NumPy on the CPU. Exact pins: cuda-core 1.2.2, cupy-cuda13x 14.2.0, numba-cuda 0.30.4, cuda-cccl 1.2.1 (cuda.compute), nvmath-python 1.0.0, cuda-tile 1.7.0. All six pass with NumPy 2.4.6. Peak VRAM about 340 MiB above idle, under 3 s per library. This includes cuTile, so cuTile runs on consumer Blackwell. A smoke test shows a library installs and runs here; it says nothing about speed. Licences: the libraries are Apache-2.0, MIT and BSD-2-Clause; the CUDA runtime wheels they pull carry NVIDIA's CUDA EULA (https://docs.nvidia.com/cuda/eula/index.html). Depend on NVIDIA's wheels from PyPI; never vendor them."
+          },
+          {
+            "kind": "rig-measurement",
+            "name": "numba-cuda 0.30.4 (numba 0.68.0) fails on NumPy 2.5: hold numpy below 2.5 in a shared GPU environment",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/experiments/cuda-python-5090-rung/results/run1-numpy-2.5.4.jsonl",
+            "note": "Same rung, run twice: numba 0.68.0 calls numpy.row_stack, which NumPy 2.5 removed, so numba-cuda fails on NumPy 2.5.4 and passes on 2.4.6. Left alone, the resolver picks 2.5, so a shared environment with numba needs numpy>=2.4,<2.5 until numba supports 2.5."
+          },
+          {
+            "kind": "rig-measurement",
+            "name": "CuPy 14.2.0 uses its own built-in CUDA 13.2 runtime, not the environment's 13.4 cudart",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/experiments/cuda-python-5090-rung/results/cupy-runtime-2026-10-20.txt",
+            "note": "Follow-up on the rig, 2026-10-20: CuPy reports runtimeGetVersion 13020 against driver 13040, and a listing of the process's DLLs shows no cudart loaded, though the environment's 13.4 wheel ships cudart64_13.dll. So CuPy's 13.2 runtime is built in. It does load nvrtc64_130_0.dll and cublasLt64_13.dll from the 13.x wheels, and nvrtc-builtins64_134.dll from the system's CUDA 13.4 toolkit. It ran correctly; the reported 13.2 is not a misconfiguration."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "wave": 20,
+  "date": "2026-10-20",
+  "title": "Wave 20 - promoted from rnd: EmbeddingGemma 2, a multimodal embedder, and its studio benchmark",
+  "domain_scope": "llm (rnd promotion)",
+  "agent_count": 0,
+  "dispatch_path": "waves/wave-20-rnd-embeddinggemma-2/dispatch.md",
+  "verifier_note": "Promotion, not a research swarm. Re-read by the R&D seat on 2026-10-20: the three model-card claims unverified on the bench were checked against the card at rev 914f7f89 and load; the benchmark and rig figures were checked against rnd's results file. No second model family. See verification.md.",
+  "lanes": [
+    {
+      "slug": "llm",
+      "name": "Local LLM + vision",
+      "research": {
+        "models": [
+          {
+            "name": "EmbeddingGemma 2",
+            "slug": "embeddinggemma-2",
+            "developer": "Google DeepMind",
+            "base_arch": "Gemma-based embedding encoder; optional vision and audio encoders",
+            "params": "740M in full; text-only 270M (130M backbone + 140M embedding table); text+image 440M; text+audio 570M",
+            "release_date": null,
+            "license": "Apache 2.0",
+            "commercial_use": "yes",
+            "commercial_notes": "Apache 2.0, not gated on Hugging Face (checked 2026-10-20); the card asks deployments to follow the Gemma Prohibited Use Policy (card line 282, rev 914f7f89).",
+            "repo_url": "https://huggingface.co/google/embeddinggemma-2",
+            "min_vram_gb": null,
+            "recommended_vram_gb": null,
+            "disk_size_gb": 1.49,
+            "runs_on_32gb": true,
+            "quality_tier": "strong",
+            "status": "recommended",
+            "game_asset_fit": 3,
+            "marketing_fit": 2,
+            "speed_note": "Measured on the rig's CPU in float32, in process with sentence-transformers: 2.6 chunks a second over 11,525 chunks, against nomic-embed-text's 5.6 on a CPU-only Ollama. Ollama 0.40.4 on Windows refuses every library tag (MLX tensor builds), so on this rig it runs in process, not through Ollama.",
+            "summary": "An open embedding model that maps text, code, images, video and audio into one 768-dimension space, truncatable to 512, 256 or 128 (re-normalise after cutting). It reads 8,192 tokens and takes short task prefixes (for example `task: search result | query: ...`, and `title: {t} | text: {c}` for documents). Run it in bfloat16 or float32, never float16: the model card says its activations exceed float16's range and it then returns NaN or silently degraded vectors. Model card (rev 914f7f89): MTEB multilingual v2 61.36, English v2 68.46, code v1 78.68 at 768d; at 256d, English v2 67.78 and code 76.18; EmbeddingGemma 1 scores 61.15 multilingual and 68.76 code. On the studio's own pre-registered benchmark (93 queries over offrig's 11,525-chunk corpus, both arms scored after offrig's int8 quantization) it beat nomic-embed-text by +0.112 dense nDCG@10, one-sided 95% lower bound +0.065 (code +0.174, prose +0.041), so offrig adopts it at 768d. The 256d cut lost 0.043 against 768 (lower bound -0.062) and failed its bar.",
+            "best_for": [
+              {
+                "purpose": "Text and code retrieval for studio tools (offrig's index)",
+                "fitness": 5,
+                "use_tag": "both"
+              },
+              {
+                "purpose": "One index across text, images and audio, added later without re-embedding text",
+                "fitness": 3,
+                "use_tag": "both"
+              }
+            ],
+            "sources": [
+              {
+                "url": "https://huggingface.co/google/embeddinggemma-2",
+                "kind": "model_card",
+                "claim": "Sizes, Matryoshka dimensions, prefixes, the MTEB figures at 768d and 256d, and the float16 warning (card lines 80-81, 94-98 and 189-191 at rev 914f7f89); the Gemma Prohibited Use Policy term of use (line 282)."
+              },
+              {
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/experiments/embeddinggemma-2/results.md",
+                "kind": "benchmark",
+                "claim": "The pre-registered benchmark: +0.112 dense nDCG@10 [+0.065 lower bound], the 256d failure, and the rates."
+              },
+              {
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/embeddinggemma-2.md",
+                "kind": "bench-entry",
+                "claim": "The rnd entry this row is promoted from."
+              }
+            ]
+          }
+        ],
+        "extras": []
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "model": "EmbeddingGemma 2",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Promotion re-read by the R&D seat on 2026-10-20. Card figures checked against the Hugging Face model card at rev 914f7f89 (fetched 2026-10-20); benchmark figures against rnd experiments/embeddinggemma-2/results.md; rig facts from the bench's verified claims of 2026-10-15. Receipt check only; no second model family."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Catalog — local generative-AI models
 
-Generated from `models.db` · wave 19 · 2026-10-20. Narrative + re-download plan: [wave-01 dispatch](../waves/wave-01-foundation/dispatch.md). Verification receipt: [verification.md](../waves/wave-01-foundation/verification.md).
+Generated from `models.db` · wave 21 · 2026-10-20. Narrative + re-download plan: [wave-01 dispatch](../waves/wave-01-foundation/dispatch.md). Verification receipt: [verification.md](../waves/wave-01-foundation/verification.md).
 
 ## Fastest commercial-safe re-download shortlist
 
@@ -41,7 +41,7 @@ Top `recommended`, commercial-`yes` picks per domain, priority order. `✓` = re
 - [Video generation](video.md) — Text/image-to-video models (22 models)
 - [3D asset generation](3d.md) — Image/text-to-3D mesh + texture (14 models)
 - [Audio generation](audio.md) — Music, SFX/foley, TTS/voice (27 models)
-- [Local LLM + vision](llm.md) — Ollama text/code/reasoning + vision/captioning (9 models)
+- [Local LLM + vision](llm.md) — Ollama text/code/reasoning + vision/captioning (10 models)
 - [Captioning & tagging](caption.md) — VLM captioners + booru taggers for dataset building (11 models)
 - [ComfyUI + workflows](comfy.md) — ComfyUI runtime, custom nodes, workflow sources (1 models)
 

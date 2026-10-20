@@ -1,5 +1,5 @@
 # Training & fine-tuning engines
-_Full / LoRA / QLoRA / RLHF / DPO training frameworks_ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
+_Full / LoRA / QLoRA / RLHF / DPO training frameworks_ · wave 20 · 2026-10-20 · [‹ catalog index](README.md)
 
 20 engines · 6 recommended · 15 confirmed Blackwell/Windows-ready. Narrative + install plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

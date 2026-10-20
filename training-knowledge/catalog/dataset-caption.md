@@ -1,5 +1,5 @@
 # Dataset construction & caption craft
-_The inputs that drive outcome more than hyperparameters: curation/dedup, caption format keyed to base model, style-vs-subject pruning, regularization sets, real:synthetic discipline, and Datasheets-style license/provenance (commercial-clean gate). Captioner weights->model-knowledge; pipeline tooling->tensor-engine._ · wave 18 · 2026-10-20 · [‹ catalog index](README.md)
+_The inputs that drive outcome more than hyperparameters: curation/dedup, caption format keyed to base model, style-vs-subject pruning, regularization sets, real:synthetic discipline, and Datasheets-style license/provenance (commercial-clean gate). Captioner weights->model-knowledge; pipeline tooling->tensor-engine._ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
 
 17 techniques · 10 recommended · 0 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

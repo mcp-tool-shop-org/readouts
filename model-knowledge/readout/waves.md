@@ -1,6 +1,6 @@
 # readouts — model-knowledge · wave dispatches
 
-> The research log: how this KB was built, wave by wave. 20 waves · generated 2026-10-20.
+> The research log: how this KB was built, wave by wave. 22 waves · generated 2026-10-20.
 
 ## Wave 0 — Local downloaded workflows (2026-06-02)
 
@@ -121,3 +121,15 @@ _caption — deepen beyond STUDY-033; TTS invent: 0; JoyCaption Llama Community 
 _llm (rnd promotion) · hands-on · synthesized · +0 models · +3 sources_
 
 **Verifier:** Promotion, not a research swarm. The run counts were re-read by the R&D seat on 2026-10-20 against the atlas-mcp-utility shakedown reports recovered read-only from the atlas-pilot sandbox (receipts named with their SHA-256 in verification.md). The default-context result is a halted shakedown, stated as such. The fill-check figures have no surviving record and are recorded as unverified. No second model family.
+
+## Wave 20 — Wave 20 - promoted from rnd: EmbeddingGemma 2, a multimodal embedder, and its studio benchmark (2026-10-20)
+
+_llm (rnd promotion) · hands-on · synthesized · +1 models · +3 sources_
+
+**Verifier:** Promotion, not a research swarm. Re-read by the R&D seat on 2026-10-20: the three model-card claims unverified on the bench were checked against the card at rev 914f7f89 and load; the benchmark and rig figures were checked against rnd's results file. No second model family. See verification.md.
+
+## Wave 21 — Wave 21 - promoted from rnd: open Jev-style decision models (Kev, Laya, Nimble) and the studio's Kev runs (2026-10-20)
+
+_llm (rnd promotion) · hands-on · synthesized · +0 models · +6 sources_
+
+**Verifier:** Promotion, not a research swarm. Each claim was re-read on 2026-10-20 against its receipt: rnd's openjev-vs-jev and kev-judge-finetune result files, aspire-si's kev-confirmation report at b8ab54d, and the Kev, Laya and Nimble READMEs and cards (line numbers in each note). A Sonnet subagent did the first pass; the R&D seat spot-checked its three corrections. Claims without a committed receipt are not loaded. No second model family. See verification.md.

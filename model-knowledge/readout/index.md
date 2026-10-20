@@ -2,7 +2,7 @@
 
 > Verified knowledge base of the best local generative-AI MODELS per purpose (image / edit / control / video / 3D / audio / LLM / caption) for the RTX 5090 rig — commercial-license-first.
 >
-> **129 models · 126 verified · 556 sources · 20 waves · generated 2026-10-20.**  
+> **130 models · 127 verified · 565 sources · 22 waves · generated 2026-10-20.**  
 > Decisive axis: commercial license (a LoRA/asset inherits its base model's license) + fits 32 GB VRAM.
 
 ## Domains
@@ -15,7 +15,7 @@
 | Video generation | 22 | 21/22 | LightX2V Wan2.2 4-step Distill (LoRAs + merged models) | commercial | [`readout-video.html`](readout-video.html) |
 | 3D asset generation | 14 | 14/14 | Hi3DGen (Stable3DGen) | commercial | [`readout-3d.html`](readout-3d.html) |
 | Audio generation | 27 | 26/27 | ACE-Step 1.5 | commercial | [`readout-audio.html`](readout-audio.html) |
-| Local LLM + vision | 9 | 9/9 | CapRL-InternVL3.5-8B | commercial | [`readout-llm.html`](readout-llm.html) |
+| Local LLM + vision | 10 | 10/10 | CapRL-InternVL3.5-8B | commercial | [`readout-llm.html`](readout-llm.html) |
 | Captioning & tagging | 11 | 11/11 | JoyCaption Beta One | commercial | [`readout-caption.html`](readout-caption.html) |
 | ComfyUI + workflows | 1 | 1/1 | ComfyUI | commercial | [`readout-comfy.html`](readout-comfy.html) |
 
@@ -51,4 +51,4 @@
 
 ## Provenance
 
-Every fact carries a **wave id** and a **verified** flag; sources are retrieval-checked by a different-family verifier. 20 waves; 126/129 models verified.
+Every fact carries a **wave id** and a **verified** flag; sources are retrieval-checked by a different-family verifier. 22 waves; 127/130 models verified.

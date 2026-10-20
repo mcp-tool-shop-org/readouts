@@ -1,5 +1,5 @@
 # Video generation
-_Text/image-to-video models_ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
+_Text/image-to-video models_ · wave 21 · 2026-10-20 · [‹ catalog index](README.md)
 
 22 models · 11 recommended · 17 commercial-safe (license=yes). Narrative + re-download plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

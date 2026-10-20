@@ -1,7 +1,7 @@
 # readouts — model-knowledge · verification receipt
 
-> **126/129 models verified · 556 sources (323 resolve) · 20 waves · generated 2026-10-20.**  
-> Verdicts: 92 confirmed clean · 34 confirmed-with-fixes · 3 unverified.
+> **127/130 models verified · 565 sources (323 resolve) · 22 waves · generated 2026-10-20.**  
+> Verdicts: 93 confirmed clean · 34 confirmed-with-fixes · 3 unverified.
 
 ## Verification method, by wave
 
@@ -24,6 +24,8 @@
 - **Wave 17** (Wave 17 — STUDY-052 3D TRELLIS/Hunyuan deepen (Hunyuan flip: 0; Pocket stays)): STUDY-052 Verifier ✅. Scholar 8/8. Practitioner 8/8. Analogist 1–6 hold; #7–#8 fail-transfer omitted. Hunyuan flip: 0. Pocket 127 stays. Do not invent Hunyuan Apache. Extras-only.
 - **Wave 18** (Wave 18 — STUDY-053 caption/VLM deepen (TTS invent: 0; JoyCaption Apache invent: 0)): STUDY-053 Verifier ✅. Scholar 8/8. Practitioner 8/8. Analogist 1–6 hold; #7–#8 fail-transfer omitted. TTS invent: 0. JoyCaption Apache invent: 0. Pocket 127 stays. Extras-only.
 - **Wave 19** (Wave 19 - promoted from rnd: nemotron-3.5-lightning needs its context raised under Claude Code): Promotion, not a research swarm. The run counts were re-read by the R&D seat on 2026-10-20 against the atlas-mcp-utility shakedown reports recovered read-only from the atlas-pilot sandbox (receipts named with their SHA-256 in verification.md). The default-context result is a halted shakedown, stated as such. The fill-check figures have no surviving record and are recorded as unverified. No second model family.
+- **Wave 20** (Wave 20 - promoted from rnd: EmbeddingGemma 2, a multimodal embedder, and its studio benchmark): Promotion, not a research swarm. Re-read by the R&D seat on 2026-10-20: the three model-card claims unverified on the bench were checked against the card at rev 914f7f89 and load; the benchmark and rig figures were checked against rnd's results file. No second model family. See verification.md.
+- **Wave 21** (Wave 21 - promoted from rnd: open Jev-style decision models (Kev, Laya, Nimble) and the studio's Kev runs): Promotion, not a research swarm. Each claim was re-read on 2026-10-20 against its receipt: rnd's openjev-vs-jev and kev-judge-finetune result files, aspire-si's kev-confirmation report at b8ab54d, and the Kev, Laya and Nimble READMEs and cards (line numbers in each note). A Sonnet subagent did the first pass; the R&D seat spot-checked its three corrections. Claims without a committed receipt are not loaded. No second model family. See verification.md.
 
 ## Corrections — confirmed with fixes (34)
 

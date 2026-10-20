@@ -1,5 +1,5 @@
 # Foundational runtimes & compilers
-_PyTorch/JAX/ONNX/TensorRT/MLX/ggml/Triton — what every other engine sits on_ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
+_PyTorch/JAX/ONNX/TensorRT/MLX/ggml/Triton — what every other engine sits on_ · wave 20 · 2026-10-20 · [‹ catalog index](README.md)
 
 23 engines · 4 recommended · 19 confirmed Blackwell/Windows-ready. Narrative + install plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

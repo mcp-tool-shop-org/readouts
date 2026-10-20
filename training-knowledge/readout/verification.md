@@ -1,7 +1,7 @@
 # readouts — training-knowledge · verification receipt
 
-> **103/206 techniques verified · 439 sources (300 resolve) · 17 waves · generated 2026-10-20.**  
-> Verdicts: 88 confirmed clean · 13 confirmed-with-fixes · 103 unverified.
+> **106/209 techniques verified · 445 sources (300 resolve) · 18 waves · generated 2026-10-20.**  
+> Verdicts: 91 confirmed clean · 13 confirmed-with-fixes · 103 unverified.
 
 ## Verification method, by wave
 
@@ -22,6 +22,7 @@
 - **Wave 15** (Wave 15): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch retrieval oracle for paper/doc existence + attribution + currency. Family-different local-panel deferred.
 - **Wave 16** (RLVR/GRPO on a deterministic-verifier substrate (measured on rig + retrieval-verified literature)): TWO-STAGE GATE. Stage 1 retrieval oracle (arXiv API + Semantic Scholar batch/search + Crossref + arXiv abs pages, deterministic, no LLM): 47/47 arXiv + 6/6 DOI resolved, zero fabricated. Stage 2 groundedness: two lenses from families outside the synthesiser's (qwen3:14b, mistral-small:24b), reasoning stripped, abstract-only. Every citation carried below was SUPPORTED by BOTH lenses. FOUR citations were DROPPED by the gate as real-author-plus-invented-title or real-title-plus-wrong-claim, including one the synthesising advisor itself had over-attributed. Lens limitation recorded: abstract-only cannot confirm body-level detail, so NOT_SUPPORTED there means 'the abstract does not establish this', and such claims were demoted rather than denied. Measured-on-rig rows are receipts from the repo, not literature.
 - **Wave 18** (promoted from rnd: the ASPIRE critic's seed variance, and scoring a judge in both orders): Promoted from rnd entries 2026-10-07-sft-before-aspire-weakens-critic and 2026-10-07-qwen32b-judge-position-bias. Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family. One correction: the single-choice baseline on the 127 judge-set pairs is 0.701, not 0.685 (0.685 is the 149 fresh pairs). See verification.md.
+- **Wave 19** (promoted from rnd: more prompts, the critic's initial weights, and a found Auditor): Promoted from rnd entry 2026-10-08-more-prompts-raise-the-aspire-critic-s-accuracy-but-not-its-. Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family. The entry's epoch-1 timing claim, unverified on the bench, is in the step-2 report and loads; its superseded hypothesis does not. See verification.md.
 
 ## Corrections — confirmed with fixes (13)
 

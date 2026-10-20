@@ -1,5 +1,5 @@
 # Image — editing
-_Instruction / in-context image editing_ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
+_Instruction / in-context image editing_ · wave 21 · 2026-10-20 · [‹ catalog index](README.md)
 
 10 models · 3 recommended · 6 commercial-safe (license=yes). Narrative + re-download plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

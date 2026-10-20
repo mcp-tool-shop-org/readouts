@@ -1,0 +1,220 @@
+{
+  "wave": 19,
+  "date": "2026-10-20",
+  "title": "Wave 19 - promoted from rnd: more prompts, the critic's initial weights, and a found Auditor",
+  "domain_scope": "rnd promotion: aspire-si critic measurements, 2026-10-08",
+  "agent_count": 0,
+  "dispatch_path": "waves/wave-19-rnd-aspire-prompts-and-critic-init/dispatch.md",
+  "verifier_note": "Promoted from rnd entry 2026-10-08-more-prompts-raise-the-aspire-critic-s-accuracy-but-not-its-. Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family. The entry's epoch-1 timing claim, unverified on the bench, is in the step-2 report and loads; its superseded hypothesis does not. See verification.md.",
+  "lanes": [
+    {
+      "slug": "rl-measurement-methodology",
+      "name": "RL measurement methodology",
+      "research": {
+        "techniques": [
+          {
+            "slug": "aspire-critic-more-prompts-level-not-spread",
+            "name": "Four times the training prompts lifts an ASPIRE critic's accuracy but leaves its spread between seeds unchanged",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "Qwen",
+            "evidence_strength": "measured-on-rig",
+            "rig_fit": 4,
+            "studio_fit": 4,
+            "claim": "Training the ASPIRE critic on 128 prompts instead of 32 raised pairwise accuracy on 127 planted-error pairs for every seed (0.827, 0.646, 0.764 against 0.724, 0.543, 0.638; mean 0.745 against 0.635), but the range between seeds stayed 0.181 at both prompt counts: the pre-registered spread rule failed and the level rule passed.",
+            "summary": "aspire-si step 2, 2026-10-08, rules committed before the run (aspire-si #35). Control-local arm: Qwen2.5-1.5B student, bf16 Qwen2.5-32B teacher, seeds 42/43/44, judged on the 127-pair planted-error set (pairwise accuracy). Every seed rose by 0.10 to 0.13, and the seed order 42 > 44 > 43 held at both prompt counts. The run cost $8.03 on a rented pod, plus $4.10 on two stopped attempts (a teacher download too slow for the deadline, and a wrong time estimate). Epoch 1, where ASPIRE generates its dialogues online, set the run time: 3 h 30 min for 128 dialogues per seed with three seeds side by side, about 1.67 min per dialogue per seed; epochs 2 and 3 took about 5 min.",
+            "design_implication": "More prompts are worth having for the critic's level, but they don't make a single seed trustworthy: keep three seeds per arm and a pre-registered rule. Plan rented-GPU time from epoch 1's generation rate, and time a real model-shard download before planning.",
+            "seed": "42, 43, 44",
+            "num_runs": 3,
+            "variance_note": "Range 0.181 at 128 prompts and at 32 prompts; intervals at 128 prompts [0.754, 0.896], [0.556, 0.732], [0.677, 0.844].",
+            "measured_conditions": "aspire-si step 2 on a rented pod, offrig plan 19, 2026-10-08; 128 training prompts; 127 planted-error judge pairs.",
+            "status": "recommended",
+            "evals": [
+              {
+                "eval_kind": "pairwise-planted-error",
+                "metric": "pairwise accuracy per seed",
+                "harness": "aspire-si judge set",
+                "seed": "42/43/44",
+                "result": "128 prompts 0.827 / 0.646 / 0.764 (mean 0.745); 32 prompts 0.724 / 0.543 / 0.638 (mean 0.635); range 0.181 both",
+                "threshold": "rule 1: range at most 0.09; rule 2: all above 0.635 and mean at least 0.70",
+                "accepted": "rule 1 fails, rule 2 passes",
+                "note": "2026-10-08-step-2.md lines 24-28 and 32-33"
+              },
+              {
+                "eval_kind": "cost-and-timing",
+                "metric": "pod spend and epoch-1 rate",
+                "harness": "offrig plans 17-19",
+                "result": "$8.03 completed run plus $1.86 and $2.24 stopped attempts; about 1.67 min per dialogue per seed in epoch 1",
+                "note": "2026-10-08-step-2.md lines 55-58 and 70-71"
+              }
+            ],
+            "sources": [
+              {
+                "kind": "run-report",
+                "title": "aspire-si step 2: 128 prompts, seeds 42-44",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-08-step-2.md",
+                "claim": "Per-seed accuracies at both prompt counts, the two rule readings, the cost table and the epoch timings.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: more prompts raise the ASPIRE critic's accuracy but not its spread",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-more-prompts-raise-the-aspire-critic-s-accuracy-but-not-its-.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          },
+          {
+            "slug": "aspire-critic-init-can-invert-critic",
+            "name": "A critic's initial weights can invert it, and the run seed also moves it: both carry the ASPIRE critic's spread",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "Qwen",
+            "evidence_strength": "measured-on-rig",
+            "rig_fit": 4,
+            "studio_fit": 4,
+            "claim": "Seeding the ASPIRE critic's initial weights apart from the run showed that one initial draw can invert the critic (critic seed 43: 0.315, interval [0.227, 0.406], wholly below 0.5), and that both the critic's init (range 0.488) and the run seed (range 0.283) exceed a 0.055 noise floor. Generation on the pod GPU was not reproducible: 0 of 32 dialogues were identical between identical-seed runs.",
+            "summary": "aspire-si critic-init test, 2026-10-08, readout committed before the run (aspire-si #43). Control-local, 32 prompts. Run seed : critic seed gave 42:42 0.803, its identical repeat 0.858, 42:43 0.315, 42:44 0.787, 43:42 0.543 and 44:42 0.827. The critic-init range of 0.488 is one draw: the 0.315 run makes all of it, and the other two critic seeds differ by 0.016. The run-seed arm bundles adapter initialisation, data order and sampling, and also carries generation noise, which this test can't separate. Of the 15 critics trained earlier, only one has a point estimate below 0.5 (0.425 [0.333, 0.516]), so it may have been an inverted draw. Cost $3.85 (offrig plan 20).",
+            "design_implication": "Never ship a single ASPIRE critic unchecked: train several critic inits, select or ensemble on a held-out validation set of planted pairs (never the judge set), and reject any critic below 0.5 there. Because generation is nondeterministic on the GPU, compare runs with repeats, not just matched seeds.",
+            "seed": "run 42/43/44 x critic 42/43/44",
+            "num_runs": 6,
+            "variance_note": "Noise floor 0.055 from one identical repeat, so the ranges are rough; arm A's 0.488 rests on a single inverted draw.",
+            "measured_conditions": "aspire-si on a rented pod, offrig plan 20, 2026-10-08; 32 training prompts; 127 planted-error judge pairs.",
+            "status": "recommended",
+            "evals": [
+              {
+                "eval_kind": "pairwise-planted-error",
+                "metric": "pairwise accuracy per run:critic seed",
+                "harness": "aspire-si judge set",
+                "seed": "42:42, 42:42:b, 42:43, 42:44, 43:42, 44:42",
+                "result": "0.803 / 0.858 / 0.315 [0.227, 0.406] / 0.787 / 0.543 / 0.827; arm A range 0.488, arm B 0.283, noise floor 0.055",
+                "threshold": "noise floor at most 0.09; an arm contributes above 0.09",
+                "accepted": "both contribute",
+                "note": "2026-10-08-critic-init.md lines 9-19, 31-36 and 40-44"
+              },
+              {
+                "eval_kind": "reproducibility",
+                "metric": "identical dialogues between runs",
+                "harness": "aspire-si dialogue cache",
+                "result": "0 of 32, including the two identical-seed runs",
+                "note": "2026-10-08-critic-init.md lines 51-52; earlier critics lines 65-70; cost line 92"
+              }
+            ],
+            "sources": [
+              {
+                "kind": "run-report",
+                "title": "aspire-si: which seed carries the critic's spread",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-08-critic-init.md",
+                "claim": "The six accuracies with intervals, the arm ranges and noise floor, the one-draw caveat, the 0 of 32 dialogues and the earlier critics.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: more prompts raise the ASPIRE critic's accuracy but not its spread",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-more-prompts-raise-the-aspire-critic-s-accuracy-but-not-its-.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "slug": "aspire-critic-more-prompts-level-not-spread",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family."
+          },
+          {
+            "slug": "aspire-critic-init-can-invert-critic",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family."
+          }
+        ]
+      }
+    },
+    {
+      "slug": "evaluation",
+      "name": "Evaluation",
+      "research": {
+        "techniques": [
+          {
+            "slug": "aspire-found-auditor-holds-on-fresh-pairs",
+            "name": "An inverted ASPIRE critic, found by chance, still prefers the flawed answer on fresh pairs",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "Qwen",
+            "evidence_strength": "measured-on-rig",
+            "rig_fit": 4,
+            "studio_fit": 4,
+            "claim": "The inverted critic from the critic-init test (run 42, critic seed 43) ranks the flawed answer above the strong one on 0.678 [0.582, 0.763] of 149 fresh confirmation pairs it was never read on, against 0.685 on the 127 pairs where it was found, so it barely regressed. Its per-decision margins are tiny (mean |gap| about 0.01).",
+            "summary": "aspire-si Auditor plan, 2026-10-08, readout committed in #45 and #46 before anything ran; local RTX 5090, $0. Re-scored locally, its judge-set accuracy matches the pod exactly (0.315 as a critic), with 123 of 127 decisions matching and a median per-answer score difference of 0.002. 24% of judge pairs fall within that local-versus-pod difference; with a 0.002 noise band its validation accuracy reads 0.681. The same plan's trained-head readings were all stopped: the shuffled-label control failed in all three feature sources, so no role reading of trained heads was made.",
+            "design_implication": "A critic init trained with no auditor objective can reliably rank planted errors higher, so inverted critics are detectable and even usable as auditors. 0.678 on validation is the bar a trained Auditor must beat, with a paired interval. Its tiny margins make it consistent but weak per decision.",
+            "seed": "run 42 : critic 43",
+            "num_runs": 1,
+            "variance_note": "One found critic; fresh-pair interval [0.582, 0.763].",
+            "measured_conditions": "aspire-si Auditor plan step 1 on the local RTX 5090, 2026-10-08; 149 confirmation pairs and the 127-pair judge set.",
+            "status": "experimental",
+            "evals": [
+              {
+                "eval_kind": "pairwise-planted-error",
+                "metric": "flaw-detection accuracy",
+                "harness": "aspire-si confirmation pairs",
+                "result": "0.678 [0.582, 0.763] on 149 fresh pairs; 0.685 on the 127 it was found on",
+                "threshold": "above 0.5 on validation",
+                "accepted": "the Auditor name stands",
+                "note": "2026-10-08-auditor.md lines 12-16 and 20-25"
+              },
+              {
+                "eval_kind": "reproducibility",
+                "metric": "local vs pod re-score",
+                "harness": "aspire-si",
+                "result": "0.315 identical; 123 of 127 decisions match; median score difference 0.002",
+                "note": "2026-10-08-auditor.md lines 22-25; the failed control, lines 8-10"
+              }
+            ],
+            "sources": [
+              {
+                "kind": "run-report",
+                "title": "aspire-si: critics with chosen attributes, the Auditor and the Advocate",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-08-auditor.md",
+                "claim": "The found Auditor's validation and judge-set accuracy, the local re-score, the margins, and the failed shuffled-label control.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: more prompts raise the ASPIRE critic's accuracy but not its spread",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-more-prompts-raise-the-aspire-critic-s-accuracy-but-not-its-.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "slug": "aspire-found-auditor-holds-on-fresh-pairs",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 # Single-GPU efficiency & training-VRAM technique
-_Fitting TRAINING on one 32 GB Blackwell GPU — the binding constraint, orthogonal to method choice. The training-VRAM arithmetic (optimizer-state + gradient + activation sizing) and the decision heuristics; paged/8-bit optimizers, gradient checkpointing/accumulation, FSDP2 CPU-offload, NF4 vs fp8 training. Measured peaks->tensor-engine; inference placement->docker-knowledge._ · wave 18 · 2026-10-20 · [‹ catalog index](README.md)
+_Fitting TRAINING on one 32 GB Blackwell GPU — the binding constraint, orthogonal to method choice. The training-VRAM arithmetic (optimizer-state + gradient + activation sizing) and the decision heuristics; paged/8-bit optimizers, gradient checkpointing/accumulation, FSDP2 CPU-offload, NF4 vs fp8 training. Measured peaks->tensor-engine; inference placement->docker-knowledge._ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
 
 12 techniques · 4 recommended · 2 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

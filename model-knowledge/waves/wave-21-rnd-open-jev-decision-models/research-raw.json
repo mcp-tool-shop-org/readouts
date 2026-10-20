@@ -1,0 +1,56 @@
+{
+  "wave": 21,
+  "date": "2026-10-20",
+  "title": "Wave 21 - promoted from rnd: open Jev-style decision models (Kev, Laya, Nimble) and the studio's Kev runs",
+  "domain_scope": "llm (rnd promotion)",
+  "agent_count": 0,
+  "dispatch_path": "waves/wave-21-rnd-open-jev-decision-models/dispatch.md",
+  "verifier_note": "Promotion, not a research swarm. Each claim was re-read on 2026-10-20 against its receipt: rnd's openjev-vs-jev and kev-judge-finetune result files, aspire-si's kev-confirmation report at b8ab54d, and the Kev, Laya and Nimble READMEs and cards (line numbers in each note). A Sonnet subagent did the first pass; the R&D seat spot-checked its three corrections. Claims without a committed receipt are not loaded. No second model family. See verification.md.",
+  "lanes": [
+    {
+      "slug": "llm",
+      "name": "Local LLM + vision",
+      "research": {
+        "models": [],
+        "extras": [
+          {
+            "kind": "model-card",
+            "name": "Kev: open Jev-style decision models (0.8B/4B/9B adapters, 27B full weights), Apache-2.0",
+            "url": "https://github.com/jaredpalmer/kev",
+            "note": "VERIFIED that the project's own README or card states this, read 2026-10-20; vendor figures are self-reported. Kev (Jared Palmer) ships 0.8B, 4B and 9B adapters with a pointer head on Qwen3.5 Base and a full-weight 27B on Qwen3.8-27B, serves a /v1/systemone API, and is Apache-2.0; its README states no Jev outputs were used for training (README lines 10, 13, 32-35 and 322, read 2026-10-20). Self-reported: Kev-27B scores 0.851 dev and 0.889 test on sources it never trained on, against Jev's 0.857 on dev (README lines 45-46). The README notes that Qwen's post-trained 27B base has undisclosed post-training data (line 52). Its trainer imports the Unix-only resource module (kev/train.py line 13 at 5e42a7a), so `python -m kev.train` fails on native Windows; the studio trains it under WSL."
+          },
+          {
+            "kind": "rig-measurement",
+            "name": "Kev-4B and Kev-9B as forecasters on sense-si: no better than the base rate",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/tree/main/experiments/openjev-vs-jev",
+            "note": "VERIFIED against the run records, re-read 2026-10-20. On sense-si's 124 phrase-clean records (Kev v1.0, bf16, reference kernels, RTX 5090, 2026-10-07): sense-si-calibrated Brier 0.240 (Kev-4B) and 0.242 (Kev-9B) against a 0.242 base rate and Jev's 0.252; pooled AUC 0.54 [0.44, 0.64] and 0.52 [0.42, 0.63]. Adding join evidence, a rubric and four leave-one-mix-out examples did not help: Kev-9B's AUC fell to 0.42 [0.32, 0.52]. Median latency 0.43 s (4B) and 0.51 s (9B) per request on inputs of 1,562 to 4,721 tokens, deterministic across repeats. Receipts: results/compare-all.json and the determinism files."
+          },
+          {
+            "kind": "rig-measurement",
+            "name": "Kev-4B as a judge of planted errors: position-biased as one choice, 0.973 averaged over both orders",
+            "url": "https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-08-kev-confirmation.md",
+            "note": "VERIFIED against the run records, re-read 2026-10-20. As a two-option judge of single planted errors in long answers: as one A/B choice, Kev-4B scored 0.547 picking A 95% of the time and Kev-9B 0.598 picking A 87% on aspire-si's 127 pairs. Averaging p(strong) over both orders, under a pre-registered rule on 149 fresh pairs: Kev-4B 0.973 [0.946, 0.993], Kev-9B 0.859, Qwen2.5-32B Q4 0.886. On the 127 pairs, order-averaged: Kev-4B 0.976 (124 of 127), Kev-9B 0.803. Use Kev-4B averaged over both orders as a planted-error judge, never as a single choice."
+          },
+          {
+            "kind": "rig-measurement",
+            "name": "A cheap Kev-4B judge fine-tune removes the position bias (three seeds) and transfers to another planter",
+            "url": "https://github.com/mcp-tool-shop-org/rnd/tree/main/experiments/kev-judge-finetune",
+            "note": "VERIFIED against the run records, re-read 2026-10-20. Fine-tuning Kev-4B v1.0 on 543 aspire-si planted pairs in both orders (--init_from the release, --perm_kl 1.0, --max_state 1536; about 22 minutes and a 10.5 GB PyTorch peak per seed on the RTX 5090 under WSL) passed a rule written before the run on three of three seeds: single-choice accuracy 0.956-0.963 on 149 held-out pairs with A picked 49-50%, against 0.547 and 95% for the frozen model; order-averaged 0.980-0.987, level with the frozen 0.973. Trained only on Qwen-planted pairs, it scored 0.989 single-choice (A 51%) on 47 pairs planted by gemma4:31b, against the frozen model's 0.521 (A 98%; 1.000 order-averaged)."
+          },
+          {
+            "kind": "model-card",
+            "name": "Laya (Convai Innovations): a 421M ModernBERT-large decision model, Apache-2.0, about 33-40 ms a question",
+            "url": "https://github.com/NandhaKishorM/laya",
+            "note": "VERIFIED that the project's own README or card states this, read 2026-10-20; vendor figures are self-reported. Laya is a 421M ModernBERT-large model, Apache-2.0 (card line 2; README line 1801). Its README reports 39.5 ms a question on a T4 (32.8 ms for the 322M multilingual checkpoint) and 36-37 ms a question with PyTorch MPS on an AMD Radeon Pro Vega II in an Intel Mac Pro, not Apple Silicon (README lines 353-359 and 657). Fine-tuned for decisions in your own domain: the laya-typed-decisions checkpoint scores 0.766 on the authors' typed-decisions benchmark (2,000 decisions across four workflows), against 0.362 for the base English checkpoint, under a 0.461 majority-class baseline (README lines 89 and 1501-1546). The base rows match committed result files; the README says the fine-tuned row has no committed result file yet (line 1546). Its Jev comparison uses third-party Jev figures the authors never measured (line 1496)."
+          },
+          {
+            "kind": "model-card",
+            "name": "Bespoke-Nimble-9B: 90.12% agreement with reference labels on 324 examples, where Jev scores 93.21%",
+            "url": "https://huggingface.co/bespokelabs/Bespoke-Nimble-9B",
+            "note": "VERIFIED that the project's own README or card states this, read 2026-10-20; vendor figures are self-reported. Apache-2.0, on Qwen3.5-9B; the README says it was not distilled from Jev (README line 24). Self-reported, on 324 held-out examples scored against synthetic reference labels: Bespoke-Nimble-9B 292 of 324 (90.12%), Jev 1.13.0 302 of 324 (93.21%), Qwen3.8-27B 84.88% (README lines 476-486). It is agreement with the reference labels, not with Jev's answers."
+          }
+        ]
+      }
+    }
+  ]
+}
