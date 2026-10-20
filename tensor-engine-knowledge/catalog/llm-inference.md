@@ -1,5 +1,5 @@
 # LLM inference engines
-_Engines that load and run text/code/reasoning LLMs locally_ · wave 20 · 2026-10-20 · [‹ catalog index](README.md)
+_Engines that load and run text/code/reasoning LLMs locally_ · wave 21 · 2026-10-20 · [‹ catalog index](README.md)
 
 16 engines · 4 recommended · 9 confirmed Blackwell/Windows-ready. Narrative + install plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

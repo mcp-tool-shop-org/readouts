@@ -1,6 +1,6 @@
 # readouts — training-knowledge · wave dispatches
 
-> The research log: how this KB was built, wave by wave. 18 waves · generated 2026-10-20.
+> The research log: how this KB was built, wave by wave. 19 waves · generated 2026-10-20.
 
 ## Wave 1 — Foundation — the SDXL spine + cross-cutting method/dataset/eval/debug craft (thin pass, prove the partition) (2026-06-06)
 
@@ -109,3 +109,9 @@ _rnd promotion: aspire-si critic and judge measurements · 2 agents · synthesiz
 _rnd promotion: aspire-si critic measurements, 2026-10-08 · 2 agents · synthesized · +3 techniques · +6 sources_
 
 **Verifier:** Promoted from rnd entry 2026-10-08-more-prompts-raise-the-aspire-critic-s-accuracy-but-not-its-. Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family. The entry's epoch-1 timing claim, unverified on the bench, is in the step-2 report and loads; its superseded hypothesis does not. See verification.md.
+
+## Wave 20 — promoted from rnd: judges, juries and planted pairs (two critic-design entries) (2026-10-20)
+
+_rnd promotion: critic and judge design, 2026-10-08 · 2 agents · synthesized · +13 techniques · +27 sources_
+
+**Verifier:** Promoted from rnd entries 2026-10-08-three-follow-up-studies-for-critic-recipes-hard-pairs-two-pl and 2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat. Verified claims only. Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family. Three figures corrected on the way in; see verification.md.

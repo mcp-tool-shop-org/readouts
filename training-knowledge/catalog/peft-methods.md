@@ -1,5 +1,5 @@
 # PEFT methods & adapter theory
-_Cross-cutting parameter-efficient fine-tuning theory both domains share — LoRA/QLoRA/DoRA/LoRA+/rsLoRA, diffusion LyCORIS (LoKr/LoHa/LoCon), LLM PiSSA/GaLore + merging. Rank vs alpha as a coupled scaling pair. Weights->model-knowledge; library-as-software->tensor-engine._ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
+_Cross-cutting parameter-efficient fine-tuning theory both domains share — LoRA/QLoRA/DoRA/LoRA+/rsLoRA, diffusion LyCORIS (LoKr/LoHa/LoCon), LLM PiSSA/GaLore + merging. Rank vs alpha as a coupled scaling pair. Weights->model-knowledge; library-as-software->tensor-engine._ · wave 20 · 2026-10-20 · [‹ catalog index](README.md)
 
 37 techniques · 4 recommended · 0 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

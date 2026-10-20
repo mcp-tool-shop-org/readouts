@@ -1,5 +1,5 @@
 # Diffusion Qwen Lora
-_auto-created from wave lane_ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
+_auto-created from wave lane_ · wave 20 · 2026-10-20 · [‹ catalog index](README.md)
 
 5 techniques · 5 recommended · 5 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

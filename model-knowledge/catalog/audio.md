@@ -1,5 +1,5 @@
 # Audio generation
-_Music, SFX/foley, TTS/voice_ · wave 21 · 2026-10-20 · [‹ catalog index](README.md)
+_Music, SFX/foley, TTS/voice_ · wave 22 · 2026-10-20 · [‹ catalog index](README.md)
 
 27 models · 13 recommended · 13 commercial-safe (license=yes). Narrative + re-download plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

@@ -1,5 +1,5 @@
 # SVS vs lyrics-to-song routes
-_Score-conditioned singing synthesis vs mixed-song generators; MIDI-lock and licenses_ · wave 14 · 2026-10-13 · [‹ catalog index](README.md)
+_Score-conditioned singing synthesis vs mixed-song generators; MIDI-lock and licenses_ · wave 15 · 2026-10-20 · [‹ catalog index](README.md)
 
 38 findings · 21 verified (abstract-supported accept).
 

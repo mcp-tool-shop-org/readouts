@@ -1,6 +1,6 @@
 # readouts — tensor-engine-knowledge · wave dispatches
 
-> The research log: how this KB was built, wave by wave. 20 waves · generated 2026-10-20.
+> The research log: how this KB was built, wave by wave. 21 waves · generated 2026-10-20.
 
 ## Wave 1 — Foundation — best tensor / inference / training engines per lane (2026-06-02)
 
@@ -141,3 +141,9 @@ _runtime-foundations (rnd promotion) · hands-on · synthesized · +0 engines ·
 _runtime-foundations (rnd promotion) · hands-on · synthesized · +0 engines · +3 sources · +0 recipes_
 
 **Verifier:** Promotion, not a research swarm. The R&D seat ran the rung itself and re-read its committed results on 2026-10-20; the bench's one unverified claim (CuPy's runtime) was settled by a DLL listing under the Publisher's GPU grant and merged in rnd 1.1.23.1.5 before this wave. No second model family. See verification.md.
+
+## Wave 21 — Wave 21 (2026-10-20)
+
+_llm-serving, runtime-foundations (rnd promotion) · hands-on · synthesized · +0 engines · +4 sources · +0 recipes_
+
+**Verifier:** Promotion, not a research swarm. Promoted from rnd entries 2026-10-13-nvidia-pair-a-lan-inference-router-and-how-it-compares-with- and 2026-10-07-cuda-tile-programming. A Sonnet subagent read each claim against NVIDIA's repository, release and docs on 2026-10-20; the R&D seat re-read the architecture lines, the release notes and the telemetry section. The bench's 'no telemetry beyond paired nodes' is replaced by NVIDIA's own statement; CUDA Tile's PDL claim stays unverified on the bench. No second model family. See verification.md.

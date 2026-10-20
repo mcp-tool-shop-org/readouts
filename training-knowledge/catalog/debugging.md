@@ -1,5 +1,5 @@
 # Failure modes & debugging
-_The symptom->cause->fix taxonomy that closes the recipe->result->fix loop, portable across engines: overfit/replication, frying/saturation, style-bleed, NaN/loss-spike, catastrophic forgetting, OOM-on-32GB, reward-hacking. Each maps back to the recipe field that causes and cures it. Engine-version crash receipts->tensor-engine._ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
+_The symptom->cause->fix taxonomy that closes the recipe->result->fix loop, portable across engines: overfit/replication, frying/saturation, style-bleed, NaN/loss-spike, catastrophic forgetting, OOM-on-32GB, reward-hacking. Each maps back to the recipe field that causes and cures it. Engine-version crash receipts->tensor-engine._ · wave 20 · 2026-10-20 · [‹ catalog index](README.md)
 
 4 techniques · 4 recommended · 0 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

@@ -1,0 +1,82 @@
+{
+  "wave": 15,
+  "date": "2026-10-20",
+  "title": "Wave 15 - a voice gate for sung vocals, and undating aligner misdates (promoted from rnd)",
+  "domain_scope": "sung-vocal QA (rnd promotion)",
+  "agent_count": 0,
+  "verifier_note": "Promoted from rnd entries 2026-10-08-voice-gate-pyannote-segmentation-on-sung-vocals and 2026-10-08-aligner-misdates-cause-sung-dropouts. A Sonnet subagent re-read each claim against ai-jam-sessions' committed receipts and code on 2026-10-20; the R&D seat re-read the score file, the published voice-gate receipt, the code constants and the fix's commit. Retrieval against receipts only; no second model family. See verification.md.",
+  "lanes": [
+    {
+      "laneSlug": "singing-assessment",
+      "title": "Automatic singing assessment & practice feedback",
+      "findings": [
+        {
+          "n": 1,
+          "authors": "ai-jam-sessions (mcp-tool-shop-org)",
+          "year": 2026,
+          "title": "A voice gate for sung vocals from pyannote segmentation: voice in rests, two voices, silent notes",
+          "id": "ai-jam-sessions scripts/voice_gate.py (78ccc20)",
+          "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions/blob/main/scripts/voice_gate.py",
+          "finding": "scripts/voice_gate.py runs pyannote/segmentation-3.0 (MIT; gated on Hugging Face) over a placed vocal and checks it against the score clock. It flags voice in a rest (lead 0.15 s, release 0.45 s, at least 0.12 s), a held release longer than 1.6 s, two voices for at least 0.1 s, and a sung note whose voice level stays under 0.2. On the published Battle Hymn vocal the voice level is 0.984 in sung notes and 0.09 in rests (frames of 0.01698 s). Scored against the Director's marks on nine takes, it caught 3 of 20 marked honks, and all 3 of its voice-in-rest flags fell on honk marks (within 1.5 s); four takes with no marked noise drew no flags.",
+          "implication": "Use the voice gate as a cheap, model-based check that a placed vocal sings its notes and stays quiet in rests. Its flags are precise but its recall on short honks is low (3 of 20), so it complements listening rather than replacing it.",
+          "sources": [
+            {
+              "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions/blob/main/scripts/voice_gate.py",
+              "claim": "The gate's checks and parameters (lines 36-45)."
+            },
+            {
+              "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions/blob/main/scores/receipts/battle-hymn-of-the-republic/sung-2026-10-08/voice-gate.json",
+              "claim": "voice_mean_sung 0.984, voice_mean_rest 0.09, frame_s 0.01698, and the parameters."
+            },
+            {
+              "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions/tree/main/scores/receipts/voice-gate-eval-2026-10-08",
+              "claim": "score.txt: 20 noise marks, 3 caught, 3 of 6 flags near a mark; the four no-noise takes at 0 flags."
+            },
+            {
+              "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-voice-gate-pyannote-segmentation-on-sung-vocals.md",
+              "claim": "The rnd bench entry this finding is promoted from."
+            }
+          ]
+        }
+      ],
+      "licence_notes": "pyannote/segmentation-3.0 is MIT and gated on Hugging Face: access asks for company or university and website, and the gate says the information is used to understand the user base and may bring emails about pyannote's paid services. pyannote-audio is MIT.",
+      "gaps": "Recall on short honks is low, and the per-frame data that would show where the 17 missed honks fell isn't committed. The -42 dB silent syllable is recorded in the aligner fix's commit, not in a gate receipt."
+    },
+    {
+      "laneSlug": "lyric-to-note-alignment",
+      "title": "Lyric-to-note alignment",
+      "findings": [
+        {
+          "n": 2,
+          "authors": "ai-jam-sessions (mcp-tool-shop-org)",
+          "year": 2026,
+          "title": "Undate an onset far from its neighbours: an aligner date 0.7 s late silenced a sung syllable",
+          "id": "ai-jam-sessions 66faa82 and 5f8d1e2",
+          "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions/commit/66faa828bff784e32910bb2b87d750726862417c",
+          "finding": "In the Battle Hymn, the onset detector left \"jah\" at 0:52 undated and the aligner dated it 0.7 s late, on its own fading tail, while its neighbours sat within 0.1 s of the score; placement cut the tail and the voice gate found the syllable nearly silent (-42 dB), per the fix's commit record. undate_outliers() now marks a dated onset undated when it is more than 0.3 s (DATE_OUTLIER_S) from the median offset of up to 4 dated syllables on each side (DATE_NEIGHBOURS), and runs before and after the aligner fill. On the Battle Hymn it re-picked 3 of 40 phrases (22 of 414 syllables), and \"jah\" came from another take at -22 dB; on America the Beautiful it changed the pick in 2 of 20 phrases, and Amazing Grace was unchanged. The published receipt now dates \"jah\" at 52.11 s by onset rise.",
+          "implication": "Treat an aligner's date as suspect when it disagrees with its neighbours: a whole take running late is the take, but one syllable far off is a misdate. Reject it and pick that syllable from another take. The thresholds were set on hymns of 72 to 92 bpm.",
+          "sources": [
+            {
+              "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions/commit/66faa828bff784e32910bb2b87d750726862417c",
+              "claim": "The fix and its measurements: 0.7 s late, -42 dB, 3 of 40 phrases, -22 dB after."
+            },
+            {
+              "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions/blob/main/scripts/vocal_clock.py",
+              "claim": "DATE_OUTLIER_S 0.3 and DATE_NEIGHBOURS 4 (lines 645-646); undate_outliers() (lines 645-670)."
+            },
+            {
+              "url": "https://github.com/mcp-tool-shop-org/ai-jam-sessions/commit/5f8d1e2f68c426cc9f29c21fe27fec45cb135dfd",
+              "claim": "America: 2 of 20 phrases re-picked; Amazing Grace unaffected."
+            },
+            {
+              "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-aligner-misdates-cause-sung-dropouts.md",
+              "claim": "The rnd bench entry this finding is promoted from."
+            }
+          ]
+        }
+      ],
+      "licence_notes": "Studio code; no third-party model or data.",
+      "gaps": "The before-and-after plans aren't committed, so the 0.7 s, -42 dB and re-pick counts rest on the fix's commit record. The 0.3 s and 4-neighbour thresholds have no tuning receipt."
+    }
+  ]
+}

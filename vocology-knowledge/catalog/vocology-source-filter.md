@@ -1,5 +1,5 @@
 # Vocology / source-filter floor
-_Source–filter theory, singer formant, registers, vibrato, breathiness cues_ · wave 14 · 2026-10-13 · [‹ catalog index](README.md)
+_Source–filter theory, singer formant, registers, vibrato, breathiness cues_ · wave 15 · 2026-10-20 · [‹ catalog index](README.md)
 
 39 findings · 20 verified (abstract-supported accept).
 

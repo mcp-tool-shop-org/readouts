@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-20",
+  "wave": 21,
+  "title": "Wave 21 - promoted from rnd: NVIDIA PAIR, a LAN inference router, and CUDA Tile C++",
+  "domain_scope": "llm-serving, runtime-foundations (rnd promotion)",
+  "agent_count": 0,
+  "verifier_note": "Promotion, not a research swarm. Promoted from rnd entries 2026-10-13-nvidia-pair-a-lan-inference-router-and-how-it-compares-with- and 2026-10-07-cuda-tile-programming. A Sonnet subagent read each claim against NVIDIA's repository, release and docs on 2026-10-20; the R&D seat re-read the architecture lines, the release notes and the telemetry section. The bench's 'no telemetry beyond paired nodes' is replaced by NVIDIA's own statement; CUDA Tile's PDL claim stays unverified on the bench. No second model family. See verification.md.",
+  "lanes": [
+    {
+      "slug": "llm-serving",
+      "name": "LLM serving",
+      "research": {
+        "domain": "llm-serving",
+        "notes": "Promoted from rnd's NVIDIA PAIR entry; read at NVIDIA's own repository at tag v1.0.0.",
+        "engines": [],
+        "extras": [
+          {
+            "kind": "docs",
+            "name": "NVIDIA PAIR 1.0.0: a LAN inference router for Ollama, LM Studio and llama.cpp, Apache-2.0",
+            "url": "https://github.com/NVIDIA/Personal-AI-Router/releases/tag/v1.0.0",
+            "note": "VERIFIED that NVIDIA's own repository or documentation states this, read 2026-10-20 at tag v1.0.0. NVIDIA Personal AI Router (PAIR) 1.0.0, published 2026-10-13 under Apache-2.0, pairs machines on a LAN and routes inference across them. It sits in front of the engines: its Ollama-compatible proxy takes port 11434 and Ollama moves to 11435 and up; its OpenAI-compatible proxy takes 1234 and LM Studio moves to 1235 and up (architecture.mdx, port table). 1.0.0 adds llama.cpp support (install it and fetch GGUF models from Hugging Face), engine launch options such as context size, and RTX Spark support; local endpoints now follow each engine's CORS policy, so a browser client may need OLLAMA_ORIGINS set (release notes)."
+          },
+          {
+            "kind": "docs",
+            "name": "PAIR's scheduler ranks nodes by pending jobs and coarse GPU pressure; it ignores VRAM, latency and loaded models",
+            "url": "https://github.com/NVIDIA/Personal-AI-Router/blob/v1.0.0/docs/architecture.mdx",
+            "note": "VERIFIED that NVIDIA's own repository or documentation states this, read 2026-10-20 at tag v1.0.0. A node's rank is its pending workloads plus GPU pressure: the busiest GPU's smoothed utilisation mapped to 0-3 units at 40%, 70% and 85%, with stale telemetry neutral at 1. GPU model, free VRAM and measured latency are not inputs, every workload counts as one regardless of size, and routing doesn't use whether a node already has the model loaded, so a request can go to a node that must cold-load it (architecture.mdx lines 312-327 and 404-423). For a mixed rig, expect it to favour the less busy machine, not the faster or warmer one."
+          },
+          {
+            "kind": "docs",
+            "name": "PAIR's node telemetry is plaintext and readable by anything on the subnet",
+            "url": "https://github.com/NVIDIA/Personal-AI-Router/blob/v1.0.0/docs/architecture.mdx",
+            "note": "VERIFIED that NVIDIA's own repository or documentation states this, read 2026-10-20 at tag v1.0.0. Workload replication and cluster membership use mutual TLS, and pairing is plaintext authenticated by a six-digit PIN. Host and GPU telemetry is plaintext HTTP and not authenticated, so a node's hostname, hardware inventory and utilisation are readable by anything on the same subnet that asks; NVIDIA's docs say not to run PAIR on a network where that is unacceptable (architecture.mdx lines 172-185). Its SECURITY.md (lines 87-89) adds that local-first describes the intended topology and doesn't prove no data leaves the machine or LAN: engines, model catalogs and update systems may contact external services."
+          }
+        ]
+      }
+    },
+    {
+      "slug": "runtime-foundations",
+      "name": "Runtime foundations",
+      "research": {
+        "domain": "runtime-foundations",
+        "notes": "Promoted from rnd's CUDA Tile entry; read in NVIDIA's CUDA Programming Guide.",
+        "engines": [],
+        "extras": [
+          {
+            "kind": "docs",
+            "name": "CUDA Tile C++ (cuda::tiles) is in the CUDA Toolkit from 13.3; tile dimensions are powers of two, fixed at compile time",
+            "url": "https://docs.nvidia.com/cuda/cuda-programming-guide/02-basics/writing-tile-kernels.html",
+            "note": "VERIFIED against NVIDIA's CUDA Programming Guide (v13.4.2), read 2026-10-20. CUDA Tile C++ is available in the CUDA Toolkit from version 13.3. Each tile dimension must be a power of two, and a tile's shape and element type are compile-time properties (Writing Tile Kernels, the introduction and sections 2.4.3 and 2.4.5). For cuTile Python on the RTX 5090, see wave 20."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 > Verified knowledge base of portable TRAINING CRAFT — methods, recipes, hyperparameter values, dataset & eval know-how — for training LoRAs / fine-tunes on the single RTX 5090 (Blackwell / Windows / WSL2) rig. The how-to-train layer between the weights (model-knowledge) and the software (tensor-engine-knowledge).
 >
-> **209 techniques · 106 verified · 445 sources · 18 waves · generated 2026-10-20.**  
+> **222 techniques · 119 verified · 472 sources · 19 waves · generated 2026-10-20.**  
 > Decisive axis: single-RTX-5090 training viability + reproducibility (fits 32 GB, commercial-clean output, complete replay provenance) — which method/recipe/data/eval you feed the engine and why, not which weights or which software.
 
 ## Domains
@@ -13,9 +13,9 @@
 | SDXL style-LoRA recipes (priority) | 19 | 19/19 | AdamW8bit SDXL LoRA — MEASURED (no VRAM saving for LoRA; ~4% faster than fp32) | commercial | [`readout-diffusion-sdxl-lora.html`](readout-diffusion-sdxl-lora.html) |
 | Flux-family style-LoRA recipes | 14 | 14/14 | Chroma discrete_flow_shift sweep (1/3/6) — MEASURED (footprint-neutral; shift 6 marginally best fidelity; weakest lever) | commercial | [`readout-diffusion-flux-lora.html`](readout-diffusion-flux-lora.html) |
 | Dataset construction & caption craft | 17 | 11/17 | Augmentation safety policy (flip / random-crop / color) for style sets | commercial | [`readout-dataset-caption.html`](readout-dataset-caption.html) |
-| Local LLM fine-tuning (SFT + preference + RL) | 19 | 15/19 | DPO (LoRA) preference tuning (stage 2) — paired data, needs ref model | conditional | [`readout-llm-finetune.html`](readout-llm-finetune.html) |
+| Local LLM fine-tuning (SFT + preference + RL) | 21 | 17/21 | DPO (LoRA) preference tuning (stage 2) — paired data, needs ref model | conditional | [`readout-llm-finetune.html`](readout-llm-finetune.html) |
 | Single-GPU efficiency & training-VRAM technique | 12 | 5/12 | gradient_checkpointing is mandatory for lycoris.kohya LoRA on 32 GB (MEASURED 27.7 -> 14.5 GB) | commercial | [`readout-efficiency.html`](readout-efficiency.html) |
-| Training evaluation & validation methodology | 46 | 13/46 | Diffusion style-fidelity eval panel — MEASURED (CLIP-sim + CMMD, n=20) on the wave-4 SDXL LoRAs | commercial | [`readout-evaluation.html`](readout-evaluation.html) |
+| Training evaluation & validation methodology | 57 | 24/57 | Diffusion style-fidelity eval panel — MEASURED (CLIP-sim + CMMD, n=20) on the wave-4 SDXL LoRAs | commercial | [`readout-evaluation.html`](readout-evaluation.html) |
 | Failure modes & debugging | 4 | 4/4 | Catastrophic forgetting: LoRA as the regularizer, plus the rank/effective-LR/replay levers | commercial | [`readout-debugging.html`](readout-debugging.html) |
 | Diffusion Qwen Lora | 5 | 5/5 | Clean (on-canon) dataset = no late embedding-cloud collapse — 3rd cross-run confirmation; pick the ship checkpoint by geometry, not CLIP-sim | commercial | [`readout-diffusion-qwen-lora.html`](readout-diffusion-qwen-lora.html) |
 | Still Current | 22 | 0/22 | Calendar Versioning (CalVer) | — | [`readout-still-current.html`](readout-still-current.html) |
@@ -55,4 +55,4 @@
 
 ## Provenance
 
-Every fact carries a **wave id** and a **verified** flag; sources are retrieval-checked by a different-family verifier. 18 waves; 106/209 techniques verified.
+Every fact carries a **wave id** and a **verified** flag; sources are retrieval-checked by a different-family verifier. 19 waves; 119/222 techniques verified.

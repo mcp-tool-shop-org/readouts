@@ -1,5 +1,5 @@
 # Attention backends & GPU kernels
-_FlashAttention/SageAttention/FlashInfer + attention & quantized-GEMM kernel libs_ · wave 20 · 2026-10-20 · [‹ catalog index](README.md)
+_FlashAttention/SageAttention/FlashInfer + attention & quantized-GEMM kernel libs_ · wave 21 · 2026-10-20 · [‹ catalog index](README.md)
 
 20 engines · 4 recommended · 12 confirmed Blackwell/Windows-ready. Narrative + install plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

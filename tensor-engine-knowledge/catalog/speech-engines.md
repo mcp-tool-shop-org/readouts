@@ -1,5 +1,5 @@
 # Speech engines (ASR / TTS runtimes)
-_Local speech-to-text & text-to-speech inference runtimes (the engine layer, not the models)_ · wave 20 · 2026-10-20 · [‹ catalog index](README.md)
+_Local speech-to-text & text-to-speech inference runtimes (the engine layer, not the models)_ · wave 21 · 2026-10-20 · [‹ catalog index](README.md)
 
 11 engines · 6 recommended · 8 confirmed Blackwell/Windows-ready. Narrative + install plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

@@ -1,12 +1,14 @@
 # Training evaluation & validation methodology
-_How to attest a trained adapter with receipts. Diffusion STYLE eval (CMMD/HPSv2/PickScore/LPIPS + ai-eyes A/B, not DreamBooth subject metrics); LLM eval via pinned lm-eval-harness + a bias-controlled DIFFERENT-FAMILY judge. Never a bare FID/CLIP scalar. Eval tool-as-software->tensor-engine._ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
+_How to attest a trained adapter with receipts. Diffusion STYLE eval (CMMD/HPSv2/PickScore/LPIPS + ai-eyes A/B, not DreamBooth subject metrics); LLM eval via pinned lm-eval-harness + a bias-controlled DIFFERENT-FAMILY judge. Never a bare FID/CLIP scalar. Eval tool-as-software->tensor-engine._ · wave 20 · 2026-10-20 · [‹ catalog index](README.md)
 
-46 techniques · 11 recommended · 3 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
+57 techniques · 13 recommended · 5 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 
 | ↓ | Technique | Method | Applies | Evidence | Comm | Rig | Studio | ✓ |
 |---|-----------|--------|---------|----------|------|-----|--------|---|
 | 1 | Diffusion style-fidelity eval panel — MEASURED (CLIP-sim + CMMD, n=20) on the wave-4 SDXL LoRAs | lora | diffusion | ▣ measured | ✅ yes | 5 | 5 | ✓ |
 | 1 | Score an LLM judge in both answer orders: Qwen2.5-32B's position bias, measured on planted errors | evaluation | text | ▣ measured |  | 5 | 5 | ✓ |
+| 1 | Screening natural errors with local judges: gemma4:31b catches almost every flawed answer, muse-glimmer adds sentences | evaluation | text | ▣ measured |  | 5 | 5 | ✓ |
+| 1 | The hardest planted pairs are real errors, and the pipeline's filters never check that a plant is one | evaluation | text | ▣ measured |  | 5 | 5 | ✓ |
 | 2 | Acceptance threshold calibration + bare-scalar ban (delta-vs-base, pre-declared, held-out) | diffusion-acceptance-gating | diffusion | ▸ reproduced | ✅ yes | 5 | 5 | ✓ |
 | 2 | Bias-controlled different-family LLM judge (order-swap + length-match) | dpo | llm | ▸ reproduced | ✅ yes | 5 | 4 | ✓ |
 | 2 | Diffusion style-LoRA eval panel (CMMD + HPSv2 + PickScore + LPIPS-vs-exemplar + ai-eyes A/B) | lora | diffusion | ▸ reproduced | ✅ yes | 5 | 5 | ✓ |
@@ -18,6 +20,8 @@ _How to attest a trained adapter with receipts. Diffusion STYLE eval (CMMD/HPSv2
 | 6 | An inverted ASPIRE critic, found by chance, still prefers the flawed answer on fresh pairs | evaluation | text | ▣ measured |  | 4 | 4 | ✓ |
 | 6 | Style-fidelity vs prompt-adherence tradeoff (the LoRA-weight frontier curve) | diffusion-tradeoff-measurement | diffusion | · community | ⚠ cond | 5 | 5 | ✓ |
 | 6 | ai-eyes A/B rubric as the bias-controlled visual arbiter (order-swap + criterion-split) | diffusion-human-model-arbiter | diffusion | · community | ✅ yes | 4 | 5 | ✓ |
+| 9 | A panel of small judges (PoLL) matches or beats single judges on most QA sets | evaluation | text | paper |  | 3 | 4 | ✓ |
+| 9 | Adding a persona to the system prompt doesn't improve factual accuracy | evaluation | text | paper |  | 3 | 4 | ✓ |
 | 9 | AlpacaEval | evaluation | both | paper | check | 3 | 3 | · |
 | 9 | AlpacaEval annotator protocol (same repo §Evaluators) | evaluation | both | paper | check | 3 | 3 | · |
 | 9 | Amulet: Putting Complex Multi-Turn Conversations on the Stand with LLM Juries | evaluation | both | paper | check | 3 | 3 | · |
@@ -29,6 +33,7 @@ _How to attest a trained adapter with receipts. Diffusion STYLE eval (CMMD/HPSv2
 | 9 | Diffusers adapter scale 0–1 checkpoint grid | eval | both | docs | check | 4 | 4 | · |
 | 9 | DreamSim | evaluation | both | paper | check | 3 | 3 | · |
 | 9 | EleutherAI lm-evaluation-harness pinned LLM eval | eval | both | docs | check | 4 | 4 | · |
+| 9 | FELM: a segment-labelled factuality benchmark (non-commercial licence) | evaluation | text | paper |  | 3 | 4 | ✓ |
 | 9 | FastChat LLM Judge / MT-Bench | evaluation | both | paper | check | 3 | 3 | · |
 | 9 | G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment | evaluation | both | paper | check | 3 | 3 | · |
 | 9 | HPSv2 human preference scorer (Wu et al. 2023) | eval | both | paper | check | 4 | 4 | · |
@@ -36,18 +41,24 @@ _How to attest a trained adapter with receipts. Diffusion STYLE eval (CMMD/HPSv2
 | 9 | Human Preference Score v2 | evaluation | both | paper | check | 3 | 3 | · |
 | 9 | ImageReward learned T2I preference reward (Xu et al. 2023) | eval | both | paper | check | 4 | 4 | · |
 | 9 | Inter-rater reliability | evaluation | both | paper | check | 3 | 3 | · |
+| 9 | JudgeLM: swap augmentation improves order consistency; more data improves agreement | evaluation | text | paper |  | 3 | 4 | ✓ |
 | 9 | Judging LLM-as-a-Judge (MT-Bench / Arena) | evaluation | both | paper | check | 3 | 3 | · |
 | 9 | Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena | evaluation | both | paper | check | 3 | 3 | · |
 | 9 | Judging the Judges: Evaluating Alignment and Vulnerabilities in LLMs-as-Judges | evaluation | both | paper | check | 3 | 3 | · |
+| 9 | LLM judges favour models similar to themselves; CAPA measures mistake overlap | evaluation | text | paper |  | 3 | 4 | ✓ |
+| 9 | LLMs make correlated errors, more so for larger, more accurate models | evaluation | text | paper |  | 3 | 4 | ✓ |
 | 9 | LPIPS / PerceptualSimilarity | evaluation | both | paper | check | 3 | 3 | · |
 | 9 | Pick-a-Pic open user preference pairs (Kirstain et al. 2023) | eval | both | paper | check | 4 | 4 | · |
 | 9 | Pre-SPEC pre-specified eval endpoints | eval | both | paper | check | 4 | 4 | · |
 | 9 | Prometheus 2: An Open Source Language Model Specialized in Evaluating Other Language Models | evaluation | both | paper | check | 3 | 3 | · |
+| 9 | Prometheus 2: separately trained pointwise and pairwise judges, merged by weight, beat joint training | evaluation | text | paper |  | 3 | 4 | ✓ |
 | 9 | Prometheus: Inducing Fine-grained Evaluation Capability in Language Models | evaluation | both | paper | check | 3 | 3 | · |
+| 9 | REALMistake: LLM error detectors have low recall on natural errors | evaluation | text | paper |  | 3 | 4 | ✓ |
 | 9 | Rating Scales in UX (Likert biases) | evaluation | both | paper | check | 3 | 3 | · |
 | 9 | Reliability without Validity — LLM-as-judge audit | eval | both | paper | check | 4 | 4 | · |
 | 9 | Reliability without Validity: A Systematic, Large-Scale Evaluation of LLM-as-a-Judge Models Across Agreement, Consistency, and Bias | evaluation | both | paper | check | 3 | 3 | · |
 | 9 | SSCD copy-detection | evaluation | both | paper | check | 3 | 3 | · |
+| 9 | Self-Taught Evaluators: synthetic modified-instruction negatives train a strong judge | evaluation | text | paper |  | 3 | 4 | ✓ |
 | 9 | Spaced repetition / sequenced curriculum hold-with-limit | dataset | both | docs | check | 4 | 4 | · |
 | 9 | sklearn common pitfalls — train/test leakage | eval | both | docs | check | 4 | 4 | · |
 | 9 | sklearn train/test leakage + learning-curve overfit checks | eval | both | docs | check | 4 | 4 | · |
@@ -119,6 +130,46 @@ aspire-si, 2026-10-07 and 2026-10-08. 127 judge-set pairs and 149 fresh confirma
 
 - **Verify:** verdict=confirmed-with-fixes | currency=2026-10-20 | Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family. Fixed: the single-choice baseline on the 127 pairs is 0.701.
 - **Sources:** [aspire-si: Kev confirmation (with its Corrections section)](https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-08-kev-confirmation.md) — Order-averaged 0.886 (149 fresh) and 0.898 (127), single choices 0.685 and 0.701; the corrections scope each earlier figure to its reading. ; [aspire-si: SFT then ASPIRE](https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-07-sft-then-aspire.md) — Whole-number scores tied 89 of 127, right 31 of 38 when separated; JSON-edit error planting. ; [rnd: Qwen2.5-32B as a judge of planted errors](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-07-qwen32b-judge-position-bias.md) — The bench entry this row is promoted from.
+
+### Screening natural errors with local judges: gemma4:31b catches almost every flawed answer, muse-glimmer adds sentences · `recommended` · ▣ measured
+**On 95 llama3.1:8b answers labelled for natural errors, a three-judge local screen (gemma4:31b, mistral-small:24b, granite4.1:30b) flagged every answer that has an error (59 of 59) but only 59 of the 84 error sentences both labelling passes marked (70%). gemma4:31b alone had answer-level recall 0.97 and precision 0.72. muse-glimmer (Meta, 27.9B, Apache-2.0) had answer-level precision and recall of 0.86 and caught 81% of the error sentences; gemma4:31b and muse-glimmer together cover 93%.**
+rnd experiments/natural-errors, 2026-10-08. Labels are model-made: claude-opus-5-5 labelled all 95, four blind Sonnet passes labelled them again, and Opus adjudicated the disagreements; the two passes agree at kappa 0.63 (error vs not), Sonnet marking fewer errors, mostly minor ones. The labels are an evaluation yardstick and are not human-verified. muse-glimmer needs plain-text replies: with Ollama's format: json it answered an empty list on all 95. It is the same family as the llama3.1:8b answers, so read it as in-family. Sources: answers by Llama 3.1 8B (Llama 3.1 Community License), questions by Mistral Small 24B (Apache-2.0).
+- **For the pipeline:** For a natural-error screen, gemma4:31b is the high-recall first pass at the answer level; pair it with a second judge from another family to recover error sentences. Don't force JSON output on muse-glimmer.
+- **Method:** evaluation · **Applies to:** text · **Base:** various · **Kind:** finding
+- **Seed:** n/a (deterministic screen) · **Runs:** 1
+- **Variance:** 95 answers, one labelling scheme, no human gold.
+- **Validated under:** Local Ollama judges on the RTX 5090, 2026-10-08; labels by two Claude passes, adjudicated.
+- **Output license:** commercial **?**
+- **Fit:** rig 5/5 · studio 5/5
+
+**Evaluation**
+
+| Kind | Metric | Result | Threshold | Pass | Judge family |
+|---|---|---|---|---|---|
+| error-screen | answer- and sentence-level recall/precision | screen 59/59 answers, 59/84 sentences; gemma4:31b recall 0.97 precision 0.72; muse-glimmer 0.86/0.86, 68/84 sentences; union 78/84; label kappa 0.63 |  | — |  |
+
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family.
+- **Sources:** [rnd: natural errors, a labelled set](https://github.com/mcp-tool-shop-org/rnd/tree/main/experiments/natural-errors) — The screen, the labels and their agreement, and muse-glimmer. ; [rnd: three follow-up studies for critic recipes](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-three-follow-up-studies-for-critic-recipes-hard-pairs-two-pl.md) — The bench entry this row is promoted from.
+
+### The hardest planted pairs are real errors, and the pipeline's filters never check that a plant is one · `recommended` · ▣ measured
+**On aspire-si's 149 confirmation pairs, the Kev-4B judge fine-tune misses 2-3 pairs per seed order-averaged (2 shared by all three seeds) and 10-12 pairs on single choices (9 shared). The hardest are genuine errors, such as 'must be' changed to 'is usually' known at compile time, and -18 C (0 F) changed to (32 F). aspire-si's pair filters check truncation, no edit, similarity of at least 0.90, length change of at most 5% and self-flag markers; no step verifies that a plant is an error.**
+Per-pair rows of the three fine-tuned seeds (rnd experiments/kev-judge-finetune/results/judge-4b-full-s{0,1,2}-confirm.json): single-choice misses are 11/13/12 presentations of 298, 10/12/11 pairs; order-averaged misses 3/2/3. The hardest pairs' edits were read from aspire-si's confirm_set.json edit spans. The filters were read from clean_dataset.py (pair_problems), build_dataset.py and fresh_pairs.py.
+- **For the pipeline:** A judge's residual misses on planted pairs can be its strongest cases, not its failures: before treating them as judge error, verify each plant is an error. Add a plant-verification step to any planted-error pipeline.
+- **Method:** evaluation · **Applies to:** text · **Base:** various · **Kind:** finding
+- **Seed:** fine-tune seeds 0, 1, 2 · **Runs:** 3
+- **Variance:** Misses vary by 1-2 pairs between seeds; the shared core is 9 single-choice and 2 order-averaged.
+- **Validated under:** Kev-4B judge fine-tune (rnd, 2026-10-07), scored on aspire-si's 149 confirmation pairs.
+- **Output license:** commercial **?**
+- **Fit:** rig 5/5 · studio 5/5
+
+**Evaluation**
+
+| Kind | Metric | Result | Threshold | Pass | Judge family |
+|---|---|---|---|---|---|
+| pairwise-planted-error | misses per seed | order-averaged 3/2/3 (2 shared); single choice 10/12/11 pairs (9 shared) |  | — |  |
+
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family.
+- **Sources:** [rnd: fine-tuning Kev-4B as a judge of planted errors](https://github.com/mcp-tool-shop-org/rnd/tree/main/experiments/kev-judge-finetune) — Per-pair rows for the three seeds. ; [aspire-si clean_dataset.py, build_dataset.py, fresh_pairs.py](https://github.com/mcp-tool-shop-org/aspire-si/tree/b8ab54d/examples/sft-experiment) — The pair filters: five checks, none verifies the plant is an error. ; [rnd: three follow-up studies for critic recipes](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-three-follow-up-studies-for-critic-recipes-hard-pairs-two-pl.md) — The bench entry this row is promoted from.
 
 ### Acceptance threshold calibration + bare-scalar ban (delta-vs-base, pre-declared, held-out) · `recommended` · ▸ reproduced
 **Every diffusion-LoRA acceptance threshold is CALIBRATED once from a base-vs-known-good run, expressed as a DELTA vs the base under identical conditions, pre-declared before the candidate is scored, and pinned — and no eval may emit a verdict carrying a bare scalar without (threshold, accepted, held-out-and-overlap-checked, delta-vs-base).**
@@ -516,6 +567,26 @@ Wave-1 named ai-eyes as the human/different-model tie-breaker and veto; this tec
 - **Verify:** verdict=confirmed-with-fixes | currency=current | MT-Bench paper (arXiv:2306.05685) confirmed real, position bias discussion confirmed. Kambhampati (arXiv:2402.01817) confirmed real. evidence_strength 'community-claim' is correct — the specific port of LLM-judge bias controls to a VLM visual arbiter is a studio design decision, not paper-sourced. Near-dedup warning: wave-1 has 'Bias-controlled different-family LLM judge (order-swap + length-match)' but that covers the TEXT lane; this technique covers the VISUAL lane (ai-eyes VLM). Fix: add an explicit cross-reference distinguishing this as the visual-lane counterpart to the wave-1 text-lane technique. Third source (internal workflow_standards.md) is legitimate grounding for the external-verifier requirement.
 - **Sources:** [Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena](https://arxiv.org/abs/2306.05685) (Lianmin Zheng, Wei-Lin Chiang, Ying Sheng, Siyuan Zhuang, Zhanghao Wu, Yonghao Zhuang, Zi Lin, Zhuohan Li, Dacheng Li, Eric P. Xing, Hao Zhang, Joseph E. Gonzalez, Ion Stoica, 2023) — pairwise judges exhibit position, verbosity, and self-enhancement bias; position-swapping and only counting consistent verdicts controls position bias — the controls ported here to the VLM visual arbiter ; [On Verification and the Role of LLMs (the LLM-Modulo / external-verifier argument)](https://arxiv.org/abs/2402.01817) (Subbarao Kambhampati et al., 2024) — models cannot reliably verify their own outputs; verification must be external — grounds the requirement that the visual arbiter be a different family than the generation stack ; [Workflow Standards — EXTERNAL_VERIFIER and UNCERTAINTY_GATED_HUMANS (mcp-tool-shop)](https://github.com/mcp-tool-shop/mcp-tool-shop) (mcp-tool-shop, 2026) — no model verifies its own output; the verifier is a different family with the generator's reasoning hidden; human checkpoints gate on uncertainty with contrastive framing — the studio standards this rubric implements
 
+### A panel of small judges (PoLL) matches or beats single judges on most QA sets · `situational` · paper
+**PoLL reached Cohen's kappa 0.763 / 0.906 / 0.867 against human judgements on NQ / TriviaQA / HotpotQA. The best single judges were Haiku 0.749 on NQ, CMD-R 0.902 on TriviaQA and Haiku 0.873 on HotpotQA, so PoLL leads on two of three and trails Haiku on HotpotQA.**
+PoLL reached Cohen's kappa 0.763 / 0.906 / 0.867 against human judgements on NQ / TriviaQA / HotpotQA. The best single judges were Haiku 0.749 on NQ, CMD-R 0.902 on TriviaQA and Haiku 0.873 on HotpotQA, so PoLL leads on two of three and trails Haiku on HotpotQA.
+- **For the pipeline:** A small, diverse panel is a strong default judge, but not a guaranteed win on every set.
+- **Method:** evaluation · **Applies to:** text · **Base:** various · **Kind:** finding
+- **Output license:** commercial **?**
+- **Fit:** rig 3/5 · studio 4/5
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family.
+- **Sources:** [Replacing Judges with Juries: Evaluating LLM Generations with a Panel of Diverse Models (Verga et al.)](https://arxiv.org/abs/2404.18796) — Table 1. ; [rnd: dataset recipes for critic jury roles](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat.md) — The bench entry this row is promoted from.
+
+### Adding a persona to the system prompt doesn't improve factual accuracy · `situational` · paper
+**Across 162 personas and 4 model families, adding a persona to the system prompt did not improve factual accuracy over a no-persona control, and automatic persona selection was often no better than random.**
+Across 162 personas and 4 model families, adding a persona to the system prompt did not improve factual accuracy over a no-persona control, and automatic persona selection was often no better than random.
+- **For the pipeline:** Design judge or critic roles by their data and training, not by a persona line in the prompt.
+- **Method:** evaluation · **Applies to:** text · **Base:** various · **Kind:** finding
+- **Output license:** commercial **?**
+- **Fit:** rig 3/5 · studio 4/5
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family.
+- **Sources:** [When "A Helpful Assistant" Is Not Really Helpful: Personas in System Prompts Do Not Improve Performances of Large Language Models (Zheng et al.)](https://arxiv.org/abs/2311.10054) — Abstract. ; [rnd: dataset recipes for critic jury roles](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat.md) — The bench entry this row is promoted from.
+
 ### AlpacaEval · `situational` · paper
 **Pairwise auto-evaluator vs reference; default **length-controlled win-rates**; annotator **`is_randomize_output_order`** against position bias; win-rate = mean preference foil (not invent thresholds).**
 STUDY-055 deepen — Pairwise auto-evaluator vs reference; default **length-controlled win-rates**; annotator **`is_randomize_output_order`** against position bias; win-rate = mean
@@ -623,6 +694,16 @@ STUDY-035 Practitioner Verifier ✅.
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [lm-evaluation-harness README](https://github.com/EleutherAI/lm-evaluation-harness) — Pinned public prompts; peft= in model_args.
 
+### FELM: a segment-labelled factuality benchmark (non-commercial licence) · `situational` · paper
+**FELM has 847 questions and 4,427 segment-level factuality labels. The dataset is CC BY-NC-SA 4.0 (its code is MIT), so it is for internal evaluation only.**
+FELM has 847 questions and 4,427 segment-level factuality labels. The dataset is CC BY-NC-SA 4.0 (its code is MIT), so it is for internal evaluation only.
+- **For the pipeline:** Usable as an internal yardstick for segment-level error detection; never ship it or train a shipped model on it.
+- **Method:** evaluation · **Applies to:** text · **Base:** various · **Kind:** finding
+- **Output license:** commercial **?**
+- **Fit:** rig 3/5 · studio 4/5
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family.
+- **Sources:** [FELM (hkust-nlp)](https://github.com/hkust-nlp/felm) — README lines 35-38 and 110-119. ; [rnd: three follow-up studies for critic recipes](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-three-follow-up-studies-for-critic-recipes-hard-pairs-two-pl.md) — The bench entry this row is promoted from.
+
 ### FastChat LLM Judge / MT-Bench · `situational` · paper
 **LLM-as-judge: single-answer 1–10 grading; **pairwise-baseline** / **pairwise-all** winrate modes; human↔GPT-4 agreement notebook on MT-bench judgments.**
 STUDY-055 deepen — LLM-as-judge: single-answer 1–10 grading; **pairwise-baseline** / **pairwise-all** winrate modes; human↔GPT-4 agreement notebook on MT-bench judgments.
@@ -691,6 +772,16 @@ STUDY-055 deepen — Analog: agreement among raters as a reliability construct (
 - **Verify:** STUDY-055 deepen
 - **Sources:** [Inter-rater reliability](https://en.wikipedia.org/wiki/Inter-rater_reliability) — Analog: agreement among raters as a reliability construct (kappa / ICC / α families). Holds: LLM-judge panels need IRR vs human foil, not solo score. Limit: IRR stats ≠ diffusion LoRA recipe invent.
 
+### JudgeLM: swap augmentation improves order consistency; more data improves agreement · `situational` · paper
+**Swap augmentation raised JudgeLM-7B's order consistency from 73.45% to 78.89%. Going from 3.5K to 100K training examples raised agreement from 75.87 to 83.71 (7B) and 85.38 to 90.06 (33B).**
+Swap augmentation raised JudgeLM-7B's order consistency from 73.45% to 78.89%. Going from 3.5K to 100K training examples raised agreement from 75.87 to 83.71 (7B) and 85.38 to 90.06 (33B).
+- **For the pipeline:** Train judges on both answer orders; position bias is a training-data problem as much as a model one.
+- **Method:** evaluation · **Applies to:** text · **Base:** various · **Kind:** finding
+- **Output license:** commercial **?**
+- **Fit:** rig 3/5 · studio 4/5
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family.
+- **Sources:** [JudgeLM: Fine-tuned Large Language Models are Scalable Judges (Zhu et al.)](https://arxiv.org/abs/2310.17631) — Table 5 and the data-scaling table. ; [rnd: dataset recipes for critic jury roles](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat.md) — The bench entry this row is promoted from.
+
 ### Judging LLM-as-a-Judge (MT-Bench / Arena) · `situational` · paper
 **Analog: LLM judges show position/verbosity/self-enhancement biases; agreement with humans must be verified. Holds: **judge ≠ automatic human substitute**. Limit: chat MT-Bench ≠ T2I preference panels.**
 STUDY-055 deepen — Analog: LLM judges show position/verbosity/self-enhancement biases; agreement with humans must be verified. Holds: **judge ≠ automatic human substitute**.
@@ -720,6 +811,26 @@ STUDY-055 deepen — Only largest judges reasonably align; still differ from hum
 - **Fit:** rig 3/5 · studio 3/5
 - **Verify:** STUDY-055 deepen
 - **Sources:** [Judging the Judges: Evaluating Alignment and Vulnerabilities in LLMs-as-Judges](https://arxiv.org/abs/2406.12624) — Only largest judges reasonably align; still differ from humans; urges metrics beyond percent agreement — judge-vs-human honesty without inventing ship gates.
+
+### LLM judges favour models similar to themselves; CAPA measures mistake overlap · `situational` · paper
+**LLM-as-a-judge scores favour models similar to the judge, and model mistakes grow more similar with capability. CAPA measures chance-adjusted overlap of mistakes.**
+LLM-as-a-judge scores favour models similar to the judge, and model mistakes grow more similar with capability. CAPA measures chance-adjusted overlap of mistakes.
+- **For the pipeline:** Pick judges from a different family than the models judged, and track mistake overlap with a chance-adjusted measure.
+- **Method:** evaluation · **Applies to:** text · **Base:** various · **Kind:** finding
+- **Output license:** commercial **?**
+- **Fit:** rig 3/5 · studio 4/5
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family.
+- **Sources:** [Great Models Think Alike and this Undermines AI Oversight (Goel et al.)](https://arxiv.org/abs/2502.04313) — Abstract. ; [rnd: dataset recipes for critic jury roles](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat.md) — The bench entry this row is promoted from.
+
+### LLMs make correlated errors, more so for larger, more accurate models · `situational` · paper
+**Across 350+ LLMs, on one leaderboard dataset (HELM), two models that both err agree on the same wrong answer about 60% of the time. Shared architectures and providers raise it, and larger, more accurate models have highly correlated errors even across architectures and providers.**
+Across 350+ LLMs, on one leaderboard dataset (HELM), two models that both err agree on the same wrong answer about 60% of the time. Shared architectures and providers raise it, and larger, more accurate models have highly correlated errors even across architectures and providers.
+- **For the pipeline:** A jury of strong models is less independent than its size suggests; diversify by family and measure error overlap.
+- **Method:** evaluation · **Applies to:** text · **Base:** various · **Kind:** finding
+- **Output license:** commercial **?**
+- **Fit:** rig 3/5 · studio 4/5
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family.
+- **Sources:** [Correlated Errors in Large Language Models (Kim et al.)](https://arxiv.org/abs/2506.07962) — Abstract: 'on one leaderboard dataset, models agree 60% of the time when both models err'. ; [rnd: dataset recipes for critic jury roles](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat.md) — The bench entry this row is promoted from.
 
 ### LPIPS / PerceptualSimilarity · `situational` · paper
 **Perceptual distance (higher = more different); BAPPS **2AFC** human foil (ref + two distorted; pick closer) + **JND**; CLI `lpips_2imgs` / `lpips_2dirs`.**
@@ -759,6 +870,16 @@ STUDY-055 deepen — Direct assessment **and** pairwise ranking; highest human/G
 - **Verify:** STUDY-055 deepen
 - **Sources:** [Prometheus 2: An Open Source Language Model Specialized in Evaluating Other Lang](https://arxiv.org/abs/2405.01535) — Direct assessment **and** pairwise ranking; highest human/GPT-4 agreement among open judges tested — dual-protocol open judge craft.
 
+### Prometheus 2: separately trained pointwise and pairwise judges, merged by weight, beat joint training · `situational` · paper
+**Merging separately trained pointwise and pairwise judges by weight reached 0.670 Pearson and 79.15% pairwise accuracy, against 0.595 and 75.29% for joint training (averaged columns).**
+Merging separately trained pointwise and pairwise judges by weight reached 0.670 Pearson and 79.15% pairwise accuracy, against 0.595 and 75.29% for joint training (averaged columns).
+- **For the pipeline:** For a judge that must grade both ways, train each format separately and merge weights.
+- **Method:** evaluation · **Applies to:** text · **Base:** various · **Kind:** finding
+- **Output license:** commercial **?**
+- **Fit:** rig 3/5 · studio 4/5
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family.
+- **Sources:** [Prometheus 2: An Open Source Language Model Specialized in Evaluating Other Language Models (Kim et al.)](https://arxiv.org/abs/2405.01535) — Table 5. ; [rnd: dataset recipes for critic jury roles](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat.md) — The bench entry this row is promoted from.
+
 ### Prometheus: Inducing Fine-grained Evaluation Capability in Language Models · `situational` · paper
 **Open evaluator LLM with custom rubrics; high Pearson with human evaluators on Feedback Collection — open judge alternative to proprietary-only scoring.**
 STUDY-055 deepen — Open evaluator LLM with custom rubrics; high Pearson with human evaluators on Feedback Collection — open judge alternative to proprietary-only scoring.
@@ -768,6 +889,16 @@ STUDY-055 deepen — Open evaluator LLM with custom rubrics; high Pearson with h
 - **Fit:** rig 3/5 · studio 3/5
 - **Verify:** STUDY-055 deepen
 - **Sources:** [Prometheus: Inducing Fine-grained Evaluation Capability in Language Models](https://arxiv.org/abs/2310.08491) — Open evaluator LLM with custom rubrics; high Pearson with human evaluators on Feedback Collection — open judge alternative to proprietary-only scoring.
+
+### REALMistake: LLM error detectors have low recall on natural errors · `situational` · paper
+**On REALMistake, LLM error detectors including GPT-4 and Claude 3 detected naturally occurring LLM errors at very low recall, far below humans, and majority voting across models and prompts did not help. The Hugging Face dataset card gives cc-by-sa-4.0.**
+On REALMistake, LLM error detectors including GPT-4 and Claude 3 detected naturally occurring LLM errors at very low recall, far below humans, and majority voting across models and prompts did not help. The Hugging Face dataset card gives cc-by-sa-4.0.
+- **For the pipeline:** Don't assume a strong model will catch natural errors; measure recall on natural errors, not only planted ones.
+- **Method:** evaluation · **Applies to:** text · **Base:** various · **Kind:** finding
+- **Output license:** commercial **?**
+- **Fit:** rig 3/5 · studio 4/5
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family.
+- **Sources:** [Evaluating LLMs at Detecting Errors in LLM Responses (Kamoi et al.; REALMistake)](https://arxiv.org/abs/2404.03602) — Abstract: detect errors at very low recall; Appendix A.2: majority vote does not improve. ; [rnd: three follow-up studies for critic recipes](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-three-follow-up-studies-for-critic-recipes-hard-pairs-two-pl.md) — The bench entry this row is promoted from.
 
 ### Rating Scales in UX (Likert biases) · `situational` · paper
 **Analog: Likert/semantic scales carry acquiescence / social-desirability bias. Holds for HCI preference protocol design (forced choice / foil over soft agree). Limit: UX surveys ≠ Comfy batch eval harness.**
@@ -807,6 +938,16 @@ STUDY-055 deepen — Self-supervised fingerprint for copy/overfit foil; README s
 - **Fit:** rig 3/5 · studio 3/5
 - **Verify:** STUDY-055 deepen
 - **Sources:** [SSCD copy-detection](https://github.com/facebookresearch/sscd-copy-detection) — Self-supervised fingerprint for copy/overfit foil; README states for `sscd_disc_mixup`, DISC pairs with cosine **>0.75** are copies at **90% precision** (vendor claim on-page — not a studio ship gate
+
+### Self-Taught Evaluators: synthetic modified-instruction negatives train a strong judge · `situational` · paper
+**Self-Taught Evaluators lifted Llama-3-70B-Instruct from 75.4 to 88.3 on RewardBench (88.7 with majority vote). Negatives from modified instructions scored 83.8, against 80.7 for directly prompted bad responses.**
+Self-Taught Evaluators lifted Llama-3-70B-Instruct from 75.4 to 88.3 on RewardBench (88.7 with majority vote). Negatives from modified instructions scored 83.8, against 80.7 for directly prompted bad responses.
+- **For the pipeline:** When training a judge without human labels, generate negatives by answering a modified instruction rather than asking for a bad answer.
+- **Method:** evaluation · **Applies to:** text · **Base:** various · **Kind:** finding
+- **Output license:** commercial **?**
+- **Fit:** rig 3/5 · studio 4/5
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family.
+- **Sources:** [Self-Taught Evaluators (Wang et al.)](https://arxiv.org/abs/2408.02666) — Abstract; section 6.2. ; [rnd: dataset recipes for critic jury roles](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat.md) — The bench entry this row is promoted from.
 
 ### Spaced repetition / sequenced curriculum hold-with-limit · `situational` · docs
 **Isolate fundamentals before mixing — anti-bleed curriculum analogy; limit ≠ invent caption-tag recipes.**

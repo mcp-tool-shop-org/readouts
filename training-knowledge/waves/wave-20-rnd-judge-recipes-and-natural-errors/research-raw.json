@@ -1,0 +1,587 @@
+{
+  "wave": 20,
+  "date": "2026-10-20",
+  "title": "Wave 20 - promoted from rnd: judges, juries and planted pairs (two critic-design entries)",
+  "domain_scope": "rnd promotion: critic and judge design, 2026-10-08",
+  "agent_count": 0,
+  "dispatch_path": "waves/wave-20-rnd-judge-recipes-and-natural-errors/dispatch.md",
+  "verifier_note": "Promoted from rnd entries 2026-10-08-three-follow-up-studies-for-critic-recipes-hard-pairs-two-pl and 2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat. Verified claims only. Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family. Three figures corrected on the way in; see verification.md.",
+  "lanes": [
+    {
+      "slug": "evaluation",
+      "name": "Evaluation",
+      "research": {
+        "techniques": [
+          {
+            "slug": "planted-pair-filters-never-check-the-error",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "various",
+            "evidence_strength": "measured-on-rig",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "name": "The hardest planted pairs are real errors, and the pipeline's filters never check that a plant is one",
+            "claim": "On aspire-si's 149 confirmation pairs, the Kev-4B judge fine-tune misses 2-3 pairs per seed order-averaged (2 shared by all three seeds) and 10-12 pairs on single choices (9 shared). The hardest are genuine errors, such as 'must be' changed to 'is usually' known at compile time, and -18 C (0 F) changed to (32 F). aspire-si's pair filters check truncation, no edit, similarity of at least 0.90, length change of at most 5% and self-flag markers; no step verifies that a plant is an error.",
+            "summary": "Per-pair rows of the three fine-tuned seeds (rnd experiments/kev-judge-finetune/results/judge-4b-full-s{0,1,2}-confirm.json): single-choice misses are 11/13/12 presentations of 298, 10/12/11 pairs; order-averaged misses 3/2/3. The hardest pairs' edits were read from aspire-si's confirm_set.json edit spans. The filters were read from clean_dataset.py (pair_problems), build_dataset.py and fresh_pairs.py.",
+            "design_implication": "A judge's residual misses on planted pairs can be its strongest cases, not its failures: before treating them as judge error, verify each plant is an error. Add a plant-verification step to any planted-error pipeline.",
+            "seed": "fine-tune seeds 0, 1, 2",
+            "num_runs": 3,
+            "variance_note": "Misses vary by 1-2 pairs between seeds; the shared core is 9 single-choice and 2 order-averaged.",
+            "measured_conditions": "Kev-4B judge fine-tune (rnd, 2026-10-07), scored on aspire-si's 149 confirmation pairs.",
+            "evals": [
+              {
+                "eval_kind": "pairwise-planted-error",
+                "metric": "misses per seed",
+                "harness": "aspire-si judge_kev.py",
+                "result": "order-averaged 3/2/3 (2 shared); single choice 10/12/11 pairs (9 shared)",
+                "note": "recomputed from the three *-confirm.json files, 2026-10-20"
+              }
+            ],
+            "sources": [
+              {
+                "kind": "run-report",
+                "title": "rnd: fine-tuning Kev-4B as a judge of planted errors",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/tree/main/experiments/kev-judge-finetune",
+                "claim": "Per-pair rows for the three seeds.",
+                "finding_supported": true
+              },
+              {
+                "kind": "code",
+                "title": "aspire-si clean_dataset.py, build_dataset.py, fresh_pairs.py",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/aspire-si/tree/b8ab54d/examples/sft-experiment",
+                "claim": "The pair filters: five checks, none verifies the plant is an error.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: three follow-up studies for critic recipes",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-three-follow-up-studies-for-critic-recipes-hard-pairs-two-pl.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          },
+          {
+            "slug": "natural-errors-local-screen-judges",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "various",
+            "evidence_strength": "measured-on-rig",
+            "rig_fit": 5,
+            "studio_fit": 5,
+            "status": "recommended",
+            "name": "Screening natural errors with local judges: gemma4:31b catches almost every flawed answer, muse-glimmer adds sentences",
+            "claim": "On 95 llama3.1:8b answers labelled for natural errors, a three-judge local screen (gemma4:31b, mistral-small:24b, granite4.1:30b) flagged every answer that has an error (59 of 59) but only 59 of the 84 error sentences both labelling passes marked (70%). gemma4:31b alone had answer-level recall 0.97 and precision 0.72. muse-glimmer (Meta, 27.9B, Apache-2.0) had answer-level precision and recall of 0.86 and caught 81% of the error sentences; gemma4:31b and muse-glimmer together cover 93%.",
+            "summary": "rnd experiments/natural-errors, 2026-10-08. Labels are model-made: claude-opus-5-5 labelled all 95, four blind Sonnet passes labelled them again, and Opus adjudicated the disagreements; the two passes agree at kappa 0.63 (error vs not), Sonnet marking fewer errors, mostly minor ones. The labels are an evaluation yardstick and are not human-verified. muse-glimmer needs plain-text replies: with Ollama's format: json it answered an empty list on all 95. It is the same family as the llama3.1:8b answers, so read it as in-family. Sources: answers by Llama 3.1 8B (Llama 3.1 Community License), questions by Mistral Small 24B (Apache-2.0).",
+            "design_implication": "For a natural-error screen, gemma4:31b is the high-recall first pass at the answer level; pair it with a second judge from another family to recover error sentences. Don't force JSON output on muse-glimmer.",
+            "seed": "n/a (deterministic screen)",
+            "num_runs": 1,
+            "variance_note": "95 answers, one labelling scheme, no human gold.",
+            "measured_conditions": "Local Ollama judges on the RTX 5090, 2026-10-08; labels by two Claude passes, adjudicated.",
+            "evals": [
+              {
+                "eval_kind": "error-screen",
+                "metric": "answer- and sentence-level recall/precision",
+                "harness": "rnd natural-errors gold.json vs screen.json and screen_extra.json",
+                "result": "screen 59/59 answers, 59/84 sentences; gemma4:31b recall 0.97 precision 0.72; muse-glimmer 0.86/0.86, 68/84 sentences; union 78/84; label kappa 0.63",
+                "note": "recomputed from the JSON, 2026-10-20; README lines 149-169 for muse-glimmer"
+              }
+            ],
+            "sources": [
+              {
+                "kind": "run-report",
+                "title": "rnd: natural errors, a labelled set",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/tree/main/experiments/natural-errors",
+                "claim": "The screen, the labels and their agreement, and muse-glimmer.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: three follow-up studies for critic recipes",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-three-follow-up-studies-for-critic-recipes-hard-pairs-two-pl.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          },
+          {
+            "slug": "realmistake-llm-error-detection-recall",
+            "name": "REALMistake: LLM error detectors have low recall on natural errors",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "various",
+            "claim": "On REALMistake, LLM error detectors including GPT-4 and Claude 3 detected naturally occurring LLM errors at very low recall, far below humans, and majority voting across models and prompts did not help. The Hugging Face dataset card gives cc-by-sa-4.0.",
+            "summary": "On REALMistake, LLM error detectors including GPT-4 and Claude 3 detected naturally occurring LLM errors at very low recall, far below humans, and majority voting across models and prompts did not help. The Hugging Face dataset card gives cc-by-sa-4.0.",
+            "design_implication": "Don't assume a strong model will catch natural errors; measure recall on natural errors, not only planted ones.",
+            "evidence_strength": "paper",
+            "rig_fit": 3,
+            "studio_fit": 4,
+            "status": "situational",
+            "evals": [],
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Evaluating LLMs at Detecting Errors in LLM Responses (Kamoi et al.; REALMistake)",
+                "year": 2024,
+                "url": "https://arxiv.org/abs/2404.03602",
+                "claim": "Abstract: detect errors at very low recall; Appendix A.2: majority vote does not improve.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: three follow-up studies for critic recipes",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-three-follow-up-studies-for-critic-recipes-hard-pairs-two-pl.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          },
+          {
+            "slug": "felm-factuality-segment-benchmark",
+            "name": "FELM: a segment-labelled factuality benchmark (non-commercial licence)",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "various",
+            "claim": "FELM has 847 questions and 4,427 segment-level factuality labels. The dataset is CC BY-NC-SA 4.0 (its code is MIT), so it is for internal evaluation only.",
+            "summary": "FELM has 847 questions and 4,427 segment-level factuality labels. The dataset is CC BY-NC-SA 4.0 (its code is MIT), so it is for internal evaluation only.",
+            "design_implication": "Usable as an internal yardstick for segment-level error detection; never ship it or train a shipped model on it.",
+            "evidence_strength": "paper",
+            "rig_fit": 3,
+            "studio_fit": 4,
+            "status": "situational",
+            "evals": [],
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "FELM (hkust-nlp)",
+                "year": 2023,
+                "url": "https://github.com/hkust-nlp/felm",
+                "claim": "README lines 35-38 and 110-119.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: three follow-up studies for critic recipes",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-three-follow-up-studies-for-critic-recipes-hard-pairs-two-pl.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          },
+          {
+            "slug": "personas-do-not-improve-factual-accuracy",
+            "name": "Adding a persona to the system prompt doesn't improve factual accuracy",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "various",
+            "claim": "Across 162 personas and 4 model families, adding a persona to the system prompt did not improve factual accuracy over a no-persona control, and automatic persona selection was often no better than random.",
+            "summary": "Across 162 personas and 4 model families, adding a persona to the system prompt did not improve factual accuracy over a no-persona control, and automatic persona selection was often no better than random.",
+            "design_implication": "Design judge or critic roles by their data and training, not by a persona line in the prompt.",
+            "evidence_strength": "paper",
+            "rig_fit": 3,
+            "studio_fit": 4,
+            "status": "situational",
+            "evals": [],
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "When \"A Helpful Assistant\" Is Not Really Helpful: Personas in System Prompts Do Not Improve Performances of Large Language Models (Zheng et al.)",
+                "year": 2023,
+                "url": "https://arxiv.org/abs/2311.10054",
+                "claim": "Abstract.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: dataset recipes for critic jury roles",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          },
+          {
+            "slug": "self-taught-evaluators",
+            "name": "Self-Taught Evaluators: synthetic modified-instruction negatives train a strong judge",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "various",
+            "claim": "Self-Taught Evaluators lifted Llama-3-70B-Instruct from 75.4 to 88.3 on RewardBench (88.7 with majority vote). Negatives from modified instructions scored 83.8, against 80.7 for directly prompted bad responses.",
+            "summary": "Self-Taught Evaluators lifted Llama-3-70B-Instruct from 75.4 to 88.3 on RewardBench (88.7 with majority vote). Negatives from modified instructions scored 83.8, against 80.7 for directly prompted bad responses.",
+            "design_implication": "When training a judge without human labels, generate negatives by answering a modified instruction rather than asking for a bad answer.",
+            "evidence_strength": "paper",
+            "rig_fit": 3,
+            "studio_fit": 4,
+            "status": "situational",
+            "evals": [],
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Self-Taught Evaluators (Wang et al.)",
+                "year": 2024,
+                "url": "https://arxiv.org/abs/2408.02666",
+                "claim": "Abstract; section 6.2.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: dataset recipes for critic jury roles",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          },
+          {
+            "slug": "prometheus-2-weight-merged-judges",
+            "name": "Prometheus 2: separately trained pointwise and pairwise judges, merged by weight, beat joint training",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "various",
+            "claim": "Merging separately trained pointwise and pairwise judges by weight reached 0.670 Pearson and 79.15% pairwise accuracy, against 0.595 and 75.29% for joint training (averaged columns).",
+            "summary": "Merging separately trained pointwise and pairwise judges by weight reached 0.670 Pearson and 79.15% pairwise accuracy, against 0.595 and 75.29% for joint training (averaged columns).",
+            "design_implication": "For a judge that must grade both ways, train each format separately and merge weights.",
+            "evidence_strength": "paper",
+            "rig_fit": 3,
+            "studio_fit": 4,
+            "status": "situational",
+            "evals": [],
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Prometheus 2: An Open Source Language Model Specialized in Evaluating Other Language Models (Kim et al.)",
+                "year": 2024,
+                "url": "https://arxiv.org/abs/2405.01535",
+                "claim": "Table 5.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: dataset recipes for critic jury roles",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          },
+          {
+            "slug": "judgelm-swap-augmentation-and-scale",
+            "name": "JudgeLM: swap augmentation improves order consistency; more data improves agreement",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "various",
+            "claim": "Swap augmentation raised JudgeLM-7B's order consistency from 73.45% to 78.89%. Going from 3.5K to 100K training examples raised agreement from 75.87 to 83.71 (7B) and 85.38 to 90.06 (33B).",
+            "summary": "Swap augmentation raised JudgeLM-7B's order consistency from 73.45% to 78.89%. Going from 3.5K to 100K training examples raised agreement from 75.87 to 83.71 (7B) and 85.38 to 90.06 (33B).",
+            "design_implication": "Train judges on both answer orders; position bias is a training-data problem as much as a model one.",
+            "evidence_strength": "paper",
+            "rig_fit": 3,
+            "studio_fit": 4,
+            "status": "situational",
+            "evals": [],
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "JudgeLM: Fine-tuned Large Language Models are Scalable Judges (Zhu et al.)",
+                "year": 2023,
+                "url": "https://arxiv.org/abs/2310.17631",
+                "claim": "Table 5 and the data-scaling table.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: dataset recipes for critic jury roles",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          },
+          {
+            "slug": "llm-errors-are-correlated",
+            "name": "LLMs make correlated errors, more so for larger, more accurate models",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "various",
+            "claim": "Across 350+ LLMs, on one leaderboard dataset (HELM), two models that both err agree on the same wrong answer about 60% of the time. Shared architectures and providers raise it, and larger, more accurate models have highly correlated errors even across architectures and providers.",
+            "summary": "Across 350+ LLMs, on one leaderboard dataset (HELM), two models that both err agree on the same wrong answer about 60% of the time. Shared architectures and providers raise it, and larger, more accurate models have highly correlated errors even across architectures and providers.",
+            "design_implication": "A jury of strong models is less independent than its size suggests; diversify by family and measure error overlap.",
+            "evidence_strength": "paper",
+            "rig_fit": 3,
+            "studio_fit": 4,
+            "status": "situational",
+            "evals": [],
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Correlated Errors in Large Language Models (Kim et al.)",
+                "year": 2025,
+                "url": "https://arxiv.org/abs/2506.07962",
+                "claim": "Abstract: 'on one leaderboard dataset, models agree 60% of the time when both models err'.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: dataset recipes for critic jury roles",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          },
+          {
+            "slug": "judges-favour-similar-models-capa",
+            "name": "LLM judges favour models similar to themselves; CAPA measures mistake overlap",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "various",
+            "claim": "LLM-as-a-judge scores favour models similar to the judge, and model mistakes grow more similar with capability. CAPA measures chance-adjusted overlap of mistakes.",
+            "summary": "LLM-as-a-judge scores favour models similar to the judge, and model mistakes grow more similar with capability. CAPA measures chance-adjusted overlap of mistakes.",
+            "design_implication": "Pick judges from a different family than the models judged, and track mistake overlap with a chance-adjusted measure.",
+            "evidence_strength": "paper",
+            "rig_fit": 3,
+            "studio_fit": 4,
+            "status": "situational",
+            "evals": [],
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Great Models Think Alike and this Undermines AI Oversight (Goel et al.)",
+                "year": 2025,
+                "url": "https://arxiv.org/abs/2502.04313",
+                "claim": "Abstract.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: dataset recipes for critic jury roles",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          },
+          {
+            "slug": "poll-panel-of-judges",
+            "name": "A panel of small judges (PoLL) matches or beats single judges on most QA sets",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "various",
+            "claim": "PoLL reached Cohen's kappa 0.763 / 0.906 / 0.867 against human judgements on NQ / TriviaQA / HotpotQA. The best single judges were Haiku 0.749 on NQ, CMD-R 0.902 on TriviaQA and Haiku 0.873 on HotpotQA, so PoLL leads on two of three and trails Haiku on HotpotQA.",
+            "summary": "PoLL reached Cohen's kappa 0.763 / 0.906 / 0.867 against human judgements on NQ / TriviaQA / HotpotQA. The best single judges were Haiku 0.749 on NQ, CMD-R 0.902 on TriviaQA and Haiku 0.873 on HotpotQA, so PoLL leads on two of three and trails Haiku on HotpotQA.",
+            "design_implication": "A small, diverse panel is a strong default judge, but not a guaranteed win on every set.",
+            "evidence_strength": "paper",
+            "rig_fit": 3,
+            "studio_fit": 4,
+            "status": "situational",
+            "evals": [],
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Replacing Judges with Juries: Evaluating LLM Generations with a Panel of Diverse Models (Verga et al.)",
+                "year": 2024,
+                "url": "https://arxiv.org/abs/2404.18796",
+                "claim": "Table 1.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: dataset recipes for critic jury roles",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "slug": "planted-pair-filters-never-check-the-error",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family."
+          },
+          {
+            "slug": "natural-errors-local-screen-judges",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family."
+          },
+          {
+            "slug": "realmistake-llm-error-detection-recall",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family."
+          },
+          {
+            "slug": "felm-factuality-segment-benchmark",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family."
+          },
+          {
+            "slug": "personas-do-not-improve-factual-accuracy",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family."
+          },
+          {
+            "slug": "self-taught-evaluators",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family."
+          },
+          {
+            "slug": "prometheus-2-weight-merged-judges",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family."
+          },
+          {
+            "slug": "judgelm-swap-augmentation-and-scale",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family."
+          },
+          {
+            "slug": "llm-errors-are-correlated",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family."
+          },
+          {
+            "slug": "judges-favour-similar-models-capa",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family."
+          },
+          {
+            "slug": "poll-panel-of-judges",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family."
+          }
+        ]
+      }
+    },
+    {
+      "slug": "llm-finetune",
+      "name": "Local LLM fine-tuning",
+      "research": {
+        "techniques": [
+          {
+            "slug": "jtt-upweight-errors-worst-group",
+            "name": "Just Train Twice: upweighting the first model's errors closes most of the worst-group gap",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "various",
+            "claim": "JTT closed 75% of the gap in worst-group accuracy between standard training and group DRO, averaged over four tasks, without group labels at training time.",
+            "summary": "JTT closed 75% of the gap in worst-group accuracy between standard training and group DRO, averaged over four tasks, without group labels at training time.",
+            "design_implication": "When a critic fails on a subgroup of hard pairs, upweight the pairs a first model got wrong before reaching for group labels.",
+            "evidence_strength": "paper",
+            "rig_fit": 3,
+            "studio_fit": 4,
+            "status": "situational",
+            "evals": [],
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "Just Train Twice: Improving Group Robustness without Training Group Information (Liu et al.)",
+                "year": 2021,
+                "url": "https://arxiv.org/abs/2107.09044",
+                "claim": "Abstract.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: three follow-up studies for critic recipes",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-three-follow-up-studies-for-critic-recipes-hard-pairs-two-pl.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          },
+          {
+            "slug": "easy-to-hard-generalization",
+            "name": "Training on easy data often matches training on hard data",
+            "kind": "finding",
+            "method_family": "evaluation",
+            "applicable_to": "text",
+            "base_model_family": "various",
+            "claim": "Models fine-tuned on easy data often performed as well as oracle models fine-tuned on hard data, for open models up to 70B on four QA datasets.",
+            "summary": "Models fine-tuned on easy data often performed as well as oracle models fine-tuned on hard data, for open models up to 70B on four QA datasets.",
+            "design_implication": "When hard training pairs are scarce or noisy, easy pairs are a reasonable substitute; test before collecting hard data at cost.",
+            "evidence_strength": "paper",
+            "rig_fit": 3,
+            "studio_fit": 4,
+            "status": "situational",
+            "evals": [],
+            "sources": [
+              {
+                "kind": "paper",
+                "title": "The Unreasonable Effectiveness of Easy Training Data for Hard Tasks (Hase et al.)",
+                "year": 2024,
+                "url": "https://arxiv.org/abs/2401.06751",
+                "claim": "Abstract.",
+                "finding_supported": true
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: three follow-up studies for critic recipes",
+                "year": 2026,
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-three-follow-up-studies-for-critic-recipes-hard-pairs-two-pl.md",
+                "claim": "The bench entry this row is promoted from.",
+                "finding_supported": true
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "slug": "jtt-upweight-errors-worst-group",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family."
+          },
+          {
+            "slug": "easy-to-hard-generalization",
+            "overall": "confirmed",
+            "currency": "2026-10-20",
+            "note": "Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family."
+          }
+        ]
+      }
+    }
+  ]
+}

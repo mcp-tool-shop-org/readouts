@@ -1,6 +1,6 @@
 # readouts — tensor-engine-knowledge · verification receipt
 
-> **134/193 engines verified · 498 sources (388 resolve) · 20 waves · generated 2026-10-20.**  
+> **134/193 engines verified · 502 sources (388 resolve) · 21 waves · generated 2026-10-20.**  
 > Verdicts: 26 confirmed clean · 107 confirmed-with-fixes · 59 unverified.
 
 ## Verification method, by wave
@@ -25,6 +25,7 @@
 - **Wave 18** (Promoted from rnd — rig measurements (E4b, E5) and Ollama / CUDA / rented-host recipes): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch as retrieval oracle (existence/license/specs/currency). Family-different prism/roleos path deferred to a later wave.
 - **Wave 19** (Promoted from rnd — CUDA 13.4 developer-experience changes, re-sourced from NVIDIA): Promotion, not a research swarm. Re-sourced by the R&D seat on 2026-10-20 from NVIDIA's CUDA Toolkit 13.4 release notes (GA, 13.4.1, archived) and the nvcc 13.4 documentation; the rnd entry's livestream-slide claims that neither source states are not loaded. Retrieval against NVIDIA's pages only; no second model family. See verification.md.
 - **Wave 20** (Wave 20): Promotion, not a research swarm. The R&D seat ran the rung itself and re-read its committed results on 2026-10-20; the bench's one unverified claim (CuPy's runtime) was settled by a DLL listing under the Publisher's GPU grant and merged in rnd 1.1.23.1.5 before this wave. No second model family. See verification.md.
+- **Wave 21** (Wave 21): Promotion, not a research swarm. Promoted from rnd entries 2026-10-13-nvidia-pair-a-lan-inference-router-and-how-it-compares-with- and 2026-10-07-cuda-tile-programming. A Sonnet subagent read each claim against NVIDIA's repository, release and docs on 2026-10-20; the R&D seat re-read the architecture lines, the release notes and the telemetry section. The bench's 'no telemetry beyond paired nodes' is replaced by NVIDIA's own statement; CUDA Tile's PDL claim stays unverified on the bench. No second model family. See verification.md.
 
 ## Corrections — confirmed with fixes (107)
 

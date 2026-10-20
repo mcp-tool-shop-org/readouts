@@ -1,5 +1,5 @@
 # Captioning & tagging
-_VLM captioners + booru taggers for dataset building_ · wave 21 · 2026-10-20 · [‹ catalog index](README.md)
+_VLM captioners + booru taggers for dataset building_ · wave 22 · 2026-10-20 · [‹ catalog index](README.md)
 
 11 models · 7 recommended · 9 commercial-safe (license=yes). Narrative + re-download plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

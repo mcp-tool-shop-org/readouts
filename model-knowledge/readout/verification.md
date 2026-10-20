@@ -1,6 +1,6 @@
 # readouts — model-knowledge · verification receipt
 
-> **127/130 models verified · 565 sources (323 resolve) · 22 waves · generated 2026-10-20.**  
+> **127/130 models verified · 566 sources (323 resolve) · 23 waves · generated 2026-10-20.**  
 > Verdicts: 93 confirmed clean · 34 confirmed-with-fixes · 3 unverified.
 
 ## Verification method, by wave
@@ -26,6 +26,7 @@
 - **Wave 19** (Wave 19 - promoted from rnd: nemotron-3.5-lightning needs its context raised under Claude Code): Promotion, not a research swarm. The run counts were re-read by the R&D seat on 2026-10-20 against the atlas-mcp-utility shakedown reports recovered read-only from the atlas-pilot sandbox (receipts named with their SHA-256 in verification.md). The default-context result is a halted shakedown, stated as such. The fill-check figures have no surviving record and are recorded as unverified. No second model family.
 - **Wave 20** (Wave 20 - promoted from rnd: EmbeddingGemma 2, a multimodal embedder, and its studio benchmark): Promotion, not a research swarm. Re-read by the R&D seat on 2026-10-20: the three model-card claims unverified on the bench were checked against the card at rev 914f7f89 and load; the benchmark and rig figures were checked against rnd's results file. No second model family. See verification.md.
 - **Wave 21** (Wave 21 - promoted from rnd: open Jev-style decision models (Kev, Laya, Nimble) and the studio's Kev runs): Promotion, not a research swarm. Each claim was re-read on 2026-10-20 against its receipt: rnd's openjev-vs-jev and kev-judge-finetune result files, aspire-si's kev-confirmation report at b8ab54d, and the Kev, Laya and Nimble READMEs and cards (line numbers in each note). A Sonnet subagent did the first pass; the R&D seat spot-checked its three corrections. Claims without a committed receipt are not loaded. No second model family. See verification.md.
+- **Wave 22** (Wave 22 - promoted from rnd: TranslateGemma's failure modes on README tables): Promotion, not a research swarm. Promoted from rnd entry 2026-10-08-translategemma-failure-modes-on-readme-tables. A Sonnet subagent re-read the claims against ai-jam-sessions on 2026-10-20; the R&D seat re-read commit 5f8d1e2's README.zh.md diff and message, commit e4cd2fb's message, and the cache at 5f8d1e2. The licence is from the Hugging Face Hub API (the card is gated). No second model family. See verification.md.
 
 ## Corrections — confirmed with fixes (34)
 

@@ -1,7 +1,7 @@
 # Local LLM fine-tuning (SFT + preference + RL)
-_24-34B at Q-quant on one 32 GB GPU: QLoRA-NF4 SFT + chat templates, then the preference/RL family selected by the DATA you have — DPO/ORPO/KTO/SimPO and GRPO/RLVR. Light reverse-KL/on-policy distillation lives here too._ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
+_24-34B at Q-quant on one 32 GB GPU: QLoRA-NF4 SFT + chat templates, then the preference/RL family selected by the DATA you have — DPO/ORPO/KTO/SimPO and GRPO/RLVR. Light reverse-KL/on-policy distillation lives here too._ · wave 20 · 2026-10-20 · [‹ catalog index](README.md)
 
-19 techniques · 6 recommended · 3 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
+21 techniques · 6 recommended · 3 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 
 | ↓ | Technique | Method | Applies | Evidence | Comm | Rig | Studio | ✓ |
 |---|-----------|--------|---------|----------|------|-----|--------|---|
@@ -23,6 +23,8 @@ _24-34B at Q-quant on one 32 GB GPU: QLoRA-NF4 SFT + chat templates, then the pr
 | 9 | DAA differences are a blur — SFT then preference | dpo | llm | paper | check | 4 | 4 | · |
 | 9 | DAPO — open-source LLM RL at scale | rl | llm | paper | check | 4 | 4 | · |
 | 9 | HF PEFT LoRA/QLoRA + Diffusers LoRA + bnb AdamW8bit stack | lora | both | docs | check | 4 | 4 | · |
+| 9 | Just Train Twice: upweighting the first model's errors closes most of the worst-group gap | evaluation | text | paper |  | 3 | 4 | ✓ |
+| 9 | Training on easy data often matches training on hard data | evaluation | text | paper |  | 3 | 4 | ✓ |
 | 9 | Unsloth fine-tune + Blackwell RTX 50 series tooling | qlora | both | docs | check | 4 | 4 | · |
 
 ## Detail
@@ -441,6 +443,26 @@ STUDY-034 Practitioner Verifier ✅ stack hold.
 - **Output license:** commercial **check** — STUDY-034 deepen
 - **Fit:** rig 4/5 · studio 4/5
 - **Sources:** [PEFT LoRA conceptual guide](https://huggingface.co/docs/peft/main/en/conceptual_guides/lora) — LoraConfig r/alpha/target_modules/use_rslora. ; [PEFT Quantization / QLoRA](https://huggingface.co/docs/peft/main/en/developer_guides/quantization) — bnb 4-bit NF4 + LoRA QLoRA path. ; [Diffusers Training LoRA](https://huggingface.co/docs/diffusers/en/training/lora) — train_text_to_image_lora.py PEFT LoraConfig. ; [bitsandbytes 8-bit optimizers](https://huggingface.co/docs/bitsandbytes/main/en/optimizers) — AdamW8bit ~75% less optimizer GPU memory.
+
+### Just Train Twice: upweighting the first model's errors closes most of the worst-group gap · `situational` · paper
+**JTT closed 75% of the gap in worst-group accuracy between standard training and group DRO, averaged over four tasks, without group labels at training time.**
+JTT closed 75% of the gap in worst-group accuracy between standard training and group DRO, averaged over four tasks, without group labels at training time.
+- **For the pipeline:** When a critic fails on a subgroup of hard pairs, upweight the pairs a first model got wrong before reaching for group labels.
+- **Method:** evaluation · **Applies to:** text · **Base:** various · **Kind:** finding
+- **Output license:** commercial **?**
+- **Fit:** rig 3/5 · studio 4/5
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family.
+- **Sources:** [Just Train Twice: Improving Group Robustness without Training Group Information (Liu et al.)](https://arxiv.org/abs/2107.09044) — Abstract. ; [rnd: three follow-up studies for critic recipes](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-three-follow-up-studies-for-critic-recipes-hard-pairs-two-pl.md) — The bench entry this row is promoted from.
+
+### Training on easy data often matches training on hard data · `situational` · paper
+**Models fine-tuned on easy data often performed as well as oracle models fine-tuned on hard data, for open models up to 70B on four QA datasets.**
+Models fine-tuned on easy data often performed as well as oracle models fine-tuned on hard data, for open models up to 70B on four QA datasets.
+- **For the pipeline:** When hard training pairs are scarce or noisy, easy pairs are a reasonable substitute; test before collecting hard data at cost.
+- **Method:** evaluation · **Applies to:** text · **Base:** various · **Kind:** finding
+- **Output license:** commercial **?**
+- **Fit:** rig 3/5 · studio 4/5
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family.
+- **Sources:** [The Unreasonable Effectiveness of Easy Training Data for Hard Tasks (Hase et al.)](https://arxiv.org/abs/2401.06751) — Abstract. ; [rnd: three follow-up studies for critic recipes](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-08-three-follow-up-studies-for-critic-recipes-hard-pairs-two-pl.md) — The bench entry this row is promoted from.
 
 ### Unsloth fine-tune + Blackwell RTX 50 series tooling · `situational` · docs
 **Unsloth LoRA/QLoRA guide + official 50-series/Blackwell support for local 5090 tooling**

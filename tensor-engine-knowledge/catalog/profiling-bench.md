@@ -1,5 +1,5 @@
 # Profiling, benchmarking & observability
-_Tools to measure throughput / latency / VRAM and observe engines on this rig_ · wave 20 · 2026-10-20 · [‹ catalog index](README.md)
+_Tools to measure throughput / latency / VRAM and observe engines on this rig_ · wave 21 · 2026-10-20 · [‹ catalog index](README.md)
 
 28 engines · 9 recommended · 23 confirmed Blackwell/Windows-ready. Narrative + install plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

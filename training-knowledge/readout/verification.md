@@ -1,7 +1,7 @@
 # readouts — training-knowledge · verification receipt
 
-> **106/209 techniques verified · 445 sources (300 resolve) · 18 waves · generated 2026-10-20.**  
-> Verdicts: 91 confirmed clean · 13 confirmed-with-fixes · 103 unverified.
+> **119/222 techniques verified · 472 sources (300 resolve) · 19 waves · generated 2026-10-20.**  
+> Verdicts: 104 confirmed clean · 13 confirmed-with-fixes · 103 unverified.
 
 ## Verification method, by wave
 
@@ -23,6 +23,7 @@
 - **Wave 16** (RLVR/GRPO on a deterministic-verifier substrate (measured on rig + retrieval-verified literature)): TWO-STAGE GATE. Stage 1 retrieval oracle (arXiv API + Semantic Scholar batch/search + Crossref + arXiv abs pages, deterministic, no LLM): 47/47 arXiv + 6/6 DOI resolved, zero fabricated. Stage 2 groundedness: two lenses from families outside the synthesiser's (qwen3:14b, mistral-small:24b), reasoning stripped, abstract-only. Every citation carried below was SUPPORTED by BOTH lenses. FOUR citations were DROPPED by the gate as real-author-plus-invented-title or real-title-plus-wrong-claim, including one the synthesising advisor itself had over-attributed. Lens limitation recorded: abstract-only cannot confirm body-level detail, so NOT_SUPPORTED there means 'the abstract does not establish this', and such claims were demoted rather than denied. Measured-on-rig rows are receipts from the repo, not literature.
 - **Wave 18** (promoted from rnd: the ASPIRE critic's seed variance, and scoring a judge in both orders): Promoted from rnd entries 2026-10-07-sft-before-aspire-weakens-critic and 2026-10-07-qwen32b-judge-position-bias. Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family. One correction: the single-choice baseline on the 127 judge-set pairs is 0.701, not 0.685 (0.685 is the 149 fresh pairs). See verification.md.
 - **Wave 19** (promoted from rnd: more prompts, the critic's initial weights, and a found Auditor): Promoted from rnd entry 2026-10-08-more-prompts-raise-the-aspire-critic-s-accuracy-but-not-its-. Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family. The entry's epoch-1 timing claim, unverified on the bench, is in the step-2 report and loads; its superseded hypothesis does not. See verification.md.
+- **Wave 20** (promoted from rnd: judges, juries and planted pairs (two critic-design entries)): Promoted from rnd entries 2026-10-08-three-follow-up-studies-for-critic-recipes-hard-pairs-two-pl and 2026-10-08-dataset-recipes-for-critic-jury-roles-designing-roles-by-dat. Verified claims only. Re-read on 2026-10-20: rig figures recomputed from rnd's committed JSON, literature figures checked against each paper's abstract or tables, by a Sonnet subagent; the R&D seat recomputed or re-fetched every correction. No second model family. Three figures corrected on the way in; see verification.md.
 
 ## Corrections — confirmed with fixes (13)
 

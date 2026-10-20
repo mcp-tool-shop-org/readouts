@@ -1,6 +1,6 @@
 # readouts — model-knowledge · wave dispatches
 
-> The research log: how this KB was built, wave by wave. 22 waves · generated 2026-10-20.
+> The research log: how this KB was built, wave by wave. 23 waves · generated 2026-10-20.
 
 ## Wave 0 — Local downloaded workflows (2026-06-02)
 
@@ -133,3 +133,9 @@ _llm (rnd promotion) · hands-on · synthesized · +1 models · +3 sources_
 _llm (rnd promotion) · hands-on · synthesized · +0 models · +6 sources_
 
 **Verifier:** Promotion, not a research swarm. Each claim was re-read on 2026-10-20 against its receipt: rnd's openjev-vs-jev and kev-judge-finetune result files, aspire-si's kev-confirmation report at b8ab54d, and the Kev, Laya and Nimble READMEs and cards (line numbers in each note). A Sonnet subagent did the first pass; the R&D seat spot-checked its three corrections. Claims without a committed receipt are not loaded. No second model family. See verification.md.
+
+## Wave 22 — Wave 22 - promoted from rnd: TranslateGemma's failure modes on README tables (2026-10-20)
+
+_llm (rnd promotion) · hands-on · synthesized · +0 models · +1 sources_
+
+**Verifier:** Promotion, not a research swarm. Promoted from rnd entry 2026-10-08-translategemma-failure-modes-on-readme-tables. A Sonnet subagent re-read the claims against ai-jam-sessions on 2026-10-20; the R&D seat re-read commit 5f8d1e2's README.zh.md diff and message, commit e4cd2fb's message, and the cache at 5f8d1e2. The licence is from the Hugging Face Hub API (the card is gated). No second model family. See verification.md.

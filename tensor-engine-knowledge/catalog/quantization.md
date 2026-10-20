@@ -1,5 +1,5 @@
 # Quantization frameworks & formats
-_Quant algorithms, tools, and weight formats (GGUF/GPTQ/AWQ/EXL/FP8/FP4)_ · wave 20 · 2026-10-20 · [‹ catalog index](README.md)
+_Quant algorithms, tools, and weight formats (GGUF/GPTQ/AWQ/EXL/FP8/FP4)_ · wave 21 · 2026-10-20 · [‹ catalog index](README.md)
 
 17 engines · 4 recommended · 16 confirmed Blackwell/Windows-ready. Narrative + install plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 
