@@ -1,10 +1,10 @@
 # readouts: how it works
 
-Mapped at 2026-10-20 from commit 4909981 by Atlas 1.24.0.
+Mapped at 2026-10-20 from commit 0b25d12 by Atlas 1.24.0.
 
 ## What this is
 
-20 parts, mostly Python (163 files), HTML (57), Rust (6), JavaScript (3), CSS (2), PowerShell (2), TypeScript (2) and Astro (1). Work enters through 2 doors; verify and Deploy site to GitHub Pages each reach 2 parts, and verify is followed because a pull request goes through it. It deploys a site to GitHub Pages.
+20 parts, mostly Python (167 files), HTML (57), Rust (6), JavaScript (3), CSS (2), PowerShell (2), TypeScript (2) and Astro (1). Work enters through 2 doors; verify and Deploy site to GitHub Pages each reach 2 parts, and verify is followed because a pull request goes through it. It deploys a site to GitHub Pages.
 
 ## What changed since the last map
 
@@ -53,16 +53,16 @@ tensor-engine-knowledge/baselines/_triton_test.py runs in no workflow.
 
 ## Written but never read
 
+- **agent-tooling-knowledge/.claude/loadout/index.json** is written by agent-tooling-knowledge/scripts/gen_loadout.py and read by nothing else in this repository.
+- **agent-tooling-knowledge/findings.db** is written by agent-tooling-knowledge/scripts/gen_catalog.py, agent-tooling-knowledge/scripts/gen_loadout.py, agent-tooling-knowledge/scripts/load_db.py and agent-tooling-knowledge/scripts/refresh_meta.py, and read by nothing else in this repository.
 - **blender-knowledge/.claude/loadout/index.json** is written by blender-knowledge/scripts/gen_loadout.py and read by nothing else in this repository.
 - **blender-knowledge/blender.db** is written by blender-knowledge (4 files) and read by nothing else in this repository.
 - **docker-knowledge/.claude/loadout/index.json** is written by docker-knowledge/scripts/gen_loadout.py and read by nothing else in this repository.
 - **docker-knowledge/findings.db** is written by docker-knowledge (4 files) and read by nothing else in this repository.
 - **docker-knowledge/waves/wave-02-measurement/research-raw.json** is written by docker-knowledge/waves/wave-02-measurement/_build_raw.py and read by nothing else in this repository.
 - **docker-knowledge/waves/wave-03-pinned-memory/research-raw.json** is written by docker-knowledge/waves/wave-03-pinned-memory/_build_raw.py and read by nothing else in this repository.
-- **godot-knowledge/.claude/loadout/index.json** is written by godot-knowledge/scripts/gen_loadout.py and read by nothing else in this repository.
-- **godot-knowledge/godot.db** is written by godot-knowledge (4 files) and read by nothing else in this repository.
 
-And 38 more places.
+And 40 more places.
 
 ## Helpers that look duplicated
 
@@ -80,6 +80,9 @@ And 15 more candidates.
 
 - **.claude/** is written by shared/gen_root_loadout.py.
 - **README.md** has a block written by shared/sync_readme_table.py.
+- **agent-tooling-knowledge/.claude/loadout/index.json** is written by agent-tooling-knowledge/scripts/gen_loadout.py.
+- **agent-tooling-knowledge/catalog/** is written by agent-tooling-knowledge/scripts/gen_catalog.py.
+- **agent-tooling-knowledge/findings.db** is written by agent-tooling-knowledge/scripts/gen_catalog.py, agent-tooling-knowledge/scripts/gen_loadout.py, agent-tooling-knowledge/scripts/load_db.py and agent-tooling-knowledge/scripts/refresh_meta.py.
 - **blender-knowledge/.claude/loadout/index.json** is written by blender-knowledge/scripts/gen_loadout.py.
 - **blender-knowledge/blender.db** is written by blender-knowledge (4 files).
 - **blender-knowledge/catalog/** is written by blender-knowledge/scripts/gen_catalog.py.
@@ -177,6 +180,7 @@ Read those in order to follow one pull request end to end.
 - 6 writes and 2 reads go to a temporary directory, not to this repository.
 - 3 reads go to the directory the command is run in, not to this repository.
 - 1 read goes to the home directory (.cargo/), not to this repository.
+- 17 files belong to no part: agent-tooling-knowledge/.claude/loadout/index.json, agent-tooling-knowledge/README.md, agent-tooling-knowledge/catalog/README.md and 14 more.
 - Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 20 source files reach 10 revisions.
 
 Regenerate with `npx --yes @dogfood-lab/atlas map`.

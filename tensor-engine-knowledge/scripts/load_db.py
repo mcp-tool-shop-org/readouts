@@ -30,6 +30,7 @@ WAVE_TITLES = {
     3: "Expansion — 3 new lanes (structured-output, speech, profiling) + deepen kernels & training",
     4: "Measured rig baseline — RTX 5090 thermals / power / throughput via Ollama",
     18: "Promoted from rnd — rig measurements (E4b, E5) and Ollama / CUDA / rented-host recipes",
+    19: "Promoted from rnd — CUDA 13.4 developer-experience changes, re-sourced from NVIDIA",
 }
 
 # maturity tier -> install-priority rank (lower = grab first)
@@ -102,8 +103,11 @@ def main(path):
             """INSERT INTO waves(wave_number,title,dispatched_date,domain_scope,agent_count,verifier_note,status,dispatch_path)
                VALUES(?,?,?,?,?,?,?,?)""",
             (wave_no, WAVE_TITLES.get(wave_no, f"Wave {wave_no}"), date,
+             data.get("domain_scope") or
              "all (llm-inference, llm-serving, quantization, attention-kernels, training, diffusion-engines, runtime-foundations)",
-             len(lanes) * 2,
+             data.get("agent_count", len(lanes) * 2),
+             # a promotion wave states its own check; the default describes the research-swarm waves
+             data.get("verifier_note") or
              "Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch as retrieval oracle "
              "(existence/license/specs/currency). Family-different prism/roleos path deferred to a later wave.",
              "synthesized", f"waves/{os.path.basename(os.path.dirname(os.path.abspath(path)))}/dispatch.md"))

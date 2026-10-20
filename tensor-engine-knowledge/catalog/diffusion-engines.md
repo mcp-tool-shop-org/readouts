@@ -1,5 +1,5 @@
 # Diffusion inference engines
-_Image/video diffusion runtimes & accelerators (the engine layer, not the models)_ · wave 18 · 2026-10-13 · [‹ catalog index](README.md)
+_Image/video diffusion runtimes & accelerators (the engine layer, not the models)_ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
 
 14 engines · 7 recommended · 13 confirmed Blackwell/Windows-ready. Narrative + install plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

@@ -1,0 +1,576 @@
+{
+  "wave": 1,
+  "date": "2026-10-20",
+  "title": "Wave 1 - promoted from rnd: Claude Code, permissions, Docker Sandboxes and NeMo Relay, re-probed live",
+  "domain_scope": "claude-code-headless, permissions-containment, agent-sandboxes, agent-tracing (rnd promotion)",
+  "agent_count": 0,
+  "verifier_note": "Promotion, not a research swarm. Every finding was re-checked on 2026-10-20 by the R&D seat: live re-probes in the atlas-pilot Docker sandbox (13 plan-route turns of claude-haiku-5-5, no API key, approved by the Director), read-only checks, and primary documents. Only re-checked claims load. Receipts are in the R&D seat's private store, named with SHA-256 in verification.md. No second model family.",
+  "lanes": [
+    {
+      "slug": "claude-code-headless",
+      "name": "Claude Code headless & MCP",
+      "research": {
+        "findings": [
+          {
+            "name": "A headless first turn starts before its MCP server connects (2.1.197)",
+            "kind": "gotcha",
+            "claim": "In print mode with stream-json input, Claude Code 2.1.197 on Anthropic's endpoint starts the first turn as soon as the message arrives: the init event shows the MCP server `pending` and none of its tools are offered.",
+            "detail": "Measured with a local MCP server (atlas mcp) in a Docker sandbox, plan route, claude-haiku-5-5. Against a non-Anthropic base URL (a closed port, or Ollama) the server was connected at the start on 2026-10-13.",
+            "applies_to": "Claude Code 2.1.197; print mode, stream-json input; Anthropic endpoint",
+            "design_implication": "Hold the first message (10 s in the studio harness) and check `mcp_servers` in the init event before relying on an MCP tool in the first turn.",
+            "metric": "0 of 7 tools offered with no hold",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "bench-entry",
+                "title": "rnd: Claude Code starts a print-mode turn before its MCP servers connect",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-claude-code-starts-a-turn-before-mcp-servers-connect.md",
+                "claim": "2.1.197 pending at the first turn; reproduced 2026-10-20.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "name": "A 10 s hold gives a connected MCP start with its tools (2.1.197)",
+            "kind": "method",
+            "claim": "On Claude Code 2.1.197, holding the first message 10 s after starting the CLI gives an init event with the MCP server `connected` and its 7 tools offered.",
+            "detail": "The 2026-10-13 probe found 3 s enough; the studio harness uses 10 s.",
+            "applies_to": "Claude Code 2.1.197; print mode, stream-json input",
+            "design_implication": "Build the hold into any headless kickoff that needs an MCP tool at once.",
+            "metric": "7 of 7 tools after 10 s",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "bench-entry",
+                "title": "rnd: Claude Code starts a print-mode turn before its MCP servers connect",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-claude-code-starts-a-turn-before-mcp-servers-connect.md",
+                "claim": "A 10 s hold gives a connected start.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "name": "Claude Code 2.1.280 has the MCP server connected at the first turn",
+            "kind": "behaviour",
+            "claim": "On Claude Code 2.1.280 the init event showed the MCP server `connected` (source \"dynamic\") with its 7 tools at the first turn with no hold, in 3 of 3 starts.",
+            "detail": "A 2026-10-13 note reported 2.1.280 as pending too; it did not reproduce in three starts on 2026-10-20, and the rnd entry marks that report disputed.",
+            "applies_to": "Claude Code 2.1.280; print mode, stream-json input",
+            "design_implication": "Still check `mcp_servers` in the init event; don't depend on the version alone.",
+            "metric": "3 of 3 starts connected",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "bench-entry",
+                "title": "rnd: Claude Code starts a print-mode turn before its MCP servers connect",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-claude-code-starts-a-turn-before-mcp-servers-connect.md",
+                "claim": "2.1.280 connected with no hold in 3 of 3 starts.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "name": "A headless first turn starts before its MCP server connects (2.1.197)",
+            "overall": "confirmed",
+            "note": "via live re-probe 2026-10-20 (b1-pin-0.jsonl), and the 2026-10-14 capture plan-haiku-start.jsonl, 2026-10-20"
+          },
+          {
+            "name": "A 10 s hold gives a connected MCP start with its tools (2.1.197)",
+            "overall": "confirmed",
+            "note": "via live re-probe 2026-10-20 (b1-pin-10.jsonl), 2026-10-20"
+          },
+          {
+            "name": "Claude Code 2.1.280 has the MCP server connected at the first turn",
+            "overall": "confirmed",
+            "note": "via live re-probe 2026-10-20 (b1-cur-0.jsonl, b1rep-cur-0-1/2.jsonl), 2026-10-20"
+          }
+        ]
+      }
+    },
+    {
+      "slug": "permissions-containment",
+      "name": "Permissions & containment",
+      "research": {
+        "findings": [
+          {
+            "name": "A Grep rooted above a Read-denied tree lists the denied files (2.1.197)",
+            "kind": "gotcha",
+            "claim": "On Claude Code 2.1.197, a Grep whose path is a directory above a Read-denied tree returns the names of files inside the tree, with both `Read(~/**)` and `Read(//X/**)`.",
+            "detail": "The deny rule is checked against the directory a search starts from, not each file the walk reaches. Sentinel files with random suffixes were listed by name.",
+            "applies_to": "Claude Code 2.1.197; `Read(~/**)` and `Read(//X/**)`",
+            "design_implication": "Deny rules are not a containment boundary. Keep files an agent must not see out of its reach at OS level (a separate user, root-owned trees, or nothing on its filesystem); use deny rules only as a second layer.",
+            "metric": "both sentinels listed, 3 of 3 runs",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "bench-entry",
+                "title": "rnd: a Read deny rule doesn't stop a Grep walk over the denied tree",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-claude-code-read-deny-rules-do-not-stop-a-grep-walk.md",
+                "claim": "Grep above the tree leaks on 2.1.197 in both rule forms.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              },
+              {
+                "kind": "docs",
+                "title": "Claude Code: Configure permissions",
+                "url": "https://code.claude.com/docs/en/permissions",
+                "claim": "Read rules apply to Grep and Glob on a best-effort basis, against the directory searched.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "name": "With `Read(~/**)`, a Grep at `~` itself lists the denied files (2.1.197)",
+            "kind": "gotcha",
+            "claim": "On Claude Code 2.1.197 with `Read(~/**)` denied, a Grep whose path is the home directory itself returns the names of files under it.",
+            "detail": "Seen in the 2026-10-13 containment probe and in 2 of 2 runs on 2026-10-20. With the absolute form `Read(//X/**)`, a Grep at X is refused instead, so which root leaks depends on how the rule is written.",
+            "applies_to": "Claude Code 2.1.197; `Read(~/**)`",
+            "design_implication": "Don't treat `Read(~/**)` as hiding the home directory from a search tool.",
+            "metric": "2 of 2 runs",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "bench-entry",
+                "title": "rnd: a Read deny rule doesn't stop a Grep walk over the denied tree",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-claude-code-read-deny-rules-do-not-stop-a-grep-walk.md",
+                "claim": "With Read(~/**), a Grep at ~ itself leaks on 2.1.197.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "name": "With `Read(//X/**)`, a Grep at X or inside it is refused",
+            "kind": "behaviour",
+            "claim": "On Claude Code 2.1.197 and 2.1.280, with `Read(//X/**)` denied, a Grep whose path is X itself or a directory inside X is refused with \"Permission to read … has been denied\".",
+            "detail": "Inside the tree was also refused with `Read(~/**)` on 2.1.197.",
+            "applies_to": "Claude Code 2.1.197 and 2.1.280; `Read(//X/**)`",
+            "design_implication": "Write absolute deny paths with `//`, and still don't rely on them for containment.",
+            "metric": "refused, 2 versions",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "bench-entry",
+                "title": "rnd: a Read deny rule doesn't stop a Grep walk over the denied tree",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-claude-code-read-deny-rules-do-not-stop-a-grep-walk.md",
+                "claim": "Grep at or inside X refused in the // form.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "name": "Claude Code 2.1.280 filters a Grep above a Read-denied tree",
+            "kind": "behaviour",
+            "claim": "On Claude Code 2.1.280 with `Read(//X/**)` denied, a Grep rooted above X returned \"No files found\" for files that exist only inside X.",
+            "detail": "The `~` form was not tested on 2.1.280.",
+            "applies_to": "Claude Code 2.1.280; `Read(//X/**)` only",
+            "design_implication": "Pin a CLI version for any harness that relies on deny rules, and re-probe after an upgrade.",
+            "metric": "no denied file listed",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "bench-entry",
+                "title": "rnd: a Read deny rule doesn't stop a Grep walk over the denied tree",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-claude-code-read-deny-rules-do-not-stop-a-grep-walk.md",
+                "claim": "2.1.280 filters the Grep above in the // form.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "name": "A one-slash permission path anchors at the settings source, not the filesystem root",
+            "kind": "gotcha",
+            "claim": "In a Claude Code permission rule, `Read(/home/…)` with one leading slash is anchored at the settings source, so it does not deny that absolute path; an absolute path is written `//home/…`.",
+            "detail": "Measured: with `Read(/home/agent/b2probe/**)`, every Grep (root, above and inside) listed the sentinels on 2.1.197 and 2.1.280. The permissions documentation states the anchoring rule.",
+            "applies_to": "Claude Code 2.1.197 and 2.1.280",
+            "design_implication": "Lint deny rules: an absolute path must start with `//` (or `~/` for home).",
+            "metric": "every Grep leaked with the one-slash form",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "docs",
+                "title": "Claude Code: Configure permissions",
+                "url": "https://code.claude.com/docs/en/permissions",
+                "claim": "/path is relative to the settings source; //path is absolute.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: a Read deny rule doesn't stop a Grep walk over the denied tree",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-claude-code-read-deny-rules-do-not-stop-a-grep-walk.md",
+                "claim": "The one-slash rule never applied in the probe.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "name": "Claude Code documents Read rules on search tools as best-effort",
+            "kind": "constraint",
+            "claim": "Claude Code's permissions documentation says Read rules are applied to Grep and Glob as a best-effort attempt, against the directory a search's path resolves to, and points to its sandbox for OS-level enforcement.",
+            "detail": "So the leaks above are documented behaviour, not an undisclosed gap.",
+            "applies_to": "Claude Code permissions documentation (read 2026-10-20)",
+            "design_implication": "Design containment at OS level from the start.",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "docs",
+                "title": "Claude Code: Configure permissions",
+                "url": "https://code.claude.com/docs/en/permissions",
+                "claim": "Best-effort application of Read rules to Grep and Glob; the sandbox for OS-level enforcement.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "name": "An unprivileged user with root-only trees contained every route",
+            "kind": "method",
+            "claim": "Running the CLI as an unprivileged user, with every tree it must not see owned by root and closed to others, stopped every route a containment probe tried: Read, Grep, Glob and Bash, 29 of 29 calls, 0 leaks.",
+            "detail": "The studio's agent A/B harness (amendment 8) adopted it.",
+            "applies_to": "Claude Code 2.1.197 in a Docker sandbox",
+            "design_implication": "Use OS file permissions as the containment for agent runs that must not see answer keys or credentials.",
+            "metric": "29 of 29 calls, 0 leaks",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "bench-entry",
+                "title": "rnd: a Read deny rule doesn't stop a Grep walk over the denied tree",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-claude-code-read-deny-rules-do-not-stop-a-grep-walk.md",
+                "claim": "The OS-level fix held.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "name": "A Grep rooted above a Read-denied tree lists the denied files (2.1.197)",
+            "overall": "confirmed",
+            "note": "via live re-probe 2026-10-20 (b2abs-pin.jsonl, b2home-pin-1/2.jsonl), 2026-10-20"
+          },
+          {
+            "name": "With `Read(~/**)`, a Grep at `~` itself lists the denied files (2.1.197)",
+            "overall": "confirmed",
+            "note": "via live re-probe 2026-10-20 (b2home-pin-1/2.jsonl); the 2026-10-13 probe as recorded by the Publisher, 2026-10-20"
+          },
+          {
+            "name": "With `Read(//X/**)`, a Grep at X or inside it is refused",
+            "overall": "confirmed",
+            "note": "via live re-probe 2026-10-20 (b2abs-pin.jsonl, b2abs-cur.jsonl), 2026-10-20"
+          },
+          {
+            "name": "Claude Code 2.1.280 filters a Grep above a Read-denied tree",
+            "overall": "confirmed",
+            "note": "via live re-probe 2026-10-20 (b2abs-cur.jsonl), 2026-10-20"
+          },
+          {
+            "name": "A one-slash permission path anchors at the settings source, not the filesystem root",
+            "overall": "confirmed",
+            "note": "via live re-probe 2026-10-20 (b2-pin.jsonl, b2-cur.jsonl); Claude Code permissions documentation read 2026-10-20, 2026-10-20"
+          },
+          {
+            "name": "Claude Code documents Read rules on search tools as best-effort",
+            "overall": "confirmed",
+            "note": "via Claude Code permissions documentation, read by the R&D seat 2026-10-20, 2026-10-20"
+          },
+          {
+            "name": "An unprivileged user with root-only trees contained every route",
+            "overall": "confirmed",
+            "note": "via the harness's pilot probe reports of 2026-10-13/14, recovered read-only from the sandbox 2026-10-20 (jobA2), 2026-10-20"
+          }
+        ]
+      }
+    },
+    {
+      "slug": "agent-sandboxes",
+      "name": "Agent sandboxes",
+      "research": {
+        "findings": [
+          {
+            "name": "The claude kit's real OAuth token stays on the host",
+            "kind": "behaviour",
+            "claim": "In a Docker Sandboxes (sbx) claude-kit sandbox signed in on a Claude plan, the sandbox's credentials file holds only placeholder tokens and every start reports `apiKeySource: none`; the real token is injected outside it.",
+            "detail": "Checked by shape only (two 26-character placeholder tokens); no value was read out. 13 plan-route starts all reported apiKeySource none.",
+            "applies_to": "sbx 0.48.0, claude kit",
+            "design_implication": "A plan-route agent in a sandbox can't exfiltrate the real token from its own filesystem.",
+            "metric": "13 of 13 starts apiKeySource none",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "bench-entry",
+                "title": "rnd: Docker Sandboxes on the rig",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-docker-sandboxes-on-the-rig-from-signup-to-a-pinned-pilot-wo.md",
+                "claim": "The OAuth token stays on the host.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "name": "A local sandbox reaches the host's 127.0.0.1 Ollama at host.docker.internal",
+            "kind": "behaviour",
+            "claim": "An sbx sandbox with a rule for `localhost:11434` reaches an Ollama on the host that listens on 127.0.0.1 only, at `host.docker.internal:11434`.",
+            "detail": "Ollama 0.40.4 with OLLAMA_HOST unset answered /api/version from the sandbox. The egress filter names the target localhost:11434.",
+            "applies_to": "sbx 0.48.0; Ollama 0.40.4",
+            "design_implication": "Local-model agents can run inside a sandbox without exposing Ollama on the LAN.",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "bench-entry",
+                "title": "rnd: Docker Sandboxes on the rig",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-docker-sandboxes-on-the-rig-from-signup-to-a-pinned-pilot-wo.md",
+                "claim": "Host Ollama reachable from a local sandbox.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "name": "A sandbox-scoped deny `**` overrides every allow, even a sandbox-scoped one",
+            "kind": "gotcha",
+            "claim": "In sbx, adding a sandbox-scoped deny rule for `**` makes `sbx policy check` deny every host, including one with its own sandbox-scoped allow rule, so an allowlist can't be built as deny-all plus allows.",
+            "detail": "Measured with api.anthropic.com:443 allowed and `**` denied: both it and github.com came back Denied. The Balanced default already denies hosts outside its lists.",
+            "applies_to": "sbx 0.48.0",
+            "design_implication": "To tighten a sandbox, start from Balanced and deny specific groups; verify with `sbx policy check`.",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "docs",
+                "title": "sbx CLI reference (and `sbx policy deny network --help`, sbx 0.48.0)",
+                "url": "https://docs.docker.com/reference/cli/sbx/",
+                "claim": "The deny command's help text: deny rules take precedence over allow rules for the same hostname.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "name": "Run sbx from a C: working directory on the rig",
+            "kind": "gotcha",
+            "claim": "On the rig, an sbx daemon launched from a shell whose working directory was on E: could not start sandboxes (\"failed to connect to console socket: dial unix vm\\console.sock\"); relaunched from %USERPROFILE% it started them first time.",
+            "detail": "The shim listens at a relative socket path; the sandbox state is on C:. Fixed by the Publisher, confirmed by R&D's start.",
+            "applies_to": "sbx 0.48.0 on Windows, state on C:",
+            "design_implication": "Run every sbx command from a C: working directory.",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "bench-entry",
+                "title": "rnd: Docker Sandboxes on the rig",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-docker-sandboxes-on-the-rig-from-signup-to-a-pinned-pilot-wo.md",
+                "claim": "Run sbx from C:.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "name": "The claude kit's real OAuth token stays on the host",
+            "overall": "confirmed",
+            "note": "via live check 2026-10-20 (b3-credentials.txt and the init events of the Job B starts), 2026-10-20"
+          },
+          {
+            "name": "A local sandbox reaches the host's 127.0.0.1 Ollama at host.docker.internal",
+            "overall": "confirmed",
+            "note": "via live check 2026-10-20 (b3-ollama-binding.txt), 2026-10-20"
+          },
+          {
+            "name": "A sandbox-scoped deny `**` overrides every allow, even a sandbox-scoped one",
+            "overall": "confirmed",
+            "note": "via live check with `sbx policy check` 2026-10-20 (test rules removed after), 2026-10-20"
+          },
+          {
+            "name": "Run sbx from a C: working directory on the rig",
+            "overall": "confirmed",
+            "note": "via two starts 2026-10-20 (16:56Z failed from E:, 17:00Z succeeded from C:); the daemon log, 2026-10-20"
+          }
+        ]
+      }
+    },
+    {
+      "slug": "agent-tracing",
+      "name": "Agent tracing",
+      "research": {
+        "findings": [
+          {
+            "name": "NeMo Relay writes ATOF and ATIF traces of a Claude Code run locally",
+            "kind": "behaviour",
+            "claim": "NeMo Relay 0.10.1's transparent `nemo-relay claude` wraps Claude Code and, with its observability plugin, writes ATOF events and an ATIF trajectory to local files with OpenTelemetry off.",
+            "detail": "One run on 2026-10-20 (13 ATOF events, one trajectory) and the 2026-10-13 trial.",
+            "applies_to": "NeMo Relay 0.10.1; Claude Code 2.1.197",
+            "design_implication": "Relay can trace studio harness runs without a collector.",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "bench-entry",
+                "title": "rnd: NeMo Relay's first trial",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-nemo-relay-first-trial-in-the-sandbox.md",
+                "claim": "ATOF and ATIF written locally.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              },
+              {
+                "kind": "docs",
+                "title": "NeMo Relay: Claude Code",
+                "url": "https://docs.nvidia.com/nemo/relay/latest/nemo-relay-cli/claude-code",
+                "claim": "Transparent mode and its gateway.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "name": "One Relay run contacted only Anthropic's hosts",
+            "kind": "behaviour",
+            "claim": "Under sbx's Balanced policy, the before-and-after policy log of one Relay run showed no host other than Anthropic's (api.anthropic.com, mcp-proxy.anthropic.com, platform.claude.com).",
+            "detail": "An observation of what the run did, not a restriction: Balanced allows other AI-service hosts.",
+            "applies_to": "NeMo Relay 0.10.1; sbx Balanced",
+            "design_implication": "No NVIDIA telemetry was seen; re-check after any Relay upgrade.",
+            "metric": "1 run",
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "watch",
+            "sources": [
+              {
+                "kind": "bench-entry",
+                "title": "rnd: NeMo Relay's first trial",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-nemo-relay-first-trial-in-the-sandbox.md",
+                "claim": "No outbound host but Anthropic's.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "name": "Relay's local ATOF file carries the account's identity",
+            "kind": "gotcha",
+            "claim": "NeMo Relay's local ATOF event file contained the signed-in account's email address, with `enable_full_payloads = false`.",
+            "detail": "Found by the identity scan of the re-run's output; the value is not recorded anywhere public.",
+            "applies_to": "NeMo Relay 0.10.1",
+            "design_implication": "Treat Relay trace files as private: never commit or publish them without redaction.",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "load-bearing",
+            "sources": [
+              {
+                "kind": "bench-entry",
+                "title": "rnd: NeMo Relay's first trial",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-nemo-relay-first-trial-in-the-sandbox.md",
+                "claim": "ATOF carries account identity.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          },
+          {
+            "name": "NeMo Relay and its plugins are Apache-2.0",
+            "kind": "policy",
+            "claim": "NVIDIA/NeMo-Relay and NVIDIA/NeMo-Relay-Plugins are licensed Apache-2.0.",
+            "detail": "Read from the GitHub API.",
+            "applies_to": "NeMo Relay repositories",
+            "design_implication": "Licence-compatible with studio tooling.",
+            "metric": null,
+            "confidence": "high",
+            "rig_relevance": 5,
+            "status": "supporting",
+            "sources": [
+              {
+                "kind": "repo",
+                "title": "NVIDIA/NeMo-Relay",
+                "url": "https://github.com/NVIDIA/NeMo-Relay",
+                "claim": "Apache-2.0.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              },
+              {
+                "kind": "bench-entry",
+                "title": "rnd: NVIDIA NeMo Relay",
+                "url": "https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-13-nvidia-nemo-relay-tracing-agent-harnesses-claude-code-includ.md",
+                "claim": "Licence claim.",
+                "exists_verified": true,
+                "finding_supported": "SUPPORTED"
+              }
+            ]
+          }
+        ]
+      },
+      "verify": {
+        "verdicts": [
+          {
+            "name": "NeMo Relay writes ATOF and ATIF traces of a Claude Code run locally",
+            "overall": "confirmed",
+            "note": "via live re-run 2026-10-20 (b4-start.txt, the trace files listed in the sandbox), 2026-10-20"
+          },
+          {
+            "name": "One Relay run contacted only Anthropic's hosts",
+            "overall": "confirmed",
+            "note": "via live re-run 2026-10-20 (b4-policylog-before/after.json), 2026-10-20"
+          },
+          {
+            "name": "Relay's local ATOF file carries the account's identity",
+            "overall": "confirmed",
+            "note": "via identity scan of the 2026-10-20 re-run's ATOF file, 2026-10-20"
+          },
+          {
+            "name": "NeMo Relay and its plugins are Apache-2.0",
+            "overall": "confirmed",
+            "note": "via GitHub API, 2026-10-20, 2026-10-20"
+          }
+        ]
+      }
+    }
+  ]
+}

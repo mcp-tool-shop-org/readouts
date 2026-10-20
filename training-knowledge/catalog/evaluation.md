@@ -1,11 +1,12 @@
 # Training evaluation & validation methodology
-_How to attest a trained adapter with receipts. Diffusion STYLE eval (CMMD/HPSv2/PickScore/LPIPS + ai-eyes A/B, not DreamBooth subject metrics); LLM eval via pinned lm-eval-harness + a bias-controlled DIFFERENT-FAMILY judge. Never a bare FID/CLIP scalar. Eval tool-as-software->tensor-engine._ · wave 16 · 2026-09-13 · [‹ catalog index](README.md)
+_How to attest a trained adapter with receipts. Diffusion STYLE eval (CMMD/HPSv2/PickScore/LPIPS + ai-eyes A/B, not DreamBooth subject metrics); LLM eval via pinned lm-eval-harness + a bias-controlled DIFFERENT-FAMILY judge. Never a bare FID/CLIP scalar. Eval tool-as-software->tensor-engine._ · wave 18 · 2026-10-20 · [‹ catalog index](README.md)
 
-44 techniques · 10 recommended · 1 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
+45 techniques · 11 recommended · 2 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 
 | ↓ | Technique | Method | Applies | Evidence | Comm | Rig | Studio | ✓ |
 |---|-----------|--------|---------|----------|------|-----|--------|---|
 | 1 | Diffusion style-fidelity eval panel — MEASURED (CLIP-sim + CMMD, n=20) on the wave-4 SDXL LoRAs | lora | diffusion | ▣ measured | ✅ yes | 5 | 5 | ✓ |
+| 1 | Score an LLM judge in both answer orders: Qwen2.5-32B's position bias, measured on planted errors | evaluation | text | ▣ measured |  | 5 | 5 | ✓ |
 | 2 | Acceptance threshold calibration + bare-scalar ban (delta-vs-base, pre-declared, held-out) | diffusion-acceptance-gating | diffusion | ▸ reproduced | ✅ yes | 5 | 5 | ✓ |
 | 2 | Bias-controlled different-family LLM judge (order-swap + length-match) | dpo | llm | ▸ reproduced | ✅ yes | 5 | 4 | ✓ |
 | 2 | Diffusion style-LoRA eval panel (CMMD + HPSv2 + PickScore + LPIPS-vs-exemplar + ai-eyes A/B) | lora | diffusion | ▸ reproduced | ✅ yes | 5 | 5 | ✓ |
@@ -97,6 +98,26 @@ Method: CLIP ViT-B/32 image embeddings; reference = the 16-image stdstyl cyanoty
 - **Best for:** quantify style-LoRA fidelity + gate retrains (eval, fit 5)
 - **Verify:** verdict=confirmed | currency=measured 2026-06-07 | direct rig run; the harness corrected a wave-4 looked-at claim on first use (the oracle is the measurement)
 - **Sources:** [training-knowledge wave-5 eval panel (n=20, 6 LoRAs)](https://github.com/mcp-tool-shop-org/readouts) — rig-run 2026-06-07; _eval_panel3.py + _eval_panel3.json ; [Rethinking FID: Towards a Better Evaluation Metric for Image Generation (CMMD)](https://arxiv.org/abs/2401.09603) (Jayasumana et al., 2024) — CLIP-MMD is a more reliable distribution metric than FID ; [Learning Transferable Visual Models From Natural Language Supervision (CLIP)](https://arxiv.org/abs/2103.00020) (Radford et al., 2021) — CLIP image embeddings; the basis for the similarity + CMMD metrics
+
+### Score an LLM judge in both answer orders: Qwen2.5-32B's position bias, measured on planted errors · `recommended` · ▣ measured
+**Read as a single A/B text choice, Qwen2.5-32B-Instruct picked A on all 127 pairs when the strong answer was A and the strong answer only 49/127 times when it was B. Read from its A/B log-probabilities averaged over both orders, the same model (Q4) favoured the strong answer 0.886 on 149 fresh pairs (single choice 0.685) and 0.898 on the 127 (single choice 0.701).**
+aspire-si, 2026-10-07 and 2026-10-08. 127 judge-set pairs and 149 fresh confirmation pairs, each a strong answer and a copy with one planted error. Whole-number 0-10 absolute scores tied 89 of 127 pairs; when they separated a pair they were right 31 of 38 times. Single A/B text choices show total position bias in one order. Averaging the option probabilities over both orders recovers a real preference: Qwen2.5-32B Q4 0.886 (132/149, CI [0.823, 0.939]) on fresh pairs and 0.898 (114/127, CI [0.835, 0.952]) on the judge set, against 0.685 and 0.701 for single choices. Planting errors works when the model returns a JSON {original sentence, edited sentence} that code applies; asked to copy an answer with one change, it returned the answer unchanged 84 of 128 times.
+- **For the pipeline:** Every LLM judge in the studio scores both orders and averages the option probabilities; prefer forced choice to absolute scores; plant controlled defects by structured edits applied in code, never by asking a model to rewrite.
+- **Method:** evaluation · **Applies to:** text · **Base:** Qwen · **Kind:** eval-method
+- **Runs:** 2
+- **Validated under:** aspire-si judge measurement 2026-10-07 (Qwen2.5-32B-Instruct, temperature 0) and the Kev confirmation run 2026-10-08 (Qwen2.5-32B Q4, order-averaged log-probabilities).
+- **Output license:** commercial **?**
+- **Fit:** rig 5/5 · studio 5/5
+
+**Evaluation**
+
+| Kind | Metric | Result | Threshold | Pass | Judge family |
+|---|---|---|---|---|---|
+| pairwise-planted-error | order-averaged accuracy | 0.886 (132/149) fresh; 0.898 (114/127) judge set |  | — | Qwen |
+| absolute-score | ties | 89 of 127 tied; 31 of 38 right when separated |  | — |  |
+
+- **Verify:** verdict=confirmed-with-fixes | currency=2026-10-20 | Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family. Fixed: the single-choice baseline on the 127 pairs is 0.701.
+- **Sources:** [aspire-si: Kev confirmation (with its Corrections section)](https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-08-kev-confirmation.md) — Order-averaged 0.886 (149 fresh) and 0.898 (127), single choices 0.685 and 0.701; the corrections scope each earlier figure to its reading. ; [aspire-si: SFT then ASPIRE](https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-07-sft-then-aspire.md) — Whole-number scores tied 89 of 127, right 31 of 38 when separated; JSON-edit error planting. ; [rnd: Qwen2.5-32B as a judge of planted errors](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-07-qwen32b-judge-position-bias.md) — The bench entry this row is promoted from.
 
 ### Acceptance threshold calibration + bare-scalar ban (delta-vs-base, pre-declared, held-out) · `recommended` · ▸ reproduced
 **Every diffusion-LoRA acceptance threshold is CALIBRATED once from a base-vs-known-good run, expressed as a DELTA vs the base under identical conditions, pre-declared before the candidate is scored, and pinned — and no eval may emit a verdict carrying a bare scalar without (threshold, accepted, held-out-and-overlap-checked, delta-vs-base).**

@@ -1,5 +1,5 @@
 # ComfyUI + workflows
-_ComfyUI runtime, custom nodes, workflow sources_ · wave 18 · 2026-09-07 · [‹ catalog index](README.md)
+_ComfyUI runtime, custom nodes, workflow sources_ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
 
 1 models · 1 recommended · 1 commercial-safe (license=yes). Narrative + re-download plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

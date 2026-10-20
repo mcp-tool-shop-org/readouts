@@ -1,5 +1,5 @@
 # Local LLM + vision
-_Ollama text/code/reasoning + vision/captioning_ · wave 18 · 2026-09-07 · [‹ catalog index](README.md)
+_Ollama text/code/reasoning + vision/captioning_ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
 
 9 models · 4 recommended · 8 commercial-safe (license=yes). Narrative + re-download plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

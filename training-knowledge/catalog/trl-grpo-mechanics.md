@@ -1,5 +1,5 @@
 # Trl Grpo Mechanics
-_auto-created from wave lane_ · wave 16 · 2026-09-13 · [‹ catalog index](README.md)
+_auto-created from wave lane_ · wave 18 · 2026-10-20 · [‹ catalog index](README.md)
 
 4 techniques · 3 recommended · 1 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

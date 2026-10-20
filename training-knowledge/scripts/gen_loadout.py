@@ -39,6 +39,8 @@ KW = {
                    'harness', 'judge', 'benchmark', 'metric', 'aieyes', 'acceptance', 'contamination'],
     'debugging': ['debug', 'debugging', 'overfit', 'replication', 'frying', 'saturation', 'stylebleed', 'collapse',
                   'nan', 'lossspike', 'forgetting', 'oom', 'rewardhacking', 'failure', 'symptom', 'fix', 'troubleshoot'],
+    'still-current': ['still', 'current', 'currency', 'stale', 'release', 'version', 'changelog', 'semver', 'calver',
+                      'outdated', 'peft', 'kohya', 'unsloth', 'diffusers', 'aitoolkit', 'datasheets'],
 }
 PAT = {
     'peft-methods': ['adapter', 'lora', 'rank', 'merging'],
@@ -49,6 +51,7 @@ PAT = {
     'efficiency': ['vram_reduction', 'single_gpu', 'offload', 'quant'],
     'evaluation': ['eval', 'benchmark', 'judge', 'reproducible'],
     'debugging': ['failure', 'debug', 'overfit', 'oom'],
+    'still-current': ['still_current', 'version_check', 'changelog'],
 }
 
 STOP = {'technique', 'techniques', 'recipe', 'recipes', 'training', 'train', 'method', 'methods', 'the', 'and', 'with',
@@ -94,6 +97,14 @@ def main():
             for w in re.split(r"[^a-z0-9]+", (nm or "").lower()):
                 if len(w) > 2 and w not in kw and w not in STOP:
                     kw.append(w)
+        if not kw:  # a lane with no curated list and no recommended technique still needs routing keywords
+            for (nm,) in c.execute("SELECT name FROM techniques WHERE category_id=? ORDER BY download_priority LIMIT 4",
+                                   (cat["id"],)):
+                for w in re.split(r"[^a-z0-9]+", (nm or "").lower()):
+                    if len(w) > 2 and w not in kw and w not in STOP:
+                        kw.append(w)
+        if not kw:
+            kw = [w for w in re.split(r"[^a-z0-9]+", cat["slug"]) if len(w) > 2]
         summ = f"{cat['name']}: {n} techniques. {cat['description']}"[:120]
         entries.append({"id": cat["slug"], "path": f"catalog/{cat['slug']}.md", "keywords": kw,
                         "patterns": PAT.get(cat["slug"], []), "priority": "domain", "summary": summ,

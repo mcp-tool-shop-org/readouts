@@ -1,6 +1,6 @@
 # readouts — tensor-engine-knowledge · verification receipt
 
-> **134/193 engines verified · 491 sources (388 resolve) · 18 waves · generated 2026-10-13.**  
+> **134/193 engines verified · 495 sources (388 resolve) · 19 waves · generated 2026-10-20.**  
 > Verdicts: 26 confirmed clean · 107 confirmed-with-fixes · 59 unverified.
 
 ## Verification method, by wave
@@ -23,6 +23,7 @@
 - **Wave 16** (Wave 16): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch as retrieval oracle (existence/license/specs/currency). Family-different prism/roleos path deferred to a later wave.
 - **Wave 17** (Wave 17): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch as retrieval oracle (existence/license/specs/currency). Family-different prism/roleos path deferred to a later wave.
 - **Wave 18** (Promoted from rnd — rig measurements (E4b, E5) and Ollama / CUDA / rented-host recipes): Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch as retrieval oracle (existence/license/specs/currency). Family-different prism/roleos path deferred to a later wave.
+- **Wave 19** (Promoted from rnd — CUDA 13.4 developer-experience changes, re-sourced from NVIDIA): Promotion, not a research swarm. Re-sourced by the R&D seat on 2026-10-20 from NVIDIA's CUDA Toolkit 13.4 release notes (GA, 13.4.1, archived) and the nvcc 13.4 documentation; the rnd entry's livestream-slide claims that neither source states are not loaded. Retrieval against NVIDIA's pages only; no second model family. See verification.md.
 
 ## Corrections — confirmed with fixes (107)
 

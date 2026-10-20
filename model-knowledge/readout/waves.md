@@ -1,6 +1,6 @@
 # readouts — model-knowledge · wave dispatches
 
-> The research log: how this KB was built, wave by wave. 19 waves · generated 2026-09-25.
+> The research log: how this KB was built, wave by wave. 20 waves · generated 2026-10-20.
 
 ## Wave 0 — Local downloaded workflows (2026-06-02)
 
@@ -115,3 +115,9 @@ _3d — TRELLIS MIT vs Hunyuan Community beyond STUDY-032; Hunyuan flip: 0; no i
 _caption — deepen beyond STUDY-033; TTS invent: 0; JoyCaption Llama Community not Apache; Pocket 127 stays · 3 agents · synthesized · +0 models · +22 sources_
 
 **Verifier:** STUDY-053 Verifier ✅. Scholar 8/8. Practitioner 8/8. Analogist 1–6 hold; #7–#8 fail-transfer omitted. TTS invent: 0. JoyCaption Apache invent: 0. Pocket 127 stays. Extras-only.
+
+## Wave 19 — Wave 19 - promoted from rnd: nemotron-3.5-lightning needs its context raised under Claude Code (2026-10-20)
+
+_llm (rnd promotion) · hands-on · synthesized · +0 models · +3 sources_
+
+**Verifier:** Promotion, not a research swarm. The run counts were re-read by the R&D seat on 2026-10-20 against the atlas-mcp-utility shakedown reports recovered read-only from the atlas-pilot sandbox (receipts named with their SHA-256 in verification.md). The default-context result is a halted shakedown, stated as such. The fill-check figures have no surviving record and are recorded as unverified. No second model family.

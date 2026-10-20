@@ -1,6 +1,6 @@
 # Catalog — local generative-AI models
 
-Generated from `models.db` · wave 18 · 2026-09-07. Narrative + re-download plan: [wave-01 dispatch](../waves/wave-01-foundation/dispatch.md). Verification receipt: [verification.md](../waves/wave-01-foundation/verification.md).
+Generated from `models.db` · wave 19 · 2026-10-20. Narrative + re-download plan: [wave-01 dispatch](../waves/wave-01-foundation/dispatch.md). Verification receipt: [verification.md](../waves/wave-01-foundation/verification.md).
 
 ## Fastest commercial-safe re-download shortlist
 

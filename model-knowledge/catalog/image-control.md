@@ -1,5 +1,5 @@
 # Image — control & utility
-_ControlNet/IP-Adapter, inpaint, upscalers, detailers, LoRA training_ · wave 18 · 2026-09-07 · [‹ catalog index](README.md)
+_ControlNet/IP-Adapter, inpaint, upscalers, detailers, LoRA training_ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
 
 11 models · 5 recommended · 7 commercial-safe (license=yes). Narrative + re-download plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

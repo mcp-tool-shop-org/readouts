@@ -2,21 +2,22 @@
 
 > A monorepo of verified, ai-loadout-routed SQLite knowledge bases for the studio. Each KB grows in waves of parallel research cross-checked by an adversarial retrieval verifier — full per-wave provenance, every fact flagged verified, two-level progressive-disclosure routing so an agent reads only the slice it needs, never the whole corpus.
 >
-> **11 knowledge bases · 2602 entries · 1837 verified · 139 domains · 120 waves · generated 2026-10-20.**
+> **12 knowledge bases · 2622 entries · 1857 verified · 143 domains · 124 waves · generated 2026-10-20.**
 
 ## Knowledge bases
 
 | Knowledge base | What | Domains | Entries | Verified | Waves | Front door |
 |---|---|--:|--:|--:|--:|---|
+| [agent-tooling-knowledge](agent-tooling-knowledge/) | Measured and documented behaviour of the harnesses that run AI agents: Claude Code headless and MCP, permissions and containment, agent sandboxes, agent tracing. | 4 | 18 findings | 18/18 | 1 | [index.md](agent-tooling-knowledge/catalog/README.md) · [json](agent-tooling-knowledge/.claude/loadout/index.json) |
 | [blender-knowledge](blender-knowledge/) | current, web-grounded Blender 4.x practice for the studio's headless sprite-turnaround render pipeline (import a TRELLIS-generated GLB → render 8-direction sprites via blender --background --python → composite into a 2.5D game) plus general game-asset prep. | 10 | 219 recipes | 83/219 | 8 | [index.md](blender-knowledge/catalog/README.md) · [json](blender-knowledge/.claude/loadout/index.json) |
 | [docker-knowledge](docker-knowledge/) | The knowledge base behind the gpu-container product — how to package, measure, and place models honestly on one GPU. | 6 | 160 findings | 73/160 | 9 | [index.md](docker-knowledge/catalog/README.md) · [json](docker-knowledge/.claude/loadout/index.json) |
 | [godot-knowledge](godot-knowledge/) | current, adversarially-verified Godot 4 dev knowledge for building a 2.5D turn-based tactical RPG. | 6 | 177 recipes | 108/177 | 7 | [index.md](godot-knowledge/catalog/README.md) · [json](godot-knowledge/.claude/loadout/index.json) |
-| [model-knowledge](model-knowledge/readout/index.html) | Verified knowledge base of the best local generative-AI MODELS per purpose (image / edit / control / video / 3D / audio / LLM / caption) for the RTX 5090 rig — commercial-license-first. | 9 | 129 models | 126/129 | 19 | [index.md](model-knowledge/readout/index.md) · [json](model-knowledge/readout/index.json) |
+| [model-knowledge](model-knowledge/readout/index.html) | Verified knowledge base of the best local generative-AI MODELS per purpose (image / edit / control / video / 3D / audio / LLM / caption) for the RTX 5090 rig — commercial-license-first. | 9 | 129 models | 126/129 | 20 | [index.md](model-knowledge/readout/index.md) · [json](model-knowledge/readout/index.json) |
 | [rust-knowledge](rust-knowledge/) | Verified Rust for building si-rpg-engine (essentials, advanced, and how the engine uses it: raw wasm ABI, float determinism, Rapier 0.35 state and restore, reproducible bytes) and a first tier for si-jam-sessions' music law, with every code check run by the pinned rustc 1.98.1. | 27 | 280 recipes | 279/280 | 5 | [index.md](rust-knowledge/catalog/README.md) · [json](rust-knowledge/.claude/loadout/index.json) |
 | [sprite-motion-knowledge](sprite-motion-knowledge/) | The portable animate-the-sprite craft for this rig | 19 | 246 recipes | 170/246 | 8 | [index.md](sprite-motion-knowledge/catalog/README.md) · [json](sprite-motion-knowledge/.claude/loadout/index.json) |
 | [sprites-knowledge](sprites-knowledge/) | The portable concept-art → game-ready 2.5D JRPG sprite craft for this rig | 8 | 215 recipes | 182/215 | 6 | [index.md](sprites-knowledge/catalog/README.md) · [json](sprites-knowledge/.claude/loadout/index.json) |
-| [tensor-engine-knowledge](tensor-engine-knowledge/readout/index.html) | Verified knowledge base of the ENGINES that run & train AI models locally on the RTX 5090 (Blackwell / sm_120 / Windows) rig. | 10 | 193 engines | 134/193 | 18 | [index.md](tensor-engine-knowledge/readout/index.md) · [json](tensor-engine-knowledge/readout/index.json) |
-| [training-knowledge](training-knowledge/readout/index.html) | Verified knowledge base of portable TRAINING CRAFT — methods, recipes, hyperparameter values, dataset & eval know-how — for training LoRAs / fine-tunes on the single RTX 5090 (Blackwell / Windows / WSL2) rig. The how-to-train layer between the weights (model-knowledge) and the software (tensor-engine-knowledge). | 13 | 204 techniques | 101/204 | 16 | [index.md](training-knowledge/readout/index.md) · [json](training-knowledge/readout/index.json) |
+| [tensor-engine-knowledge](tensor-engine-knowledge/readout/index.html) | Verified knowledge base of the ENGINES that run & train AI models locally on the RTX 5090 (Blackwell / sm_120 / Windows) rig. | 10 | 193 engines | 134/193 | 19 | [index.md](tensor-engine-knowledge/readout/index.md) · [json](tensor-engine-knowledge/readout/index.json) |
+| [training-knowledge](training-knowledge/readout/index.html) | Verified knowledge base of portable TRAINING CRAFT — methods, recipes, hyperparameter values, dataset & eval know-how — for training LoRAs / fine-tunes on the single RTX 5090 (Blackwell / Windows / WSL2) rig. The how-to-train layer between the weights (model-knowledge) and the software (tensor-engine-knowledge). | 13 | 206 techniques | 103/206 | 17 | [index.md](training-knowledge/readout/index.md) · [json](training-knowledge/readout/index.json) |
 | [vocology-knowledge](vocology-knowledge/) | sung-voice craft: vocology (source-filter, registers, singers formant), musical vs speech prosody, lyric-to-note alignment, score-controllable SVS vs lyrics-to-song generators, admission/teaching evaluation | 19 | 322 findings | 219/322 | 14 | [index.md](vocology-knowledge/catalog/README.md) · [json](vocology-knowledge/.claude/loadout/index.json) |
 | [xrpl-knowledge](xrpl-knowledge/readout/index.html) | Verified knowledge base of the XRP Ledger ECOSYSTEM for a builder — protocol features, transaction types, XLS standards, client libraries & tooling — each tagged with its current mainnet / amendment status. Whole-ecosystem: XRPL mainnet + Xahau/Hooks + the XRPL EVM sidechain + the institutional layer (RLUSD, compliance). | 12 | 457 capabilities | 362/457 | 10 | [index.md](xrpl-knowledge/readout/index.md) · [json](xrpl-knowledge/readout/index.json) |
 
@@ -25,6 +26,7 @@
 - **Route to the right KB:** `ai-loadout resolve --project .` — the root loadout picks the KB, then the KB's own loadout picks the domain slice (two-level progressive disclosure; the corpus is never dumped whole).
 - **Each KB's front door:** `<kb>/readout/index.md` (text map) · `index.json` (programmatic) · `index.html` (branded landing).
 - **Query a KB directly** — open its SQLite DB (views `v_recommended`, `v_best_for`; FTS `<table>_fts`):
+  - `agent-tooling-knowledge/findings.db` — FTS `findings_fts`
   - `blender-knowledge/blender.db` — FTS `recipes_fts`
   - `docker-knowledge/findings.db` — FTS `findings_fts`
   - `godot-knowledge/godot.db` — FTS `recipes_fts`
@@ -40,6 +42,7 @@
 
 ## How each KB decides
 
+- **agent-tooling-knowledge** — decisive axis: Measured and documented behaviour of the harnesses that run AI agents: Claude Code headless and MCP, permissions and containment, agent sandboxes, agent tracing.
 - **blender-knowledge** — decisive axis: currency — the Blender-4.x verdict (solid / plausible / shaky / blender3_stale / wrong).
 - **docker-knowledge** — decisive axis: The knowledge base behind the gpu-container product — how to package, measure, and place models honestly on one GPU.
 - **godot-knowledge** — decisive axis: currency — the adversarial Godot-4 verdict (solid / plausible / shaky / godot3_stale / wrong).
@@ -54,4 +57,4 @@
 
 ## Provenance
 
-Every fact in every KB carries a **wave id** and a **verified** flag. Sources are retrieval-checked against the live page; some waves add a cross-family seat, and each wave's own receipt says which — see `waves.verifier_note`. Family-different verification across every wave is the planned upgrade, not the current state. 120 research waves across 11 knowledge bases; 1837/2602 entries verified.
+Every fact in every KB carries a **wave id** and a **verified** flag. Sources are retrieval-checked against the live page; some waves add a cross-family seat, and each wave's own receipt says which — see `waves.verifier_note`. Family-different verification across every wave is the planned upgrade, not the current state. 124 research waves across 12 knowledge bases; 1857/2622 entries verified.

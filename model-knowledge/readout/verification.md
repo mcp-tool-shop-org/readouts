@@ -1,6 +1,6 @@
 # readouts — model-knowledge · verification receipt
 
-> **126/129 models verified · 553 sources (323 resolve) · 19 waves · generated 2026-09-25.**  
+> **126/129 models verified · 556 sources (323 resolve) · 20 waves · generated 2026-10-20.**  
 > Verdicts: 92 confirmed clean · 34 confirmed-with-fixes · 3 unverified.
 
 ## Verification method, by wave
@@ -23,6 +23,7 @@
 - **Wave 16** (Wave 16 — STUDY-051 VIDEO VRAM honesty (A14B-32GB invent: 0; Pocket stays)): STUDY-051 Verifier ✅. Scholar 8/8. Practitioner hold (A14B ≥80GB refuse; GGUF GB table unverified). Analogist 1–6 hold; #7–#8 fail-transfer omitted. A14B-32GB invent: 0. Pocket 127 stays. Extras-only.
 - **Wave 17** (Wave 17 — STUDY-052 3D TRELLIS/Hunyuan deepen (Hunyuan flip: 0; Pocket stays)): STUDY-052 Verifier ✅. Scholar 8/8. Practitioner 8/8. Analogist 1–6 hold; #7–#8 fail-transfer omitted. Hunyuan flip: 0. Pocket 127 stays. Do not invent Hunyuan Apache. Extras-only.
 - **Wave 18** (Wave 18 — STUDY-053 caption/VLM deepen (TTS invent: 0; JoyCaption Apache invent: 0)): STUDY-053 Verifier ✅. Scholar 8/8. Practitioner 8/8. Analogist 1–6 hold; #7–#8 fail-transfer omitted. TTS invent: 0. JoyCaption Apache invent: 0. Pocket 127 stays. Extras-only.
+- **Wave 19** (Wave 19 - promoted from rnd: nemotron-3.5-lightning needs its context raised under Claude Code): Promotion, not a research swarm. The run counts were re-read by the R&D seat on 2026-10-20 against the atlas-mcp-utility shakedown reports recovered read-only from the atlas-pilot sandbox (receipts named with their SHA-256 in verification.md). The default-context result is a halted shakedown, stated as such. The fill-check figures have no surviving record and are recorded as unverified. No second model family.
 
 ## Corrections — confirmed with fixes (34)
 

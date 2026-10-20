@@ -1,5 +1,5 @@
 # SDXL style-LoRA recipes (priority)
-_The studio #1 workload: full hyperparameter recipes for SDXL-family style LoRAs (kohya/ComfyUI as engine references only). rank+alpha, optimizer<->LR, booru-tag captioning + style-tag pruning, regularization, 1024px bucketing, repeats/epochs, min-SNR-gamma, per-rank quality signature._ · wave 16 · 2026-09-13 · [‹ catalog index](README.md)
+_The studio #1 workload: full hyperparameter recipes for SDXL-family style LoRAs (kohya/ComfyUI as engine references only). rank+alpha, optimizer<->LR, booru-tag captioning + style-tag pruning, regularization, 1024px bucketing, repeats/epochs, min-SNR-gamma, per-rank quality signature._ · wave 18 · 2026-10-20 · [‹ catalog index](README.md)
 
 19 techniques · 12 recommended · 9 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

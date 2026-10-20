@@ -1,6 +1,6 @@
 # readouts — tensor-engine-knowledge · wave dispatches
 
-> The research log: how this KB was built, wave by wave. 18 waves · generated 2026-10-13.
+> The research log: how this KB was built, wave by wave. 19 waves · generated 2026-10-20.
 
 ## Wave 1 — Foundation — best tensor / inference / training engines per lane (2026-06-02)
 
@@ -129,3 +129,9 @@ _all (llm-inference, llm-serving, quantization, attention-kernels, training, dif
 _all (llm-inference, llm-serving, quantization, attention-kernels, training, diffusion-engines, runtime-foundations) · 6 agents · synthesized · +0 engines · +0 sources · +12 recipes_
 
 **Verifier:** Reasoning-stripped adversarial verifier per lane (different model tier); WebFetch/WebSearch as retrieval oracle (existence/license/specs/currency). Family-different prism/roleos path deferred to a later wave.
+
+## Wave 19 — Promoted from rnd — CUDA 13.4 developer-experience changes, re-sourced from NVIDIA (2026-10-20)
+
+_runtime-foundations (rnd promotion) · hands-on · synthesized · +0 engines · +4 sources · +0 recipes_
+
+**Verifier:** Promotion, not a research swarm. Re-sourced by the R&D seat on 2026-10-20 from NVIDIA's CUDA Toolkit 13.4 release notes (GA, 13.4.1, archived) and the nvcc 13.4 documentation; the rnd entry's livestream-slide claims that neither source states are not loaded. Retrieval against NVIDIA's pages only; no second model family. See verification.md.

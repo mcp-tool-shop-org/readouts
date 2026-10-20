@@ -1,5 +1,5 @@
 # Image — base models
-_Text-to-image base checkpoints_ · wave 18 · 2026-09-07 · [‹ catalog index](README.md)
+_Text-to-image base checkpoints_ · wave 19 · 2026-10-20 · [‹ catalog index](README.md)
 
 24 models · 12 recommended · 14 commercial-safe (license=yes). Narrative + re-download plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

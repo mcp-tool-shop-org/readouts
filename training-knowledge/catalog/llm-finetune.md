@@ -1,5 +1,5 @@
 # Local LLM fine-tuning (SFT + preference + RL)
-_24-34B at Q-quant on one 32 GB GPU: QLoRA-NF4 SFT + chat templates, then the preference/RL family selected by the DATA you have — DPO/ORPO/KTO/SimPO and GRPO/RLVR. Light reverse-KL/on-policy distillation lives here too._ · wave 16 · 2026-09-13 · [‹ catalog index](README.md)
+_24-34B at Q-quant on one 32 GB GPU: QLoRA-NF4 SFT + chat templates, then the preference/RL family selected by the DATA you have — DPO/ORPO/KTO/SimPO and GRPO/RLVR. Light reverse-KL/on-policy distillation lives here too._ · wave 18 · 2026-10-20 · [‹ catalog index](README.md)
 
 19 techniques · 6 recommended · 3 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 

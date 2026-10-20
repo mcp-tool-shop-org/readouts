@@ -1,16 +1,38 @@
 # Rl Measurement Methodology
-_auto-created from wave lane_ · wave 16 · 2026-09-13 · [‹ catalog index](README.md)
+_auto-created from wave lane_ · wave 18 · 2026-10-20 · [‹ catalog index](README.md)
 
-4 techniques · 4 recommended · 3 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
+5 techniques · 5 recommended · 4 measured-on-rig. Narrative + plan: [dispatch](../waves/wave-01-foundation/dispatch.md).
 
 | ↓ | Technique | Method | Applies | Evidence | Comm | Rig | Studio | ✓ |
 |---|-----------|--------|---------|----------|------|-----|--------|---|
+| 1 | A learned critic's accuracy is a distribution: SFT before ASPIRE showed no reliable effect over three seeds | evaluation | text | ▣ measured |  | 4 | 4 | ✓ |
 | 1 | Generations per item, not items, is usually the cheap lever on eval power | eval | both | ▣ measured | ✅ yes | 5 | 5 | ✓ |
 | 1 | Pooled eval statistics measure the item mix as well as the behaviour | eval | both | ▣ measured | ✅ yes | 5 | 5 | ✓ |
 | 1 | Run-to-run variance can exceed the effect being measured | rl | text | ▣ measured | ✅ yes | 5 | 5 | ✓ |
 | 5 | Aggregate an interval over runs; do not require each run to clear significance | rl | both | paper+measured | ✅ yes | 5 | 5 | ✓ |
 
 ## Detail
+
+### A learned critic's accuracy is a distribution: SFT before ASPIRE showed no reliable effect over three seeds · `recommended` · ▣ measured
+**With 32 training prompts, ASPIRE's learned critic varied more between seeds than between treatments: SFT on teacher answers before ASPIRE gave no reliable change in critic accuracy (mean drops 0.06 composite, 0.008 local, under the pre-registered 0.10), while one control critic ranged from 0.425 to 0.866.**
+aspire-si, 2026-10-07. Qwen2.5-1.5B student, LoRA r16, critic head on the last hidden layer; teachers Qwen2.5-32B (local) or Qwen + Gemma-4-31B (composite); 32 training prompts; judged on 127 pairs of a strong answer and the same answer with one planted error (pairwise accuracy, ties as half). Seed 42 alone showed control 0.866 [0.787, 0.929] against SFT-then-ASPIRE 0.646 [0.559, 0.732]. Over seeds 42/43/44 the means were 0.698 vs 0.638 (composite) and 0.635 vs 0.627 (local), so under the pre-registered three-seed rule there is no reliable difference. Critic training loss did not predict accuracy: seed 44's best critic (0.764) had loss rising from 0.91 to 1.10. The drift result did replicate: the fine-tune's representation drift points the same way on every seed (cosine 0.98, size 20.2 to 22.8), and ASPIRE's drift opposes it in all six SFT-then-ASPIRE runs (cosine -0.49 to -0.77) and in control ASPIRE too (-0.57 to -0.75), aligning with ASPIRE-after-SFT (+0.67 to +0.81). The SFT itself improved held-out answers by +0.109 [+0.016, +0.203], under its pre-registered 0.2 bar.
+- **For the pipeline:** Budget at least three seeds per arm for any learned critic at this scale and pre-register the decision rule; never pick a critic by its training loss; don't avoid SFT-then-preference training on the strength of one run. The drift opposition is the durable lead.
+- **Method:** evaluation · **Applies to:** text · **Base:** Qwen · **Kind:** finding
+- **Seed:** 42, 43, 44 · **Runs:** 12
+- **Variance:** Composite control critic 0.425 to 0.866 across seeds; local control 0.543 to 0.724. A later aspire-si test showed critic initialisation alone can invert a critic, so the 0.425 draw may be an inverted one.
+- **Validated under:** aspire-si runs on 2026-10-07; 32 training prompts; 127 planted-error judge pairs on 64 held-out questions.
+- **Output license:** commercial **?**
+- **Fit:** rig 4/5 · studio 4/5
+
+**Evaluation**
+
+| Kind | Metric | Result | Threshold | Pass | Judge family |
+|---|---|---|---|---|---|
+| pairwise-planted-error | pairwise accuracy, mean of 3 seeds | composite control 0.698 vs SFT-then-ASPIRE 0.638; local 0.635 vs 0.627 | mean drop >= 0.10 | — |  |
+| held-out-answer-quality | paired gain over 64 questions | +0.109 [+0.016, +0.203] | +0.2 | — |  |
+
+- **Verify:** verdict=confirmed | currency=2026-10-20 | Re-read by the R&D seat on 2026-10-20 against aspire-si's committed run reports at b8ab54d (line numbers in each eval). Receipt check only; no second model family.
+- **Sources:** [aspire-si run 1: seeds 42-44](https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-07-run-1-seeds.md) — Per-seed critic accuracies, mean drops 0.06 and 0.008, the seed ranges, the rising loss, and the drift table. ; [aspire-si runs 2-3](https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-07-runs-2-3.md) — The SFT's held-out gain, +0.109 [+0.016, +0.203], under the 0.2 bar. ; [aspire-si: SFT then ASPIRE (seed 42, with its correction note)](https://github.com/mcp-tool-shop-org/aspire-si/blob/b8ab54d/docs/runs/2026-10-07-sft-then-aspire.md) — Seed 42: 0.866 [0.787, 0.929] against 0.646 [0.559, 0.732], one run each; corrected by run 1. ; [rnd: SFT before ASPIRE has no reliable effect on the critic](https://github.com/mcp-tool-shop-org/rnd/blob/main/entries/2026/2026-10-07-sft-before-aspire-weakens-critic.md) — The bench entry this row is promoted from.
 
 ### Generations per item, not items, is usually the cheap lever on eval power · `recommended` · ▣ measured
 **At G=16 completions per item, 80% of the per-item paired-lift variance was binomial sampling noise rather than genuine item heterogeneity — and sampling noise is purchasable with generation.**
