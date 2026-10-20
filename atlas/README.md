@@ -1,6 +1,6 @@
 # readouts: how it works
 
-Mapped at 2026-10-15 from commit 28c0163 by Atlas 1.24.0.
+Mapped at 2026-10-20 from commit 4909981 by Atlas 1.24.0.
 
 ## What this is
 

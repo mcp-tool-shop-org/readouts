@@ -2,7 +2,7 @@
 
 > A monorepo of verified, ai-loadout-routed SQLite knowledge bases for the studio. Each KB grows in waves of parallel research cross-checked by an adversarial retrieval verifier — full per-wave provenance, every fact flagged verified, two-level progressive-disclosure routing so an agent reads only the slice it needs, never the whole corpus.
 >
-> **11 knowledge bases · 2602 entries · 1837 verified · 139 domains · 120 waves · generated 2026-10-14.**
+> **11 knowledge bases · 2602 entries · 1837 verified · 139 domains · 120 waves · generated 2026-10-20.**
 
 ## Knowledge bases
 
