@@ -47,4 +47,6 @@
     Small 24B (Apache-2.0).
   - Its labels are Claude-made and serve as an evaluation yardstick, not training targets.
 
+**Fixed after merge (2026-10-20):** the natural-errors row's `measured_conditions` said "labels by two Claude passes". The labelling was one Opus pass and four blind Sonnet passes, with Opus adjudicating. The Publisher caught it after #61 merged.
+
 **Net:** 13 rows, 10 confirmed and 3 confirmed with a fix; 1 title corrected against arXiv; 0 fabricated.

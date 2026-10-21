@@ -133,12 +133,12 @@ aspire-si, 2026-10-07 and 2026-10-08. 127 judge-set pairs and 149 fresh confirma
 
 ### Screening natural errors with local judges: gemma4:31b catches almost every flawed answer, muse-glimmer adds sentences · `recommended` · ▣ measured
 **On 95 llama3.1:8b answers labelled for natural errors, a three-judge local screen (gemma4:31b, mistral-small:24b, granite4.1:30b) flagged every answer that has an error (59 of 59) but only 59 of the 84 error sentences both labelling passes marked (70%). gemma4:31b alone had answer-level recall 0.97 and precision 0.72. muse-glimmer (Meta, 27.9B, Apache-2.0) had answer-level precision and recall of 0.86 and caught 81% of the error sentences; gemma4:31b and muse-glimmer together cover 93%.**
-rnd experiments/natural-errors, 2026-10-08. Labels are model-made: claude-opus-5-5 labelled all 95, four blind Sonnet passes labelled them again, and Opus adjudicated the disagreements; the two passes agree at kappa 0.63 (error vs not), Sonnet marking fewer errors, mostly minor ones. The labels are an evaluation yardstick and are not human-verified. muse-glimmer needs plain-text replies: with Ollama's format: json it answered an empty list on all 95. It is the same family as the llama3.1:8b answers, so read it as in-family. Sources: answers by Llama 3.1 8B (Llama 3.1 Community License), questions by Mistral Small 24B (Apache-2.0).
+rnd experiments/natural-errors, 2026-10-08. Labels are model-made: claude-opus-5-5 labelled all 95, four blind Sonnet passes labelled them again, and Opus adjudicated the disagreements; the Opus and Sonnet labels agree at kappa 0.63 (error vs not), Sonnet marking fewer errors, mostly minor ones. The labels are an evaluation yardstick and are not human-verified. muse-glimmer needs plain-text replies: with Ollama's format: json it answered an empty list on all 95. It is the same family as the llama3.1:8b answers, so read it as in-family. Sources: answers by Llama 3.1 8B (Llama 3.1 Community License), questions by Mistral Small 24B (Apache-2.0).
 - **For the pipeline:** For a natural-error screen, gemma4:31b is the high-recall first pass at the answer level; pair it with a second judge from another family to recover error sentences. Don't force JSON output on muse-glimmer.
 - **Method:** evaluation · **Applies to:** text · **Base:** various · **Kind:** finding
 - **Seed:** n/a (deterministic screen) · **Runs:** 1
 - **Variance:** 95 answers, one labelling scheme, no human gold.
-- **Validated under:** Local Ollama judges on the RTX 5090, 2026-10-08; labels by two Claude passes, adjudicated.
+- **Validated under:** Local Ollama judges on the RTX 5090, 2026-10-08; labels by one Opus pass and four blind Sonnet passes, Opus adjudicating; no human gold.
 - **Output license:** commercial **?**
 - **Fit:** rig 5/5 · studio 5/5
 

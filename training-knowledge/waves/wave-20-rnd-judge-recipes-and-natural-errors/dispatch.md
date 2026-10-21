@@ -35,7 +35,8 @@ their verified claims load.
      error sentences.
    - gemma4:31b alone: recall 0.97, precision 0.72.
    - muse-glimmer: 0.86 and 0.86, and 81% of sentences. The two together cover 93%.
-   - The labels come from two Claude passes (kappa 0.63), adjudicated, and aren't human-verified.
+   - The labels are model-made: one Opus pass and four blind Sonnet passes, Opus adjudicating the disagreements
+     (Opus and Sonnet agree at kappa 0.63). There's no human gold.
    - **Implication:** use gemma4:31b as the high-recall first pass, and pair it with a judge from another family.
 
 **From the literature (paper; checked at the source):**
