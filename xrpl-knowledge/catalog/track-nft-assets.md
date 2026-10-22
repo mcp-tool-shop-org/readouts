@@ -1,5 +1,5 @@
 # Build-focus: NFT game assets & marketplaces
-_The XRPL capabilities you assemble for **nft game assets & marketplaces** — across every feature domain._ · wave 10 · 2026-09-07 · [‹ catalog index](README.md)
+_The XRPL capabilities you assemble for **nft game assets & marketplaces** — across every feature domain._ · wave 12 · 2026-10-22 · [‹ catalog index](README.md)
 
 127 capabilities (58 depth-curated) · 110 mainnet-live · 116 cross-family verified.
 

@@ -1,7 +1,9 @@
 # xrpl-knowledge
 
-**Status:** Waves through 10 (STUDY-057 Hooks vs EVM builder track 2026-09-07). Catalog **457 · 362/457 · 10 waves**. Invent-enabled: 0. Invent Mainnet Hooks: 0.
+**Status:** Waves through 12 (rnd promotion: XRPL agentic payments, x402 / AI Starter Kit / MPP SDK, 2026-10-22). Catalog **460 · 362/460 · 12 waves**. Invent-enabled: 0. Invent Mainnet Hooks: 0.
 
+- **Wave 12 (promoted from rnd: XRPL agentic payments)** — [dispatch](waves/wave-12-rnd-xrpl-agentic-payments/dispatch.md) · [research-raw](waves/wave-12-rnd-xrpl-agentic-payments/research-raw.json) — 3 new rows (x402-exact-scheme-xrpl, xrpl-ai-starter-kit-mcp-skills, xrpl-mpp-sdk), verified claims only, no adoption counts; no cloud seat.
+- **Wave 11 (promoted from rnd: live testnet acceptance runs)** — [dispatch](waves/wave-11-rnd-live-testnet-acceptance-runs/dispatch.md) · [research-raw](waves/wave-11-rnd-live-testnet-acceptance-runs/research-raw.json) — gotchas appended to 4 existing rows (ammcreate, ammwithdraw, xrpl-py, faucet-test-network-helpers); no new rows; no cloud seat.
 - **Wave 10 (STUDY-057 Hooks vs EVM builder track)** — [dispatch](waves/wave-10-study-057-hooks-evm/dispatch.md) · [research-raw](waves/wave-10-study-057-hooks-evm/research-raw.json) — invent-enabled: 0; invent Mainnet Hooks: 0; no mainnet; no funds; Scholar #6 unverified; Analogist #7–#8 fail-transfer omitted.
 - **Wave 9 (STUDY-056 amendment-pending)** — [dispatch](waves/wave-09-study-056-amendment-pending/dispatch.md) · [research-raw](waves/wave-09-study-056-amendment-pending/research-raw.json) — invent-enabled: 0; no mainnet; no funds.
 - **Wave 8 (STUDY-036 Hooks/sidechain deepen)** — [dispatch](waves/wave-08-study-036-hooks-sidechain-deepen/dispatch.md) · [research-raw](waves/wave-08-study-036-hooks-sidechain-deepen/research-raw.json) — 14 caps; invent-enabled: 0; no mainnet-live invent.

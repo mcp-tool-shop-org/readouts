@@ -1,5 +1,5 @@
 # Identity & compliance
-_DID (XLS-40), Credentials (XLS-70), permissioned domains, deposit auth, account flags, the on-chain KYC toolkit._ · wave 10 · 2026-09-07 · [‹ catalog index](README.md)
+_DID (XLS-40), Credentials (XLS-70), permissioned domains, deposit auth, account flags, the on-chain KYC toolkit._ · wave 12 · 2026-10-22 · [‹ catalog index](README.md)
 
 51 capabilities · 49 mainnet-live · 38 cross-family verified.
 

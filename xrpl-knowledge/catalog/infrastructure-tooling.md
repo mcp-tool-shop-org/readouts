@@ -1,7 +1,7 @@
 # Infrastructure & tooling
-_rippled, Clio, public nodes & data APIs, explorers, wallets, price oracles (XLS-47), indexers, dev networks._ · wave 10 · 2026-09-07 · [‹ catalog index](README.md)
+_rippled, Clio, public nodes & data APIs, explorers, wallets, price oracles (XLS-47), indexers, dev networks._ · wave 12 · 2026-10-22 · [‹ catalog index](README.md)
 
-28 capabilities · 12 mainnet-live · 21 cross-family verified.
+29 capabilities · 12 mainnet-live · 21 cross-family verified.
 
 | ↓ | Capability | Kind | Network | Chain | XLS | Fit | Use | ✓ |
 |---|------------|------|---------|-------|-----|-----|-----|---|
@@ -30,6 +30,7 @@ _rippled, Clio, public nodes & data APIs, explorers, wallets, price oracles (XLS
 | 5 | Parallel Networks Mainnet/Testnet/Devnet (process) | concept | · n/a | xrpl-mainnet |  | 3 | situational | · |
 | 5 | SoK Cross-chain Bridges — lock-and-mint / OP / Axelar | concept | · n/a | off-ledger |  | 3 | situational | · |
 | 5 | WebAssembly (portable sandboxed VM ≠ EVM opcodes hold) | analog | · n/a | off-ledger |  | 3 | situational | · |
+| 5 | XRPL AI Starter Kit (MCP servers and Claude skills) | service | · n/a | xrpl-mainnet |  | 3 | situational | · |
 | 7 | Hooks (Xahau L1 programmability) | amendment | × deprecated | xahau |  | 2 | situational | ✓ |
 | 13 | Finch percentage / feature-flag analogy (fail-transfer) | analog | · n/a | off-ledger |  | 3 | avoid | · |
 | 13 | LaunchDarkly feature flags (fail-transfer) | analog | · n/a | off-ledger |  | 3 | avoid | · |
@@ -248,6 +249,15 @@ Portable sandboxed VM ≠ EVM opcodes. Holds for Hooks WASM lane.
 - **Gotchas:** No mainnet. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [WebAssembly](https://webassembly.org/) — Portable sandboxed VM ≠ EVM opcodes. Holds for Hooks WASM lane.
+
+### XRPL AI Starter Kit (MCP servers and Claude skills) · `service` · · n/a
+Ripple's post of 2026-06-09 lists the Starter Kit as an XRPL docs MCP server, two Claude skills in XRPLF/xrpl-dev-portal, two xrpl.org pages and x402 support (paying in XRP or RLUSD), and credits t54 for the x402 contribution. xrpl.org's AI-tools page now lists the XRPL Docs MCP server at mcp.xrpledger.ai, an xrpl.org MCP server at xrpl.org/mcp, and wallet, payments and trading skills.
+- **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
+- **Key fields / API:** Docs MCP server: mcp.xrpledger.ai. xrpl.org MCP server: xrpl.org/mcp. Claude skills: wallet, payments, trading (in XRPLF/xrpl-dev-portal). Current list: xrpl.org/resources/dev-tools/ai-tools.
+- **Gotchas:** The kit's contents have changed since the 2026-06-09 post: the post names one docs MCP server and two skills, while xrpl.org's AI-tools page now lists two MCP servers and three skills (wallet, payments, trading). Treat that page, not the post, as the current list.
+- **Build-focus tracks:** [payments](track-payments.md)
+- **Verify:** rnd entry claims verified at source by the Editor (2026-10-20) and R&D's research agent (2026-10-22); no cloud seat
+- **Sources:** [Ripple: XRPL AI Starter Kit (2026-06-09)](https://ripple.com/insights/xrpl-ai-starter-kit/) — Lists the Starter Kit as a docs MCP server, two Claude skills in XRPLF/xrpl-dev-portal, two xrpl.org pages and x402 support in XRP or RLUSD, and credits t54 for the x402 contribution. ; [xrpl.org: AI tools](https://xrpl.org/resources/dev-tools/ai-tools) — Lists the XRPL Docs MCP server at mcp.xrpledger.ai, an xrpl.org MCP server at xrpl.org/mcp, and wallet, payments and trading skills. ; [XRPLF/xrpl-dev-portal (Claude skills)](https://github.com/XRPLF/xrpl-dev-portal) — Hosts the Starter Kit's Claude skills, as listed in Ripple's 2026-06-09 post.
 
 ### Hooks (Xahau L1 programmability) · `amendment` · × deprecated ✓
 Hooks add lightweight WebAssembly-based 'smart contract' logic that executes on transactions at the protocol layer. They are LIVE on Xahau (an XRPL-core L1 fork) and Xahau-Testnet, but NOT enabled on XRPL Mainnet — the community is gaining confidence before any Mainnet governance vote. For native XRPL programmability the forward path is instead XLS-100d (WASM smart contracts, on WASM-Devnet) and smart escrows. Use Hooks only if you are deliberately targeting Xahau, not XRPL Mainnet. (network_status marked 'deprecated' only in the sense of 'not the Mainnet path' — it remains active on Xahau.)

@@ -1,7 +1,7 @@
 # Build-focus: Payments & micropayments
-_The XRPL capabilities you assemble for **payments & micropayments** — across every feature domain._ · wave 10 · 2026-09-07 · [‹ catalog index](README.md)
+_The XRPL capabilities you assemble for **payments & micropayments** — across every feature domain._ · wave 12 · 2026-10-22 · [‹ catalog index](README.md)
 
-230 capabilities (92 depth-curated) · 210 mainnet-live · 211 cross-family verified.
+233 capabilities (95 depth-curated) · 210 mainnet-live · 211 cross-family verified.
 
 ## Curated — the building blocks
 _From the focused depth wave for this folder, ranked by builder fitness._
@@ -97,8 +97,11 @@ _From the focused depth wave for this folder, ranked by builder fitness._
 | [Deferred / installment payout via time-locked escrow (XRP & token)](payments-advanced.md) | Advanced payments | pattern | ● live | 3 | ✓ |
 | [Hook fees & resource limits (deterministic up-front pricing)](programmability-hooks.md) | Programmability — Hooks (Xahau) | concept | ● live | 3 | ✓ |
 | [Time / rate limiting actions by ledger sequence](programmability-hooks.md) | Programmability — Hooks (Xahau) | pattern | ● live | 3 | ✓ |
+| [XRPL AI Starter Kit (MCP servers and Claude skills)](infrastructure-tooling.md) | Infrastructure & tooling | service | · n/a | 3 | · |
 | [fixTokenEscrowV1 — MPT transfer-fee accounting fix](payments-advanced.md) | Advanced payments | concept | ● live | 3 | ✓ |
+| [x402 exact payment scheme for XRPL](payments-advanced.md) | Advanced payments | standard | · n/a | 3 | · |
 | [Multi-chain RLUSD liquidity & XRPL EVM bridging](stablecoins-institutional.md) | Stablecoins & institutional | concept | ● live | 2 | ✓ |
+| [xrpl-mpp-sdk (Ripple's XRPL payment method for MPP)](client-libraries.md) | Client libraries & SDKs | library | · n/a | 2 | · |
 | [fixBatchInnerSigs amendment](transactions.md) | Transactions & accounts | standard | ● live | 1 | ✓ |
 
 ## Broader — also relevant

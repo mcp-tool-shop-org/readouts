@@ -1,5 +1,5 @@
 # Protocol & consensus
-_XRP LCP, validators & UNL, ledger objects, fees & reserves, the XRP asset, the amendment process._ · wave 10 · 2026-09-07 · [‹ catalog index](README.md)
+_XRP LCP, validators & UNL, ledger objects, fees & reserves, the XRP asset, the amendment process._ · wave 12 · 2026-10-22 · [‹ catalog index](README.md)
 
 48 capabilities · 13 mainnet-live · 22 cross-family verified.
 

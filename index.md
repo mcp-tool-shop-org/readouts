@@ -2,7 +2,7 @@
 
 > A monorepo of verified, ai-loadout-routed SQLite knowledge bases for the studio. Each KB grows in waves of parallel research cross-checked by an adversarial retrieval verifier — full per-wave provenance, every fact flagged verified, two-level progressive-disclosure routing so an agent reads only the slice it needs, never the whole corpus.
 >
-> **12 knowledge bases · 2641 entries · 1876 verified · 143 domains · 132 waves · generated 2026-10-21.**
+> **12 knowledge bases · 2644 entries · 1876 verified · 143 domains · 134 waves · generated 2026-10-22.**
 
 ## Knowledge bases
 
@@ -19,7 +19,7 @@
 | [tensor-engine-knowledge](tensor-engine-knowledge/readout/index.html) | Verified knowledge base of the ENGINES that run & train AI models locally on the RTX 5090 (Blackwell / sm_120 / Windows) rig. | 10 | 193 engines | 134/193 | 21 | [index.md](tensor-engine-knowledge/readout/index.md) · [json](tensor-engine-knowledge/readout/index.json) |
 | [training-knowledge](training-knowledge/readout/index.html) | Verified knowledge base of portable TRAINING CRAFT — methods, recipes, hyperparameter values, dataset & eval know-how — for training LoRAs / fine-tunes on the single RTX 5090 (Blackwell / Windows / WSL2) rig. The how-to-train layer between the weights (model-knowledge) and the software (tensor-engine-knowledge). | 13 | 222 techniques | 119/222 | 19 | [index.md](training-knowledge/readout/index.md) · [json](training-knowledge/readout/index.json) |
 | [vocology-knowledge](vocology-knowledge/) | sung-voice craft: vocology (source-filter, registers, singers formant), musical vs speech prosody, lyric-to-note alignment, score-controllable SVS vs lyrics-to-song generators, admission/teaching evaluation | 19 | 324 findings | 221/324 | 15 | [index.md](vocology-knowledge/catalog/README.md) · [json](vocology-knowledge/.claude/loadout/index.json) |
-| [xrpl-knowledge](xrpl-knowledge/readout/index.html) | Verified knowledge base of the XRP Ledger ECOSYSTEM for a builder — protocol features, transaction types, XLS standards, client libraries & tooling — each tagged with its current mainnet / amendment status. Whole-ecosystem: XRPL mainnet + Xahau/Hooks + the XRPL EVM sidechain + the institutional layer (RLUSD, compliance). | 12 | 457 capabilities | 362/457 | 10 | [index.md](xrpl-knowledge/readout/index.md) · [json](xrpl-knowledge/readout/index.json) |
+| [xrpl-knowledge](xrpl-knowledge/readout/index.html) | Verified knowledge base of the XRP Ledger ECOSYSTEM for a builder — protocol features, transaction types, XLS standards, client libraries & tooling — each tagged with its current mainnet / amendment status. Whole-ecosystem: XRPL mainnet + Xahau/Hooks + the XRPL EVM sidechain + the institutional layer (RLUSD, compliance). | 12 | 460 capabilities | 362/460 | 12 | [index.md](xrpl-knowledge/readout/index.md) · [json](xrpl-knowledge/readout/index.json) |
 
 ## For agents
 
@@ -57,4 +57,4 @@
 
 ## Provenance
 
-Every fact in every KB carries a **wave id** and a **verified** flag. Sources are retrieval-checked against the live page; some waves add a cross-family seat, and each wave's own receipt says which — see `waves.verifier_note`. Family-different verification across every wave is the planned upgrade, not the current state. 132 research waves across 12 knowledge bases; 1876/2641 entries verified.
+Every fact in every KB carries a **wave id** and a **verified** flag. Sources are retrieval-checked against the live page; some waves add a cross-family seat, and each wave's own receipt says which — see `waves.verifier_note`. Family-different verification across every wave is the planned upgrade, not the current state. 134 research waves across 12 knowledge bases; 1876/2644 entries verified.

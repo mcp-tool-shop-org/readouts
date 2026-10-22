@@ -1,5 +1,5 @@
 # NFTs
-_XLS-20 NFTokens: mint/burn, offers, brokered vs direct sales, royalties, collections, dynamic NFTs._ · wave 10 · 2026-09-07 · [‹ catalog index](README.md)
+_XLS-20 NFTokens: mint/burn, offers, brokered vs direct sales, royalties, collections, dynamic NFTs._ · wave 12 · 2026-10-22 · [‹ catalog index](README.md)
 
 57 capabilities · 48 mainnet-live · 50 cross-family verified.
 

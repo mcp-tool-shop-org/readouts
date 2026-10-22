@@ -1,5 +1,5 @@
 # Programmability — Hooks (Xahau)
-_Hooks on the Xahau network: the Hooks API, SetHook, Xahau vs XRPL mainnet, when to use it._ · wave 10 · 2026-09-07 · [‹ catalog index](README.md)
+_Hooks on the Xahau network: the Hooks API, SetHook, Xahau vs XRPL mainnet, when to use it._ · wave 12 · 2026-10-22 · [‹ catalog index](README.md)
 
 45 capabilities · 30 mainnet-live · 35 cross-family verified.
 

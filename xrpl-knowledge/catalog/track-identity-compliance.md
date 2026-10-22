@@ -1,5 +1,5 @@
 # Build-focus: Identity & compliance
-_The XRPL capabilities you assemble for **identity & compliance** — across every feature domain._ · wave 10 · 2026-09-07 · [‹ catalog index](README.md)
+_The XRPL capabilities you assemble for **identity & compliance** — across every feature domain._ · wave 12 · 2026-10-22 · [‹ catalog index](README.md)
 
 163 capabilities (61 depth-curated) · 150 mainnet-live · 142 cross-family verified.
 

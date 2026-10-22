@@ -1,5 +1,5 @@
 # Stablecoins & institutional
-_RLUSD, stablecoin issuance patterns, institutional rails, tokenized RWAs, on-chain compliance building blocks._ · wave 10 · 2026-09-07 · [‹ catalog index](README.md)
+_RLUSD, stablecoin issuance patterns, institutional rails, tokenized RWAs, on-chain compliance building blocks._ · wave 12 · 2026-10-22 · [‹ catalog index](README.md)
 
 21 capabilities · 21 mainnet-live · 19 cross-family verified.
 

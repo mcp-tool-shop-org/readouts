@@ -1,10 +1,10 @@
 # Catalog — xrpl-knowledge
 
-Generated from `xrpl.db` · wave 10 · 2026-09-07. NEVER hand-edited — regenerated from the DB.
+Generated from `xrpl.db` · wave 12 · 2026-10-22. NEVER hand-edited — regenerated from the DB.
 
 The **XRP Ledger ecosystem for a builder** — protocol features, transaction types, XLS standards, client libraries and tooling — each tagged with its **current mainnet/amendment status** (the decisive axis). Whole-ecosystem: XRPL mainnet + Xahau/Hooks + the XRPL EVM sidechain + the institutional layer (RLUSD, compliance). Sibling KBs live in the same [readouts](../../index.md) monorepo.
 
-**457 capabilities · 362 cross-family verified · 880 sources · wave 10.**
+**460 capabilities · 362 cross-family verified · 897 sources · wave 12.**
 
 ## Decisive axis — what's live
 
@@ -13,7 +13,7 @@ XRPL moves by amendment. The first question for any feature is whether it is **e
 | network_status | capabilities |
 |---|--:|
 | ● live | 341 |
-| · n/a | 65 |
+| · n/a | 68 |
 | ◐ pending | 29 |
 | ○ devnet | 21 |
 | × deprecated | 1 |
@@ -32,10 +32,10 @@ The ingest backbone — every capability lives in exactly one.
 | [NFTs](nfts.md) | 57 | 48 | 50/57 |
 | [Programmability — Hooks (Xahau)](programmability-hooks.md) | 45 | 30 | 35/45 |
 | [Programmability — XRPL EVM sidechain](programmability-evm.md) | 54 | 40 | 40/54 |
-| [Advanced payments](payments-advanced.md) | 56 | 53 | 51/56 |
+| [Advanced payments](payments-advanced.md) | 57 | 53 | 51/57 |
 | [Identity & compliance](identity-compliance.md) | 51 | 49 | 38/51 |
-| [Client libraries & SDKs](client-libraries.md) | 11 | 2 | 10/11 |
-| [Infrastructure & tooling](infrastructure-tooling.md) | 28 | 12 | 21/28 |
+| [Client libraries & SDKs](client-libraries.md) | 12 | 2 | 10/12 |
+| [Infrastructure & tooling](infrastructure-tooling.md) | 29 | 12 | 21/29 |
 
 ## Build-focus folders
 
@@ -45,7 +45,7 @@ The four builder lenses — cross-cutting views that assemble the relevant capab
 |---|--:|--:|--:|--:|
 | [Game token economies](track-game-economies.md) | 146 | 253 | 227 | 230/253 |
 | [NFT game assets & marketplaces](track-nft-assets.md) | 58 | 127 | 110 | 116/127 |
-| [Payments & micropayments](track-payments.md) | 92 | 230 | 210 | 211/230 |
+| [Payments & micropayments](track-payments.md) | 95 | 233 | 210 | 211/233 |
 | [Identity & compliance](track-identity-compliance.md) | 61 | 163 | 150 | 142/163 |
 ## Proven on-ledger
 

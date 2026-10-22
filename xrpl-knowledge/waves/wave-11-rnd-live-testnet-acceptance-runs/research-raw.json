@@ -1,0 +1,88 @@
+{
+  "wave": 11,
+  "date": "2026-10-22",
+  "title": "Wave 11 - promoted from rnd: live testnet acceptance runs (xrpl-lab 2.6.0 AMM)",
+  "domain_scope": "dex-amm, client-libraries (rnd promotion; gotchas appended to existing rows)",
+  "agent_count": 0,
+  "dispatch_path": "waves/wave-11-rnd-live-testnet-acceptance-runs/dispatch.md",
+  "verifier_note": "Promotion, not a research swarm. Promoted from rnd entry 2026-10-20-live-testnet-runs-surface-defects-in-layers-each-fix-exposed. Rig receipts read by R&D, 2026-10-20 (xrpl-lab docs/receipts/2.6.0-amm-live-fire, PR #19, issue #20); no cloud seat, no second model family. Gotchas are appended to existing rows; their verified flag is unchanged.",
+  "lanes": [],
+  "updates": [
+    {
+      "slug": "ammcreate",
+      "gotcha_append": "Live-fire (xrpl-lab 2.6.0, Testnet): the AMMCreate fee equals the owner reserve increment (reserve_inc, 200,000 drops on Testnet at the time). A pool funded from a single 100 XRP faucet grant fails tecUNFUNDED_AMM, because after the base reserve, the trust-line reserve and that fee only about 98.6 XRP is spendable; the module succeeded with a 25/25 pool.",
+      "verify_note": "rig receipts read by R&D, 2026-10-20 (xrpl-lab docs/receipts/2.6.0-amm-live-fire); no cloud seat",
+      "sources": [
+        {
+          "kind": "repo",
+          "title": "xrpl-lab 2.6.0 AMM live-fire receipts (four Testnet runs and README)",
+          "url": "https://github.com/mcp-tool-shop-org/xrpl-lab/tree/main/docs/receipts/2.6.0-amm-live-fire",
+          "claim": "AMMCreate fee = reserve_inc; a 100 XRP pool from one faucet grant validated tecUNFUNDED_AMM (about 98.6 XRP spendable); 25/25 succeeded."
+        },
+        {
+          "kind": "repo",
+          "title": "xrpl-lab PR #19 (2.6.0): the fixes between the live runs",
+          "url": "https://github.com/mcp-tool-shop-org/xrpl-lab/pull/19",
+          "claim": "The fixes resized the module's pool to 25/25 for AMMCreate and 5/5 for the deposit, and added a reserve preflight before AMMCreate."
+        }
+      ]
+    },
+    {
+      "slug": "ammwithdraw",
+      "gotcha_append": "Live-fire (xrpl-lab 2.6.0, Testnet): after the sole LP withdraws everything (tfWithdrawAll) the AMM is deleted and amm_info returns actNotFound.",
+      "verify_note": "rig receipts read by R&D, 2026-10-20 (xrpl-lab docs/receipts/2.6.0-amm-live-fire); no cloud seat",
+      "sources": [
+        {
+          "kind": "repo",
+          "title": "xrpl-lab 2.6.0 AMM live-fire receipts (four Testnet runs and README)",
+          "url": "https://github.com/mcp-tool-shop-org/xrpl-lab/tree/main/docs/receipts/2.6.0-amm-live-fire",
+          "claim": "After the sole LP's tfWithdrawAll the pool was deleted and amm_info returned actNotFound."
+        }
+      ]
+    },
+    {
+      "slug": "xrpl-py",
+      "gotcha_append": "Live-fire (xrpl-lab 2.6.0, Testnet): submit_and_wait waits on a held (ter) result until LastLedgerSequence passes (about 20 ledgers, about 80 s). A client timeout shorter than that discards the hash and the preliminary result, so sign first so the hash survives.",
+      "verify_note": "rig receipts read by R&D, 2026-10-20 (xrpl-lab docs/receipts/2.6.0-amm-live-fire); no cloud seat",
+      "sources": [
+        {
+          "kind": "repo",
+          "title": "xrpl-lab 2.6.0 AMM live-fire receipts (four Testnet runs and README)",
+          "url": "https://github.com/mcp-tool-shop-org/xrpl-lab/tree/main/docs/receipts/2.6.0-amm-live-fire",
+          "claim": "submit_and_wait waits on a held result until LastLedgerSequence passes (~20 ledgers); a shorter client timeout loses the hash and preliminary result."
+        },
+        {
+          "kind": "repo",
+          "title": "xrpl-lab PR #19 (2.6.0): the fixes between the live runs",
+          "url": "https://github.com/mcp-tool-shop-org/xrpl-lab/pull/19",
+          "claim": "The fixes sign the transaction before submitting it, so its hash survives a timeout, and raise the client timeout to 150 s, above the ~80 s ledger window."
+        }
+      ]
+    },
+    {
+      "slug": "faucet-test-network-helpers",
+      "gotcha_append": "Live-fire (xrpl-lab 2.6.0, Testnet): a faucet reply is not proof of funding. Wait for the validated balance before the next transaction; an issuer AccountSet sent before the account was on a validated ledger never validated, and later AMM steps were held terNO_RIPPLE / terNO_AMM.",
+      "verify_note": "rig receipts read by R&D, 2026-10-20 (xrpl-lab docs/receipts/2.6.0-amm-live-fire); no cloud seat",
+      "sources": [
+        {
+          "kind": "repo",
+          "title": "xrpl-lab 2.6.0 AMM live-fire receipts (four Testnet runs and README)",
+          "url": "https://github.com/mcp-tool-shop-org/xrpl-lab/tree/main/docs/receipts/2.6.0-amm-live-fire",
+          "claim": "A faucet reply carried no usable balance; an AccountSet sent before the account was validated never validated and later steps were held terNO_RIPPLE / terNO_AMM."
+        },
+        {
+          "kind": "repo",
+          "title": "xrpl-lab PR #19 (2.6.0): the fixes between the live runs",
+          "url": "https://github.com/mcp-tool-shop-org/xrpl-lab/pull/19",
+          "claim": "The fixes wait for the validated balance after a faucet grant before sending the next transaction."
+        },
+        {
+          "kind": "repo",
+          "title": "xrpl-lab issue #20: handlers with the same funding race",
+          "url": "https://github.com/mcp-tool-shop-org/xrpl-lab/issues/20",
+          "claim": "xrpl-lab issue #20 lists 11 more handlers with the same funding race (a faucet reply taken as proof of funding)."
+        }
+      ]
+    }
+  ]
+}

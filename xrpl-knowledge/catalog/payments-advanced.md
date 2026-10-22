@@ -1,7 +1,7 @@
 # Advanced payments
-_Escrow, payment channels (micropayments), checks, partial & cross-currency payments, destination tags._ · wave 10 · 2026-09-07 · [‹ catalog index](README.md)
+_Escrow, payment channels (micropayments), checks, partial & cross-currency payments, destination tags._ · wave 12 · 2026-10-22 · [‹ catalog index](README.md)
 
-56 capabilities · 53 mainnet-live · 51 cross-family verified.
+57 capabilities · 53 mainnet-live · 51 cross-family verified.
 
 | ↓ | Capability | Kind | Network | Chain | XLS | Fit | Use | ✓ |
 |---|------------|------|---------|-------|-----|-----|-----|---|
@@ -26,6 +26,7 @@ _Escrow, payment channels (micropayments), checks, partial & cross-currency paym
 | 5 | EDISON-X energy trading on XRPL literature | concept | · n/a | off-ledger |  | 3 | situational | · |
 | 5 | Hodge remittance network literature (Ikeda & Chakraborty 2022) | concept | · n/a | off-ledger |  | 3 | situational | · |
 | 5 | Stochastic Dynamics of XRP settlement literature (Firouzi 2025) | concept | · n/a | off-ledger |  | 3 | situational | · |
+| 5 | x402 exact payment scheme for XRPL | standard | · n/a | xrpl-mainnet |  | 3 | situational | · |
 | 6 | PaymentChannelFund (extend funds & Expiration) | transaction | ● live | xrpl-mainnet |  | 4 | situational | ✓ |
 | 6 | Amount -> DeliverMax rename (rippled API v2) | concept | ● live | xrpl-mainnet |  | 4 | live | ✓ |
 | 6 | DeliverMin (floor on a partial delivery) | transaction | ● live | xrpl-mainnet |  | 4 | live | ✓ |
@@ -249,6 +250,15 @@ Jump-diffusion / latency simulations for XRP cross-border settlement.
 - **Gotchas:** Simulation craft. No funds.
 - **Verify:** cross-family seat: pending
 - **Sources:** [Stochastic Dynamics of Ripple XRP](https://arxiv.org/abs/2507.11553) — Stochastic settlement optimization simulations.
+
+### x402 exact payment scheme for XRPL · `standard` · · n/a
+The x402 Foundation's repository (x402-foundation/x402, Apache-2.0) holds an `exact` payment scheme for XRPL, added 2026-07-03: the payer signs an XRPL Payment and a facilitator submits it. x402 is the HTTP 402 "Payment Required" payment standard; the Linux Foundation announced on 2026-04-02 that it was launching the x402 Foundation and announced its operational launch on 2026-07-14.
+- **Chain:** xrpl-mainnet · **Maturity:** new · **Use:** situational
+- **Key fields / API:** Spec file: specs/schemes/exact/scheme_exact_xrpl.md in x402-foundation/x402. Roles: payer (signs an XRPL Payment), facilitator (submits it).
+- **Gotchas:** The scheme cannot sponsor fees. The payer signs the Payment and a facilitator submits it, so a design that needs the server or facilitator to pay the network fee does not fit this scheme. Read the spec file in the repository for the current wording; the scheme was added 2026-07-03 and the standard is young.
+- **Build-focus tracks:** [payments](track-payments.md)
+- **Verify:** rnd entry claims verified at source by the Editor (2026-10-20) and R&D's research agent (2026-10-22); no cloud seat
+- **Sources:** [x402-foundation/x402 (Apache-2.0), specs/schemes/exact/scheme_exact_xrpl.md](https://github.com/x402-foundation/x402) — Holds an exact payment scheme for XRPL, added 2026-07-03: the payer signs an XRPL Payment, a facilitator submits it, and the scheme cannot sponsor fees. ; [Linux Foundation: launching the x402 Foundation (2026-04-02)](https://www.linuxfoundation.org/press/linux-foundation-is-launching-the-x402-foundation-and-welcoming-the-contribution-of-the-x402-protocol) — The Linux Foundation announced on 2026-04-02 that it was launching the x402 Foundation. ; [Linux Foundation: operational launch of the x402 Foundation (2026-07-14)](https://www.linuxfoundation.org/press/linux-foundation-announces-operational-launch-of-x402-foundation-to-standardize-internet-native-payments-for-ai-agents-and-applications) — The Linux Foundation announced the operational launch of the x402 Foundation on 2026-07-14.
 
 ### PaymentChannelFund (extend funds & Expiration) · `transaction` · ● live ✓
 Source-only transaction to top up an existing channel with more XRP and/or extend its mutable Expiration, keeping a long-lived streaming channel alive and funded across many redemption cycles. It is how an open-ended stream avoids re-paying setup/reserve overhead — you keep one channel and refill it instead of churning new channels.

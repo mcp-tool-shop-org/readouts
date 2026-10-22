@@ -1,5 +1,5 @@
 # Programmability — XRPL EVM sidechain
-_The XRPL EVM sidechain: Solidity contracts, the Axelar bridge, EVM tooling, when to use it vs native XRPL._ · wave 10 · 2026-09-07 · [‹ catalog index](README.md)
+_The XRPL EVM sidechain: Solidity contracts, the Axelar bridge, EVM tooling, when to use it vs native XRPL._ · wave 12 · 2026-10-22 · [‹ catalog index](README.md)
 
 54 capabilities · 40 mainnet-live · 40 cross-family verified.
 

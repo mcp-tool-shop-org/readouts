@@ -1,5 +1,5 @@
 # Transactions & accounts
-_The transaction model & fields, autofill/sign/submit lifecycle, results & metadata, tickets, multisign, batch, delegation._ · wave 10 · 2026-09-07 · [‹ catalog index](README.md)
+_The transaction model & fields, autofill/sign/submit lifecycle, results & metadata, tickets, multisign, batch, delegation._ · wave 12 · 2026-10-22 · [‹ catalog index](README.md)
 
 20 capabilities · 17 mainnet-live · 18 cross-family verified.
 

@@ -1,5 +1,5 @@
 # Build-focus: Game token economies
-_The XRPL capabilities you assemble for **game token economies** — across every feature domain._ · wave 10 · 2026-09-07 · [‹ catalog index](README.md)
+_The XRPL capabilities you assemble for **game token economies** — across every feature domain._ · wave 12 · 2026-10-22 · [‹ catalog index](README.md)
 
 253 capabilities (146 depth-curated) · 227 mainnet-live · 230 cross-family verified.
 

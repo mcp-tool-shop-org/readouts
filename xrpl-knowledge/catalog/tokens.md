@@ -1,5 +1,5 @@
 # Tokens & issued assets
-_Issued currencies (IOUs) & trust lines, rippling, freeze/deep-freeze, clawback, Multi-Purpose Tokens (MPTs)._ · wave 10 · 2026-09-07 · [‹ catalog index](README.md)
+_Issued currencies (IOUs) & trust lines, rippling, freeze/deep-freeze, clawback, Multi-Purpose Tokens (MPTs)._ · wave 12 · 2026-10-22 · [‹ catalog index](README.md)
 
 37 capabilities · 29 mainnet-live · 34 cross-family verified.
 

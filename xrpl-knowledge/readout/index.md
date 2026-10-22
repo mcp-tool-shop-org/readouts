@@ -2,7 +2,7 @@
 
 > Verified knowledge base of the XRP Ledger ECOSYSTEM for a builder — protocol features, transaction types, XLS standards, client libraries & tooling — each tagged with its current mainnet / amendment status. Whole-ecosystem: XRPL mainnet + Xahau/Hooks + the XRPL EVM sidechain + the institutional layer (RLUSD, compliance).
 >
-> **457 capabilities · 362 verified · 880 sources · 10 waves · generated 2026-09-25.**  
+> **460 capabilities · 362 verified · 897 sources · 12 waves · generated 2026-10-22.**  
 > Decisive axis: network_status — is this feature ACTUALLY enabled on XRPL mainnet right now (vs amendment-pending / devnet-only / deprecated), and which standard/library is current — plus which of the four build-focus tracks (game economies / NFT assets / payments / identity-compliance) it serves.
 
 ## Domains
@@ -17,10 +17,10 @@
 | NFTs | 57 | 50/57 | Arweave permanent storage (service) | — | [`readout-nfts.html`](readout-nfts.html) |
 | Programmability — Hooks (Xahau) | 45 | 35/45 | Emitted transactions (autonomous on-ledger actions) | — | [`readout-programmability-hooks.html`](readout-programmability-hooks.html) |
 | Programmability — XRPL EVM sidechain | 54 | 40/54 | EVM mainnet network parameters (chain ID & RPC) | — | [`readout-programmability-evm.html`](readout-programmability-evm.html) |
-| Advanced payments | 56 | 51/56 | Cross-currency payments & pathfinding | — | [`readout-payments-advanced.html`](readout-payments-advanced.html) |
+| Advanced payments | 57 | 51/57 | Cross-currency payments & pathfinding | — | [`readout-payments-advanced.html`](readout-payments-advanced.html) |
 | Identity & compliance | 51 | 38/51 | CredentialCreate / CredentialAccept / CredentialDelete | — | [`readout-identity-compliance.html`](readout-identity-compliance.html) |
-| Client libraries & SDKs | 11 | 10/11 | Faucet / test-network helpers (fundWallet) | — | [`readout-client-libraries.html`](readout-client-libraries.html) |
-| Infrastructure & tooling | 28 | 21/28 | Bithomp (explorer + Explorer-as-a-Service) | — | [`readout-infrastructure-tooling.html`](readout-infrastructure-tooling.html) |
+| Client libraries & SDKs | 12 | 10/12 | Faucet / test-network helpers (fundWallet) | — | [`readout-client-libraries.html`](readout-client-libraries.html) |
+| Infrastructure & tooling | 29 | 21/29 | Bithomp (explorer + Explorer-as-a-Service) | — | [`readout-infrastructure-tooling.html`](readout-infrastructure-tooling.html) |
 
 ## Install-first shortlist (recommended, by KB download priority)
 
@@ -54,4 +54,4 @@
 
 ## Provenance
 
-Every fact carries a **wave id** and a **verified** flag; sources are retrieval-checked by a different-family verifier. 10 waves; 362/457 capabilities verified.
+Every fact carries a **wave id** and a **verified** flag; sources are retrieval-checked by a different-family verifier. 12 waves; 362/460 capabilities verified.

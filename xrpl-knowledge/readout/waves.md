@@ -1,6 +1,6 @@
 # readouts — xrpl-knowledge · wave dispatches
 
-> The research log: how this KB was built, wave by wave. 10 waves · generated 2026-09-25.
+> The research log: how this KB was built, wave by wave. 12 waves · generated 2026-10-22.
 
 ## Wave 1 — Foundation — the XRPL ecosystem, with current mainnet/amendment status (2026-06-14)
 
@@ -61,3 +61,15 @@ _whole XRPL ecosystem (protocol, tx, tokens, dex/amm, nfts, programmability, pay
 _whole XRPL ecosystem (protocol, tx, tokens, dex/amm, nfts, programmability, payments, identity, libs, infra) · 6 agents · synthesized · +22 capabilities · +23 sources_
 
 **Verifier:** Two-seat EXTERNAL_VERIFIER: seat 1 = Claude+WebFetch retrieval oracle (live xrpl.org / XLS docs); seat 2 = cross-family Ollama Cloud large model (AUTHORITATIVE, refute-by-default, no Claude-judges-Claude). verified flag set by the cross-family seat.
+
+## Wave 11 — Wave 11 - promoted from rnd: live testnet acceptance runs (xrpl-lab 2.6.0 AMM) (2026-10-22)
+
+_dex-amm, client-libraries (rnd promotion; gotchas appended to existing rows) · hands-on · synthesized · +0 capabilities · +8 sources_
+
+**Verifier:** Promotion, not a research swarm. Promoted from rnd entry 2026-10-20-live-testnet-runs-surface-defects-in-layers-each-fix-exposed. Rig receipts read by R&D, 2026-10-20 (xrpl-lab docs/receipts/2.6.0-amm-live-fire, PR #19, issue #20); no cloud seat, no second model family. Gotchas are appended to existing rows; their verified flag is unchanged.
+
+## Wave 12 — Wave 12 - promoted from rnd: XRPL agentic payments (x402 exact scheme, AI Starter Kit, MPP SDK) (2026-10-22)
+
+_payments-advanced, infrastructure-tooling, client-libraries (rnd promotion; 3 new rows) · hands-on · synthesized · +3 capabilities · +9 sources_
+
+**Verifier:** Promotion, not a research swarm. Promoted from rnd entry 2026-10-20-xrpl-agentic-payments-x402-the-ai-starter-kit-and-mpp. Only claims marked [verified] in the entry were used; they were read at source by the Editor (2026-10-20) and R&D's research agent (2026-10-22); no cloud seat, no second model family. New rows carry verified=0. All adoption counts and every [unverified] claim are left out.

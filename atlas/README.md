@@ -1,10 +1,10 @@
 # readouts: how it works
 
-Mapped at 2026-10-21 from commit 5cb09fb by Atlas 1.24.0.
+Mapped at 2026-10-22 from commit 8f7b11c by Atlas 1.24.0.
 
 ## What this is
 
-20 parts, mostly Python (167 files), HTML (57), Rust (6), JavaScript (3), CSS (2), PowerShell (2), TypeScript (2) and Astro (1). Work enters through 2 doors; verify and Deploy site to GitHub Pages each reach 2 parts, and verify is followed because a pull request goes through it. It deploys a site to GitHub Pages.
+20 parts, mostly Python (168 files), HTML (57), Rust (6), JavaScript (3), CSS (2), PowerShell (2), TypeScript (2) and Astro (1). Work enters through 2 doors; verify and Deploy site to GitHub Pages each reach 2 parts, and verify is followed because a pull request goes through it. It deploys a site to GitHub Pages.
 
 ## What changed since the last map
 
@@ -155,7 +155,7 @@ And 15 more candidates.
 - **xrpl-knowledge/module-drafts/** is written by xrpl-knowledge/scripts/gen_module_drafts.py.
 - **xrpl-knowledge/module-drafts/COVERAGE-GAP.md** is written by xrpl-knowledge/scripts/gen_coverage_gap.py.
 - **xrpl-knowledge/waves/wave-01-foundation/research-raw.json** is written by xrpl-knowledge/scripts/assemble_lanes.py and xrpl-knowledge/scripts/verify_cloud.py.
-- **xrpl-knowledge/xrpl.db** is written by xrpl-knowledge (7 files).
+- **xrpl-knowledge/xrpl.db** is written by xrpl-knowledge (8 files).
 
 ## Hand-authored
 
@@ -176,7 +176,7 @@ Read those in order to follow one pull request end to end.
 - 1 import site names a path outside this repository, so what it loads is not followed.
 - 31 writes and 29 reads use paths built at run time and are not named here.
 - 10 writes go to places this repository does not track, so they are not listed as generated.
-- 23 writes and 63 reads go to a path their caller passes, not to this repository.
+- 23 writes and 64 reads go to a path their caller passes, not to this repository.
 - 6 writes and 2 reads go to a temporary directory, not to this repository.
 - 3 reads go to the directory the command is run in, not to this repository.
 - 1 read goes to the home directory (.cargo/), not to this repository.
