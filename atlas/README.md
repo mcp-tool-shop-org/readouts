@@ -1,14 +1,18 @@
 # readouts: how it works
 
-Mapped at 2026-10-24 from commit b5c60a8 by Atlas 1.24.0.
+Mapped at 2026-11-11 from commit 8ba63d5 by Atlas 1.26.0.
 
 ## What this is
 
 20 parts, mostly Python (168 files), HTML (57), Rust (6), JavaScript (3), CSS (2), PowerShell (2), TypeScript (2) and Astro (1). Work enters through 2 doors; verify and Deploy site to GitHub Pages each reach 2 parts, and verify is followed because a pull request goes through it. It deploys a site to GitHub Pages.
 
-## What changed since the last map
+## What changed since 2026-10-24 (b5c60a8)
 
-This is the first map.
+- rust-knowledge/catalog/engine-*.md is now written by rust-knowledge/scripts/gen_catalog.py.
+- tensor-engine-knowledge/verifier/results-real-*.json is now written by tensor-engine-knowledge/verifier/citation_panel_eval.py and tensor-engine-knowledge/verifier/citation_panel_eval_3family.py.
+- xrpl-knowledge/catalog/track-*.md is now written by xrpl-knowledge/scripts/gen_catalog.py.
+- And 90 more new writers and readers of places.
+- 1 file changed content, across 1 part.
 
 ## What comes in
 
@@ -53,16 +57,16 @@ tensor-engine-knowledge/baselines/_triton_test.py runs in no workflow.
 
 ## Written but never read
 
-- **agent-tooling-knowledge/.claude/loadout/index.json** is written by agent-tooling-knowledge/scripts/gen_loadout.py and read by nothing else in this repository.
-- **agent-tooling-knowledge/findings.db** is written by agent-tooling-knowledge/scripts/gen_catalog.py, agent-tooling-knowledge/scripts/gen_loadout.py, agent-tooling-knowledge/scripts/load_db.py and agent-tooling-knowledge/scripts/refresh_meta.py, and read by nothing else in this repository.
-- **blender-knowledge/.claude/loadout/index.json** is written by blender-knowledge/scripts/gen_loadout.py and read by nothing else in this repository.
-- **blender-knowledge/blender.db** is written by blender-knowledge (4 files) and read by nothing else in this repository.
-- **docker-knowledge/.claude/loadout/index.json** is written by docker-knowledge/scripts/gen_loadout.py and read by nothing else in this repository.
-- **docker-knowledge/findings.db** is written by docker-knowledge (4 files) and read by nothing else in this repository.
-- **docker-knowledge/waves/wave-02-measurement/research-raw.json** is written by docker-knowledge/waves/wave-02-measurement/_build_raw.py and read by nothing else in this repository.
-- **docker-knowledge/waves/wave-03-pinned-memory/research-raw.json** is written by docker-knowledge/waves/wave-03-pinned-memory/_build_raw.py and read by nothing else in this repository.
+- **model-knowledge/workflows/** holds files written by model-knowledge/scripts/fetch_workflows.py and read by nothing else in this repository.
+- **tensor-engine-knowledge/baselines/chroma-results.json** is written by tensor-engine-knowledge/baselines/_chroma_bench.py and read by nothing else in this repository.
+- **tensor-engine-knowledge/baselines/qwenimg-results.json** is written by tensor-engine-knowledge/baselines/_qwenimg_bench.py and read by nothing else in this repository.
+- **tensor-engine-knowledge/baselines/qwenimg-sa-results.json** is written by tensor-engine-knowledge/baselines/_qwenimg_sa.py and read by nothing else in this repository.
+- **tensor-engine-knowledge/baselines/sage-results.json** is written by tensor-engine-knowledge/baselines/_sage_bench.py and read by nothing else in this repository.
+- **tensor-engine-knowledge/baselines/sage2-res-results.json** is written by tensor-engine-knowledge/baselines/_sage2_res.py and read by nothing else in this repository.
+- **tensor-engine-knowledge/baselines/sage2-results.json** is written by tensor-engine-knowledge/baselines/_sage2_bench.py and read by nothing else in this repository.
+- **tensor-engine-knowledge/baselines/sage2-zimage-results.json** is written by tensor-engine-knowledge/baselines/_sage2_zimage.py and read by nothing else in this repository.
 
-And 40 more places.
+And 15 more places.
 
 ## Helpers that look duplicated
 
@@ -101,13 +105,13 @@ And 15 more candidates.
 - **model-knowledge/.claude/loadout/index.json** is written by model-knowledge/scripts/gen_loadout.py.
 - **model-knowledge/catalog/** is written by model-knowledge/scripts/gen_catalog.py.
 - **model-knowledge/models.db** is written by model-knowledge (5 files).
-- **model-knowledge/workflows/** is written by model-knowledge/scripts/fetch_workflows.py.
+- **model-knowledge/workflows/** holds files written by model-knowledge/scripts/fetch_workflows.py.
 - **rust-knowledge/.claude/loadout/index.json** is written by rust-knowledge/scripts/gen_loadout.py.
 - **rust-knowledge/catalog/** is written by rust-knowledge/scripts/gen_catalog.py.
 - **rust-knowledge/rust.db** is written by rust-knowledge (5 files).
-- **rust-knowledge/verification/** is written by rust-knowledge/scripts/assemble_lanes.py.
+- **rust-knowledge/verification/** holds files written by rust-knowledge/scripts/assemble_lanes.py.
 - **rust-knowledge/verification/verdicts.json** has a block written by rust-knowledge/scripts/build_ledger.py.
-- **rust-knowledge/waves/** is written by rust-knowledge/scripts/assemble_lanes.py.
+- **rust-knowledge/waves/** holds files written by rust-knowledge/scripts/assemble_lanes.py.
 - **sprite-motion-knowledge/.claude/loadout/index.json** is written by sprite-motion-knowledge/scripts/gen_loadout.py.
 - **sprite-motion-knowledge/catalog/** is written by sprite-motion-knowledge/scripts/gen_catalog.py.
 - **sprite-motion-knowledge/recipes.db** is written by sprite-motion-knowledge (4 files).
@@ -127,18 +131,20 @@ And 15 more candidates.
 - **tensor-engine-knowledge/catalog/** is written by tensor-engine-knowledge/scripts/gen_catalog.py.
 - **tensor-engine-knowledge/engines.db** is written by tensor-engine-knowledge (16 files).
 - **tensor-engine-knowledge/recipes/MISSING-ENGINE-RECIPES.md** is written by tensor-engine-knowledge/recipes/_gen_backlog.py.
-- **tensor-engine-knowledge/verifier/** is written by tensor-engine-knowledge/verifier/citation_panel_eval.py and tensor-engine-knowledge/verifier/citation_panel_eval_3family.py.
 - **tensor-engine-knowledge/verifier/abstracts-cache-multidomain.json** is written by tensor-engine-knowledge/verifier/_wave13_fetch.py.
 - **tensor-engine-knowledge/verifier/abstracts-cache.json** is written by tensor-engine-knowledge/verifier/fetch_abstracts.py.
 - **tensor-engine-knowledge/verifier/budget-results.json** is written by tensor-engine-knowledge/verifier/budget_bench.py.
+- **tensor-engine-knowledge/verifier/citation-panel-3family-receipt.json** is written by tensor-engine-knowledge/verifier/citation_panel_eval_3family.py.
 - **tensor-engine-knowledge/verifier/citation-panel-hard-receipt.json** is written by tensor-engine-knowledge/verifier/citation_panel_eval_hard.py.
 - **tensor-engine-knowledge/verifier/citation-panel-multidomain-receipt.json** is written by tensor-engine-knowledge/verifier/citation_panel_eval_multidomain.py.
 - **tensor-engine-knowledge/verifier/citation-panel-nli-receipt.json** is written by tensor-engine-knowledge/verifier/citation_panel_eval_nli.py.
 - **tensor-engine-knowledge/verifier/citation-panel-numeric-receipt.json** is written by tensor-engine-knowledge/verifier/citation_panel_eval_numeric.py.
 - **tensor-engine-knowledge/verifier/citation-panel-prompt-v2-receipt.json** is written by tensor-engine-knowledge/verifier/citation_panel_eval_prompt_v2.py.
+- **tensor-engine-knowledge/verifier/citation-panel-receipt.json** is written by tensor-engine-knowledge/verifier/citation_panel_eval.py.
 - **tensor-engine-knowledge/verifier/e2e-full-abstract-receipt.json** is written by tensor-engine-knowledge/verifier/e2e_full_abstract.mjs.
 - **tensor-engine-knowledge/verifier/prompt-hardening-receipt.json** is written by tensor-engine-knowledge/verifier/prompt_hardening_probe.py.
 - **tensor-engine-knowledge/verifier/results-qwen3-30b-a3b.json** is written by tensor-engine-knowledge/verifier/verify_local.py.
+- **tensor-engine-knowledge/verifier/results-real-*.json** is written by tensor-engine-knowledge/verifier/citation_panel_eval.py and tensor-engine-knowledge/verifier/citation_panel_eval_3family.py.
 - **tensor-engine-knowledge/verifier/variant-results.json** is written by tensor-engine-knowledge/verifier/prompt_variant_bench.py.
 - **tensor-engine-knowledge/verifier/wave9-abstracts-cache.json** is written by tensor-engine-knowledge/verifier/wave9_dogfood.py.
 - **tensor-engine-knowledge/verifier/wave9-dogfood-receipt.json** is written by tensor-engine-knowledge/verifier/wave9_dogfood.py.
@@ -162,7 +168,7 @@ And 15 more candidates.
 People write .github/, docs/ and site/; 31 writes with paths built at run time may land here.
 
 - **docker-knowledge/waves/wave-02-measurement/research-raw.json** is written by docker-knowledge/waves/wave-02-measurement/_build_raw.py from inputs this repository does not keep, and by people.
-- **rust-knowledge/waves/wave-04-si-jam-sessions/** is written by rust-knowledge/scripts/openrouter_lane.py from inputs this repository does not keep, and by people.
+- **rust-knowledge/waves/wave-04-si-jam-sessions/** holds files written by rust-knowledge/scripts/openrouter_lane.py from inputs this repository does not keep, and by people.
 
 ## Where to start
 
@@ -174,13 +180,13 @@ Read those in order to follow one pull request end to end.
 
 - 16 imports could not be resolved: `rust-knowledge/waves/wave-03-si-rpg-engine/probes/globals_probe.rs` imports `wasmparser::ExternalKind`; `rust-knowledge/waves/wave-03-si-rpg-engine/probes/globals_probe.rs` imports `wasmparser::Operator`; `rust-knowledge/waves/wave-03-si-rpg-engine/probes/globals_probe.rs` imports `wasmparser::Parser`; and 13 more.
 - 1 import site names a path outside this repository, so what it loads is not followed.
-- 31 writes and 29 reads use paths built at run time and are not named here.
+- 31 writes and 22 reads use paths built at run time and are not named here.
 - 10 writes go to places this repository does not track, so they are not listed as generated.
-- 23 writes and 64 reads go to a path their caller passes, not to this repository.
+- 23 writes and 63 reads go to a path their caller passes, not to this repository.
 - 6 writes and 2 reads go to a temporary directory, not to this repository.
+- 5 reads go to the home directory (.cargo/), not to this repository.
 - 3 reads go to the directory the command is run in, not to this repository.
-- 1 read goes to the home directory (.cargo/), not to this repository.
 - 17 files belong to no part: agent-tooling-knowledge/.claude/loadout/index.json, agent-tooling-knowledge/README.md, agent-tooling-knowledge/catalog/README.md and 14 more.
-- Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 20 source files reach 10 revisions.
+- Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 25 source files reach 10 revisions.
 
 Regenerate with `npx --yes @dogfood-lab/atlas map`.
