@@ -28,6 +28,10 @@ export default defineConfig({
           items: [{ autogenerate: { directory: 'handbook' } }],
         },
         {
+          label: 'Results',
+          items: [{ autogenerate: { directory: 'results' } }],
+        },
+        {
           label: "What's new",
           items: [{ autogenerate: { directory: 'newsletter' } }],
         },
